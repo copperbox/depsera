@@ -222,6 +222,16 @@
   background-color: #fee2e2;
 }
 
+.reactivateButton {
+  color: #166534;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.reactivateButton:hover:not(:disabled) {
+  background-color: #dcfce7;
+}
+
 .actionButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;

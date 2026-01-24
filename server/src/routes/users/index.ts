@@ -3,6 +3,7 @@ import { listUsers } from './list';
 import { getUser } from './get';
 import { updateUserRole } from './updateRole';
 import { deactivateUser } from './deactivate';
+import { reactivateUser } from './reactivate';
 import { getCurrentUser } from './me';
 
 const router = Router();
@@ -18,6 +19,9 @@ router.get('/:id', getUser);
 
 // Update user role
 router.put('/:id/role', updateUserRole);
+
+// Reactivate user
+router.post('/:id/reactivate', reactivateUser);
 
 // Deactivate user
 router.delete('/:id', deactivateUser);

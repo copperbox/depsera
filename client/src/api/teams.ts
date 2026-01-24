@@ -18,12 +18,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchTeams(): Promise<TeamWithCounts[]> {
-  const response = await fetch('/api/teams');
+  const response = await fetch('/api/teams', { credentials: 'include' });
   return handleResponse<TeamWithCounts[]>(response);
 }
 
 export async function fetchTeam(id: string): Promise<TeamWithDetails> {
-  const response = await fetch(`/api/teams/${id}`);
+  const response = await fetch(`/api/teams/${id}`, { credentials: 'include' });
   return handleResponse<TeamWithDetails>(response);
 }
 
@@ -32,6 +32,7 @@ export async function createTeam(input: CreateTeamInput): Promise<TeamWithCounts
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+    credentials: 'include',
   });
   return handleResponse<TeamWithCounts>(response);
 }
@@ -41,6 +42,7 @@ export async function updateTeam(id: string, input: UpdateTeamInput): Promise<Te
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+    credentials: 'include',
   });
   return handleResponse<TeamWithCounts>(response);
 }
@@ -48,6 +50,7 @@ export async function updateTeam(id: string, input: UpdateTeamInput): Promise<Te
 export async function deleteTeam(id: string): Promise<void> {
   const response = await fetch(`/api/teams/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Delete failed' }));
@@ -63,6 +66,7 @@ export async function addTeamMember(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+    credentials: 'include',
   });
   return handleResponse<TeamMember>(response);
 }
@@ -76,6 +80,7 @@ export async function updateTeamMember(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+    credentials: 'include',
   });
   return handleResponse<TeamMember>(response);
 }
@@ -83,6 +88,7 @@ export async function updateTeamMember(
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
   const response = await fetch(`/api/teams/${teamId}/members/${userId}`, {
     method: 'DELETE',
+    credentials: 'include',
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Remove failed' }));
@@ -91,6 +97,6 @@ export async function removeTeamMember(teamId: string, userId: string): Promise<
 }
 
 export async function fetchUsers(): Promise<User[]> {
-  const response = await fetch('/api/users');
+  const response = await fetch('/api/users', { credentials: 'include' });
   return handleResponse<User[]>(response);
 }

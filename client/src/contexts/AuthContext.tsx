@@ -6,29 +6,12 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: () => void;
   logout: () => Promise<void>;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock users for development
-const MOCK_USERS: Record<string, User> = {
-  'admin@example.com': {
-    id: '1',
-    email: 'admin@example.com',
-    name: 'Admin User',
-    role: 'admin',
-    is_active: true,
-  },
-  'user@example.com': {
-    id: '2',
-    email: 'user@example.com',
-    name: 'Regular User',
-    role: 'user',
-    is_active: true,
-  },
-};
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -38,41 +21,57 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for existing session on mount
-    const checkAuth = async () => {
-      try {
-        // In production, this would check with the server
-        const storedUser = localStorage.getItem('auth_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch {
-        // Session invalid or expired
-        localStorage.removeItem('auth_user');
-      } finally {
-        setIsLoading(false);
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
       }
-    };
-
-    checkAuth();
-  }, []);
-
-  const login = async (email: string, _password: string) => {
-    // Mock login - in production, this would call the auth API
-    const mockUser = MOCK_USERS[email.toLowerCase()];
-    if (mockUser) {
-      setUser(mockUser);
-      localStorage.setItem('auth_user', JSON.stringify(mockUser));
-    } else {
-      throw new Error('Invalid credentials');
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const login = () => {
+    // Redirect to OIDC login with return URL
+    const returnTo = encodeURIComponent(window.location.pathname);
+    window.location.href = `/api/auth/login?returnTo=${returnTo}`;
+  };
+
   const logout = async () => {
-    // In production, this would call the logout API
-    setUser(null);
-    localStorage.removeItem('auth_user');
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const { redirectUrl } = await response.json();
+        setUser(null);
+        // Redirect to OIDC provider logout or login page
+        if (redirectUrl.startsWith('http')) {
+          window.location.href = redirectUrl;
+        } else {
+          window.location.href = redirectUrl;
+        }
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      setUser(null);
+      window.location.href = '/login';
+    }
   };
 
   const value: AuthContextType = {
@@ -82,6 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAdmin: user?.role === 'admin',
     login,
     logout,
+    checkAuth,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

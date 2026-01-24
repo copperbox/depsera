@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { fetchUsers, updateUserRole, deactivateUser } from '../../../api/users';
+import { fetchUsers, updateUserRole, deactivateUser, reactivateUser } from '../../../api/users';
 import type { User, UserRole } from '../../../types/user';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import styles from './Admin.module.css';
@@ -18,6 +18,10 @@ function UserManagement() {
   // Deactivate confirmation
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
   const [isDeactivating, setIsDeactivating] = useState(false);
+
+  // Reactivate confirmation
+  const [userToReactivate, setUserToReactivate] = useState<User | null>(null);
+  const [isReactivating, setIsReactivating] = useState(false);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -75,6 +79,21 @@ function UserManagement() {
       setUserToDeactivate(null);
     } finally {
       setIsDeactivating(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!userToReactivate) return;
+    setIsReactivating(true);
+    try {
+      await reactivateUser(userToReactivate.id);
+      setUserToReactivate(null);
+      loadUsers();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to reactivate user');
+      setUserToReactivate(null);
+    } finally {
+      setIsReactivating(false);
     }
   };
 
@@ -216,7 +235,7 @@ function UserManagement() {
                         >
                           {isProcessing ? '...' : user.role === 'admin' ? 'Demote' : 'Promote'}
                         </button>
-                        {user.is_active && (
+                        {user.is_active ? (
                           <button
                             onClick={() => setUserToDeactivate(user)}
                             disabled={isProcessing || isLastAdmin}
@@ -228,6 +247,15 @@ function UserManagement() {
                             }
                           >
                             Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setUserToReactivate(user)}
+                            disabled={isProcessing}
+                            className={`${styles.actionButton} ${styles.reactivateButton}`}
+                            title="Reactivate user"
+                          >
+                            Reactivate
                           </button>
                         )}
                       </div>
@@ -249,6 +277,16 @@ function UserManagement() {
         confirmLabel="Deactivate"
         isDestructive
         isLoading={isDeactivating}
+      />
+
+      <ConfirmDialog
+        isOpen={!!userToReactivate}
+        onClose={() => setUserToReactivate(null)}
+        onConfirm={handleReactivate}
+        title="Reactivate User"
+        message={`Are you sure you want to reactivate "${userToReactivate?.name}"? They will be able to log in again.`}
+        confirmLabel="Reactivate"
+        isLoading={isReactivating}
       />
     </div>
   );
