@@ -1,0 +1,14 @@
+.container {
+  padding: 0;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 1rem;
+}
+
+.placeholder {
+  color: #666;
+}
