@@ -1,0 +1,171 @@
+// User types
+export type UserRole = 'admin' | 'user';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  oidc_subject: string | null;
+  role: UserRole;
+  is_active: number; // SQLite boolean
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateUserInput {
+  email: string;
+  name: string;
+  oidc_subject?: string;
+  role?: UserRole;
+}
+
+export interface UpdateUserInput {
+  email?: string;
+  name?: string;
+  role?: UserRole;
+  is_active?: boolean;
+}
+
+// Team types
+export type TeamMemberRole = 'lead' | 'member';
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTeamInput {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateTeamInput {
+  name?: string;
+  description?: string;
+}
+
+export interface TeamMember {
+  team_id: string;
+  user_id: string;
+  role: TeamMemberRole;
+  created_at: string;
+}
+
+export interface TeamWithMembers extends Team {
+  members: (TeamMember & { user: User })[];
+}
+
+// Service types
+export interface Service {
+  id: string;
+  name: string;
+  team_id: string;
+  health_endpoint: string;
+  metrics_endpoint: string | null;
+  polling_interval: number;
+  is_active: number; // SQLite boolean
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateServiceInput {
+  name: string;
+  team_id: string;
+  health_endpoint: string;
+  metrics_endpoint?: string;
+  polling_interval?: number;
+}
+
+export interface UpdateServiceInput {
+  name?: string;
+  team_id?: string;
+  health_endpoint?: string;
+  metrics_endpoint?: string;
+  polling_interval?: number;
+  is_active?: boolean;
+}
+
+export interface ServiceWithDependencies extends Service {
+  dependencies: Dependency[];
+  team: Team;
+}
+
+// Dependency types
+export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
+
+export interface Dependency {
+  id: string;
+  service_id: string;
+  name: string;
+  description: string | null;
+  impact: string | null;
+  healthy: number | null; // SQLite boolean
+  health_state: HealthState | null;
+  health_code: number | null;
+  latency_ms: number | null;
+  last_checked: string | null;
+  last_status_change: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDependencyInput {
+  service_id: string;
+  name: string;
+  description?: string;
+  impact?: string;
+}
+
+export interface UpdateDependencyInput {
+  description?: string;
+  impact?: string;
+  healthy?: boolean;
+  health_state?: HealthState;
+  health_code?: number;
+  latency_ms?: number;
+  last_checked?: string;
+}
+
+// Dependency Association types
+export type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
+
+export interface DependencyAssociation {
+  id: string;
+  dependency_id: string;
+  linked_service_id: string;
+  association_type: AssociationType;
+  is_auto_suggested: number; // SQLite boolean
+  confidence_score: number | null;
+  is_dismissed: number; // SQLite boolean
+  created_at: string;
+}
+
+export interface CreateAssociationInput {
+  dependency_id: string;
+  linked_service_id: string;
+  association_type: AssociationType;
+  is_auto_suggested?: boolean;
+  confidence_score?: number;
+}
+
+export interface DependencyWithAssociations extends Dependency {
+  associations: (DependencyAssociation & { linked_service: Service })[];
+}
+
+// proactive-deps response format
+export interface ProactiveDepsStatus {
+  name: string;
+  description?: string;
+  impact?: string;
+  healthy: boolean;
+  health: {
+    state: HealthState;
+    code: number;
+    latency: number;
+    skipped?: boolean;
+  };
+  lastChecked: string;
+}

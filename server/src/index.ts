@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase } from './db';
 import healthRouter from './routes/health';
+import servicesRouter from './routes/services';
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/health', healthRouter);
+app.use('/api/services', servicesRouter);
 
 // Initialize database and start server
 initializeDatabase();
