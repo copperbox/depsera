@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { initializeDatabase } from './db';
 import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
+import teamsRouter from './routes/teams';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/services', servicesRouter);
+app.use('/api/teams', teamsRouter);
 
 // Initialize database and start server
 initializeDatabase();

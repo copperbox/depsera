@@ -7,9 +7,9 @@ import { randomUUID } from 'crypto';
 const testDb = new Database(':memory:');
 
 // Mock the db module
-jest.mock('../db', () => testDb);
+jest.mock('../../db', () => testDb);
 
-import servicesRouter from './services';
+import servicesRouter from './index';
 
 const app = express();
 app.use(express.json());
