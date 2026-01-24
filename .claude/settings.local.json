@@ -16,7 +16,11 @@
       "Bash(npm run db:migrate:*)",
       "Bash(npm run db:status:*)",
       "Bash(npm run db:seed:*)",
-      "Bash(timeout 5 npm run dev:*)"
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(npm test:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "mcp__plugin_linear_linear__create_comment"
     ]
   }
 }
