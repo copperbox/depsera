@@ -38,11 +38,34 @@ npm run lint          # Lint both packages
 npm run build         # Build both packages
 ```
 
+## Database Commands
+
+```bash
+# Run from /server directory
+npm run db:migrate    # Run pending migrations
+npm run db:rollback   # Rollback last migration
+npm run db:status     # Show migration status
+npm run db:seed       # Seed with development data
+npm run db:clear      # Clear all data (dangerous!)
+```
+
 ## Architecture
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/`
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
+
+## Database Schema
+
+Core tables:
+- `users` - User accounts (OIDC authenticated)
+- `teams` - Organizational units that own services
+- `team_members` - Junction table for user-team membership
+- `services` - Tracked APIs/microservices with health endpoints
+- `dependencies` - Dependency status data from proactive-deps
+- `dependency_associations` - Links between dependencies and services
+
+Migrations are in `/server/src/db/migrations/`. Types are in `/server/src/db/types.ts`.
 
 ## Linear Issue Template
 

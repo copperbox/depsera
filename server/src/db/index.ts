@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { runMigrations } from './migrate';
+import { seedDatabase } from './seed';
 
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/database.sqlite');
 
@@ -9,18 +11,22 @@ export function initializeDatabase(): void {
   // Enable foreign keys
   db.pragma('foreign_keys = ON');
 
-  // Create tables here as needed
-  // Example:
-  // db.exec(`
-  //   CREATE TABLE IF NOT EXISTS dependencies (
-  //     id INTEGER PRIMARY KEY AUTOINCREMENT,
-  //     name TEXT NOT NULL,
-  //     version TEXT NOT NULL,
-  //     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  //   )
-  // `);
+  // Enable WAL mode for better concurrent performance
+  db.pragma('journal_mode = WAL');
+
+  // Run migrations
+  runMigrations(db);
+
+  // Seed database in development
+  if (process.env.NODE_ENV !== 'production') {
+    seedDatabase(db);
+  }
 
   console.log('Database initialized');
 }
 
 export default db;
+
+// Re-export migration utilities for CLI usage
+export { runMigrations, getMigrationStatus, rollbackMigration } from './migrate';
+export { seedDatabase, clearDatabase } from './seed';
