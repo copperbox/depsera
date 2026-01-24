@@ -1,6 +1,6 @@
 {
   "name": "dependencies-dashboard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A dashboard to review and manage all tracked dependencies and services",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
@@ -17,7 +17,11 @@
     "lint:client": "cd client && npm run lint",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["dashboard", "dependencies", "monitoring"],
+  "keywords": [
+    "dashboard",
+    "dependencies",
+    "monitoring"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
