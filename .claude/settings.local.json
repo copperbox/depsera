@@ -21,7 +21,11 @@
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
       "mcp__plugin_linear_linear__create_comment",
-      "mcp__plugin_linear_linear__list_issue_statuses"
+      "mcp__plugin_linear_linear__list_issue_statuses",
+      "Bash(npm run lint:client:*)",
+      "Bash(npm run test:client:*)",
+      "Bash(npm run build:client:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
