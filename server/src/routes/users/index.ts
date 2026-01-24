@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAdmin } from '../../auth';
 import { listUsers } from './list';
 import { getUser } from './get';
 import { updateUserRole } from './updateRole';
@@ -8,22 +9,14 @@ import { getCurrentUser } from './me';
 
 const router = Router();
 
-// Get current user profile (must be before /:id to avoid conflict)
+// Get current user profile - any authenticated user
 router.get('/me', getCurrentUser);
 
-// List all users
-router.get('/', listUsers);
-
-// Get user by ID
-router.get('/:id', getUser);
-
-// Update user role
-router.put('/:id/role', updateUserRole);
-
-// Reactivate user
-router.post('/:id/reactivate', reactivateUser);
-
-// Deactivate user
-router.delete('/:id', deactivateUser);
+// Admin-only user management
+router.get('/', requireAdmin, listUsers);
+router.get('/:id', requireAdmin, getUser);
+router.put('/:id/role', requireAdmin, updateUserRole);
+router.post('/:id/reactivate', requireAdmin, reactivateUser);
+router.delete('/:id', requireAdmin, deactivateUser);
 
 export default router;

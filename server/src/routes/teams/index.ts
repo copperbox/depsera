@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requireAdmin } from '../../auth';
 import { listTeams } from './list';
 import { getTeam } from './get';
 import { createTeam } from './create';
@@ -10,16 +11,16 @@ import { removeMember } from './members/remove';
 
 const router = Router();
 
-// Team CRUD
+// Team CRUD - read is open to authenticated users, write requires admin
 router.get('/', listTeams);
 router.get('/:id', getTeam);
-router.post('/', createTeam);
-router.put('/:id', updateTeam);
-router.delete('/:id', deleteTeam);
+router.post('/', requireAdmin, createTeam);
+router.put('/:id', requireAdmin, updateTeam);
+router.delete('/:id', requireAdmin, deleteTeam);
 
-// Team member management
-router.post('/:id/members', addMember);
-router.put('/:id/members/:userId', updateMember);
-router.delete('/:id/members/:userId', removeMember);
+// Team member management - admin only
+router.post('/:id/members', requireAdmin, addMember);
+router.put('/:id/members/:userId', requireAdmin, updateMember);
+router.delete('/:id/members/:userId', requireAdmin, removeMember);
 
 export default router;

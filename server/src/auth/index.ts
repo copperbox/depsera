@@ -1,5 +1,12 @@
 export { sessionMiddleware } from './session';
-export { requireAuth, requireAdmin } from './middleware';
+export {
+  requireAuth,
+  requireAdmin,
+  requireTeamAccess,
+  requireTeamLead,
+  requireServiceTeamLead,
+  requireBodyTeamLead,
+} from './middleware';
 export { initializeBypassMode, bypassAuthMiddleware } from './bypass';
 export {
   initializeOIDC,
