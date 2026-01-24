@@ -4,7 +4,10 @@
       "mcp__plugin_linear_linear__get_issue",
       "mcp__plugin_linear_linear__update_issue",
       "Bash(npm run lint)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(git check-ignore:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

@@ -1,3 +1,13 @@
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+server/data/*
+!server/data/.gitkeep
+
 # Logs
 logs
 *.log
