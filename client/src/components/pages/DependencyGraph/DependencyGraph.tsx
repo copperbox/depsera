@@ -38,7 +38,11 @@ type AppEdge = Edge<GraphEdgeData, 'custom'>;
 const POLLING_ENABLED_KEY = 'graph-auto-refresh';
 const POLLING_INTERVAL_KEY = 'graph-refresh-interval';
 const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
+const TIER_SPACING_KEY = 'graph-tier-spacing';
 const DEFAULT_INTERVAL = 30000;
+const DEFAULT_TIER_SPACING = 180;
+const MIN_TIER_SPACING = 80;
+const MAX_TIER_SPACING = 400;
 
 type LayoutDirection = 'TB' | 'LR';
 
@@ -63,11 +67,12 @@ const NODE_HEIGHT = 100;
 function getLayoutedElements(
   nodes: AppNode[],
   edges: AppEdge[],
-  direction: 'TB' | 'LR' = 'TB'
+  direction: 'TB' | 'LR' = 'TB',
+  tierSpacing: number = DEFAULT_TIER_SPACING
 ): { nodes: AppNode[]; edges: AppEdge[] } {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 180 });
+  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: tierSpacing });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
@@ -95,7 +100,8 @@ function getLayoutedElements(
 
 function transformGraphData(
   data: GraphResponse,
-  direction: LayoutDirection = 'TB'
+  direction: LayoutDirection = 'TB',
+  tierSpacing: number = DEFAULT_TIER_SPACING
 ): { nodes: AppNode[]; edges: AppEdge[] } {
   // Calculate reported health for each node based on incoming edges
   // (edges where the node is the SOURCE, meaning other services depend on it)
@@ -140,7 +146,7 @@ function transformGraphData(
     animated: true,
   }));
 
-  return getLayoutedElements(nodes, edges, direction);
+  return getLayoutedElements(nodes, edges, direction, tierSpacing);
 }
 
 // Find all upstream nodes (nodes that the selected node depends on, following edge direction)
@@ -274,6 +280,16 @@ function DependencyGraphInner() {
     const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
     return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
   });
+  const [tierSpacing, setTierSpacing] = useState(() => {
+    const stored = localStorage.getItem(TIER_SPACING_KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= MIN_TIER_SPACING && parsed <= MAX_TIER_SPACING) {
+        return parsed;
+      }
+    }
+    return DEFAULT_TIER_SPACING;
+  });
 
   // Polling state
   const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
@@ -288,6 +304,9 @@ function DependencyGraphInner() {
   const pollingIntervalRef = useRef<number | null>(null);
   const selectedTeamRef = useRef(selectedTeam);
   const layoutDirectionRef = useRef(layoutDirection);
+  const tierSpacingRef = useRef(tierSpacing);
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const selectedEdgeIdRef = useRef(selectedEdgeId);
 
   // Keep refs in sync with state for use in polling callback
   useEffect(() => {
@@ -298,9 +317,22 @@ function DependencyGraphInner() {
     layoutDirectionRef.current = layoutDirection;
   }, [layoutDirection]);
 
+  useEffect(() => {
+    tierSpacingRef.current = tierSpacing;
+  }, [tierSpacing]);
+
+  useEffect(() => {
+    selectedNodeIdRef.current = selectedNodeId;
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    selectedEdgeIdRef.current = selectedEdgeId;
+  }, [selectedEdgeId]);
+
   const loadData = useCallback(async (
     teamId?: string,
     direction: LayoutDirection = 'TB',
+    spacing: number = DEFAULT_TIER_SPACING,
     isBackgroundRefresh = false
   ) => {
     if (!isBackgroundRefresh) {
@@ -320,9 +352,28 @@ function DependencyGraphInner() {
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = transformGraphData(graphData, direction);
-      setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = transformGraphData(graphData, direction, spacing);
+
+      // Preserve selection during refresh
+      const currentSelectedNodeId = selectedNodeIdRef.current;
+      const currentSelectedEdgeId = selectedEdgeIdRef.current;
+
+      const nodesWithSelection = currentSelectedNodeId
+        ? layoutedNodes.map(node => ({
+            ...node,
+            selected: node.id === currentSelectedNodeId,
+          }))
+        : layoutedNodes;
+
+      const edgesWithSelection = currentSelectedEdgeId
+        ? layoutedEdges.map(edge => ({
+            ...edge,
+            selected: edge.id === currentSelectedEdgeId,
+          }))
+        : layoutedEdges;
+
+      setNodes(nodesWithSelection);
+      setEdges(edgesWithSelection);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {
@@ -331,16 +382,16 @@ function DependencyGraphInner() {
     }
   }, [teams, setNodes, setEdges]);
 
-  // Initial load and team/direction change
+  // Initial load and team/direction/spacing change
   useEffect(() => {
-    loadData(selectedTeam || undefined, layoutDirection);
-  }, [selectedTeam, layoutDirection]);
+    loadData(selectedTeam || undefined, layoutDirection, tierSpacing);
+  }, [selectedTeam, layoutDirection, tierSpacing]);
 
   // Polling effect
   useEffect(() => {
     if (isPollingEnabled) {
       pollingIntervalRef.current = window.setInterval(() => {
-        loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, true);
+        loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, tierSpacingRef.current, true);
       }, pollingInterval);
     }
 
@@ -374,6 +425,13 @@ function DependencyGraphInner() {
   const handleDirectionChange = (direction: LayoutDirection) => {
     setLayoutDirection(direction);
     localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
+  };
+
+  // Change tier spacing
+  const handleTierSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSpacing = parseInt(e.target.value, 10);
+    setTierSpacing(newSpacing);
+    localStorage.setItem(TIER_SPACING_KEY, String(newSpacing));
   };
 
   // Get the selected node's data for the details panel
@@ -525,7 +583,7 @@ function DependencyGraphInner() {
       <div className={styles.container}>
         <div className={styles.error}>
           <span>{error}</span>
-          <button className={styles.retryButton} onClick={() => loadData(selectedTeam || undefined, layoutDirection)}>
+          <button className={styles.retryButton} onClick={() => loadData(selectedTeam || undefined, layoutDirection, tierSpacing)}>
             Retry
           </button>
         </div>
@@ -584,6 +642,21 @@ function DependencyGraphInner() {
               </svg>
             </button>
           </div>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>Tier spacing:</label>
+          <input
+            type="range"
+            className={styles.tierSpacingSlider}
+            min={MIN_TIER_SPACING}
+            max={MAX_TIER_SPACING}
+            step={10}
+            value={tierSpacing}
+            onChange={handleTierSpacingChange}
+            title={`${tierSpacing}px`}
+          />
+          <span className={styles.tierSpacingValue}>{tierSpacing}px</span>
         </div>
 
         <div className={styles.autoRefreshControls}>
