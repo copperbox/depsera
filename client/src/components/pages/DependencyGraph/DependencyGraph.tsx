@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -33,6 +33,17 @@ import styles from './DependencyGraph.module.css';
 
 type AppNode = Node<ServiceNodeData | DependencyNodeData, 'service' | 'dependency'>;
 type AppEdge = Edge<GraphEdgeData, 'custom'>;
+
+const POLLING_ENABLED_KEY = 'graph-auto-refresh';
+const POLLING_INTERVAL_KEY = 'graph-refresh-interval';
+const DEFAULT_INTERVAL = 30000;
+
+const INTERVAL_OPTIONS = [
+  { value: 10000, label: '10s' },
+  { value: 20000, label: '20s' },
+  { value: 30000, label: '30s' },
+  { value: 60000, label: '1m' },
+];
 
 const nodeTypes = {
   service: ServiceNode,
@@ -108,8 +119,30 @@ export function DependencyGraph() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (teamId?: string) => {
-    setIsLoading(true);
+  // Polling state
+  const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
+    const stored = localStorage.getItem(POLLING_ENABLED_KEY);
+    return stored === 'true';
+  });
+  const [pollingInterval, setPollingInterval] = useState(() => {
+    const stored = localStorage.getItem(POLLING_INTERVAL_KEY);
+    return stored ? parseInt(stored, 10) : DEFAULT_INTERVAL;
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pollingIntervalRef = useRef<number | null>(null);
+  const selectedTeamRef = useRef(selectedTeam);
+
+  // Keep ref in sync with state for use in polling callback
+  useEffect(() => {
+    selectedTeamRef.current = selectedTeam;
+  }, [selectedTeam]);
+
+  const loadData = useCallback(async (teamId?: string, isBackgroundRefresh = false) => {
+    if (!isBackgroundRefresh) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setError(null);
 
     try {
@@ -129,15 +162,47 @@ export function DependencyGraph() {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [teams, setNodes, setEdges]);
 
+  // Initial load and team change
   useEffect(() => {
     loadData(selectedTeam || undefined);
   }, [selectedTeam]);
 
+  // Polling effect
+  useEffect(() => {
+    if (isPollingEnabled) {
+      pollingIntervalRef.current = window.setInterval(() => {
+        loadData(selectedTeamRef.current || undefined, true);
+      }, pollingInterval);
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [isPollingEnabled, pollingInterval, loadData]);
+
   const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTeam(e.target.value);
+  };
+
+  // Toggle polling on/off
+  const togglePolling = () => {
+    const newValue = !isPollingEnabled;
+    setIsPollingEnabled(newValue);
+    localStorage.setItem(POLLING_ENABLED_KEY, String(newValue));
+  };
+
+  // Change polling interval
+  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newInterval = parseInt(e.target.value, 10);
+    setPollingInterval(newInterval);
+    localStorage.setItem(POLLING_INTERVAL_KEY, String(newInterval));
   };
 
   // Filter nodes based on search query
@@ -238,6 +303,36 @@ export function DependencyGraph() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+
+        <div className={styles.autoRefreshControls}>
+          {isRefreshing && (
+            <div className={styles.refreshingIndicator}>
+              <div className={styles.spinnerSmall} />
+            </div>
+          )}
+          <span className={styles.autoRefreshLabel}>Auto-refresh</span>
+          <button
+            role="switch"
+            aria-checked={isPollingEnabled}
+            onClick={togglePolling}
+            className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
+          >
+            <span className={styles.toggleKnob} />
+          </button>
+          <select
+            value={pollingInterval}
+            onChange={handleIntervalChange}
+            className={styles.intervalSelect}
+            disabled={!isPollingEnabled}
+            aria-label="Refresh interval"
+          >
+            {INTERVAL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className={styles.toolbarSpacer} />
