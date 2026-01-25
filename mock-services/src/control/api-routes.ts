@@ -31,9 +31,20 @@ async function parseJsonBody<T>(req: http.IncomingMessage): Promise<T> {
   });
 }
 
+function getUiPath(filePath: string): string {
+  // Check if running from dist (compiled) or src (ts-node dev)
+  const distPath = path.join(__dirname, '..', 'ui', filePath);
+  if (fs.existsSync(distPath)) {
+    return distPath;
+  }
+  // Fallback to src/ui when running compiled code from dist
+  const srcPath = path.join(__dirname, '..', '..', 'src', 'ui', filePath);
+  return srcPath;
+}
+
 function serveStaticFile(res: http.ServerResponse, filePath: string, contentType: string): void {
   try {
-    const fullPath = path.join(__dirname, '..', 'ui', filePath);
+    const fullPath = getUiPath(filePath);
     const content = fs.readFileSync(fullPath, 'utf-8');
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
