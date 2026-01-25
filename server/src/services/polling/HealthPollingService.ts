@@ -199,13 +199,19 @@ export class HealthPollingService extends EventEmitter {
 
       if (activePollCount === 0) break;
 
-      await new Promise(resolve => setTimeout(resolve, pollCheckInterval));
+      await new Promise<void>(resolve => {
+        const timer = setTimeout(resolve, pollCheckInterval);
+        timer.unref(); // Don't keep process alive for this timer
+      });
       waited += pollCheckInterval;
     }
 
     // Clear all state
     this.pollStates.clear();
     this.pollers.clear();
+
+    // Remove all event listeners
+    this.removeAllListeners();
 
     console.log('[Polling] Health polling service stopped');
   }

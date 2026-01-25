@@ -25,6 +25,13 @@ export function initializeDatabase(): void {
   console.log('Database initialized');
 }
 
+export function closeDatabase(): void {
+  if (db.open) {
+    db.close();
+    console.log('Database connection closed');
+  }
+}
+
 export default db;
 
 // Re-export migration utilities for CLI usage

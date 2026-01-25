@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initializeDatabase } from './db';
+import { initializeDatabase, closeDatabase } from './db';
 import { sessionMiddleware, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth } from './auth';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
@@ -77,17 +77,27 @@ async function start() {
   // Graceful shutdown
   const shutdown = async () => {
     console.log('\nShutting down...');
+
+    // Remove event listeners to allow garbage collection
+    pollingService.removeAllListeners();
+
     await pollingService.shutdown();
+
+    // Close database connection
+    closeDatabase();
+
     server.close(() => {
       console.log('Server closed');
       process.exit(0);
     });
 
     // Force exit after 10 seconds if server doesn't close gracefully
-    setTimeout(() => {
+    // Use unref() so this timer doesn't keep the process alive
+    const forceExitTimer = setTimeout(() => {
       console.log('Forcing exit...');
       process.exit(0);
     }, 10000);
+    forceExitTimer.unref();
   };
 
   process.on('SIGTERM', shutdown);
