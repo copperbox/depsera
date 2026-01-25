@@ -80,8 +80,8 @@ export function seedMockServices(config: SeedConfig): void {
     `);
 
     const insertDependency = db.prepare(`
-      INSERT INTO dependencies (id, service_id, name, description, impact, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dependencies (id, service_id, name, description, impact, type, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertAssociation = db.prepare(`
@@ -116,8 +116,8 @@ export function seedMockServices(config: SeedConfig): void {
         const topoService = topology.services.find(s => s.id === service.id);
 
         if (topoService && topoService.dependencies.length > 0) {
-          for (const depId of topoService.dependencies) {
-            const depService = registry.getService(depId);
+          for (const topoDep of topoService.dependencies) {
+            const depService = registry.getService(topoDep.serviceId);
             if (depService) {
               const depDashboardId = serviceIdMap.get(depService.id);
               if (depDashboardId) {
@@ -129,6 +129,7 @@ export function seedMockServices(config: SeedConfig): void {
                   depService.name,
                   `Dependency on ${depService.name}`,
                   `Service may fail if ${depService.name} is unavailable`,
+                  topoDep.type,
                   now,
                   now
                 );

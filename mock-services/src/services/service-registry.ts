@@ -1,7 +1,7 @@
 import { Topology, GeneratedService } from '../topology/types';
 import { FailureState } from '../failures/types';
 import { MockService } from './mock-service';
-import { DependencyStatus, ServiceHealth } from './types';
+import { DependencyStatus, ServiceHealth, DependencyType } from './types';
 
 export class ServiceRegistry {
   private services: Map<string, MockService> = new Map();
@@ -20,7 +20,10 @@ export class ServiceRegistry {
           id: genService.id,
           name: genService.name,
           tier: genService.tier,
-          dependencyIds: genService.dependencies
+          dependencies: genService.dependencies.map(dep => ({
+            id: dep.serviceId,
+            type: dep.type
+          }))
         },
         this.createHealthCheckCallback()
       );
@@ -31,12 +34,13 @@ export class ServiceRegistry {
   }
 
   private createHealthCheckCallback() {
-    return async (serviceId: string): Promise<DependencyStatus> => {
+    return async (serviceId: string, depType: DependencyType): Promise<DependencyStatus> => {
       const service = this.services.get(serviceId);
       if (!service) {
         return {
           name: serviceId,
           description: 'Unknown service',
+          type: depType,
           healthy: false,
           healthCode: 404,
           latencyMs: 0,
@@ -52,6 +56,7 @@ export class ServiceRegistry {
       return {
         name: service.name,
         description: `Dependency on ${service.name}`,
+        type: depType,
         healthy: health.healthy,
         healthCode: health.healthy ? 200 : 503,
         latencyMs,

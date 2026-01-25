@@ -258,6 +258,13 @@
   font-weight: 600;
 }
 
+.typeIcon {
+  width: 14px;
+  height: 14px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
 /* Node Name */
 .nodeName {
   font-size: 14px;

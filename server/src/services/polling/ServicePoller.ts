@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import db from '../../db';
-import { Service, ProactiveDepsStatus } from '../../db/types';
+import { Service, ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES } from '../../db/types';
 import { ExponentialBackoff } from './backoff';
 import { PollResult, StatusChangeEvent } from './types';
 import { AssociationMatcher } from '../matching';
@@ -129,10 +129,17 @@ export class ServicePoller {
         healthState = dep.healthy ? 0 : 2;
       }
 
+      // Parse type field, validate against allowed types
+      let depType: DependencyType = 'other';
+      if (typeof dep.type === 'string' && DEPENDENCY_TYPES.includes(dep.type as DependencyType)) {
+        depType = dep.type as DependencyType;
+      }
+
       return {
         name: dep.name as string,
         description: typeof dep.description === 'string' ? dep.description : undefined,
         impact: typeof dep.impact === 'string' ? dep.impact : undefined,
+        type: depType,
         healthy: dep.healthy as boolean,
         health: {
           state: healthState as 0 | 1 | 2,
@@ -158,13 +165,14 @@ export class ServicePoller {
 
     const upsertStmt = db.prepare(`
       INSERT INTO dependencies (
-        id, service_id, name, description, impact,
+        id, service_id, name, description, impact, type,
         healthy, health_state, health_code, latency_ms,
         last_checked, last_status_change, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(service_id, name) DO UPDATE SET
         description = excluded.description,
         impact = excluded.impact,
+        type = excluded.type,
         healthy = excluded.healthy,
         health_state = excluded.health_state,
         health_code = excluded.health_code,
@@ -203,6 +211,7 @@ export class ServicePoller {
         dep.name,
         dep.description || null,
         dep.impact || null,
+        dep.type || 'other',
         newHealthy,
         dep.health.state,
         dep.health.code,

@@ -1,9 +1,22 @@
 import { ServiceTier } from '../topology/types';
 import { FailureState } from '../failures/types';
 
+export type DependencyType =
+  | 'database'
+  | 'rest'
+  | 'soap'
+  | 'grpc'
+  | 'graphql'
+  | 'message_queue'
+  | 'cache'
+  | 'file_system'
+  | 'smtp'
+  | 'other';
+
 export interface DependencyStatus {
   name: string;
   description: string;
+  type: DependencyType;
   healthy: boolean;
   healthCode: number;
   latencyMs: number;
@@ -21,11 +34,16 @@ export interface ServiceHealth {
   timestamp: string;
 }
 
+export interface DependencyConfig {
+  id: string;
+  type: DependencyType;
+}
+
 export interface MockServiceConfig {
   id: string;
   name: string;
   tier: ServiceTier;
-  dependencyIds: string[];
+  dependencies: DependencyConfig[];
 }
 
-export type HealthCheckCallback = (serviceId: string) => Promise<DependencyStatus>;
+export type HealthCheckCallback = (serviceId: string, depType: DependencyType) => Promise<DependencyStatus>;

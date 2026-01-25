@@ -1,4 +1,4 @@
-import { AssociationType, HealthState } from '../../db/types';
+import { AssociationType, HealthState, DependencyType } from '../../db/types';
 
 export type NodeType = 'service' | 'dependency';
 
@@ -19,6 +19,7 @@ export interface DependencyNodeData {
   serviceName: string;
   description: string | null;
   impact: string | null;
+  type: DependencyType;
   healthy: boolean | null;
   healthState: HealthState | null;
   healthCode: number | null;

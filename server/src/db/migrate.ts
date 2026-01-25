@@ -1,5 +1,6 @@
 import { Database } from 'better-sqlite3';
 import * as migration001 from './migrations/001_initial_schema';
+import * as migration002 from './migrations/002_add_dependency_type';
 
 interface Migration {
   id: string;
@@ -14,6 +15,12 @@ const migrations: Migration[] = [
     name: 'initial_schema',
     up: migration001.up,
     down: migration001.down
+  },
+  {
+    id: '002',
+    name: 'add_dependency_type',
+    up: migration002.up,
+    down: migration002.down
   }
 ];
 

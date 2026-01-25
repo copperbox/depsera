@@ -482,6 +482,7 @@ function createDependencyNode(dep: DependencyWithService): GraphNode {
       serviceName: dep.service_name,
       description: dep.description,
       impact: dep.impact,
+      type: dep.type,
       healthy: dep.healthy === null ? null : dep.healthy === 1,
       healthState: dep.health_state,
       healthCode: dep.health_code,

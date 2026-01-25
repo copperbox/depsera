@@ -25,7 +25,8 @@ export class CascadeEngine {
       visited.add(current);
 
       for (const service of this.topology.services) {
-        if (service.dependencies.includes(current) && !dependents.has(service.id)) {
+        const dependsOnCurrent = service.dependencies.some(dep => dep.serviceId === current);
+        if (dependsOnCurrent && !dependents.has(service.id)) {
           dependents.add(service.id);
           queue.push(service.id);
         }

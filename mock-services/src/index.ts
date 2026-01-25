@@ -140,7 +140,8 @@ process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
 // Windows-specific: handle Ctrl+C in terminals that don't send SIGINT
-if (process.platform === 'win32') {
+// Only set up readline if stdin is a TTY (i.e., running interactively)
+if (process.platform === 'win32' && process.stdin.isTTY) {
   const readline = require('readline');
   const rl = readline.createInterface({
     input: process.stdin,

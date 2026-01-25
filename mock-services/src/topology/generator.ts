@@ -6,9 +6,19 @@ import {
   GeneratedService,
   TierCounts,
   TopologyEdge,
-  TierDistribution
+  TierDistribution,
+  DependencyType,
+  ServiceDependency
 } from './types';
 import { generateServiceName, resetNameGenerator } from './service-names';
+
+// Dependency types based on target service tier
+const TIER_DEPENDENCY_TYPES: Record<ServiceTier, DependencyType[]> = {
+  [ServiceTier.FRONTEND]: ['rest', 'graphql'],
+  [ServiceTier.API]: ['rest', 'grpc', 'graphql', 'soap'],
+  [ServiceTier.BACKEND]: ['rest', 'grpc', 'message_queue', 'cache'],
+  [ServiceTier.DATABASE]: ['database']
+};
 
 const DEFAULT_DISTRIBUTION: TierDistribution = {
   frontend: 0.2,
@@ -86,6 +96,11 @@ function selectRandomSubset<T>(array: T[], min: number, max: number): T[] {
   return shuffled.slice(0, count);
 }
 
+function getDependencyType(targetTier: ServiceTier): DependencyType {
+  const types = TIER_DEPENDENCY_TYPES[targetTier];
+  return types[randomInt(0, types.length - 1)];
+}
+
 export function generateTopology(config: TopologyConfig): Topology {
   resetNameGenerator();
 
@@ -124,7 +139,11 @@ export function generateTopology(config: TopologyConfig): Topology {
     for (const service of servicesByTier[tier]) {
       const deps = selectRandomSubset(availableDeps, range.min, range.max);
       for (const dep of deps) {
-        service.dependencies.push(dep.id);
+        const depType = getDependencyType(dep.tier);
+        service.dependencies.push({
+          serviceId: dep.id,
+          type: depType
+        });
         edges.push({ from: service.id, to: dep.id });
       }
     }

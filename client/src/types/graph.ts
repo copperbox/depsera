@@ -1,6 +1,17 @@
 export type NodeType = 'service' | 'dependency';
 export type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
 export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
+export type DependencyType =
+  | 'database'
+  | 'rest'
+  | 'soap'
+  | 'grpc'
+  | 'graphql'
+  | 'message_queue'
+  | 'cache'
+  | 'file_system'
+  | 'smtp'
+  | 'other';
 
 export interface ServiceNodeData {
   name: string;
@@ -20,6 +31,7 @@ export interface DependencyNodeData {
   serviceName: string;
   description: string | null;
   impact: string | null;
+  type: DependencyType;
   healthy: boolean | null;
   healthState: HealthState | null;
   healthCode: number | null;

@@ -1,7 +1,7 @@
 import { DependencyMonitor } from 'proactive-deps';
 import { ServiceTier } from '../topology/types';
 import { FailureMode, FailureState } from '../failures/types';
-import { DependencyStatus, ServiceHealth, MockServiceConfig, HealthCheckCallback } from './types';
+import { DependencyStatus, ServiceHealth, MockServiceConfig, HealthCheckCallback, DependencyConfig } from './types';
 
 export class MockService {
   public readonly id: string;
@@ -10,7 +10,7 @@ export class MockService {
 
   private monitor: DependencyMonitor;
   private failureState: FailureState | null = null;
-  private dependencyIds: string[];
+  private dependencies: DependencyConfig[];
   private checkDependencyHealth: HealthCheckCallback;
   private started = false;
 
@@ -18,7 +18,7 @@ export class MockService {
     this.id = config.id;
     this.name = config.name;
     this.tier = config.tier;
-    this.dependencyIds = config.dependencyIds;
+    this.dependencies = config.dependencies;
     this.checkDependencyHealth = checkDependencyHealth;
 
     this.monitor = new DependencyMonitor({
@@ -30,13 +30,13 @@ export class MockService {
   }
 
   private registerDependencies(): void {
-    for (const depId of this.dependencyIds) {
+    for (const dep of this.dependencies) {
       this.monitor.register({
-        name: depId,
-        description: `Dependency on service ${depId}`,
+        name: dep.id,
+        description: `Dependency on service ${dep.id}`,
         impact: 'Service may be degraded or unavailable',
         check: async () => {
-          const status = await this.checkDependencyHealth(depId);
+          const status = await this.checkDependencyHealth(dep.id, dep.type);
           if (!status.healthy) {
             return {
               code: status.healthCode,
@@ -111,6 +111,7 @@ export class MockService {
           dependencies: [{
             name: 'self',
             description: 'Service error',
+            type: 'other' as const,
             healthy: false,
             healthCode: state.config.errorCode || 500,
             latencyMs: 0,
@@ -131,6 +132,7 @@ export class MockService {
             dependencies: [{
               name: 'self',
               description: 'Intermittent failure',
+              type: 'other' as const,
               healthy: false,
               healthCode: 503,
               latencyMs: 0,
@@ -159,8 +161,8 @@ export class MockService {
   public async getDependencyStatuses(): Promise<DependencyStatus[]> {
     const statuses: DependencyStatus[] = [];
 
-    for (const depId of this.dependencyIds) {
-      const status = await this.checkDependencyHealth(depId);
+    for (const dep of this.dependencies) {
+      const status = await this.checkDependencyHealth(dep.id, dep.type);
       statuses.push(status);
     }
 

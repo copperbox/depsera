@@ -17,11 +17,28 @@ export interface TopologyConfig {
   tierDistribution?: Partial<TierDistribution>;
 }
 
+export type DependencyType =
+  | 'database'
+  | 'rest'
+  | 'soap'
+  | 'grpc'
+  | 'graphql'
+  | 'message_queue'
+  | 'cache'
+  | 'file_system'
+  | 'smtp'
+  | 'other';
+
+export interface ServiceDependency {
+  serviceId: string;
+  type: DependencyType;
+}
+
 export interface GeneratedService {
   id: string;
   name: string;
   tier: ServiceTier;
-  dependencies: string[];
+  dependencies: ServiceDependency[];
 }
 
 export interface TopologyEdge {

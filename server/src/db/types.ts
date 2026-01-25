@@ -96,12 +96,38 @@ export interface ServiceWithDependencies extends Service {
 // Dependency types
 export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
 
+export type DependencyType =
+  | 'database'
+  | 'rest'
+  | 'soap'
+  | 'grpc'
+  | 'graphql'
+  | 'message_queue'
+  | 'cache'
+  | 'file_system'
+  | 'smtp'
+  | 'other';
+
+export const DEPENDENCY_TYPES: DependencyType[] = [
+  'database',
+  'rest',
+  'soap',
+  'grpc',
+  'graphql',
+  'message_queue',
+  'cache',
+  'file_system',
+  'smtp',
+  'other',
+];
+
 export interface Dependency {
   id: string;
   service_id: string;
   name: string;
   description: string | null;
   impact: string | null;
+  type: DependencyType;
   healthy: number | null; // SQLite boolean
   health_state: HealthState | null;
   health_code: number | null;
@@ -117,11 +143,13 @@ export interface CreateDependencyInput {
   name: string;
   description?: string;
   impact?: string;
+  type?: DependencyType;
 }
 
 export interface UpdateDependencyInput {
   description?: string;
   impact?: string;
+  type?: DependencyType;
   healthy?: boolean;
   health_state?: HealthState;
   health_code?: number;
@@ -160,6 +188,7 @@ export interface ProactiveDepsStatus {
   name: string;
   description?: string;
   impact?: string;
+  type?: DependencyType;
   healthy: boolean;
   health: {
     state: HealthState;
