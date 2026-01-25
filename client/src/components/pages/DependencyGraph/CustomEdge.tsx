@@ -6,17 +6,22 @@ import {
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { GraphEdgeData, AssociationType } from '../../../types/graph';
+import { GraphEdgeData, DependencyType } from '../../../types/graph';
 import styles from './DependencyGraph.module.css';
 
 type CustomEdgeType = Edge<GraphEdgeData, 'custom'>;
 type CustomEdgeProps = EdgeProps<CustomEdgeType>;
 
-const associationLabels: Record<AssociationType, string> = {
-  api_call: 'API',
+const dependencyTypeLabels: Record<DependencyType, string> = {
   database: 'DB',
-  message_queue: 'Queue',
+  rest: 'REST',
+  soap: 'SOAP',
+  grpc: 'gRPC',
+  graphql: 'GQL',
+  message_queue: 'MQ',
   cache: 'Cache',
+  file_system: 'File',
+  smtp: 'Mail',
   other: '',
 };
 
@@ -40,30 +45,28 @@ function CustomEdgeComponent({
     targetPosition,
   });
 
-  const isAssociation = data?.relationship === 'depends_on';
-  const label = data?.associationType ? associationLabels[data.associationType] : '';
+  const label = data?.dependencyType ? dependencyTypeLabels[data.dependencyType] : '';
+  const isHealthy = data?.healthy !== false;
+  const edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
 
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
-        className={`${styles.edge} ${isAssociation ? styles.associationEdge : styles.reportEdge} ${selected ? styles.edgeSelected : ''}`}
-        markerEnd={isAssociation ? 'url(#arrow-association)' : 'url(#arrow-report)'}
+        className={`${styles.edge} ${edgeClass} ${selected ? styles.edgeSelected : ''}`}
+        markerEnd="url(#arrow-dependency)"
       />
-      {isAssociation && label && (
+      {label && (
         <EdgeLabelRenderer>
           <div
-            className={styles.edgeLabel}
+            className={`${styles.edgeLabel} ${!isHealthy ? styles.edgeLabelUnhealthy : ''}`}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
             }}
           >
             {label}
-            {data?.isAutoSuggested && (
-              <span className={styles.autoSuggested} title="Auto-suggested">*</span>
-            )}
           </div>
         </EdgeLabelRenderer>
       )}

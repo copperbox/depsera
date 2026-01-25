@@ -1,6 +1,6 @@
-import { AssociationType, HealthState, DependencyType } from '../../db/types';
+import { AssociationType, DependencyType } from '../../db/types';
 
-export type NodeType = 'service' | 'dependency';
+export type NodeType = 'service';
 
 export interface ServiceNodeData {
   name: string;
@@ -13,31 +13,21 @@ export interface ServiceNodeData {
   unhealthyCount: number;
 }
 
-export interface DependencyNodeData {
-  name: string;
-  serviceId: string;
-  serviceName: string;
-  description: string | null;
-  impact: string | null;
-  type: DependencyType;
-  healthy: boolean | null;
-  healthState: HealthState | null;
-  healthCode: number | null;
-  latencyMs: number | null;
-  lastChecked: string | null;
-}
-
 export interface GraphNode {
   id: string;
   type: NodeType;
-  data: ServiceNodeData | DependencyNodeData;
+  data: ServiceNodeData;
 }
 
 export interface GraphEdgeData {
-  associationType?: AssociationType;
+  relationship: 'depends_on';
+  dependencyType?: DependencyType;
+  dependencyName?: string;
+  healthy?: boolean | null;
+  latencyMs?: number | null;
+  associationType?: AssociationType | null;
   isAutoSuggested?: boolean;
   confidenceScore?: number | null;
-  relationship: 'reports' | 'depends_on';
 }
 
 export interface GraphEdge {

@@ -20,18 +20,15 @@ import {
   GraphNode,
   GraphEdge,
   ServiceNodeData,
-  DependencyNodeData,
   GraphEdgeData,
   getServiceHealthStatus,
-  getDependencyHealthStatus,
 } from '../../../types/graph';
 import { TeamWithCounts } from '../../../types/team';
 import { ServiceNode } from './ServiceNode';
-import { DependencyNode } from './DependencyNode';
 import { CustomEdge } from './CustomEdge';
 import styles from './DependencyGraph.module.css';
 
-type AppNode = Node<ServiceNodeData | DependencyNodeData, 'service' | 'dependency'>;
+type AppNode = Node<ServiceNodeData, 'service'>;
 type AppEdge = Edge<GraphEdgeData, 'custom'>;
 
 const POLLING_ENABLED_KEY = 'graph-auto-refresh';
@@ -50,7 +47,6 @@ const INTERVAL_OPTIONS = [
 
 const nodeTypes = {
   service: ServiceNode,
-  dependency: DependencyNode,
 };
 
 const edgeTypes = {
@@ -99,7 +95,7 @@ function transformGraphData(
 ): { nodes: AppNode[]; edges: AppEdge[] } {
   const nodes: AppNode[] = data.nodes.map((node: GraphNode) => ({
     id: node.id,
-    type: node.type as 'service' | 'dependency',
+    type: 'service' as const,
     position: { x: 0, y: 0 },
     data: {
       ...node.data,
@@ -113,7 +109,7 @@ function transformGraphData(
     target: edge.target,
     type: 'custom' as const,
     data: edge.data,
-    animated: edge.data.relationship === 'depends_on',
+    animated: true,
   }));
 
   return getLayoutedElements(nodes, edges, direction);
@@ -241,11 +237,10 @@ export function DependencyGraph() {
     const matchingIds = new Set<string>();
 
     nodes.forEach((node) => {
-      const data = node.data as ServiceNodeData | DependencyNodeData;
-      if (data.name.toLowerCase().includes(query)) {
+      if (node.data.name.toLowerCase().includes(query)) {
         matchingIds.add(node.id);
       }
-      if ('teamName' in data && typeof data.teamName === 'string' && data.teamName.toLowerCase().includes(query)) {
+      if (node.data.teamName?.toLowerCase().includes(query)) {
         matchingIds.add(node.id);
       }
     });
@@ -259,14 +254,7 @@ export function DependencyGraph() {
   }, [nodes, searchQuery]);
 
   const getMiniMapNodeColor = (node: AppNode) => {
-    const data = node.data as ServiceNodeData | DependencyNodeData;
-    let status: string;
-
-    if (node.type === 'service') {
-      status = getServiceHealthStatus(data as ServiceNodeData);
-    } else {
-      status = getDependencyHealthStatus(data as DependencyNodeData);
-    }
+    const status = getServiceHealthStatus(node.data);
 
     switch (status) {
       case 'healthy':
@@ -456,7 +444,7 @@ export function DependencyGraph() {
             <svg>
               <defs>
                 <marker
-                  id="arrow-report"
+                  id="arrow-dependency"
                   viewBox="0 0 10 10"
                   refX="10"
                   refY="5"
@@ -464,18 +452,7 @@ export function DependencyGraph() {
                   markerHeight="6"
                   orient="auto-start-reverse"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#9ca3af" />
-                </marker>
-                <marker
-                  id="arrow-association"
-                  viewBox="0 0 10 10"
-                  refX="10"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
                 </marker>
               </defs>
             </svg>

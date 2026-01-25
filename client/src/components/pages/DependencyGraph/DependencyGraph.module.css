@@ -354,13 +354,12 @@
   stroke-width: 2px;
 }
 
-.reportEdge {
-  stroke: #9ca3af;
+.healthyEdge {
+  stroke: #10b981;
 }
 
-.associationEdge {
-  stroke: #3b82f6;
-  stroke-dasharray: 5 3;
+.unhealthyEdge {
+  stroke: #dc2626;
 }
 
 .edgeSelected {
@@ -375,14 +374,15 @@
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  color: #3b82f6;
+  color: #374151;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.autoSuggested {
-  color: #f59e0b;
-  margin-left: 2px;
+.edgeLabelUnhealthy {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
 }
 
 /* Empty State */

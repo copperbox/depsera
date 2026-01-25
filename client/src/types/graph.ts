@@ -1,6 +1,5 @@
-export type NodeType = 'service' | 'dependency';
+export type NodeType = 'service';
 export type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
-export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
 export type DependencyType =
   | 'database'
   | 'rest'
@@ -28,33 +27,21 @@ export interface ServiceNodeData {
   [key: string]: unknown;
 }
 
-export interface DependencyNodeData {
-  name: string;
-  serviceId: string;
-  serviceName: string;
-  description: string | null;
-  impact: string | null;
-  type: DependencyType;
-  healthy: boolean | null;
-  healthState: HealthState | null;
-  healthCode: number | null;
-  latencyMs: number | null;
-  lastChecked: string | null;
-  layoutDirection?: LayoutDirection;
-  [key: string]: unknown;
-}
-
 export interface GraphNode {
   id: string;
   type: NodeType;
-  data: ServiceNodeData | DependencyNodeData;
+  data: ServiceNodeData;
 }
 
 export interface GraphEdgeData {
-  associationType?: AssociationType;
+  relationship: 'depends_on';
+  dependencyType?: DependencyType;
+  dependencyName?: string;
+  healthy?: boolean | null;
+  latencyMs?: number | null;
+  associationType?: AssociationType | null;
   isAutoSuggested?: boolean;
   confidenceScore?: number | null;
-  relationship: 'reports' | 'depends_on';
   [key: string]: unknown;
 }
 
@@ -80,9 +67,8 @@ export function getServiceHealthStatus(data: ServiceNodeData): HealthStatus {
   return 'warning';
 }
 
-export function getDependencyHealthStatus(data: DependencyNodeData): HealthStatus {
-  if (data.healthy === null) return 'unknown';
+export function getEdgeHealthStatus(data: GraphEdgeData): HealthStatus {
+  if (data.healthy === null || data.healthy === undefined) return 'unknown';
   if (data.healthy === false) return 'critical';
-  if (data.healthState === 1) return 'warning';
   return 'healthy';
 }
