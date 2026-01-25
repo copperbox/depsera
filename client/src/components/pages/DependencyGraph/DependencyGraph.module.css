@@ -259,10 +259,18 @@
 }
 
 .typeIcon {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   color: #6b7280;
   flex-shrink: 0;
+}
+
+/* Node Name Row */
+.nodeNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 /* Node Name */
@@ -270,7 +278,6 @@
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

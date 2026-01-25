@@ -76,19 +76,6 @@ const TypeIcon = ({ type }: { type: DependencyType }) => {
   }
 };
 
-const typeLabels: Record<DependencyType, string> = {
-  database: 'Database',
-  rest: 'REST API',
-  soap: 'SOAP',
-  grpc: 'gRPC',
-  graphql: 'GraphQL',
-  message_queue: 'Queue',
-  cache: 'Cache',
-  file_system: 'File',
-  smtp: 'Email',
-  other: 'Other',
-};
-
 function DependencyNodeComponent({ data, selected }: NodeProps<DependencyNodeType>) {
   const healthStatus = getDependencyHealthStatus(data);
 
@@ -102,13 +89,10 @@ function DependencyNodeComponent({ data, selected }: NodeProps<DependencyNodeTyp
     <div className={`${styles.dependencyNode} ${styles[healthStatus]} ${selected ? styles.selected : ''}`}>
       <Handle type="target" position={Position.Top} className={styles.handle} />
 
-      <div className={styles.nodeHeader}>
-        <div className={`${styles.statusIndicator} ${styles[healthStatus]}`} />
+      <div className={styles.nodeNameRow}>
         <TypeIcon type={data.type} />
-        <span className={styles.nodeType}>{typeLabels[data.type]}</span>
+        <span className={styles.nodeName}>{data.name}</span>
       </div>
-
-      <div className={styles.nodeName}>{data.name}</div>
 
       <div className={styles.nodeDetails}>
         <span className={styles.serviceName}>via {data.serviceName}</span>
