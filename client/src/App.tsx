@@ -9,6 +9,7 @@ import ServiceDetail from './components/pages/Services/ServiceDetail';
 import TeamsList from './components/pages/Teams/TeamsList';
 import TeamDetail from './components/pages/Teams/TeamDetail';
 import UserManagement from './components/pages/Admin/UserManagement';
+import { DependencyGraph } from './components/pages/DependencyGraph/DependencyGraph';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
         <Route path="services/:id" element={<ServiceDetail />} />
         <Route path="teams" element={<TeamsList />} />
         <Route path="teams/:id" element={<TeamDetail />} />
+        <Route path="graph" element={<DependencyGraph />} />
         <Route
           path="admin/users"
           element={

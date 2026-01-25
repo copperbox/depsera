@@ -92,6 +92,22 @@ function Layout() {
               </svg>
               Teams
             </NavLink>
+            <NavLink
+              to="/graph"
+              className={({ isActive }) =>
+                `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`
+              }
+              onClick={closeSidebar}
+            >
+              <svg className={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <circle cx="18" cy="12" r="3" />
+                <line x1="8.5" y1="7.5" x2="15.5" y2="10.5" />
+                <line x1="8.5" y1="16.5" x2="15.5" y2="13.5" />
+              </svg>
+              Dependency Graph
+            </NavLink>
             {isAdmin && (
               <NavLink
                 to="/admin/users"
