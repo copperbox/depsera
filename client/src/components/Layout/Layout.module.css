@@ -101,6 +101,7 @@
 .container {
   flex: 1;
   display: flex;
+  overflow: hidden;
 }
 
 /* Sidebar */
@@ -109,12 +110,54 @@
   background-color: #f8f9fa;
   border-right: 1px solid #e9ecef;
   flex-shrink: 0;
+  transition: width 0.2s ease-in-out;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarCollapsed {
+  width: 60px;
+}
+
+.collapseButton {
+  position: absolute;
+  top: 12px;
+  right: -12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background-color 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.collapseButton:hover {
+  background-color: #e9ecef;
+}
+
+.collapseIcon {
+  width: 14px;
+  height: 14px;
+  color: #6b7280;
+  transition: transform 0.2s;
+}
+
+.collapseIcon.collapsed {
+  transform: rotate(180deg);
 }
 
 .nav {
   padding: 1rem 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .navLink {
@@ -126,6 +169,21 @@
   text-decoration: none;
   font-weight: 500;
   transition: background-color 0.2s, color 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebarCollapsed .navLink {
+  padding: 0.75rem;
+  justify-content: center;
+}
+
+.navLinkText {
+  transition: opacity 0.2s;
+}
+
+.sidebarCollapsed .navLinkText {
+  display: none;
 }
 
 .navLink:hover {
@@ -155,6 +213,14 @@
   padding: 2rem;
   max-width: 1200px;
   width: 100%;
+  overflow: auto;
+}
+
+.mainFullWidth {
+  max-width: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Footer */
