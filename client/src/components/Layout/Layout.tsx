@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import styles from './Layout.module.css';
@@ -10,15 +10,11 @@ function Layout() {
   const { user, isAdmin, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
     return stored === 'true';
   });
-
-  // Check if we're on the graph page for full-width layout
-  const isGraphPage = location.pathname === '/graph';
 
   const handleLogout = async () => {
     await logout();
@@ -188,7 +184,7 @@ function Layout() {
           </nav>
         </aside>
 
-        <main className={`${styles.main} ${isGraphPage ? styles.mainFullWidth : ''}`}>
+        <main className={styles.main}>
           <Outlet />
         </main>
       </div>

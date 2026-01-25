@@ -1,6 +1,10 @@
 /* Container & Layout */
 .container {
-  padding: 0;
+  height: 100%;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 .header {
@@ -551,6 +555,10 @@
 
 /* Responsive */
 @media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
   .filters {
     flex-direction: column;
   }

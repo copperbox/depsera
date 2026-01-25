@@ -235,17 +235,11 @@
 /* Main content */
 .main {
   flex: 1;
-  padding: 2rem;
-  max-width: 1200px;
+  padding: 0;
   width: 100%;
   overflow: auto;
   background-color: var(--color-bg-page);
   transition: background-color 0.2s;
-}
-
-.mainFullWidth {
-  max-width: none;
-  padding: 0;
   display: flex;
   flex-direction: column;
 }
@@ -302,7 +296,7 @@
   }
 
   .main {
-    padding: 1rem;
+    padding: 0;
   }
 
   .headerRight {
