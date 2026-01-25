@@ -9,6 +9,7 @@ import servicesRouter from './routes/services';
 import teamsRouter from './routes/teams';
 import usersRouter from './routes/users';
 import associationsRouter from './routes/associations';
+import graphRouter from './routes/graph';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 
 dotenv.config();
@@ -38,6 +39,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/services', requireAuth, servicesRouter);
 app.use('/api/teams', requireAuth, teamsRouter);
 app.use('/api/users', requireAuth, usersRouter);
+app.use('/api/graph', requireAuth, graphRouter);
 app.use('/api', requireAuth, associationsRouter);
 
 // Initialize and start server
