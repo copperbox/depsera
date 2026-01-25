@@ -23,6 +23,9 @@ export interface ServiceNodeData {
   dependencyCount: number;
   healthyCount: number;
   unhealthyCount: number;
+  // Reported health: what other services report about THIS service
+  reportedHealthyCount: number;
+  reportedUnhealthyCount: number;
   serviceType?: DependencyType;
   layoutDirection?: LayoutDirection;
   [key: string]: unknown;
@@ -64,10 +67,12 @@ export interface GraphResponse {
 export type HealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 
 export function getServiceHealthStatus(data: ServiceNodeData): HealthStatus {
-  if (data.dependencyCount === 0) return 'unknown';
-  if (data.unhealthyCount > 0) return 'critical';
-  if (data.healthyCount === data.dependencyCount) return 'healthy';
-  return 'warning';
+  // Health is based on what other services report about THIS service (incoming edges)
+  const totalReports = data.reportedHealthyCount + data.reportedUnhealthyCount;
+  if (totalReports === 0) return 'unknown';
+  if (data.reportedUnhealthyCount > 0) return 'critical';
+  if (data.reportedHealthyCount > 0) return 'healthy';
+  return 'unknown';
 }
 
 export function getEdgeHealthStatus(data: GraphEdgeData): HealthStatus {

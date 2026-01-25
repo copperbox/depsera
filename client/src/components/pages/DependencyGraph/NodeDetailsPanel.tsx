@@ -1,11 +1,17 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ServiceNodeData, getServiceHealthStatus, HealthStatus } from '../../../types/graph';
+import { type Node, type Edge } from '@xyflow/react';
+import { ServiceNodeData, GraphEdgeData, getServiceHealthStatus, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
 import styles from './NodeDetailsPanel.module.css';
+
+type AppNode = Node<ServiceNodeData, 'service'>;
+type AppEdge = Edge<GraphEdgeData, 'custom'>;
 
 interface NodeDetailsPanelProps {
   nodeId: string;
   data: ServiceNodeData;
+  nodes: AppNode[];
+  edges: AppEdge[];
   onClose: () => void;
 }
 
@@ -16,8 +22,48 @@ const healthStatusLabels: Record<HealthStatus, string> = {
   unknown: 'Unknown',
 };
 
-function NodeDetailsPanelComponent({ nodeId, data, onClose }: NodeDetailsPanelProps) {
+interface DependencyInfo {
+  id: string;
+  name: string;
+  healthStatus: HealthStatus;
+  dependencyName?: string;
+}
+
+function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: NodeDetailsPanelProps) {
   const healthStatus = getServiceHealthStatus(data);
+
+  // Build a map of node IDs to names for lookup
+  const nodeNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const node of nodes) {
+      map.set(node.id, node.data.name);
+    }
+    return map;
+  }, [nodes]);
+
+  // Dependents: services that depend on THIS node (edges where this node is the source)
+  const dependents = useMemo((): DependencyInfo[] => {
+    return edges
+      .filter((edge) => edge.source === nodeId)
+      .map((edge) => ({
+        id: edge.target,
+        name: nodeNameMap.get(edge.target) || edge.target,
+        healthStatus: getEdgeHealthStatus(edge.data!),
+        dependencyName: edge.data?.dependencyName,
+      }));
+  }, [edges, nodeId, nodeNameMap]);
+
+  // Dependencies: services THIS node depends on (edges where this node is the target)
+  const dependencies = useMemo((): DependencyInfo[] => {
+    return edges
+      .filter((edge) => edge.target === nodeId)
+      .map((edge) => ({
+        id: edge.source,
+        name: nodeNameMap.get(edge.source) || edge.source,
+        healthStatus: getEdgeHealthStatus(edge.data!),
+        dependencyName: edge.data?.dependencyName,
+      }));
+  }, [edges, nodeId, nodeNameMap]);
 
   return (
     <div className={styles.panel}>
@@ -60,8 +106,29 @@ function NodeDetailsPanelComponent({ nodeId, data, onClose }: NodeDetailsPanelPr
         </div>
       </div>
 
+      {dependents.length > 0 && (
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Dependents ({dependents.length})</h4>
+          <p className={styles.sectionDescription}>Services that depend on this service</p>
+          <ul className={styles.serviceList}>
+            {dependents.map((dep) => (
+              <li key={dep.id} className={styles.serviceListItem}>
+                <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
+                <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
+                  {dep.name}
+                </Link>
+                {dep.dependencyName && (
+                  <span className={styles.dependencyLabel}>{dep.dependencyName}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className={styles.section}>
-        <h4 className={styles.sectionTitle}>Dependencies</h4>
+        <h4 className={styles.sectionTitle}>Dependencies Report</h4>
+        <p className={styles.sectionDescription}>What this service reports about its dependencies</p>
         <div className={styles.statsGrid}>
           <div className={styles.statItem}>
             <span className={styles.statValue}>{data.dependencyCount}</span>
@@ -76,6 +143,21 @@ function NodeDetailsPanelComponent({ nodeId, data, onClose }: NodeDetailsPanelPr
             <span className={styles.statLabel}>Unhealthy</span>
           </div>
         </div>
+        {dependencies.length > 0 && (
+          <ul className={styles.serviceList}>
+            {dependencies.map((dep) => (
+              <li key={dep.id} className={styles.serviceListItem}>
+                <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
+                <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
+                  {dep.name}
+                </Link>
+                {dep.dependencyName && (
+                  <span className={styles.dependencyLabel}>{dep.dependencyName}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className={styles.actions}>

@@ -97,15 +97,39 @@ function transformGraphData(
   data: GraphResponse,
   direction: LayoutDirection = 'TB'
 ): { nodes: AppNode[]; edges: AppEdge[] } {
-  const nodes: AppNode[] = data.nodes.map((node: GraphNode) => ({
-    id: node.id,
-    type: 'service' as const,
-    position: { x: 0, y: 0 },
-    data: {
-      ...node.data,
-      layoutDirection: direction,
-    },
-  }));
+  // Calculate reported health for each node based on incoming edges
+  // (edges where the node is the SOURCE, meaning other services depend on it)
+  const reportedHealth = new Map<string, { healthy: number; unhealthy: number }>();
+
+  for (const edge of data.edges) {
+    // edge.source is the dependency provider (the service being depended upon)
+    // edge.data.healthy is what the dependent reports about this service
+    const sourceId = edge.source;
+    if (!reportedHealth.has(sourceId)) {
+      reportedHealth.set(sourceId, { healthy: 0, unhealthy: 0 });
+    }
+    const counts = reportedHealth.get(sourceId)!;
+    if (edge.data.healthy === true) {
+      counts.healthy++;
+    } else if (edge.data.healthy === false) {
+      counts.unhealthy++;
+    }
+  }
+
+  const nodes: AppNode[] = data.nodes.map((node: GraphNode) => {
+    const reported = reportedHealth.get(node.id) || { healthy: 0, unhealthy: 0 };
+    return {
+      id: node.id,
+      type: 'service' as const,
+      position: { x: 0, y: 0 },
+      data: {
+        ...node.data,
+        reportedHealthyCount: reported.healthy,
+        reportedUnhealthyCount: reported.unhealthy,
+        layoutDirection: direction,
+      },
+    };
+  });
 
   const edges: AppEdge[] = data.edges.map((edge: GraphEdge) => ({
     id: edge.id,
@@ -684,6 +708,8 @@ function DependencyGraphInner() {
           <NodeDetailsPanel
             nodeId={selectedNode.id}
             data={selectedNode.data}
+            nodes={nodes}
+            edges={edges}
             onClose={() => setSelectedNodeId(null)}
           />
         )}

@@ -104,11 +104,17 @@
 }
 
 .sectionTitle {
-  margin: 0 0 12px 0;
+  margin: 0 0 4px 0;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.sectionDescription {
+  margin: 0 0 12px 0;
+  font-size: 12px;
   color: var(--color-text-muted);
 }
 
@@ -149,6 +155,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  margin-bottom: 12px;
 }
 
 .statItem {
@@ -180,6 +187,72 @@
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.serviceList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.serviceListItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--color-bg-hover);
+  border-radius: 6px;
+}
+
+.healthDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.healthDot.healthy {
+  background: var(--color-success);
+}
+
+.healthDot.warning {
+  background: #f59e0b;
+}
+
+.healthDot.critical {
+  background: var(--color-error);
+}
+
+.healthDot.unknown {
+  background: var(--color-text-muted);
+}
+
+.serviceLink {
+  font-size: 13px;
+  color: var(--color-accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.serviceLink:hover {
+  text-decoration: underline;
+}
+
+.dependencyLabel {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-card);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .actions {
