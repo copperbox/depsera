@@ -34,7 +34,7 @@ function CustomEdgeComponent({
   sourcePosition,
   targetPosition,
   data,
-  selected,
+  style,
 }: CustomEdgeProps) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -47,23 +47,27 @@ function CustomEdgeComponent({
 
   const label = data?.dependencyType ? dependencyTypeLabels[data.dependencyType] : '';
   const isHealthy = data?.healthy !== false;
+  const isSelected = data?.isSelected ?? false;
   const edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
+  const opacity = style?.opacity ?? 1;
 
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
-        className={`${styles.edge} ${edgeClass} ${selected ? styles.edgeSelected : ''}`}
+        className={`${styles.edge} ${edgeClass} ${isSelected ? styles.edgeSelected : ''}`}
         markerEnd="url(#arrow-dependency)"
+        style={style}
       />
       {label && (
         <EdgeLabelRenderer>
           <div
-            className={`${styles.edgeLabel} ${!isHealthy ? styles.edgeLabelUnhealthy : ''}`}
+            className={`${styles.edgeLabel} ${!isHealthy ? styles.edgeLabelUnhealthy : ''} ${isSelected ? (isHealthy ? styles.edgeLabelSelectedHealthy : styles.edgeLabelSelectedUnhealthy) : ''}`}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
+              opacity,
             }}
           >
             {label}

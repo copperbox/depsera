@@ -43,6 +43,8 @@ export interface GraphEdgeData {
   associationType?: AssociationType | null;
   isAutoSuggested?: boolean;
   confidenceScore?: number | null;
+  isSelected?: boolean;
+  isHighlighted?: boolean;
   [key: string]: unknown;
 }
 

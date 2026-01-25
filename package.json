@@ -3,7 +3,9 @@
   "version": "1.1.0",
   "description": "A dashboard to review and manage all tracked dependencies and services",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\"",
+    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\"",
+    "dev:clean": "node scripts/kill-dev-ports.js && npm run dev",
+    "cleanup": "node scripts/kill-dev-ports.js",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "dev:mock": "cd mock-services && npm run dev",
@@ -31,6 +33,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "tree-kill": "^1.2.2"
   }
 }

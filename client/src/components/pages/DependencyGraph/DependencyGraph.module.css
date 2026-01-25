@@ -380,6 +380,24 @@
   stroke-width: 3px;
 }
 
+.healthyEdge.edgeSelected {
+  filter: drop-shadow(0 0 4px #10b981) drop-shadow(0 0 8px #10b981);
+}
+
+.unhealthyEdge.edgeSelected {
+  filter: drop-shadow(0 0 4px #dc2626) drop-shadow(0 0 8px #dc2626);
+}
+
+.edgeLabelSelectedHealthy {
+  border-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.edgeLabelSelectedUnhealthy {
+  border-color: #dc2626;
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+}
+
 /* Edge Labels */
 .edgeLabel {
   position: absolute;

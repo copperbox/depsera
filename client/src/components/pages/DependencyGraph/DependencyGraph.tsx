@@ -10,6 +10,7 @@ import {
   useOnSelectionChange,
   type Node,
   type Edge,
+  type EdgeMouseHandler,
   BackgroundVariant,
 } from '@xyflow/react';
 import dagre from 'dagre';
@@ -118,9 +119,9 @@ function transformGraphData(
   return getLayoutedElements(nodes, edges, direction);
 }
 
-// Find all nodes related to a given node (connected via edges in any direction)
-function getRelatedNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
-  const related = new Set<string>();
+// Find all upstream nodes (nodes that the selected node depends on, following edge direction)
+function getUpstreamNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
+  const upstream = new Set<string>();
   const visited = new Set<string>();
   const queue = [nodeId];
 
@@ -128,20 +129,111 @@ function getRelatedNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
     const current = queue.shift()!;
     if (visited.has(current)) continue;
     visited.add(current);
-    related.add(current);
+    upstream.add(current);
 
-    // Find all edges connected to this node (in either direction)
+    // Follow edges where current node is the SOURCE (current depends on target)
     for (const edge of edges) {
       if (edge.source === current && !visited.has(edge.target)) {
         queue.push(edge.target);
       }
+    }
+  }
+
+  return upstream;
+}
+
+// Find all downstream nodes (nodes that depend on the selected node, following edge direction backwards)
+function getDownstreamNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
+  const downstream = new Set<string>();
+  const visited = new Set<string>();
+  const queue = [nodeId];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    downstream.add(current);
+
+    // Follow edges where current node is the TARGET (source depends on current)
+    for (const edge of edges) {
       if (edge.target === current && !visited.has(edge.source)) {
         queue.push(edge.source);
       }
     }
   }
 
-  return related;
+  return downstream;
+}
+
+// Find all nodes related to a given node (upstream + downstream, no turning around)
+function getRelatedNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
+  const upstream = getUpstreamNodeIds(nodeId, edges);
+  const downstream = getDownstreamNodeIds(nodeId, edges);
+  return new Set([...upstream, ...downstream]);
+}
+
+// Find all nodes related to an edge (only the direct chain the edge is part of)
+function getRelatedNodeIdsFromEdge(edgeId: string, edges: AppEdge[]): Set<string> {
+  const edge = edges.find((e) => e.id === edgeId);
+  if (!edge) return new Set<string>();
+
+  // For edge source→target (source depends on target):
+  // - Downstream from source: things that depend on the source
+  // - Upstream from target: things the target depends on
+  const downstreamFromSource = getDownstreamNodeIds(edge.source, edges);
+  const upstreamFromTarget = getUpstreamNodeIds(edge.target, edges);
+
+  // Combine to get just the chain this edge is part of
+  return new Set([...downstreamFromSource, ...upstreamFromTarget]);
+}
+
+// Find all edges that connect related nodes in the dependency chain
+function getRelatedEdgeIds(
+  selectedNodeId: string | null,
+  selectedEdgeId: string | null,
+  edges: AppEdge[]
+): Set<string> {
+  const relatedEdges = new Set<string>();
+
+  // For node selection: only include edges that are part of the upstream/downstream chains
+  if (selectedNodeId) {
+    const upstream = getUpstreamNodeIds(selectedNodeId, edges);
+    const downstream = getDownstreamNodeIds(selectedNodeId, edges);
+
+    for (const edge of edges) {
+      // Edge is in upstream chain: source is in upstream, target is in upstream
+      const inUpstream = upstream.has(edge.source) && upstream.has(edge.target);
+      // Edge is in downstream chain: source is in downstream, target is in downstream
+      const inDownstream = downstream.has(edge.source) && downstream.has(edge.target);
+
+      if (inUpstream || inDownstream) {
+        relatedEdges.add(edge.id);
+      }
+    }
+  } else if (selectedEdgeId) {
+    // For edge selection: only include edges in the direct chain
+    const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
+    if (selectedEdge) {
+      // Always include the selected edge itself
+      relatedEdges.add(selectedEdgeId);
+
+      const downstreamFromSource = getDownstreamNodeIds(selectedEdge.source, edges);
+      const upstreamFromTarget = getUpstreamNodeIds(selectedEdge.target, edges);
+
+      for (const edge of edges) {
+        // Edge is in downstream chain from source
+        const inDownstream = downstreamFromSource.has(edge.source) && downstreamFromSource.has(edge.target);
+        // Edge is in upstream chain from target
+        const inUpstream = upstreamFromTarget.has(edge.source) && upstreamFromTarget.has(edge.target);
+
+        if (inDownstream || inUpstream) {
+          relatedEdges.add(edge.id);
+        }
+      }
+    }
+  }
+
+  return relatedEdges;
 }
 
 function DependencyGraphInner() {
@@ -153,6 +245,7 @@ function DependencyGraphInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
     const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
     return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
@@ -265,11 +358,22 @@ function DependencyGraphInner() {
     return nodes.find((n) => n.id === selectedNodeId) || null;
   }, [nodes, selectedNodeId]);
 
-  // Get related node IDs when a node is selected
+  // Get related node IDs when a node or edge is selected
   const relatedNodeIds = useMemo(() => {
-    if (!selectedNodeId) return null;
-    return getRelatedNodeIds(selectedNodeId, edges);
-  }, [selectedNodeId, edges]);
+    if (selectedNodeId) {
+      return getRelatedNodeIds(selectedNodeId, edges);
+    }
+    if (selectedEdgeId) {
+      return getRelatedNodeIdsFromEdge(selectedEdgeId, edges);
+    }
+    return null;
+  }, [selectedNodeId, selectedEdgeId, edges]);
+
+  // Get related edge IDs based on selection
+  const relatedEdgeIds = useMemo(() => {
+    if (!selectedNodeId && !selectedEdgeId) return null;
+    return getRelatedEdgeIds(selectedNodeId, selectedEdgeId, edges);
+  }, [selectedNodeId, selectedEdgeId, edges]);
 
   // Filter nodes based on search query and selection
   const filteredNodes = useMemo(() => {
@@ -307,7 +411,7 @@ function DependencyGraphInner() {
         },
         style: relatedNodeIds.has(node.id)
           ? { ...(node.style || {}), opacity: 1 }
-          : { ...(node.style || {}), opacity: 0.25 },
+          : { ...(node.style || {}), opacity: 0.2 },
       }));
     }
 
@@ -315,27 +419,56 @@ function DependencyGraphInner() {
   }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
 
   // Filter edges based on selection
-  const filteredEdges = useMemo(() => {
-    if (!relatedNodeIds) return edges;
-
-    return edges.map((edge) => ({
+  const filteredEdges = useMemo((): AppEdge[] => {
+    if (!relatedEdgeIds) return edges.map((edge) => ({
       ...edge,
-      style: relatedNodeIds.has(edge.source) && relatedNodeIds.has(edge.target)
-        ? { opacity: 1 }
-        : { opacity: 0.15 },
+      data: {
+        ...edge.data!,
+        isSelected: false,
+        isHighlighted: false,
+      },
     }));
-  }, [edges, relatedNodeIds]);
+
+    return edges.map((edge) => {
+      const isRelated = relatedEdgeIds.has(edge.id);
+      const isSelected = edge.id === selectedEdgeId;
+      return {
+        ...edge,
+        data: {
+          ...edge.data!,
+          isSelected,
+          isHighlighted: isRelated && !isSelected,
+        },
+        style: isRelated
+          ? { opacity: 1 }
+          : { opacity: 0.2 },
+      };
+    });
+  }, [edges, relatedEdgeIds, selectedEdgeId]);
 
   // Handle node selection change
   useOnSelectionChange({
     onChange: ({ nodes: selectedNodes }) => {
       if (selectedNodes.length > 0) {
         setSelectedNodeId(selectedNodes[0].id);
+        setSelectedEdgeId(null); // Clear edge selection when node is selected
       } else {
         setSelectedNodeId(null);
       }
     },
   });
+
+  // Handle edge click
+  const handleEdgeClick: EdgeMouseHandler<AppEdge> = useCallback((_, edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null); // Clear node selection when edge is selected
+  }, []);
+
+  // Handle pane click (deselect all)
+  const handlePaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
 
   const getMiniMapNodeColor = (node: AppNode) => {
     const status = getServiceHealthStatus(node.data);
@@ -506,6 +639,8 @@ function DependencyGraphInner() {
               edges={filteredEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
+              onEdgeClick={handleEdgeClick}
+              onPaneClick={handlePaneClick}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView
