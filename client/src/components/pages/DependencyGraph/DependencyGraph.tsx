@@ -30,6 +30,7 @@ import { TeamWithCounts } from '../../../types/team';
 import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeDetailsPanel } from './NodeDetailsPanel';
+import { EdgeDetailsPanel } from './EdgeDetailsPanel';
 import styles from './DependencyGraph.module.css';
 
 type AppNode = Node<ServiceNodeData, 'service'>;
@@ -39,10 +40,14 @@ const POLLING_ENABLED_KEY = 'graph-auto-refresh';
 const POLLING_INTERVAL_KEY = 'graph-refresh-interval';
 const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 const TIER_SPACING_KEY = 'graph-tier-spacing';
+const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
 const DEFAULT_INTERVAL = 30000;
 const DEFAULT_TIER_SPACING = 180;
 const MIN_TIER_SPACING = 80;
 const MAX_TIER_SPACING = 400;
+const DEFAULT_LATENCY_THRESHOLD = 50;
+const MIN_LATENCY_THRESHOLD = 10;
+const MAX_LATENCY_THRESHOLD = 200;
 
 type LayoutDirection = 'TB' | 'LR';
 
@@ -317,6 +322,16 @@ function DependencyGraphInner() {
     }
     return DEFAULT_TIER_SPACING;
   });
+  const [latencyThreshold, setLatencyThreshold] = useState(() => {
+    const stored = localStorage.getItem(LATENCY_THRESHOLD_KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= MIN_LATENCY_THRESHOLD && parsed <= MAX_LATENCY_THRESHOLD) {
+        return parsed;
+      }
+    }
+    return DEFAULT_LATENCY_THRESHOLD;
+  });
 
   // Polling state
   const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
@@ -461,6 +476,13 @@ function DependencyGraphInner() {
     localStorage.setItem(TIER_SPACING_KEY, String(newSpacing));
   };
 
+  // Change latency threshold
+  const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newThreshold = parseInt(e.target.value, 10);
+    setLatencyThreshold(newThreshold);
+    localStorage.setItem(LATENCY_THRESHOLD_KEY, String(newThreshold));
+  };
+
   // Get the selected node's data for the details panel
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -527,33 +549,45 @@ function DependencyGraphInner() {
     return result;
   }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
 
+  // Compute whether an edge has high latency
+  const computeIsHighLatency = useCallback((latencyMs: number | null | undefined, avgLatencyMs24h: number | null | undefined): boolean => {
+    if (!latencyMs || !avgLatencyMs24h || avgLatencyMs24h === 0) return false;
+    const threshold = 1 + latencyThreshold / 100;
+    return latencyMs > avgLatencyMs24h * threshold;
+  }, [latencyThreshold]);
+
   // Filter edges based on selection
   const filteredEdges = useMemo((): AppEdge[] => {
-    if (!relatedEdgeIds) return edges.map((edge) => ({
-      ...edge,
-      data: {
-        ...edge.data!,
-        isSelected: false,
-        isHighlighted: false,
-      },
-    }));
-
-    return edges.map((edge) => {
-      const isRelated = relatedEdgeIds.has(edge.id);
-      const isSelected = edge.id === selectedEdgeId;
+    const processEdge = (edge: AppEdge, isSelected: boolean, isHighlighted: boolean, opacity: number): AppEdge => {
+      const isHighLatency = computeIsHighLatency(edge.data?.latencyMs, edge.data?.avgLatencyMs24h);
       return {
         ...edge,
         data: {
           ...edge.data!,
           isSelected,
-          isHighlighted: isRelated && !isSelected,
+          isHighlighted,
+          isHighLatency,
         },
-        style: isRelated
-          ? { opacity: 1 }
-          : { opacity: 0.2 },
+        style: { opacity },
       };
+    };
+
+    if (!relatedEdgeIds) {
+      return edges.map((edge) => processEdge(edge, false, false, 1));
+    }
+
+    return edges.map((edge) => {
+      const isRelated = relatedEdgeIds.has(edge.id);
+      const isSelected = edge.id === selectedEdgeId;
+      return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency]);
+
+  // Get the selected edge's data for the details panel
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeId) return null;
+    return filteredEdges.find((e) => e.id === selectedEdgeId) || null;
+  }, [filteredEdges, selectedEdgeId]);
 
   // Handle node selection change
   useOnSelectionChange({
@@ -686,6 +720,21 @@ function DependencyGraphInner() {
           <span className={styles.tierSpacingValue}>{tierSpacing}px</span>
         </div>
 
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>High latency:</label>
+          <input
+            type="range"
+            className={styles.latencyThresholdSlider}
+            min={MIN_LATENCY_THRESHOLD}
+            max={MAX_LATENCY_THRESHOLD}
+            step={10}
+            value={latencyThreshold}
+            onChange={handleLatencyThresholdChange}
+            title={`Alert when ${latencyThreshold}% above average`}
+          />
+          <span className={styles.latencyThresholdValue}>+{latencyThreshold}%</span>
+        </div>
+
         <div className={styles.autoRefreshControls}>
           {isRefreshing && (
             <div className={styles.refreshingIndicator}>
@@ -734,6 +783,10 @@ function DependencyGraphInner() {
           <div className={styles.legendItem}>
             <div className={`${styles.legendDot} ${styles.unknown}`} />
             <span>Unknown</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.highLatency}`} />
+            <span>High Latency</span>
           </div>
         </div>
       </div>
@@ -811,6 +864,16 @@ function DependencyGraphInner() {
             nodes={nodes}
             edges={edges}
             onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+
+        {selectedEdge && selectedEdge.data && (
+          <EdgeDetailsPanel
+            edgeId={selectedEdge.id}
+            data={selectedEdge.data}
+            sourceNode={nodes.find((n) => n.id === selectedEdge.source)}
+            targetNode={nodes.find((n) => n.id === selectedEdge.target)}
+            onClose={() => setSelectedEdgeId(null)}
           />
         )}
       </div>

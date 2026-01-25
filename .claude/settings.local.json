@@ -29,7 +29,8 @@
       "Bash(dir:*)",
       "Bash(npm run test:server:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run mock:seed:*)"
+      "Bash(npm run mock:seed:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

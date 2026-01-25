@@ -23,6 +23,8 @@ export interface DependencyStatus {
   lastChecked: string;
   impact?: string;
   errorMessage?: string;
+  error?: unknown;
+  checkDetails?: Record<string, unknown>;
 }
 
 export interface ServiceHealth {

@@ -52,7 +52,13 @@ export class CascadeEngine {
         mode: FailureMode.ERROR,
         config: {
           errorCode: 503,
-          errorMessage: `Upstream dependency ${sourceName} is failing`
+          errorMessage: `Upstream dependency ${sourceName} is failing`,
+          error: {
+            code: 'EUPSTREAM',
+            errno: -503,
+            syscall: 'connect',
+            upstream: sourceName
+          }
         },
         appliedAt: new Date(),
         cascade: false,

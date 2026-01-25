@@ -132,6 +132,9 @@ export interface Dependency {
   health_state: HealthState | null;
   health_code: number | null;
   latency_ms: number | null;
+  check_details: string | null; // JSON string of check details
+  error: string | null; // JSON string of error object
+  error_message: string | null;
   last_checked: string | null;
   last_status_change: string | null;
   created_at: string;
@@ -197,6 +200,9 @@ export interface ProactiveDepsStatus {
     skipped?: boolean;
   };
   lastChecked: string;
+  checkDetails?: Record<string, unknown>;
+  error?: unknown;
+  errorMessage?: string;
 }
 
 // Aggregated health types (based on dependent reports)
@@ -226,4 +232,44 @@ export interface DependentReport {
   health_state: HealthState | null;
   latency_ms: number | null;
   last_checked: string | null;
+}
+
+// Latency history types
+export interface DependencyLatencyHistory {
+  id: string;
+  dependency_id: string;
+  latency_ms: number;
+  recorded_at: string;
+}
+
+export interface LatencyStats {
+  avgLatencyMs24h: number | null;
+  minLatencyMs24h: number | null;
+  maxLatencyMs24h: number | null;
+  dataPointCount: number;
+}
+
+export interface LatencyDataPoint {
+  latency_ms: number;
+  recorded_at: string;
+}
+
+// Error history types
+export interface DependencyErrorHistory {
+  id: string;
+  dependency_id: string;
+  error: string | null;
+  error_message: string | null;
+  recorded_at: string;
+}
+
+export interface ErrorHistoryResponse {
+  dependencyId: string;
+  errorCount: number;
+  errors: {
+    error: unknown;
+    errorMessage: string | null;
+    recordedAt: string;
+    isRecovery: boolean;
+  }[];
 }

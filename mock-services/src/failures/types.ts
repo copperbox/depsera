@@ -10,6 +10,7 @@ export interface FailureConfig {
   errorRate?: number;
   errorCode?: number;
   errorMessage?: string;
+  error?: unknown;
 }
 
 export interface FailureState {

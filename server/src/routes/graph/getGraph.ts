@@ -19,6 +19,11 @@ interface DependencyWithTarget extends Dependency {
   association_type: string | null;
   is_auto_suggested: number | null;
   confidence_score: number | null;
+  avg_latency_24h: number | null;
+  // New fields for check details and errors
+  check_details: string | null;
+  error: string | null;
+  error_message: string | null;
 }
 
 export function getGraph(req: Request, res: Response): void {
@@ -65,11 +70,20 @@ function getFullGraph(): GraphResponse {
   const dependenciesWithTargets = db.prepare(`
     SELECT
       d.*,
+      d.check_details,
+      d.error,
+      d.error_message,
       s.name as service_name,
       da.linked_service_id as target_service_id,
       da.association_type,
       da.is_auto_suggested,
-      da.confidence_score
+      da.confidence_score,
+      (
+        SELECT ROUND(AVG(latency_ms))
+        FROM dependency_latency_history
+        WHERE dependency_id = d.id
+          AND recorded_at >= datetime('now', '-24 hours')
+      ) as avg_latency_24h
     FROM dependencies d
     JOIN services s ON d.service_id = s.id
     LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
@@ -117,22 +131,52 @@ function getFullGraph(): GraphResponse {
           id: edgeId,
           source: dep.target_service_id,
           target: dep.service_id,
-          data: {
-            relationship: 'depends_on',
-            dependencyType: dep.type,
-            dependencyName: dep.name,
-            healthy: dep.healthy === null ? null : dep.healthy === 1,
-            latencyMs: dep.latency_ms,
-            associationType: dep.association_type as GraphEdgeData['associationType'],
-            isAutoSuggested: dep.is_auto_suggested === 1,
-            confidenceScore: dep.confidence_score,
-          },
+          data: createEdgeData(dep),
         });
       }
     }
   }
 
   return { nodes, edges };
+}
+
+// Helper function to create edge data with all fields
+function createEdgeData(dep: DependencyWithTarget): GraphEdgeData {
+  // Parse JSON fields
+  let checkDetails: Record<string, unknown> | undefined;
+  let error: unknown | undefined;
+
+  if (dep.check_details) {
+    try {
+      checkDetails = JSON.parse(dep.check_details);
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  if (dep.error) {
+    try {
+      error = JSON.parse(dep.error);
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return {
+    relationship: 'depends_on',
+    dependencyType: dep.type,
+    dependencyName: dep.name,
+    dependencyId: dep.id,
+    healthy: dep.healthy === null ? null : dep.healthy === 1,
+    latencyMs: dep.latency_ms,
+    avgLatencyMs24h: dep.avg_latency_24h,
+    associationType: dep.association_type as GraphEdgeData['associationType'],
+    isAutoSuggested: dep.is_auto_suggested === 1,
+    confidenceScore: dep.confidence_score,
+    checkDetails,
+    error,
+    errorMessage: dep.error_message,
+  };
 }
 
 // Compute service types based on incoming dependency types
@@ -197,11 +241,20 @@ function getTeamGraph(teamId: string): GraphResponse {
   const dependenciesWithTargets = db.prepare(`
     SELECT
       d.*,
+      d.check_details,
+      d.error,
+      d.error_message,
       s.name as service_name,
       da.linked_service_id as target_service_id,
       da.association_type,
       da.is_auto_suggested,
-      da.confidence_score
+      da.confidence_score,
+      (
+        SELECT ROUND(AVG(latency_ms))
+        FROM dependency_latency_history
+        WHERE dependency_id = d.id
+          AND recorded_at >= datetime('now', '-24 hours')
+      ) as avg_latency_24h
     FROM dependencies d
     JOIN services s ON d.service_id = s.id
     LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
@@ -276,16 +329,7 @@ function getTeamGraph(teamId: string): GraphResponse {
           id: edgeId,
           source: dep.target_service_id,
           target: dep.service_id,
-          data: {
-            relationship: 'depends_on',
-            dependencyType: dep.type,
-            dependencyName: dep.name,
-            healthy: dep.healthy === null ? null : dep.healthy === 1,
-            latencyMs: dep.latency_ms,
-            associationType: dep.association_type as GraphEdgeData['associationType'],
-            isAutoSuggested: dep.is_auto_suggested === 1,
-            confidenceScore: dep.confidence_score,
-          },
+          data: createEdgeData(dep),
         });
       }
     }
@@ -321,11 +365,20 @@ function getServiceSubgraph(serviceId: string): GraphResponse {
     const dependenciesWithTargets = db.prepare(`
       SELECT
         d.*,
+        d.check_details,
+        d.error,
+        d.error_message,
         s.name as service_name,
         da.linked_service_id as target_service_id,
         da.association_type,
         da.is_auto_suggested,
-        da.confidence_score
+        da.confidence_score,
+        (
+          SELECT ROUND(AVG(latency_ms))
+          FROM dependency_latency_history
+          WHERE dependency_id = d.id
+            AND recorded_at >= datetime('now', '-24 hours')
+        ) as avg_latency_24h
       FROM dependencies d
       JOIN services s ON d.service_id = s.id
       LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
@@ -375,16 +428,7 @@ function getServiceSubgraph(serviceId: string): GraphResponse {
             id: edgeId,
             source: dep.target_service_id,
             target: dep.service_id,
-            data: {
-              relationship: 'depends_on',
-              dependencyType: dep.type,
-              dependencyName: dep.name,
-              healthy: dep.healthy === null ? null : dep.healthy === 1,
-              latencyMs: dep.latency_ms,
-              associationType: dep.association_type as GraphEdgeData['associationType'],
-              isAutoSuggested: dep.is_auto_suggested === 1,
-              confidenceScore: dep.confidence_score,
-            },
+            data: createEdgeData(dep),
           });
         }
       }

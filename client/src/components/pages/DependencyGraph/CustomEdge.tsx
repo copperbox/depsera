@@ -45,8 +45,30 @@ function CustomEdgeComponent({
   const label = formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
-  const edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
+  const isHighLatency = data?.isHighLatency ?? false;
   const opacity = style?.opacity ?? 1;
+
+  // Determine edge class: high latency takes precedence over healthy/unhealthy for styling
+  let edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
+  if (isHighLatency) {
+    edgeClass = styles.highLatencyEdge;
+  }
+
+  // Determine label class
+  let labelClass = styles.edgeLabel;
+  if (!isHealthy) {
+    labelClass += ` ${styles.edgeLabelUnhealthy}`;
+  }
+  if (isHighLatency) {
+    labelClass += ` ${styles.edgeLabelHighLatency}`;
+  }
+  if (isSelected) {
+    if (isHealthy) {
+      labelClass += ` ${styles.edgeLabelSelectedHealthy}`;
+    } else {
+      labelClass += ` ${styles.edgeLabelSelectedUnhealthy}`;
+    }
+  }
 
   return (
     <>
@@ -60,7 +82,7 @@ function CustomEdgeComponent({
       {label && (
         <EdgeLabelRenderer>
           <div
-            className={`${styles.edgeLabel} ${!isHealthy ? styles.edgeLabelUnhealthy : ''} ${isSelected ? (isHealthy ? styles.edgeLabelSelectedHealthy : styles.edgeLabelSelectedUnhealthy) : ''}`}
+            className={labelClass}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',

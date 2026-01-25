@@ -116,7 +116,8 @@ export class MockService {
             healthCode: state.config.errorCode || 500,
             latencyMs: 0,
             lastChecked: new Date().toISOString(),
-            errorMessage: state.config.errorMessage || 'Internal error'
+            errorMessage: state.config.errorMessage || 'Internal error',
+            error: state.config.error || { code: 'EINTERNAL', errno: -500 }
           }],
           timestamp: new Date().toISOString()
         };
@@ -137,7 +138,8 @@ export class MockService {
               healthCode: 503,
               latencyMs: 0,
               lastChecked: new Date().toISOString(),
-              errorMessage: 'Service temporarily unavailable'
+              errorMessage: 'Service temporarily unavailable',
+              error: { code: 'EFLAPPING', errno: -503, syscall: 'healthcheck' }
             }],
             timestamp: new Date().toISOString()
           };

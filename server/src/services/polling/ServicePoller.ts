@@ -91,6 +91,50 @@ export class ServicePoller {
     }
   }
 
+  /**
+   * Records error history with deduplication.
+   * - When unhealthy: only records if this is the first error after healthy, or if error changed
+   * - When healthy: records a recovery entry if the last state was an error
+   */
+  private recordErrorHistory(
+    dependencyId: string,
+    isHealthy: boolean,
+    errorJson: string | null,
+    errorMessage: string | null,
+    timestamp: string
+  ): void {
+    // Get the most recent error history entry for this dependency
+    const lastEntry = db.prepare(`
+      SELECT error, error_message
+      FROM dependency_error_history
+      WHERE dependency_id = ?
+      ORDER BY recorded_at DESC
+      LIMIT 1
+    `).get(dependencyId) as { error: string | null; error_message: string | null } | undefined;
+
+    if (isHealthy) {
+      // If healthy and last entry was an error, record recovery
+      if (lastEntry && lastEntry.error !== null) {
+        db.prepare(`
+          INSERT INTO dependency_error_history (id, dependency_id, error, error_message, recorded_at)
+          VALUES (?, ?, NULL, NULL, ?)
+        `).run(randomUUID(), dependencyId, timestamp);
+      }
+    } else if (errorJson !== null) {
+      // Unhealthy with an error - check if we should record it
+      const shouldRecord = !lastEntry || // No previous entry
+        lastEntry.error === null || // Last entry was a recovery
+        lastEntry.error !== errorJson; // Error object is different
+
+      if (shouldRecord) {
+        db.prepare(`
+          INSERT INTO dependency_error_history (id, dependency_id, error, error_message, recorded_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(randomUUID(), dependencyId, errorJson, errorMessage, timestamp);
+      }
+    }
+  }
+
   private parseResponse(data: unknown): ProactiveDepsStatus[] {
     if (!Array.isArray(data)) {
       throw new Error('Invalid response: expected array');
@@ -135,6 +179,16 @@ export class ServicePoller {
         depType = dep.type as DependencyType;
       }
 
+      // Parse checkDetails
+      let checkDetails: Record<string, unknown> | undefined;
+      if (dep.checkDetails && typeof dep.checkDetails === 'object') {
+        checkDetails = dep.checkDetails as Record<string, unknown>;
+      }
+
+      // Parse error and errorMessage
+      const error = dep.error !== undefined ? dep.error : undefined;
+      const errorMessage = typeof dep.errorMessage === 'string' ? dep.errorMessage : undefined;
+
       return {
         name: dep.name as string,
         description: typeof dep.description === 'string' ? dep.description : undefined,
@@ -147,6 +201,9 @@ export class ServicePoller {
           latency,
         },
         lastChecked: typeof dep.lastChecked === 'string' ? dep.lastChecked : new Date().toISOString(),
+        checkDetails,
+        error,
+        errorMessage,
       };
     });
   }
@@ -167,8 +224,9 @@ export class ServicePoller {
       INSERT INTO dependencies (
         id, service_id, name, description, impact, type,
         healthy, health_state, health_code, latency_ms,
+        check_details, error, error_message,
         last_checked, last_status_change, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(service_id, name) DO UPDATE SET
         description = excluded.description,
         impact = excluded.impact,
@@ -177,6 +235,9 @@ export class ServicePoller {
         health_state = excluded.health_state,
         health_code = excluded.health_code,
         latency_ms = excluded.latency_ms,
+        check_details = excluded.check_details,
+        error = excluded.error,
+        error_message = excluded.error_message,
         last_checked = excluded.last_checked,
         last_status_change = CASE
           WHEN dependencies.healthy IS NULL OR dependencies.healthy != excluded.healthy
@@ -205,6 +266,10 @@ export class ServicePoller {
 
       const id = existing?.id || randomUUID();
 
+      // Serialize checkDetails and error to JSON strings
+      const checkDetailsJson = dep.checkDetails ? JSON.stringify(dep.checkDetails) : null;
+      const errorJson = dep.error !== undefined ? JSON.stringify(dep.error) : null;
+
       upsertStmt.run(
         id,
         this.service.id,
@@ -216,11 +281,25 @@ export class ServicePoller {
         dep.health.state,
         dep.health.code,
         dep.health.latency,
+        checkDetailsJson,
+        errorJson,
+        dep.errorMessage || null,
         dep.lastChecked,
         now,
         now,
         now
       );
+
+      // Record error history with deduplication logic
+      this.recordErrorHistory(id, dep.healthy, errorJson, dep.errorMessage || null, now);
+
+      // Record latency history if latency is available
+      if (dep.health.latency > 0) {
+        db.prepare(`
+          INSERT INTO dependency_latency_history (id, dependency_id, latency_ms, recorded_at)
+          VALUES (?, ?, ?, ?)
+        `).run(randomUUID(), id, dep.health.latency, now);
+      }
 
       // Track new dependencies for suggestion generation
       if (isNew) {

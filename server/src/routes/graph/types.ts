@@ -24,11 +24,16 @@ export interface GraphEdgeData {
   relationship: 'depends_on';
   dependencyType?: DependencyType;
   dependencyName?: string;
+  dependencyId?: string;
   healthy?: boolean | null;
   latencyMs?: number | null;
+  avgLatencyMs24h?: number | null;
   associationType?: AssociationType | null;
   isAutoSuggested?: boolean;
   confidenceScore?: number | null;
+  checkDetails?: Record<string, unknown>;
+  error?: unknown;
+  errorMessage?: string | null;
 }
 
 export interface GraphEdge {

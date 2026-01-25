@@ -16,6 +16,83 @@ const LATENCY_RANGES: Record<ServiceTier, { base: number; variance: number }> = 
 const LATENCY_SPIKE_PROBABILITY = 0.05;
 const LATENCY_SPIKE_MULTIPLIER = 3;
 
+// Generate checkDetails based on dependency type
+function generateCheckDetails(depType: DependencyType, serviceName: string): Record<string, unknown> {
+  const basePort = 5000 + Math.floor(Math.random() * 1000);
+
+  switch (depType) {
+    case 'database':
+      return {
+        host: `${serviceName.toLowerCase().replace(/\s+/g, '-')}-db.internal`,
+        port: 5432,
+        database: serviceName.toLowerCase().replace(/\s+/g, '_'),
+        dbType: 'postgresql'
+      };
+    case 'rest':
+      return {
+        url: `http://${serviceName.toLowerCase().replace(/\s+/g, '-')}.internal:${basePort}/api`,
+        method: 'GET',
+        timeout: 30000
+      };
+    case 'cache':
+      return {
+        host: `${serviceName.toLowerCase().replace(/\s+/g, '-')}-cache.internal`,
+        port: 6379,
+        dbType: 'redis'
+      };
+    case 'message_queue':
+      return {
+        broker: `${serviceName.toLowerCase().replace(/\s+/g, '-')}-mq.internal`,
+        queue: `${serviceName.toLowerCase().replace(/\s+/g, '_')}_events`,
+        protocol: 'amqp'
+      };
+    case 'grpc':
+      return {
+        host: `${serviceName.toLowerCase().replace(/\s+/g, '-')}.internal`,
+        port: basePort,
+        service: serviceName,
+        method: 'Check'
+      };
+    default:
+      return {
+        endpoint: `${serviceName.toLowerCase().replace(/\s+/g, '-')}.internal:${basePort}`
+      };
+  }
+}
+
+// Generate error object based on failure type
+function generateErrorObject(depType: DependencyType, serviceName: string): { error: unknown; errorMessage: string } {
+  const checkDetails = generateCheckDetails(depType, serviceName);
+
+  switch (depType) {
+    case 'database':
+      return {
+        error: { code: 'ECONNREFUSED', errno: -111, syscall: 'connect' },
+        errorMessage: `Connection refused to ${checkDetails.host}:${checkDetails.port}`
+      };
+    case 'rest':
+      return {
+        error: { code: 'ETIMEDOUT', errno: -110, syscall: 'connect' },
+        errorMessage: `Request timeout connecting to ${checkDetails.url}`
+      };
+    case 'cache':
+      return {
+        error: { code: 'ECONNRESET', errno: -104, syscall: 'read' },
+        errorMessage: `Connection reset by ${checkDetails.host}:${checkDetails.port}`
+      };
+    case 'message_queue':
+      return {
+        error: { code: 'ENOTFOUND', errno: -3008, syscall: 'getaddrinfo' },
+        errorMessage: `Unable to resolve broker ${checkDetails.broker}`
+      };
+    default:
+      return {
+        error: { code: 'EHOSTUNREACH', errno: -113 },
+        errorMessage: `Host unreachable: ${serviceName}`
+      };
+  }
+}
+
 function generateSimulatedLatency(tier: ServiceTier): number {
   const range = LATENCY_RANGES[tier];
   let latency = range.base + Math.random() * range.variance;
@@ -70,7 +147,8 @@ export class ServiceRegistry {
           healthCode: 404,
           latencyMs: 0,
           lastChecked: new Date().toISOString(),
-          errorMessage: 'Service not found'
+          errorMessage: 'Service not found',
+          error: { code: 'ENOENT', errno: -2 }
         };
       }
 
@@ -84,16 +162,37 @@ export class ServiceRegistry {
 
       const health = await service.getHealth();
 
+      // Generate checkDetails for this dependency type
+      const checkDetails = generateCheckDetails(depType, service.name);
+
+      // If unhealthy, generate appropriate error object
+      if (!health.healthy) {
+        const errorInfo = generateErrorObject(depType, service.name);
+        return {
+          name: service.name,
+          description: `Dependency on ${service.name}`,
+          type: depType,
+          healthy: false,
+          healthCode: 503,
+          latencyMs: simulatedLatency,
+          lastChecked: new Date().toISOString(),
+          impact: `May affect service if ${service.name} is unavailable`,
+          checkDetails,
+          error: errorInfo.error,
+          errorMessage: errorInfo.errorMessage
+        };
+      }
+
       return {
         name: service.name,
         description: `Dependency on ${service.name}`,
         type: depType,
-        healthy: health.healthy,
-        healthCode: health.healthy ? 200 : 503,
+        healthy: true,
+        healthCode: 200,
         latencyMs: simulatedLatency,
         lastChecked: new Date().toISOString(),
         impact: `May affect service if ${service.name} is unavailable`,
-        errorMessage: health.healthy ? undefined : 'Dependency unhealthy'
+        checkDetails
       };
     };
   }

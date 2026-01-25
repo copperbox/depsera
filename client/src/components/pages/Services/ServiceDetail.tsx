@@ -6,6 +6,7 @@ import type { ServiceWithDependencies, TeamWithCounts, Dependency, DependentRepo
 import StatusBadge, { type BadgeStatus } from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
+import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
 import ServiceForm from './ServiceForm';
 import styles from './Services.module.css';
 
@@ -79,6 +80,7 @@ function ServiceDetail() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const [errorHistoryDep, setErrorHistoryDep] = useState<Dependency | null>(null);
 
   const loadService = useCallback(async () => {
     if (!id) return;
@@ -375,6 +377,7 @@ function ServiceDetail() {
                 <th>Status</th>
                 <th>Latency</th>
                 <th>Last Checked</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -399,6 +402,18 @@ function ServiceDetail() {
                   </td>
                   <td className={styles.timeCell}>
                     {formatRelativeTime(dep.last_checked)}
+                  </td>
+                  <td className={styles.actionsCell}>
+                    <button
+                      className={styles.historyButton}
+                      onClick={() => setErrorHistoryDep(dep)}
+                      title="View error history"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 4v4l2.5 2.5" />
+                        <circle cx="8" cy="8" r="6" />
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -431,6 +446,23 @@ function ServiceDetail() {
         isDestructive
         isLoading={isDeleting}
       />
+
+      <Modal
+        isOpen={errorHistoryDep !== null}
+        onClose={() => setErrorHistoryDep(null)}
+        title=""
+        size="small"
+      >
+        {errorHistoryDep && (
+          <div className={styles.errorHistoryModalContent}>
+            <ErrorHistoryPanel
+              dependencyId={errorHistoryDep.id}
+              dependencyName={errorHistoryDep.name}
+              onBack={() => setErrorHistoryDep(null)}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

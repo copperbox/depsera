@@ -27,6 +27,8 @@ interface DependencyInfo {
   name: string;
   healthStatus: HealthStatus;
   latencyMs?: number | null;
+  avgLatencyMs24h?: number | null;
+  isHighLatency?: boolean;
 }
 
 function formatLatency(latencyMs: number | null | undefined): string {
@@ -60,6 +62,8 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         name: nodeNameMap.get(edge.target) || edge.target,
         healthStatus: getEdgeHealthStatus(edge.data!),
         latencyMs: edge.data?.latencyMs,
+        avgLatencyMs24h: edge.data?.avgLatencyMs24h,
+        isHighLatency: edge.data?.isHighLatency,
       }));
   }, [edges, nodeId, nodeNameMap]);
 
@@ -72,6 +76,8 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         name: nodeNameMap.get(edge.source) || edge.source,
         healthStatus: getEdgeHealthStatus(edge.data!),
         latencyMs: edge.data?.latencyMs,
+        avgLatencyMs24h: edge.data?.avgLatencyMs24h,
+        isHighLatency: edge.data?.isHighLatency,
       }));
   }, [edges, nodeId, nodeNameMap]);
 
@@ -128,7 +134,14 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
                   {dep.name}
                 </Link>
                 {formatLatency(dep.latencyMs) && (
-                  <span className={styles.dependencyLabel}>{formatLatency(dep.latencyMs)}</span>
+                  <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
+                    {formatLatency(dep.latencyMs)}
+                    {dep.isHighLatency && (
+                      <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+                      </svg>
+                    )}
+                  </span>
                 )}
               </li>
             ))}
@@ -162,7 +175,14 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
                   {dep.name}
                 </Link>
                 {formatLatency(dep.latencyMs) && (
-                  <span className={styles.dependencyLabel}>{formatLatency(dep.latencyMs)}</span>
+                  <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
+                    {formatLatency(dep.latencyMs)}
+                    {dep.isHighLatency && (
+                      <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+                      </svg>
+                    )}
+                  </span>
                 )}
               </li>
             ))}

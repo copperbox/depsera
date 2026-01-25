@@ -41,13 +41,19 @@ export interface GraphEdgeData {
   relationship: 'depends_on';
   dependencyType?: DependencyType;
   dependencyName?: string;
+  dependencyId?: string;
   healthy?: boolean | null;
   latencyMs?: number | null;
+  avgLatencyMs24h?: number | null;
+  isHighLatency?: boolean;
   associationType?: AssociationType | null;
   isAutoSuggested?: boolean;
   confidenceScore?: number | null;
   isSelected?: boolean;
   isHighlighted?: boolean;
+  checkDetails?: Record<string, unknown>;
+  error?: unknown;
+  errorMessage?: string | null;
   [key: string]: unknown;
 }
 
@@ -79,4 +85,34 @@ export function getEdgeHealthStatus(data: GraphEdgeData): HealthStatus {
   if (data.healthy === null || data.healthy === undefined) return 'unknown';
   if (data.healthy === false) return 'critical';
   return 'healthy';
+}
+
+// Latency stats response from API
+export interface LatencyDataPoint {
+  latency_ms: number;
+  recorded_at: string;
+}
+
+export interface LatencyStatsResponse {
+  dependencyId: string;
+  currentLatencyMs: number | null;
+  avgLatencyMs24h: number | null;
+  minLatencyMs24h: number | null;
+  maxLatencyMs24h: number | null;
+  dataPointCount: number;
+  dataPoints: LatencyDataPoint[];
+}
+
+// Error history response from API
+export interface ErrorHistoryEntry {
+  error: unknown;
+  errorMessage: string | null;
+  recordedAt: string;
+  isRecovery: boolean;
+}
+
+export interface ErrorHistoryResponse {
+  dependencyId: string;
+  errorCount: number;
+  errors: ErrorHistoryEntry[];
 }
