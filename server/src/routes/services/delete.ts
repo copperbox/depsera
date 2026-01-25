@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import db from '../../db';
 import { Service } from '../../db/types';
+import { HealthPollingService } from '../../services/polling';
 
 export function deleteService(req: Request, res: Response): void {
   try {
@@ -12,6 +13,9 @@ export function deleteService(req: Request, res: Response): void {
       res.status(404).json({ error: 'Service not found' });
       return;
     }
+
+    // Stop polling for this service
+    HealthPollingService.getInstance().stopService(id);
 
     // Delete service (cascades to dependencies and associations)
     db.prepare('DELETE FROM services WHERE id = ?').run(id);

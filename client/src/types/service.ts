@@ -1,6 +1,11 @@
 // Health state values: 0=OK, 1=WARNING, 2=CRITICAL
 export type HealthState = 0 | 1 | 2;
-export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+export type HealthStatus =
+  | 'healthy'
+  | 'warning'
+  | 'critical'
+  | 'unknown'
+  | 'no_dependents';
 
 export interface Team {
   id: string;
@@ -15,11 +20,27 @@ export interface TeamWithCounts extends Team {
   service_count: number;
 }
 
+// Aggregated health based on what dependents report about this service
 export interface ServiceHealth {
   status: HealthStatus;
-  healthy_count: number;
-  unhealthy_count: number;
-  total_dependencies: number;
+  healthy_reports: number;
+  warning_reports: number;
+  critical_reports: number;
+  total_reports: number;
+  dependent_count: number;
+  last_report: string | null;
+}
+
+// Report from a service that depends on another service
+export interface DependentReport {
+  dependency_id: string;
+  dependency_name: string;
+  reporting_service_id: string;
+  reporting_service_name: string;
+  healthy: number | null;
+  health_state: HealthState | null;
+  latency_ms: number | null;
+  last_checked: string | null;
 }
 
 export interface Service {
@@ -54,6 +75,7 @@ export interface Dependency {
 
 export interface ServiceWithDependencies extends Service {
   dependencies: Dependency[];
+  dependent_reports: DependentReport[];
 }
 
 export interface CreateServiceInput {

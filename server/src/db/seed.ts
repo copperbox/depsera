@@ -267,3 +267,20 @@ export function clearDatabase(db: Database): void {
 
   console.log('Database cleared');
 }
+
+export function clearServices(db: Database): void {
+  // Get count before clearing
+  const { count } = db.prepare('SELECT COUNT(*) as count FROM services').get() as { count: number };
+
+  if (count === 0) {
+    console.log('No services to clear');
+    return;
+  }
+
+  console.log(`Clearing ${count} services from database...`);
+
+  // Dependencies and associations are deleted via CASCADE
+  db.exec('DELETE FROM services');
+
+  console.log('All services cleared');
+}

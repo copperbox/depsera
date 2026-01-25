@@ -5,6 +5,7 @@ import { getService } from './get';
 import { createService } from './create';
 import { updateService } from './update';
 import { deleteService } from './delete';
+import { pollServiceNow } from './poll';
 
 const router = Router();
 
@@ -16,5 +17,8 @@ router.get('/:id', getService);
 router.post('/', requireBodyTeamLead, createService);
 router.put('/:id', requireServiceTeamLead, updateService);
 router.delete('/:id', requireServiceTeamLead, deleteService);
+
+// Trigger immediate poll
+router.post('/:id/poll', requireServiceTeamLead, pollServiceNow);
 
 export default router;

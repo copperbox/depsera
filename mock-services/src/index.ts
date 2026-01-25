@@ -1,6 +1,14 @@
 import * as path from 'path';
 import { parseArgs } from 'util';
-import { generateTopology, getTopologyStats } from './topology';
+import {
+  generateTopology,
+  getTopologyStats,
+  loadTopology,
+  saveTopology,
+  deleteTopology,
+  getDefaultTopologyPath,
+  Topology,
+} from './topology';
 import { ServiceRegistry } from './services';
 import { FailureController } from './failures';
 import { createServer } from './server';
@@ -12,6 +20,7 @@ const { values: args } = parseArgs({
     port: { type: 'string', short: 'p', default: '4000' },
     seed: { type: 'boolean', short: 's', default: false },
     reset: { type: 'boolean', short: 'r', default: false },
+    'new-topology': { type: 'boolean', short: 'n', default: false },
     'db-path': { type: 'string', default: '../server/data/database.sqlite' }
   }
 });
@@ -28,10 +37,33 @@ console.log('');
 if (args.reset) {
   console.log('Resetting mock services...');
   clearMockServices(dbPath, `http://localhost:${port}`);
+  deleteTopology();
+  console.log('Topology file deleted.');
 }
 
-console.log(`Generating topology with ${count} services...`);
-const topology = generateTopology({ totalServices: count });
+// Load existing topology or generate new one
+let topology: Topology;
+const forceNewTopology = args['new-topology'] || args.seed || args.reset;
+
+if (!forceNewTopology) {
+  const existingTopology = loadTopology();
+  if (existingTopology) {
+    topology = existingTopology;
+    console.log(`Loaded existing topology from ${getDefaultTopologyPath()}`);
+    console.log(`  (Use --new-topology or -n to generate a fresh topology)`);
+  } else {
+    console.log(`No existing topology found, generating new one with ${count} services...`);
+    topology = generateTopology({ totalServices: count });
+    saveTopology(topology);
+    console.log(`Topology saved to ${getDefaultTopologyPath()}`);
+  }
+} else {
+  console.log(`Generating new topology with ${count} services...`);
+  topology = generateTopology({ totalServices: count });
+  saveTopology(topology);
+  console.log(`Topology saved to ${getDefaultTopologyPath()}`);
+}
+
 const stats = getTopologyStats(topology);
 
 console.log('');

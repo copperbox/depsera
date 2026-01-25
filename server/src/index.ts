@@ -8,6 +8,7 @@ import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
 import teamsRouter from './routes/teams';
 import usersRouter from './routes/users';
+import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 
 dotenv.config();
 
@@ -52,9 +53,43 @@ async function start() {
     }
   }
 
-  app.listen(PORT, () => {
+  // Initialize health polling service
+  const pollingService = HealthPollingService.getInstance();
+
+  // Log status changes (for debugging and future alerting)
+  pollingService.on(PollingEventType.STATUS_CHANGE, (event: StatusChangeEvent) => {
+    console.log(`[Health] ${event.serviceName}/${event.dependencyName}: ${event.previousHealthy} -> ${event.currentHealthy}`);
+  });
+
+  pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
+    console.error(`[Health] Poll failed for ${event.serviceName}: ${event.error}`);
+  });
+
+  // Start polling all active services
+  pollingService.startAll();
+
+  const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    console.log('\nShutting down...');
+    await pollingService.shutdown();
+    server.close(() => {
+      console.log('Server closed');
+      process.exit(0);
+    });
+
+    // Force exit after 10 seconds if server doesn't close gracefully
+    setTimeout(() => {
+      console.log('Forcing exit...');
+      process.exit(0);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 start().catch((error) => {

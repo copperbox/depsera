@@ -3,17 +3,18 @@
  * Database CLI for migrations and seeding
  *
  * Usage:
- *   npx ts-node src/db/cli.ts migrate        - Run pending migrations
- *   npx ts-node src/db/cli.ts rollback       - Rollback last migration
- *   npx ts-node src/db/cli.ts rollback 001   - Rollback to specific migration
- *   npx ts-node src/db/cli.ts status         - Show migration status
- *   npx ts-node src/db/cli.ts seed           - Seed the database
- *   npx ts-node src/db/cli.ts clear          - Clear all data (dangerous!)
+ *   npx ts-node src/db/cli.ts migrate          - Run pending migrations
+ *   npx ts-node src/db/cli.ts rollback         - Rollback last migration
+ *   npx ts-node src/db/cli.ts rollback 001     - Rollback to specific migration
+ *   npx ts-node src/db/cli.ts status           - Show migration status
+ *   npx ts-node src/db/cli.ts seed             - Seed the database
+ *   npx ts-node src/db/cli.ts clear            - Clear all data (dangerous!)
+ *   npx ts-node src/db/cli.ts clear-services   - Clear all services
  */
 
 import { db } from './index';
 import { runMigrations, rollbackMigration, getMigrationStatus } from './migrate';
-import { seedDatabase, clearDatabase } from './seed';
+import { seedDatabase, clearDatabase, clearServices } from './seed';
 
 const command = process.argv[2];
 const arg = process.argv[3];
@@ -28,6 +29,7 @@ Commands:
   status               Show migration status
   seed                 Seed the database with development data
   clear                Clear all data from the database (dangerous!)
+  clear-services       Clear all services (and their dependencies)
   `);
 }
 
@@ -68,6 +70,10 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       clearDatabase(db);
+      break;
+
+    case 'clear-services':
+      clearServices(db);
       break;
 
     default:

@@ -169,3 +169,32 @@ export interface ProactiveDepsStatus {
   };
   lastChecked: string;
 }
+
+// Aggregated health types (based on dependent reports)
+export type AggregatedHealthStatus =
+  | 'healthy'
+  | 'warning'
+  | 'critical'
+  | 'unknown'
+  | 'no_dependents';
+
+export interface AggregatedHealth {
+  status: AggregatedHealthStatus;
+  healthy_reports: number;
+  warning_reports: number;
+  critical_reports: number;
+  total_reports: number;
+  dependent_count: number;
+  last_report: string | null;
+}
+
+export interface DependentReport {
+  dependency_id: string;
+  dependency_name: string;
+  reporting_service_id: string;
+  reporting_service_name: string;
+  healthy: number | null;
+  health_state: HealthState | null;
+  latency_ms: number | null;
+  last_checked: string | null;
+}

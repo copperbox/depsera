@@ -66,6 +66,15 @@
   background-color: #6b7280;
 }
 
+.no_dependents {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.no_dependents .dot {
+  background-color: #6366f1;
+}
+
 .label {
   line-height: 1;
 }

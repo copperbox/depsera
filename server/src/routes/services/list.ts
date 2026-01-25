@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import db from '../../db';
-import { Service, Dependency } from '../../db/types';
+import { Service } from '../../db/types';
+import { calculateAggregatedHealth } from '../../utils/serviceHealth';
 
 export function listServices(req: Request, res: Response): void {
   try {
@@ -33,27 +34,9 @@ export function listServices(req: Request, res: Response): void {
       team_updated_at: string;
     })[];
 
-    // Get dependencies for each service to compute health status
+    // Calculate aggregated health for each service based on dependent reports
     const servicesWithHealth = rows.map((row) => {
-      const dependencies = db
-        .prepare('SELECT * FROM dependencies WHERE service_id = ?')
-        .all(row.id) as Dependency[];
-
-      // Compute overall health status
-      const healthyCount = dependencies.filter((d) => d.healthy === 1).length;
-      const unhealthyCount = dependencies.filter((d) => d.healthy === 0).length;
-      const totalCount = dependencies.length;
-
-      let healthStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown' = 'unknown';
-      if (totalCount === 0) {
-        healthStatus = 'unknown';
-      } else if (unhealthyCount > 0) {
-        healthStatus = 'unhealthy';
-      } else if (healthyCount === totalCount) {
-        healthStatus = 'healthy';
-      } else {
-        healthStatus = 'degraded';
-      }
+      const aggregatedHealth = calculateAggregatedHealth(row.id);
 
       return {
         id: row.id,
@@ -72,12 +55,7 @@ export function listServices(req: Request, res: Response): void {
           created_at: row.team_created_at,
           updated_at: row.team_updated_at,
         },
-        health: {
-          status: healthStatus,
-          healthy_count: healthyCount,
-          unhealthy_count: unhealthyCount,
-          total_dependencies: totalCount,
-        },
+        health: aggregatedHealth,
       };
     });
 

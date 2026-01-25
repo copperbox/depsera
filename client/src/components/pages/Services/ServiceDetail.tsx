@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchService, fetchTeams, deleteService } from '../../../api/services';
-import type { ServiceWithDependencies, TeamWithCounts, Dependency } from '../../../types/service';
+import type { ServiceWithDependencies, TeamWithCounts, Dependency, DependentReport } from '../../../types/service';
 import StatusBadge, { type BadgeStatus } from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
@@ -29,10 +29,12 @@ function getHealthBadgeStatus(status: string): BadgeStatus {
   switch (status) {
     case 'healthy':
       return 'healthy';
-    case 'degraded':
+    case 'warning':
       return 'warning';
-    case 'unhealthy':
+    case 'critical':
       return 'critical';
+    case 'no_dependents':
+      return 'no_dependents';
     default:
       return 'unknown';
   }
@@ -46,6 +48,19 @@ function getDependencyBadgeStatus(dep: Dependency): BadgeStatus {
     return 'critical';
   }
   if (dep.health_state === 1) {
+    return 'warning';
+  }
+  return 'healthy';
+}
+
+function getReportBadgeStatus(report: DependentReport): BadgeStatus {
+  if (report.healthy === null && report.health_state === null) {
+    return 'unknown';
+  }
+  if (report.healthy === 0 || report.health_state === 2) {
+    return 'critical';
+  }
+  if (report.health_state === 1) {
     return 'warning';
   }
   return 'healthy';
@@ -287,9 +302,61 @@ function ServiceDetail() {
       </div>
 
       <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Dependent Reports</h2>
+        <span className={styles.sectionSubtitle}>
+          {service.health.healthy_reports}/{service.health.total_reports} healthy reports from {service.health.dependent_count} service{service.health.dependent_count !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {service.dependent_reports.length === 0 ? (
+        <div className={styles.noDeps}>
+          <p>No services report depending on this service.</p>
+        </div>
+      ) : (
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Reporting Service</th>
+                <th>Dependency Name</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Last Checked</th>
+              </tr>
+            </thead>
+            <tbody>
+              {service.dependent_reports.map((report) => (
+                <tr key={report.dependency_id} className={styles.dependencyRow}>
+                  <td>
+                    <Link to={`/services/${report.reporting_service_id}`} className={styles.serviceLink}>
+                      {report.reporting_service_name}
+                    </Link>
+                  </td>
+                  <td className={styles.teamCell}>{report.dependency_name}</td>
+                  <td>
+                    <StatusBadge
+                      status={getReportBadgeStatus(report)}
+                      size="small"
+                      showLabel={true}
+                    />
+                  </td>
+                  <td className={styles.latencyCell}>
+                    {report.latency_ms !== null ? `${report.latency_ms}ms` : '-'}
+                  </td>
+                  <td className={styles.timeCell}>
+                    {formatRelativeTime(report.last_checked)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>Dependencies</h2>
         <span className={styles.sectionSubtitle}>
-          {service.health.healthy_count}/{service.health.total_dependencies} healthy
+          What this service depends on
         </span>
       </div>
 

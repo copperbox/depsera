@@ -15,7 +15,8 @@
     "db:rollback": "ts-node src/db/cli.ts rollback",
     "db:status": "ts-node src/db/cli.ts status",
     "db:seed": "ts-node src/db/cli.ts seed",
-    "db:clear": "ts-node src/db/cli.ts clear --force"
+    "db:clear": "ts-node src/db/cli.ts clear --force",
+    "db:clear-services": "ts-node src/db/cli.ts clear-services"
   },
   "keywords": [],
   "author": "",

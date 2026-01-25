@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import db from '../../db';
 import { UpdateServiceInput, Service, Team, Dependency } from '../../db/types';
 import { isValidUrl, MIN_POLLING_INTERVAL } from './validation';
+import { HealthPollingService } from '../../services/polling';
 
 export function updateService(req: Request, res: Response): void {
   try {
@@ -97,6 +98,20 @@ export function updateService(req: Request, res: Response): void {
     values.push(id);
 
     db.prepare(`UPDATE services SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+    // Update polling service if is_active or polling_interval changed
+    if (input.is_active !== undefined || input.polling_interval !== undefined || input.health_endpoint !== undefined) {
+      const pollingService = HealthPollingService.getInstance();
+      const newIsActive = input.is_active !== undefined ? input.is_active : existingService.is_active === 1;
+
+      if (newIsActive) {
+        // Restart to pick up new interval or endpoint
+        pollingService.restartService(id);
+      } else {
+        // Stop polling for deactivated service
+        pollingService.stopService(id);
+      }
+    }
 
     // Fetch updated service with team and health
     const service = db

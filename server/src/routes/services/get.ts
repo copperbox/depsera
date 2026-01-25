@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import db from '../../db';
 import { Service, Dependency } from '../../db/types';
+import {
+  calculateAggregatedHealth,
+  getDependentReports,
+} from '../../utils/serviceHealth';
 
 export function getService(req: Request, res: Response): void {
   try {
@@ -35,26 +39,14 @@ export function getService(req: Request, res: Response): void {
       return;
     }
 
-    // Get dependencies
+    // Get this service's own dependencies (what it depends on)
     const dependencies = db
       .prepare('SELECT * FROM dependencies WHERE service_id = ? ORDER BY name ASC')
       .all(id) as Dependency[];
 
-    // Compute health status
-    const healthyCount = dependencies.filter((d) => d.healthy === 1).length;
-    const unhealthyCount = dependencies.filter((d) => d.healthy === 0).length;
-    const totalCount = dependencies.length;
-
-    let healthStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown' = 'unknown';
-    if (totalCount === 0) {
-      healthStatus = 'unknown';
-    } else if (unhealthyCount > 0) {
-      healthStatus = 'unhealthy';
-    } else if (healthyCount === totalCount) {
-      healthStatus = 'healthy';
-    } else {
-      healthStatus = 'degraded';
-    }
+    // Calculate aggregated health from dependent reports
+    const aggregatedHealth = calculateAggregatedHealth(id);
+    const dependentReports = getDependentReports(id);
 
     res.json({
       id: service.id,
@@ -73,13 +65,12 @@ export function getService(req: Request, res: Response): void {
         created_at: service.team_created_at,
         updated_at: service.team_updated_at,
       },
+      // What this service depends on (for reference)
       dependencies,
-      health: {
-        status: healthStatus,
-        healthy_count: healthyCount,
-        unhealthy_count: unhealthyCount,
-        total_dependencies: totalCount,
-      },
+      // Aggregated health status from dependents
+      health: aggregatedHealth,
+      // Detailed reports from services that depend on this one
+      dependent_reports: dependentReports,
     });
   } catch (error) {
     console.error('Error getting service:', error);

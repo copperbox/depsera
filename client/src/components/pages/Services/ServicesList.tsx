@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchServices, fetchTeams } from '../../../api/services';
@@ -7,6 +7,17 @@ import StatusBadge, { type BadgeStatus } from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ServiceForm from './ServiceForm';
 import styles from './Services.module.css';
+
+const POLLING_ENABLED_KEY = 'services-auto-refresh';
+const POLLING_INTERVAL_KEY = 'services-refresh-interval';
+const DEFAULT_INTERVAL = 30000;
+
+const INTERVAL_OPTIONS = [
+  { value: 10000, label: '10s' },
+  { value: 20000, label: '20s' },
+  { value: 30000, label: '30s' },
+  { value: 60000, label: '1m' },
+];
 
 function formatRelativeTime(dateString: string | null): string {
   if (!dateString) return 'Never';
@@ -28,10 +39,12 @@ function getHealthBadgeStatus(status: string): BadgeStatus {
   switch (status) {
     case 'healthy':
       return 'healthy';
-    case 'degraded':
+    case 'warning':
       return 'warning';
-    case 'unhealthy':
+    case 'critical':
       return 'critical';
+    case 'no_dependents':
+      return 'no_dependents';
     default:
       return 'unknown';
   }
@@ -47,8 +60,24 @@ function ServicesList() {
   const [teamFilter, setTeamFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  // Polling state
+  const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
+    const stored = localStorage.getItem(POLLING_ENABLED_KEY);
+    return stored === 'true';
+  });
+  const [pollingInterval, setPollingInterval] = useState(() => {
+    const stored = localStorage.getItem(POLLING_INTERVAL_KEY);
+    return stored ? parseInt(stored, 10) : DEFAULT_INTERVAL;
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pollingIntervalRef = useRef<number | null>(null);
+
+  const loadData = useCallback(async (isBackgroundRefresh = false) => {
+    if (!isBackgroundRefresh) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setError(null);
     try {
       const [servicesData, teamsData] = await Promise.all([
@@ -61,12 +90,48 @@ function ServicesList() {
       setError(err instanceof Error ? err.message : 'Failed to load services');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  }, []);
+
+  const handleRetry = () => {
+    loadData(false);
   };
 
+  // Initial load
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
+
+  // Polling effect
+  useEffect(() => {
+    if (isPollingEnabled) {
+      pollingIntervalRef.current = window.setInterval(() => {
+        loadData(true);
+      }, pollingInterval);
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [isPollingEnabled, pollingInterval, loadData]);
+
+  // Toggle polling on/off
+  const togglePolling = () => {
+    const newValue = !isPollingEnabled;
+    setIsPollingEnabled(newValue);
+    localStorage.setItem(POLLING_ENABLED_KEY, String(newValue));
+  };
+
+  // Change polling interval
+  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newInterval = parseInt(e.target.value, 10);
+    setPollingInterval(newInterval);
+    localStorage.setItem(POLLING_INTERVAL_KEY, String(newInterval));
+  };
 
   const filteredServices = useMemo(() => {
     return services.filter((service) => {
@@ -99,7 +164,7 @@ function ServicesList() {
       <div className={styles.container}>
         <div className={styles.error}>
           <p>{error}</p>
-          <button onClick={loadData} className={styles.retryButton}>
+          <button onClick={handleRetry} className={styles.retryButton}>
             Retry
           </button>
         </div>
@@ -110,25 +175,58 @@ function ServicesList() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Services</h1>
-        {isAdmin && (
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className={styles.addButton}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Services</h1>
+          {isRefreshing && (
+            <div className={styles.refreshingIndicator}>
+              <div className={styles.spinnerSmall} />
+            </div>
+          )}
+        </div>
+        <div className={styles.headerActions}>
+          <div className={styles.autoRefreshControls}>
+            <span className={styles.autoRefreshLabel}>Auto-refresh</span>
+            <button
+              role="switch"
+              aria-checked={isPollingEnabled}
+              onClick={togglePolling}
+              className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
             >
-              <path d="M10 5v10M5 10h10" />
-            </svg>
-            Add Service
-          </button>
-        )}
+              <span className={styles.toggleKnob} />
+            </button>
+            <select
+              value={pollingInterval}
+              onChange={handleIntervalChange}
+              className={styles.intervalSelect}
+              disabled={!isPollingEnabled}
+              aria-label="Refresh interval"
+            >
+              {INTERVAL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className={styles.addButton}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M10 5v10M5 10h10" />
+              </svg>
+              Add Service
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={styles.filters}>
@@ -194,8 +292,8 @@ function ServicesList() {
                 <th>Name</th>
                 <th>Team</th>
                 <th>Status</th>
-                <th>Dependencies</th>
-                <th>Last Checked</th>
+                <th>Dependent Reports</th>
+                <th>Last Report</th>
               </tr>
             </thead>
             <tbody>
@@ -214,13 +312,19 @@ function ServicesList() {
                     />
                   </td>
                   <td className={styles.depsCell}>
-                    <span className={styles.depsCount}>
-                      {service.health.healthy_count}/{service.health.total_dependencies}
-                    </span>
-                    <span className={styles.depsLabel}>healthy</span>
+                    {service.health.total_reports > 0 ? (
+                      <>
+                        <span className={styles.depsCount}>
+                          {service.health.healthy_reports}/{service.health.total_reports}
+                        </span>
+                        <span className={styles.depsLabel}>healthy reports</span>
+                      </>
+                    ) : (
+                      <span className={styles.depsLabel}>No dependents</span>
+                    )}
                   </td>
                   <td className={styles.timeCell}>
-                    {formatRelativeTime(service.updated_at)}
+                    {formatRelativeTime(service.health.last_report)}
                   </td>
                 </tr>
               ))}

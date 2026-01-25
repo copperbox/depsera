@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import db from '../../db';
 import { CreateServiceInput, Service, Team } from '../../db/types';
 import { isValidUrl, MIN_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL } from './validation';
+import { HealthPollingService } from '../../services/polling';
 
 export function createService(req: Request, res: Response): void {
   try {
@@ -78,6 +79,9 @@ export function createService(req: Request, res: Response): void {
     );
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as Service;
+
+    // Start polling for the new service (is_active defaults to 1)
+    HealthPollingService.getInstance().startService(id);
 
     res.status(201).json({
       ...service,

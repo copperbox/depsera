@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "start:seed": "node dist/index.js --seed",
+    "start:new": "node dist/index.js --new-topology --seed",
     "reset": "node dist/index.js --reset --seed",
     "test": "jest",
     "test:watch": "jest --watch",

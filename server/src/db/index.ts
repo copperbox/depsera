@@ -1,11 +1,11 @@
-import Database from 'better-sqlite3';
+import Database, { Database as DatabaseType } from 'better-sqlite3';
 import path from 'path';
 import { runMigrations } from './migrate';
 import { seedDatabase } from './seed';
 
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/database.sqlite');
 
-export const db = new Database(dbPath);
+export const db: DatabaseType = new Database(dbPath);
 
 export function initializeDatabase(): void {
   // Enable foreign keys
@@ -29,4 +29,4 @@ export default db;
 
 // Re-export migration utilities for CLI usage
 export { runMigrations, getMigrationStatus, rollbackMigration } from './migrate';
-export { seedDatabase, clearDatabase } from './seed';
+export { seedDatabase, clearDatabase, clearServices } from './seed';
