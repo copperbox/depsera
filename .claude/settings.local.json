@@ -28,7 +28,8 @@
       "Bash(git commit:*)",
       "Bash(dir:*)",
       "Bash(npm run test:server:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run mock:seed:*)"
     ]
   }
 }

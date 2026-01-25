@@ -1,0 +1,522 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100vh;
+}
+
+header {
+  background: #16213e;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #0f3460;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.service-count {
+  color: #888;
+  font-size: 0.9rem;
+}
+
+main {
+  padding: 1.5rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+}
+
+.topology-section h2,
+.scenarios-section h2,
+.failures-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: #aaa;
+}
+
+.topology-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.tier-column {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 200px;
+}
+
+.tier-column h3 {
+  font-size: 0.9rem;
+  color: #888;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tier-services {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.service-card {
+  background: #0f3460;
+  border-radius: 6px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.service-card:hover {
+  background: #1a4a7a;
+}
+
+.service-card.selected {
+  border-color: #e94560;
+}
+
+.service-card.healthy {
+  border-left: 3px solid #4ade80;
+}
+
+.service-card.unhealthy {
+  border-left: 3px solid #f87171;
+}
+
+.service-card.warning {
+  border-left: 3px solid #fbbf24;
+}
+
+.service-card .name {
+  font-weight: 500;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.service-card .status {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.service-card .failure-badge {
+  display: inline-block;
+  background: #e94560;
+  color: white;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  margin-top: 0.25rem;
+}
+
+.service-card .failure-badge.cascaded {
+  background: #f59e0b;
+}
+
+.service-card.cascaded {
+  border-left-color: #f59e0b;
+}
+
+.service-card .status {
+  text-transform: capitalize;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.scenarios-section,
+.failures-section {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.scenario-btn {
+  display: block;
+  width: 100%;
+  background: #0f3460;
+  border: none;
+  color: #eee;
+  padding: 0.75rem;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+}
+
+.scenario-btn:hover {
+  background: #1a4a7a;
+}
+
+.scenario-btn .name {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.scenario-btn .description {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.25rem;
+}
+
+.failure-item {
+  background: #0f3460;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.failure-item .info {
+  flex: 1;
+}
+
+.failure-item .service-name {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.failure-item .mode {
+  font-size: 0.75rem;
+  color: #e94560;
+}
+
+.failure-item .clear-btn {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.2rem;
+}
+
+.failure-item .clear-btn:hover {
+  color: #e94560;
+}
+
+.empty-state {
+  color: #666;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Panel */
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background: #16213e;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+.panel.visible {
+  transform: translateX(0);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #0f3460;
+}
+
+.panel-header h3 {
+  font-size: 1.1rem;
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.panel-close:hover {
+  color: #e94560;
+}
+
+.panel-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  height: calc(100vh - 60px);
+}
+
+#serviceDetails {
+  margin-bottom: 1.5rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #0f3460;
+}
+
+.detail-row .label {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.detail-row .value {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.detail-row .value.healthy {
+  color: #4ade80;
+}
+
+.detail-row .value.unhealthy {
+  color: #f87171;
+}
+
+.endpoint-links {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.endpoint-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #0f3460;
+  color: #4da6ff;
+  text-decoration: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: monospace;
+  transition: background 0.2s;
+}
+
+.endpoint-link:hover {
+  background: #1a4a7a;
+}
+
+.endpoint-icon {
+  font-size: 0.7rem;
+}
+
+.failure-details {
+  background: rgba(233, 69, 96, 0.15);
+  border: 1px solid #e94560;
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.failure-details.cascaded {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+}
+
+.failure-details .failure-mode {
+  font-weight: 600;
+  font-size: 1rem;
+  text-transform: capitalize;
+  color: #e94560;
+  margin-bottom: 0.25rem;
+}
+
+.failure-details.cascaded .failure-mode {
+  color: #f59e0b;
+}
+
+.failure-details .failure-type {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.failure-details .config-detail {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-top: 0.5rem;
+  font-family: monospace;
+}
+
+.dependencies-list {
+  margin-top: 1rem;
+}
+
+.dependencies-list h5 {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.dep-item {
+  background: #0f3460;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dep-link {
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.dep-link:hover {
+  background: #1a4a7a;
+  transform: translateX(4px);
+}
+
+.dep-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dep-status.healthy {
+  background: #4ade80;
+}
+
+.dep-status.unhealthy {
+  background: #f87171;
+}
+
+.failure-controls h4 {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  color: #aaa;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 0.25rem;
+}
+
+.form-group select,
+.form-group input[type="number"] {
+  width: 100%;
+  padding: 0.5rem;
+  background: #0f3460;
+  border: 1px solid #1a4a7a;
+  border-radius: 4px;
+  color: #eee;
+  font-size: 0.9rem;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-danger {
+  background: #e94560;
+  color: white;
+}
+
+.btn-warning {
+  background: #fbbf24;
+  color: #1a1a2e;
+}
+
+.btn-secondary {
+  background: #0f3460;
+  color: #eee;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+  }
+
+  .scenarios-section,
+  .failures-section {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .topology-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .sidebar {
+    flex-direction: column;
+  }
+
+  .panel {
+    width: 100%;
+  }
+}
