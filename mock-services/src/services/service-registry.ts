@@ -1,7 +1,32 @@
-import { Topology, GeneratedService } from '../topology/types';
+import { Topology, GeneratedService, ServiceTier } from '../topology/types';
 import { FailureState } from '../failures/types';
 import { MockService } from './mock-service';
 import { DependencyStatus, ServiceHealth, DependencyType } from './types';
+
+// Latency ranges by tier (in milliseconds)
+// Lower tiers (databases) tend to be faster, higher tiers have more variability
+const LATENCY_RANGES: Record<ServiceTier, { base: number; variance: number }> = {
+  [ServiceTier.FRONTEND]: { base: 50, variance: 150 },   // 50-200ms
+  [ServiceTier.API]: { base: 30, variance: 120 },        // 30-150ms
+  [ServiceTier.BACKEND]: { base: 20, variance: 80 },     // 20-100ms
+  [ServiceTier.DATABASE]: { base: 5, variance: 45 }      // 5-50ms
+};
+
+// Probability of experiencing a latency spike
+const LATENCY_SPIKE_PROBABILITY = 0.05;
+const LATENCY_SPIKE_MULTIPLIER = 3;
+
+function generateSimulatedLatency(tier: ServiceTier): number {
+  const range = LATENCY_RANGES[tier];
+  let latency = range.base + Math.random() * range.variance;
+
+  // Occasional latency spikes to simulate real-world conditions
+  if (Math.random() < LATENCY_SPIKE_PROBABILITY) {
+    latency *= LATENCY_SPIKE_MULTIPLIER;
+  }
+
+  return Math.round(latency);
+}
 
 export class ServiceRegistry {
   private services: Map<string, MockService> = new Map();
@@ -49,9 +74,15 @@ export class ServiceRegistry {
         };
       }
 
-      const startTime = Date.now();
+      // Generate simulated latency based on the target service's tier
+      const genService = this.topology.services.find(s => s.id === serviceId);
+      const tier = genService?.tier || ServiceTier.API;
+      const simulatedLatency = generateSimulatedLatency(tier);
+
+      // Apply the simulated delay
+      await this.delay(simulatedLatency);
+
       const health = await service.getHealth();
-      const latencyMs = Date.now() - startTime;
 
       return {
         name: service.name,
@@ -59,12 +90,16 @@ export class ServiceRegistry {
         type: depType,
         healthy: health.healthy,
         healthCode: health.healthy ? 200 : 503,
-        latencyMs,
+        latencyMs: simulatedLatency,
         lastChecked: new Date().toISOString(),
         impact: `May affect service if ${service.name} is unavailable`,
         errorMessage: health.healthy ? undefined : 'Dependency unhealthy'
       };
     };
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   public getService(idOrName: string): MockService | undefined {

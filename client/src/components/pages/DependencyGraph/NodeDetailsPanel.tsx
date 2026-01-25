@@ -26,7 +26,17 @@ interface DependencyInfo {
   id: string;
   name: string;
   healthStatus: HealthStatus;
-  dependencyName?: string;
+  latencyMs?: number | null;
+}
+
+function formatLatency(latencyMs: number | null | undefined): string {
+  if (latencyMs === null || latencyMs === undefined) {
+    return '';
+  }
+  if (latencyMs >= 1000) {
+    return `${(latencyMs / 1000).toFixed(1)}s`;
+  }
+  return `${Math.round(latencyMs)}ms`;
 }
 
 function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: NodeDetailsPanelProps) {
@@ -49,7 +59,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         id: edge.target,
         name: nodeNameMap.get(edge.target) || edge.target,
         healthStatus: getEdgeHealthStatus(edge.data!),
-        dependencyName: edge.data?.dependencyName,
+        latencyMs: edge.data?.latencyMs,
       }));
   }, [edges, nodeId, nodeNameMap]);
 
@@ -61,7 +71,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         id: edge.source,
         name: nodeNameMap.get(edge.source) || edge.source,
         healthStatus: getEdgeHealthStatus(edge.data!),
-        dependencyName: edge.data?.dependencyName,
+        latencyMs: edge.data?.latencyMs,
       }));
   }, [edges, nodeId, nodeNameMap]);
 
@@ -117,8 +127,8 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
                 <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
                   {dep.name}
                 </Link>
-                {dep.dependencyName && (
-                  <span className={styles.dependencyLabel}>{dep.dependencyName}</span>
+                {formatLatency(dep.latencyMs) && (
+                  <span className={styles.dependencyLabel}>{formatLatency(dep.latencyMs)}</span>
                 )}
               </li>
             ))}
@@ -151,8 +161,8 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
                 <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
                   {dep.name}
                 </Link>
-                {dep.dependencyName && (
-                  <span className={styles.dependencyLabel}>{dep.dependencyName}</span>
+                {formatLatency(dep.latencyMs) && (
+                  <span className={styles.dependencyLabel}>{formatLatency(dep.latencyMs)}</span>
                 )}
               </li>
             ))}

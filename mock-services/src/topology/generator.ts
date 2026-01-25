@@ -28,11 +28,17 @@ const DEFAULT_DISTRIBUTION: TierDistribution = {
 };
 
 const DEPENDENCY_RANGES: Record<ServiceTier, { min: number; max: number }> = {
-  [ServiceTier.FRONTEND]: { min: 1, max: 3 },
-  [ServiceTier.API]: { min: 1, max: 4 },
-  [ServiceTier.BACKEND]: { min: 1, max: 2 },
+  [ServiceTier.FRONTEND]: { min: 1, max: 4 },
+  [ServiceTier.API]: { min: 1, max: 5 },
+  [ServiceTier.BACKEND]: { min: 1, max: 3 },
   [ServiceTier.DATABASE]: { min: 0, max: 0 }
 };
+
+// Probability of adding a cross-tier dependency (skipping one or more tiers)
+const CROSS_TIER_PROBABILITY = 0.3;
+
+// Maximum additional cross-tier dependencies per service
+const MAX_CROSS_TIER_DEPS = 2;
 
 const TIER_ORDER: ServiceTier[] = [
   ServiceTier.FRONTEND,
@@ -90,6 +96,25 @@ function getNextTier(tier: ServiceTier): ServiceTier | null {
   return TIER_ORDER[index + 1];
 }
 
+// Get all tiers below the given tier (for cross-tier dependencies)
+function getLowerTiers(tier: ServiceTier): ServiceTier[] {
+  const index = TIER_ORDER.indexOf(tier);
+  if (index === -1 || index === TIER_ORDER.length - 1) {
+    return [];
+  }
+  return TIER_ORDER.slice(index + 1);
+}
+
+// Get tiers that can be skipped to (more than one tier below)
+function getSkipTiers(tier: ServiceTier): ServiceTier[] {
+  const index = TIER_ORDER.indexOf(tier);
+  if (index === -1 || index >= TIER_ORDER.length - 2) {
+    return [];
+  }
+  // Return all tiers beyond the immediate next tier
+  return TIER_ORDER.slice(index + 2);
+}
+
 function selectRandomSubset<T>(array: T[], min: number, max: number): T[] {
   const count = Math.min(randomInt(min, max), array.length);
   const shuffled = [...array].sort(() => Math.random() - 0.5);
@@ -137,6 +162,7 @@ export function generateTopology(config: TopologyConfig): Topology {
     const availableDeps = servicesByTier[nextTier];
 
     for (const service of servicesByTier[tier]) {
+      // Add standard dependencies to the next tier
       const deps = selectRandomSubset(availableDeps, range.min, range.max);
       for (const dep of deps) {
         const depType = getDependencyType(dep.tier);
@@ -145,6 +171,34 @@ export function generateTopology(config: TopologyConfig): Topology {
           type: depType
         });
         edges.push({ from: service.id, to: dep.id });
+      }
+
+      // Add cross-tier dependencies (skip tiers) with some probability
+      const skipTiers = getSkipTiers(tier);
+      if (skipTiers.length > 0 && Math.random() < CROSS_TIER_PROBABILITY) {
+        // Collect all services from skip-able tiers
+        const skipTierServices: GeneratedService[] = [];
+        for (const skipTier of skipTiers) {
+          skipTierServices.push(...servicesByTier[skipTier]);
+        }
+
+        if (skipTierServices.length > 0) {
+          // Add 1 to MAX_CROSS_TIER_DEPS cross-tier dependencies
+          const crossTierCount = randomInt(1, Math.min(MAX_CROSS_TIER_DEPS, skipTierServices.length));
+          const crossDeps = selectRandomSubset(skipTierServices, crossTierCount, crossTierCount);
+
+          for (const dep of crossDeps) {
+            // Avoid duplicate dependencies
+            if (!service.dependencies.some(d => d.serviceId === dep.id)) {
+              const depType = getDependencyType(dep.tier);
+              service.dependencies.push({
+                serviceId: dep.id,
+                type: depType
+              });
+              edges.push({ from: service.id, to: dep.id });
+            }
+          }
+        }
       }
     }
   }

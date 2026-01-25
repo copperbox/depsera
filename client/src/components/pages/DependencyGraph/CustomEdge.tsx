@@ -6,24 +6,21 @@ import {
   type Edge,
   type EdgeProps,
 } from '@xyflow/react';
-import { GraphEdgeData, DependencyType } from '../../../types/graph';
+import { GraphEdgeData } from '../../../types/graph';
 import styles from './DependencyGraph.module.css';
 
 type CustomEdgeType = Edge<GraphEdgeData, 'custom'>;
 type CustomEdgeProps = EdgeProps<CustomEdgeType>;
 
-const dependencyTypeLabels: Record<DependencyType, string> = {
-  database: 'DB',
-  rest: 'REST',
-  soap: 'SOAP',
-  grpc: 'gRPC',
-  graphql: 'GQL',
-  message_queue: 'MQ',
-  cache: 'Cache',
-  file_system: 'File',
-  smtp: 'Mail',
-  other: '',
-};
+function formatLatency(latencyMs: number | null | undefined): string {
+  if (latencyMs === null || latencyMs === undefined) {
+    return '';
+  }
+  if (latencyMs >= 1000) {
+    return `${(latencyMs / 1000).toFixed(1)}s`;
+  }
+  return `${Math.round(latencyMs)}ms`;
+}
 
 function CustomEdgeComponent({
   id,
@@ -45,7 +42,7 @@ function CustomEdgeComponent({
     targetPosition,
   });
 
-  const label = data?.dependencyType ? dependencyTypeLabels[data.dependencyType] : '';
+  const label = formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
   const edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
