@@ -124,10 +124,18 @@
   background: #9ca3af;
 }
 
+/* Main Content (graph + panel) */
+.mainContent {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 /* Graph Wrapper */
 .graphWrapper {
   flex: 1;
   background: #f9fafb;
+  min-width: 0;
 }
 
 /* Loading & Error States */
@@ -259,10 +267,16 @@
 }
 
 .typeIcon {
-  width: 18px;
-  height: 18px;
-  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.typeIcon svg {
+  width: 14px;
+  height: 14px;
+  color: #6b7280;
 }
 
 /* Node Name Row */

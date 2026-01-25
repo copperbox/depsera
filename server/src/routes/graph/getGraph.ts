@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../../db';
-import { Service, Dependency, Team } from '../../db/types';
+import { Service, Dependency, Team, DependencyType } from '../../db/types';
 import {
   GraphResponse,
   GraphNode,
@@ -84,6 +84,9 @@ function getFullGraph(): GraphResponse {
     depsByService.set(dep.service_id, existing);
   }
 
+  // Compute service types based on incoming dependency types
+  const serviceTypes = computeServiceTypes(dependenciesWithTargets);
+
   // Add service nodes
   for (const service of services) {
     const serviceDeps = depsByService.get(service.id) || [];
@@ -96,23 +99,24 @@ function getFullGraph(): GraphResponse {
     const healthyCount = uniqueDepsList.filter(d => d.healthy === 1).length;
     const unhealthyCount = uniqueDepsList.filter(d => d.healthy === 0).length;
 
-    nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount));
+    nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount, serviceTypes.get(service.id)));
     nodeIds.add(service.id);
   }
 
   // Add direct service-to-service edges based on dependencies with associations
+  // Edge direction represents data flow: from dependency (provider) to dependent (consumer)
   for (const dep of dependenciesWithTargets) {
     if (dep.target_service_id && nodeIds.has(dep.target_service_id)) {
-      // Create edge from source service to target service
-      const edgeId = `${dep.service_id}-${dep.target_service_id}-${dep.type}`;
+      // Create edge from target service (dependency) to source service (dependent)
+      const edgeId = `${dep.target_service_id}-${dep.service_id}-${dep.type}`;
 
       // Avoid duplicate edges for same source->target->type
       if (!edgeIds.has(edgeId)) {
         edgeIds.add(edgeId);
         edges.push({
           id: edgeId,
-          source: dep.service_id,
-          target: dep.target_service_id,
+          source: dep.target_service_id,
+          target: dep.service_id,
           data: {
             relationship: 'depends_on',
             dependencyType: dep.type,
@@ -129,6 +133,37 @@ function getFullGraph(): GraphResponse {
   }
 
   return { nodes, edges };
+}
+
+// Compute service types based on incoming dependency types
+function computeServiceTypes(dependencies: DependencyWithTarget[]): Map<string, DependencyType> {
+  const incomingTypes = new Map<string, Map<DependencyType, number>>();
+
+  for (const dep of dependencies) {
+    if (dep.target_service_id) {
+      if (!incomingTypes.has(dep.target_service_id)) {
+        incomingTypes.set(dep.target_service_id, new Map());
+      }
+      const typeCounts = incomingTypes.get(dep.target_service_id)!;
+      typeCounts.set(dep.type, (typeCounts.get(dep.type) || 0) + 1);
+    }
+  }
+
+  const serviceTypes = new Map<string, DependencyType>();
+  for (const [serviceId, typeCounts] of incomingTypes) {
+    // Find the most common type
+    let maxCount = 0;
+    let dominantType: DependencyType = 'other';
+    for (const [type, count] of typeCounts) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantType = type;
+      }
+    }
+    serviceTypes.set(serviceId, dominantType);
+  }
+
+  return serviceTypes;
 }
 
 function getTeamGraph(teamId: string): GraphResponse {
@@ -181,6 +216,9 @@ function getTeamGraph(teamId: string): GraphResponse {
     depsByService.set(dep.service_id, existing);
   }
 
+  // Compute service types based on incoming dependency types
+  const serviceTypes = computeServiceTypes(dependenciesWithTargets);
+
   // Add service nodes for this team
   for (const service of services) {
     const serviceDeps = depsByService.get(service.id) || [];
@@ -192,7 +230,7 @@ function getTeamGraph(teamId: string): GraphResponse {
     const healthyCount = uniqueDepsList.filter(d => d.healthy === 1).length;
     const unhealthyCount = uniqueDepsList.filter(d => d.healthy === 0).length;
 
-    nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount));
+    nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount, serviceTypes.get(service.id)));
     nodeIds.add(service.id);
   }
 
@@ -221,22 +259,23 @@ function getTeamGraph(teamId: string): GraphResponse {
       const healthyCount = serviceDeps.filter(d => d.healthy === 1).length;
       const unhealthyCount = serviceDeps.filter(d => d.healthy === 0).length;
 
-      nodes.push(createServiceNode(service, serviceDeps.length, healthyCount, unhealthyCount));
+      nodes.push(createServiceNode(service, serviceDeps.length, healthyCount, unhealthyCount, serviceTypes.get(service.id)));
       nodeIds.add(service.id);
     }
   }
 
   // Add direct service-to-service edges
+  // Edge direction represents data flow: from dependency (provider) to dependent (consumer)
   for (const dep of dependenciesWithTargets) {
     if (dep.target_service_id && nodeIds.has(dep.target_service_id)) {
-      const edgeId = `${dep.service_id}-${dep.target_service_id}-${dep.type}`;
+      const edgeId = `${dep.target_service_id}-${dep.service_id}-${dep.type}`;
 
       if (!edgeIds.has(edgeId)) {
         edgeIds.add(edgeId);
         edges.push({
           id: edgeId,
-          source: dep.service_id,
-          target: dep.target_service_id,
+          source: dep.target_service_id,
+          target: dep.service_id,
           data: {
             relationship: 'depends_on',
             dependencyType: dep.type,
@@ -261,8 +300,10 @@ function getServiceSubgraph(serviceId: string): GraphResponse {
   const nodeIds = new Set<string>();
   const edgeIds = new Set<string>();
   const visitedServices = new Set<string>();
+  const allDependencies: DependencyWithTarget[] = [];
+  const serviceData: { service: ServiceWithTeam; deps: DependencyWithTarget[] }[] = [];
 
-  // Recursively traverse upstream dependencies
+  // Recursively traverse upstream dependencies to collect all data
   function traverseUpstream(svcId: string): void {
     if (visitedServices.has(svcId)) return;
     visitedServices.add(svcId);
@@ -291,9 +332,27 @@ function getServiceSubgraph(serviceId: string): GraphResponse {
       WHERE d.service_id = ?
     `).all(svcId) as DependencyWithTarget[];
 
+    allDependencies.push(...dependenciesWithTargets);
+    serviceData.push({ service, deps: dependenciesWithTargets });
+
+    // Process dependencies - traverse first
+    for (const dep of dependenciesWithTargets) {
+      if (dep.target_service_id) {
+        traverseUpstream(dep.target_service_id);
+      }
+    }
+  }
+
+  traverseUpstream(serviceId);
+
+  // Compute service types based on all collected dependencies
+  const serviceTypes = computeServiceTypes(allDependencies);
+
+  // Now create nodes and edges
+  for (const { service, deps } of serviceData) {
     // Dedupe for counting
     const uniqueDeps = new Map<string, DependencyWithTarget>();
-    for (const dep of dependenciesWithTargets) {
+    for (const dep of deps) {
       uniqueDeps.set(dep.id, dep);
     }
     const uniqueDepsList = Array.from(uniqueDeps.values());
@@ -302,43 +361,35 @@ function getServiceSubgraph(serviceId: string): GraphResponse {
 
     // Add service node
     if (!nodeIds.has(service.id)) {
-      nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount));
+      nodes.push(createServiceNode(service, uniqueDepsList.length, healthyCount, unhealthyCount, serviceTypes.get(service.id)));
       nodeIds.add(service.id);
     }
 
-    // Process dependencies
-    for (const dep of dependenciesWithTargets) {
-      if (dep.target_service_id) {
-        // Recursively traverse the target service
-        traverseUpstream(dep.target_service_id);
-
-        // Add edge if both nodes exist
-        if (nodeIds.has(dep.target_service_id)) {
-          const edgeId = `${dep.service_id}-${dep.target_service_id}-${dep.type}`;
-          if (!edgeIds.has(edgeId)) {
-            edgeIds.add(edgeId);
-            edges.push({
-              id: edgeId,
-              source: dep.service_id,
-              target: dep.target_service_id,
-              data: {
-                relationship: 'depends_on',
-                dependencyType: dep.type,
-                dependencyName: dep.name,
-                healthy: dep.healthy === null ? null : dep.healthy === 1,
-                latencyMs: dep.latency_ms,
-                associationType: dep.association_type as GraphEdgeData['associationType'],
-                isAutoSuggested: dep.is_auto_suggested === 1,
-                confidenceScore: dep.confidence_score,
-              },
-            });
-          }
+    // Add edges (direction: from dependency to dependent, representing data flow)
+    for (const dep of deps) {
+      if (dep.target_service_id && nodeIds.has(dep.target_service_id)) {
+        const edgeId = `${dep.target_service_id}-${dep.service_id}-${dep.type}`;
+        if (!edgeIds.has(edgeId)) {
+          edgeIds.add(edgeId);
+          edges.push({
+            id: edgeId,
+            source: dep.target_service_id,
+            target: dep.service_id,
+            data: {
+              relationship: 'depends_on',
+              dependencyType: dep.type,
+              dependencyName: dep.name,
+              healthy: dep.healthy === null ? null : dep.healthy === 1,
+              latencyMs: dep.latency_ms,
+              associationType: dep.association_type as GraphEdgeData['associationType'],
+              isAutoSuggested: dep.is_auto_suggested === 1,
+              confidenceScore: dep.confidence_score,
+            },
+          });
         }
       }
     }
   }
-
-  traverseUpstream(serviceId);
 
   return { nodes, edges };
 }
@@ -361,7 +412,8 @@ function createServiceNode(
   service: ServiceWithTeam,
   dependencyCount: number,
   healthyCount: number,
-  unhealthyCount: number
+  unhealthyCount: number,
+  serviceType?: DependencyType
 ): GraphNode {
   return {
     id: service.id,
@@ -375,6 +427,7 @@ function createServiceNode(
       dependencyCount,
       healthyCount,
       unhealthyCount,
+      serviceType,
     } as ServiceNodeData,
   };
 }

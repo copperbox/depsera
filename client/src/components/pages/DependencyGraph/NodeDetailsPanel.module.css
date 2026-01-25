@@ -1,0 +1,200 @@
+.panel {
+  width: 320px;
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.statusSection {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.statusBadge.healthy {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.statusBadge.warning {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.statusBadge.critical {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.statusBadge.unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.section {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sectionTitle {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+}
+
+.detailsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailLabel {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.detailValue {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.detailLink {
+  font-size: 14px;
+  color: #3b82f6;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.detailLink:hover {
+  text-decoration: underline;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.statItem.healthy .statValue {
+  color: #059669;
+}
+
+.statItem.critical .statValue {
+  color: #dc2626;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.statLabel {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.actions {
+  padding: 16px 20px;
+  margin-top: auto;
+}
+
+.viewDetailsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.viewDetailsButton:hover {
+  background: #2563eb;
+}

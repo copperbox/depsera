@@ -23,6 +23,7 @@ export interface ServiceNodeData {
   dependencyCount: number;
   healthyCount: number;
   unhealthyCount: number;
+  serviceType?: DependencyType;
   layoutDirection?: LayoutDirection;
   [key: string]: unknown;
 }

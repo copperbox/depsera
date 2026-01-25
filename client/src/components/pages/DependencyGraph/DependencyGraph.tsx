@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Controls,
   MiniMap,
   Background,
   useNodesState,
   useEdgesState,
+  useOnSelectionChange,
   type Node,
   type Edge,
   BackgroundVariant,
@@ -26,6 +28,7 @@ import {
 import { TeamWithCounts } from '../../../types/team';
 import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
+import { NodeDetailsPanel } from './NodeDetailsPanel';
 import styles from './DependencyGraph.module.css';
 
 type AppNode = Node<ServiceNodeData, 'service'>;
@@ -63,7 +66,7 @@ function getLayoutedElements(
 ): { nodes: AppNode[]; edges: AppEdge[] } {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 100 });
+  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 180 });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
@@ -115,7 +118,33 @@ function transformGraphData(
   return getLayoutedElements(nodes, edges, direction);
 }
 
-export function DependencyGraph() {
+// Find all nodes related to a given node (connected via edges in any direction)
+function getRelatedNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
+  const related = new Set<string>();
+  const visited = new Set<string>();
+  const queue = [nodeId];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    related.add(current);
+
+    // Find all edges connected to this node (in either direction)
+    for (const edge of edges) {
+      if (edge.source === current && !visited.has(edge.target)) {
+        queue.push(edge.target);
+      }
+      if (edge.target === current && !visited.has(edge.source)) {
+        queue.push(edge.source);
+      }
+    }
+  }
+
+  return related;
+}
+
+function DependencyGraphInner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<AppEdge>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
@@ -123,6 +152,7 @@ export function DependencyGraph() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
     const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
     return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
@@ -229,29 +259,83 @@ export function DependencyGraph() {
     localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
   };
 
-  // Filter nodes based on search query
+  // Get the selected node's data for the details panel
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return nodes.find((n) => n.id === selectedNodeId) || null;
+  }, [nodes, selectedNodeId]);
+
+  // Get related node IDs when a node is selected
+  const relatedNodeIds = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return getRelatedNodeIds(selectedNodeId, edges);
+  }, [selectedNodeId, edges]);
+
+  // Filter nodes based on search query and selection
   const filteredNodes = useMemo(() => {
-    if (!searchQuery.trim()) return nodes;
+    let result = nodes;
 
-    const query = searchQuery.toLowerCase();
-    const matchingIds = new Set<string>();
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchingIds = new Set<string>();
 
-    nodes.forEach((node) => {
-      if (node.data.name.toLowerCase().includes(query)) {
-        matchingIds.add(node.id);
-      }
-      if (node.data.teamName?.toLowerCase().includes(query)) {
-        matchingIds.add(node.id);
-      }
-    });
+      nodes.forEach((node) => {
+        if (node.data.name.toLowerCase().includes(query)) {
+          matchingIds.add(node.id);
+        }
+        if (node.data.teamName?.toLowerCase().includes(query)) {
+          matchingIds.add(node.id);
+        }
+      });
 
-    return nodes.map((node) => ({
-      ...node,
-      style: matchingIds.has(node.id)
+      result = nodes.map((node) => ({
+        ...node,
+        style: matchingIds.has(node.id)
+          ? { opacity: 1 }
+          : { opacity: 0.3 },
+      }));
+    }
+
+    // Apply selection highlighting
+    if (relatedNodeIds) {
+      result = result.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          isSelected: node.id === selectedNodeId,
+        },
+        style: relatedNodeIds.has(node.id)
+          ? { ...(node.style || {}), opacity: 1 }
+          : { ...(node.style || {}), opacity: 0.25 },
+      }));
+    }
+
+    return result;
+  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
+
+  // Filter edges based on selection
+  const filteredEdges = useMemo(() => {
+    if (!relatedNodeIds) return edges;
+
+    return edges.map((edge) => ({
+      ...edge,
+      style: relatedNodeIds.has(edge.source) && relatedNodeIds.has(edge.target)
         ? { opacity: 1 }
-        : { opacity: 0.3 },
+        : { opacity: 0.15 },
     }));
-  }, [nodes, searchQuery]);
+  }, [edges, relatedNodeIds]);
+
+  // Handle node selection change
+  useOnSelectionChange({
+    onChange: ({ nodes: selectedNodes }) => {
+      if (selectedNodes.length > 0) {
+        setSelectedNodeId(selectedNodes[0].id);
+      } else {
+        setSelectedNodeId(null);
+      }
+    },
+  });
 
   const getMiniMapNodeColor = (node: AppNode) => {
     const status = getServiceHealthStatus(node.data);
@@ -397,68 +481,86 @@ export function DependencyGraph() {
         </div>
       </div>
 
-      <div className={styles.graphWrapper}>
-        {filteredNodes.length === 0 ? (
-          <div className={styles.emptyState}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      <div className={styles.mainContent}>
+        <div className={styles.graphWrapper}>
+          {filteredNodes.length === 0 ? (
+            <div className={styles.emptyState}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+                />
+              </svg>
+              <span>No services or dependencies to display</span>
+            </div>
+          ) : (
+            <ReactFlow
+              nodes={filteredNodes}
+              edges={filteredEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.1}
+              maxZoom={2}
+              defaultEdgeOptions={{
+                type: 'custom',
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+              <Controls />
+              <MiniMap
+                nodeColor={getMiniMapNodeColor}
+                maskColor="rgba(0, 0, 0, 0.1)"
+                pannable
+                zoomable
               />
-            </svg>
-            <span>No services or dependencies to display</span>
-          </div>
-        ) : (
-          <ReactFlow
-            nodes={filteredNodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            minZoom={0.1}
-            maxZoom={2}
-            defaultEdgeOptions={{
-              type: 'custom',
-            }}
-          >
-            <Controls />
-            <MiniMap
-              nodeColor={getMiniMapNodeColor}
-              maskColor="rgba(0, 0, 0, 0.1)"
-              pannable
-              zoomable
-            />
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e5e7eb" />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e5e7eb" />
 
-            {/* Custom marker definitions */}
-            <svg>
-              <defs>
-                <marker
-                  id="arrow-dependency"
-                  viewBox="0 0 10 10"
-                  refX="10"
-                  refY="5"
-                  markerWidth="6"
-                  markerHeight="6"
-                  orient="auto-start-reverse"
-                >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
-                </marker>
-              </defs>
-            </svg>
-          </ReactFlow>
+              {/* Custom marker definitions */}
+              <svg>
+                <defs>
+                  <marker
+                    id="arrow-dependency"
+                    viewBox="0 0 10 10"
+                    refX="10"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
+                  </marker>
+                </defs>
+              </svg>
+            </ReactFlow>
+          )}
+        </div>
+
+        {selectedNode && (
+          <NodeDetailsPanel
+            nodeId={selectedNode.id}
+            data={selectedNode.data}
+            onClose={() => setSelectedNodeId(null)}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+export function DependencyGraph() {
+  return (
+    <ReactFlowProvider>
+      <DependencyGraphInner />
+    </ReactFlowProvider>
   );
 }

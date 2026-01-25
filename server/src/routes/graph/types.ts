@@ -11,6 +11,7 @@ export interface ServiceNodeData {
   dependencyCount: number;
   healthyCount: number;
   unhealthyCount: number;
+  serviceType?: DependencyType;
 }
 
 export interface GraphNode {
