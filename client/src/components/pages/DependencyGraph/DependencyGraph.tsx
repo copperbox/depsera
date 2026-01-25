@@ -13,7 +13,7 @@ import {
   type EdgeMouseHandler,
   BackgroundVariant,
 } from '@xyflow/react';
-import dagre from 'dagre';
+import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import '@xyflow/react/dist/style.css';
 
 import { fetchGraph } from '../../../api/graph';
@@ -64,33 +64,60 @@ const edgeTypes = {
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 100;
 
-function getLayoutedElements(
+const elk = new ELK();
+
+async function getLayoutedElements(
   nodes: AppNode[],
   edges: AppEdge[],
   direction: 'TB' | 'LR' = 'TB',
   tierSpacing: number = DEFAULT_TIER_SPACING
-): { nodes: AppNode[]; edges: AppEdge[] } {
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: tierSpacing });
+): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
+  // ELK uses 'DOWN' for top-to-bottom and 'RIGHT' for left-to-right
+  const elkDirection = direction === 'TB' ? 'DOWN' : 'RIGHT';
 
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  });
+  const elkGraph: ElkNode = {
+    id: 'root',
+    layoutOptions: {
+      'elk.algorithm': 'layered',
+      'elk.direction': elkDirection,
+      // Node spacing within the same layer
+      'elk.spacing.nodeNode': '100',
+      // Spacing between layers (tiers)
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(tierSpacing),
+      // Edge spacing
+      'elk.spacing.edgeNode': '50',
+      'elk.spacing.edgeEdge': '30',
+      // Minimize edge crossings
+      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+      // Consider node size for spacing
+      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      // Better edge routing
+      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      // Separate connected components
+      'elk.separateConnectedComponents': 'true',
+      'elk.spacing.componentComponent': '150',
+    },
+    children: nodes.map((node) => ({
+      id: node.id,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+    })),
+    edges: edges.map((edge): ElkExtendedEdge => ({
+      id: edge.id,
+      sources: [edge.source],
+      targets: [edge.target],
+    })),
+  };
 
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
+  const layoutedGraph = await elk.layout(elkGraph);
 
   const layoutedNodes: AppNode[] = nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
+    const elkNode = layoutedGraph.children?.find((n) => n.id === node.id);
     return {
       ...node,
       position: {
-        x: nodeWithPosition.x - NODE_WIDTH / 2,
-        y: nodeWithPosition.y - NODE_HEIGHT / 2,
+        x: elkNode?.x ?? 0,
+        y: elkNode?.y ?? 0,
       },
     };
   });
@@ -98,11 +125,11 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-function transformGraphData(
+async function transformGraphData(
   data: GraphResponse,
   direction: LayoutDirection = 'TB',
   tierSpacing: number = DEFAULT_TIER_SPACING
-): { nodes: AppNode[]; edges: AppEdge[] } {
+): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
   // Calculate reported health for each node based on incoming edges
   // (edges where the node is the SOURCE, meaning other services depend on it)
   const reportedHealth = new Map<string, { healthy: number; unhealthy: number }>();
@@ -146,7 +173,7 @@ function transformGraphData(
     animated: true,
   }));
 
-  return getLayoutedElements(nodes, edges, direction, tierSpacing);
+  return await getLayoutedElements(nodes, edges, direction, tierSpacing);
 }
 
 // Find all upstream nodes (nodes that the selected node depends on, following edge direction)
@@ -352,7 +379,7 @@ function DependencyGraphInner() {
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = transformGraphData(graphData, direction, spacing);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, spacing);
 
       // Preserve selection during refresh
       const currentSelectedNodeId = selectedNodeIdRef.current;
