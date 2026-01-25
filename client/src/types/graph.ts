@@ -13,6 +13,8 @@ export type DependencyType =
   | 'smtp'
   | 'other';
 
+export type LayoutDirection = 'TB' | 'LR';
+
 export interface ServiceNodeData {
   name: string;
   teamId: string;
@@ -22,6 +24,7 @@ export interface ServiceNodeData {
   dependencyCount: number;
   healthyCount: number;
   unhealthyCount: number;
+  layoutDirection?: LayoutDirection;
   [key: string]: unknown;
 }
 
@@ -37,6 +40,7 @@ export interface DependencyNodeData {
   healthCode: number | null;
   latencyMs: number | null;
   lastChecked: string | null;
+  layoutDirection?: LayoutDirection;
   [key: string]: unknown;
 }
 

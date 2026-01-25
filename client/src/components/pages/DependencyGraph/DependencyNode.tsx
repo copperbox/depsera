@@ -78,6 +78,7 @@ const TypeIcon = ({ type }: { type: DependencyType }) => {
 
 function DependencyNodeComponent({ data, selected }: NodeProps<DependencyNodeType>) {
   const healthStatus = getDependencyHealthStatus(data);
+  const isHorizontal = data.layoutDirection === 'LR';
 
   const formatLatency = (ms: number | null) => {
     if (ms === null) return '-';
@@ -87,7 +88,11 @@ function DependencyNodeComponent({ data, selected }: NodeProps<DependencyNodeTyp
 
   return (
     <div className={`${styles.dependencyNode} ${styles[healthStatus]} ${selected ? styles.selected : ''}`}>
-      <Handle type="target" position={Position.Top} className={styles.handle} />
+      <Handle
+        type="target"
+        position={isHorizontal ? Position.Left : Position.Top}
+        className={styles.handle}
+      />
 
       <div className={styles.nodeNameRow}>
         <TypeIcon type={data.type} />
@@ -101,7 +106,11 @@ function DependencyNodeComponent({ data, selected }: NodeProps<DependencyNodeTyp
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className={styles.handle} />
+      <Handle
+        type="source"
+        position={isHorizontal ? Position.Right : Position.Bottom}
+        className={styles.handle}
+      />
     </div>
   );
 }

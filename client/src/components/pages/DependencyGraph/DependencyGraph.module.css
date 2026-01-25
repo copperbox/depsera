@@ -514,3 +514,43 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Direction toggle */
+.directionToggle {
+  display: flex;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.directionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.directionButton:first-child {
+  border-right: 1px solid #d1d5db;
+}
+
+.directionButton:hover {
+  background: #f3f4f6;
+}
+
+.directionButton.directionActive {
+  background: #3b82f6;
+  color: white;
+}
+
+.directionButton.directionActive:hover {
+  background: #2563eb;
+}
+
+.directionButton svg {
+  display: block;
+}

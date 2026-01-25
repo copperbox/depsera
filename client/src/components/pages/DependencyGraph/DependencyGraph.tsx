@@ -36,7 +36,10 @@ type AppEdge = Edge<GraphEdgeData, 'custom'>;
 
 const POLLING_ENABLED_KEY = 'graph-auto-refresh';
 const POLLING_INTERVAL_KEY = 'graph-refresh-interval';
+const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 const DEFAULT_INTERVAL = 30000;
+
+type LayoutDirection = 'TB' | 'LR';
 
 const INTERVAL_OPTIONS = [
   { value: 10000, label: '10s' },
@@ -90,12 +93,18 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-function transformGraphData(data: GraphResponse): { nodes: AppNode[]; edges: AppEdge[] } {
+function transformGraphData(
+  data: GraphResponse,
+  direction: LayoutDirection = 'TB'
+): { nodes: AppNode[]; edges: AppEdge[] } {
   const nodes: AppNode[] = data.nodes.map((node: GraphNode) => ({
     id: node.id,
     type: node.type as 'service' | 'dependency',
     position: { x: 0, y: 0 },
-    data: node.data,
+    data: {
+      ...node.data,
+      layoutDirection: direction,
+    },
   }));
 
   const edges: AppEdge[] = data.edges.map((edge: GraphEdge) => ({
@@ -107,7 +116,7 @@ function transformGraphData(data: GraphResponse): { nodes: AppNode[]; edges: App
     animated: edge.data.relationship === 'depends_on',
   }));
 
-  return getLayoutedElements(nodes, edges);
+  return getLayoutedElements(nodes, edges, direction);
 }
 
 export function DependencyGraph() {
@@ -118,6 +127,10 @@ export function DependencyGraph() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
+    const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
+    return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
+  });
 
   // Polling state
   const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
@@ -131,13 +144,22 @@ export function DependencyGraph() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const pollingIntervalRef = useRef<number | null>(null);
   const selectedTeamRef = useRef(selectedTeam);
+  const layoutDirectionRef = useRef(layoutDirection);
 
-  // Keep ref in sync with state for use in polling callback
+  // Keep refs in sync with state for use in polling callback
   useEffect(() => {
     selectedTeamRef.current = selectedTeam;
   }, [selectedTeam]);
 
-  const loadData = useCallback(async (teamId?: string, isBackgroundRefresh = false) => {
+  useEffect(() => {
+    layoutDirectionRef.current = layoutDirection;
+  }, [layoutDirection]);
+
+  const loadData = useCallback(async (
+    teamId?: string,
+    direction: LayoutDirection = 'TB',
+    isBackgroundRefresh = false
+  ) => {
     if (!isBackgroundRefresh) {
       setIsLoading(true);
     } else {
@@ -155,7 +177,7 @@ export function DependencyGraph() {
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = transformGraphData(graphData);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = transformGraphData(graphData, direction);
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
     } catch (err) {
@@ -166,16 +188,16 @@ export function DependencyGraph() {
     }
   }, [teams, setNodes, setEdges]);
 
-  // Initial load and team change
+  // Initial load and team/direction change
   useEffect(() => {
-    loadData(selectedTeam || undefined);
-  }, [selectedTeam]);
+    loadData(selectedTeam || undefined, layoutDirection);
+  }, [selectedTeam, layoutDirection]);
 
   // Polling effect
   useEffect(() => {
     if (isPollingEnabled) {
       pollingIntervalRef.current = window.setInterval(() => {
-        loadData(selectedTeamRef.current || undefined, true);
+        loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, true);
       }, pollingInterval);
     }
 
@@ -203,6 +225,12 @@ export function DependencyGraph() {
     const newInterval = parseInt(e.target.value, 10);
     setPollingInterval(newInterval);
     localStorage.setItem(POLLING_INTERVAL_KEY, String(newInterval));
+  };
+
+  // Change layout direction
+  const handleDirectionChange = (direction: LayoutDirection) => {
+    setLayoutDirection(direction);
+    localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
   };
 
   // Filter nodes based on search query
@@ -268,7 +296,7 @@ export function DependencyGraph() {
       <div className={styles.container}>
         <div className={styles.error}>
           <span>{error}</span>
-          <button className={styles.retryButton} onClick={() => loadData(selectedTeam || undefined)}>
+          <button className={styles.retryButton} onClick={() => loadData(selectedTeam || undefined, layoutDirection)}>
             Retry
           </button>
         </div>
@@ -303,6 +331,30 @@ export function DependencyGraph() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>Layout:</label>
+          <div className={styles.directionToggle}>
+            <button
+              className={`${styles.directionButton} ${layoutDirection === 'TB' ? styles.directionActive : ''}`}
+              onClick={() => handleDirectionChange('TB')}
+              title="Top to Bottom"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M12 3v18M12 21l-4-4M12 21l4-4" />
+              </svg>
+            </button>
+            <button
+              className={`${styles.directionButton} ${layoutDirection === 'LR' ? styles.directionActive : ''}`}
+              onClick={() => handleDirectionChange('LR')}
+              title="Left to Right"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M3 12h18M21 12l-4-4M21 12l-4 4" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className={styles.autoRefreshControls}>

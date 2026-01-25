@@ -7,10 +7,15 @@ type ServiceNodeType = Node<ServiceNodeData, 'service'>;
 
 function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
   const healthStatus = getServiceHealthStatus(data);
+  const isHorizontal = data.layoutDirection === 'LR';
 
   return (
     <div className={`${styles.serviceNode} ${styles[healthStatus]} ${selected ? styles.selected : ''}`}>
-      <Handle type="target" position={Position.Top} className={styles.handle} />
+      <Handle
+        type="target"
+        position={isHorizontal ? Position.Left : Position.Top}
+        className={styles.handle}
+      />
 
       <div className={styles.nodeHeader}>
         <div className={`${styles.statusIndicator} ${styles[healthStatus]}`} />
@@ -35,7 +40,11 @@ function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
         </div>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className={styles.handle} />
+      <Handle
+        type="source"
+        position={isHorizontal ? Position.Right : Position.Bottom}
+        className={styles.handle}
+      />
     </div>
   );
 }
