@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f9fafb;
+  background: var(--color-bg-page);
 }
 
 /* Toolbar */
@@ -12,8 +12,8 @@
   align-items: center;
   gap: 16px;
   padding: 12px 20px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
   flex-wrap: wrap;
 }
 
@@ -25,37 +25,39 @@
 
 .toolbarLabel {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 .select {
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-input);
   border-radius: 6px;
   font-size: 14px;
-  background: white;
-  color: #374151;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
   min-width: 150px;
 }
 
 .select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .searchInput {
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-input);
   border-radius: 6px;
   font-size: 14px;
   width: 200px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
 }
 
 .searchInput:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -64,18 +66,18 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-input);
   border-radius: 6px;
-  background: white;
-  color: #374151;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .toolbarButton:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-muted);
 }
 
 .toolbarButton svg {
@@ -93,7 +95,7 @@
   align-items: center;
   gap: 16px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .legendItem {
@@ -109,19 +111,19 @@
 }
 
 .legendDot.healthy {
-  background: #10b981;
+  background: var(--color-success);
 }
 
 .legendDot.warning {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 .legendDot.critical {
-  background: #dc2626;
+  background: var(--color-error);
 }
 
 .legendDot.unknown {
-  background: #9ca3af;
+  background: var(--color-text-muted);
 }
 
 /* Main Content (graph + panel) */
@@ -134,7 +136,7 @@
 /* Graph Wrapper */
 .graphWrapper {
   flex: 1;
-  background: #f9fafb;
+  background: var(--color-bg-page);
   min-width: 0;
 }
 
@@ -147,14 +149,14 @@
   justify-content: center;
   height: 100%;
   gap: 16px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -166,13 +168,13 @@
 }
 
 .error {
-  color: #dc2626;
+  color: var(--color-error);
 }
 
 .retryButton {
   padding: 8px 16px;
-  background: #3b82f6;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -180,7 +182,7 @@
 }
 
 .retryButton:hover {
-  background: #2563eb;
+  background: var(--color-accent-hover);
 }
 
 /* Custom Nodes - Base */
@@ -188,44 +190,44 @@
 .dependencyNode {
   padding: 12px 16px;
   border-radius: 8px;
-  background: white;
-  border: 2px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border: 2px solid var(--color-border);
   min-width: 160px;
   max-width: 200px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: all 0.15s;
 }
 
 .serviceNode:hover,
 .dependencyNode:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .serviceNode.selected,
 .dependencyNode.selected {
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 /* Health Status Colors */
 .serviceNode.healthy,
 .dependencyNode.healthy {
-  border-color: #10b981;
+  border-color: var(--color-success);
 }
 
 .serviceNode.warning,
 .dependencyNode.warning {
-  border-color: #f59e0b;
+  border-color: var(--color-warning);
 }
 
 .serviceNode.critical,
 .dependencyNode.critical {
-  border-color: #dc2626;
+  border-color: var(--color-error);
 }
 
 .serviceNode.unknown,
 .dependencyNode.unknown {
-  border-color: #9ca3af;
+  border-color: var(--color-text-muted);
 }
 
 /* Node Header */
@@ -243,26 +245,26 @@
 }
 
 .statusIndicator.healthy {
-  background: #10b981;
+  background: var(--color-success);
 }
 
 .statusIndicator.warning {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 .statusIndicator.critical {
-  background: #dc2626;
+  background: var(--color-error);
 }
 
 .statusIndicator.unknown {
-  background: #9ca3af;
+  background: var(--color-text-muted);
 }
 
 .nodeType {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-weight: 600;
 }
 
@@ -276,7 +278,7 @@
 .typeIcon svg {
   width: 14px;
   height: 14px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 /* Node Name Row */
@@ -291,7 +293,7 @@
 .nodeName {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -303,7 +305,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .teamName,
@@ -321,12 +323,12 @@
 }
 
 .healthyCount {
-  color: #10b981;
+  color: var(--color-success);
   font-weight: 600;
 }
 
 .separator {
-  color: #d1d5db;
+  color: var(--color-border-input);
 }
 
 .totalCount {
@@ -335,18 +337,18 @@
 
 .label {
   margin-left: 2px;
-  color: #9ca3af;
+  color: var(--color-text-muted);
 }
 
 .noDeps {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
 .latency {
   font-family: monospace;
   font-size: 10px;
-  background: #f3f4f6;
+  background: var(--color-bg-hover);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -355,12 +357,12 @@
 .handle {
   width: 8px !important;
   height: 8px !important;
-  background: #9ca3af !important;
-  border: 2px solid white !important;
+  background: var(--color-text-muted) !important;
+  border: 2px solid var(--color-bg-card) !important;
 }
 
 .handle:hover {
-  background: #3b82f6 !important;
+  background: var(--color-accent) !important;
 }
 
 /* Edges */
@@ -369,11 +371,11 @@
 }
 
 .healthyEdge {
-  stroke: #10b981;
+  stroke: var(--color-success);
 }
 
 .unhealthyEdge {
-  stroke: #dc2626;
+  stroke: var(--color-error);
 }
 
 .edgeSelected {
@@ -381,40 +383,40 @@
 }
 
 .healthyEdge.edgeSelected {
-  filter: drop-shadow(0 0 4px #10b981) drop-shadow(0 0 8px #10b981);
+  filter: drop-shadow(0 0 4px var(--color-success)) drop-shadow(0 0 8px var(--color-success));
 }
 
 .unhealthyEdge.edgeSelected {
-  filter: drop-shadow(0 0 4px #dc2626) drop-shadow(0 0 8px #dc2626);
+  filter: drop-shadow(0 0 4px var(--color-error)) drop-shadow(0 0 8px var(--color-error));
 }
 
 .edgeLabelSelectedHealthy {
-  border-color: #10b981;
+  border-color: var(--color-success);
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 .edgeLabelSelectedUnhealthy {
-  border-color: #dc2626;
+  border-color: var(--color-error);
   box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
 }
 
 /* Edge Labels */
 .edgeLabel {
   position: absolute;
-  background: white;
+  background: var(--color-bg-card);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .edgeLabelUnhealthy {
-  color: #dc2626;
-  border-color: #fecaca;
-  background: #fef2f2;
+  color: var(--color-error);
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
 }
 
 /* Empty State */
@@ -424,37 +426,41 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #6b7280;
+  color: var(--color-text-muted);
   gap: 12px;
 }
 
 .emptyState svg {
   width: 64px;
   height: 64px;
-  color: #d1d5db;
+  color: var(--color-border-input);
 }
 
 /* Controls override */
 .graphWrapper :global(.react-flow__controls) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
 }
 
 .graphWrapper :global(.react-flow__controls-button) {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .graphWrapper :global(.react-flow__controls-button:hover) {
-  background: #f3f4f6;
+  background: var(--color-bg-hover);
+}
+
+.graphWrapper :global(.react-flow__controls-button svg) {
+  fill: var(--color-text-primary);
 }
 
 .graphWrapper :global(.react-flow__minimap) {
-  background: white;
+  background: var(--color-bg-card);
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
 }
 
 /* Auto-refresh controls */
@@ -463,15 +469,15 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.375rem 0.75rem;
-  background-color: #f9fafb;
+  background-color: var(--color-bg-hover);
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
 }
 
 .autoRefreshLabel {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
@@ -483,8 +489,8 @@
 .spinnerSmall {
   width: 14px;
   height: 14px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #3b82f6;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -494,7 +500,7 @@
   width: 2.5rem;
   height: 1.5rem;
   padding: 0;
-  background-color: #d1d5db;
+  background-color: var(--color-border-input);
   border: none;
   border-radius: 1rem;
   cursor: pointer;
@@ -502,12 +508,12 @@
 }
 
 .togglePill:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 .togglePill.toggleActive {
-  background-color: #10b981;
+  background-color: var(--color-success);
 }
 
 .toggleKnob {
@@ -516,7 +522,7 @@
   left: 0.125rem;
   width: 1.25rem;
   height: 1.25rem;
-  background-color: white;
+  background-color: var(--color-bg-card);
   border-radius: 50%;
   transition: transform 0.2s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
@@ -529,16 +535,16 @@
 .intervalSelect {
   padding: 0.25rem 0.5rem;
   font-size: 0.8125rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-input);
   border-radius: 4px;
-  background-color: white;
-  color: #374151;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 
 .intervalSelect:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-accent);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
@@ -550,7 +556,7 @@
 /* Direction toggle */
 .directionToggle {
   display: flex;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-input);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -560,27 +566,28 @@
   align-items: center;
   justify-content: center;
   padding: 6px 10px;
-  background: white;
+  background: var(--color-bg-card);
   border: none;
   cursor: pointer;
   transition: all 0.15s;
+  color: var(--color-text-primary);
 }
 
 .directionButton:first-child {
-  border-right: 1px solid #d1d5db;
+  border-right: 1px solid var(--color-border-input);
 }
 
 .directionButton:hover {
-  background: #f3f4f6;
+  background: var(--color-bg-hover);
 }
 
 .directionButton.directionActive {
-  background: #3b82f6;
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
 }
 
 .directionButton.directionActive:hover {
-  background: #2563eb;
+  background: var(--color-accent-hover);
 }
 
 .directionButton svg {

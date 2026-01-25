@@ -5,10 +5,10 @@
 .title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--color-text-heading);
   margin-bottom: 1rem;
 }
 
 .placeholder {
-  color: #666;
+  color: var(--color-text-secondary);
 }

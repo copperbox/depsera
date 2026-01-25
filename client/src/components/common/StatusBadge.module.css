@@ -35,8 +35,17 @@
   color: #166534;
 }
 
+[data-theme="dark"] .healthy {
+  background-color: #14532d;
+  color: #86efac;
+}
+
 .healthy .dot {
   background-color: #22c55e;
+}
+
+[data-theme="dark"] .healthy .dot {
+  background-color: #34d399;
 }
 
 .warning {
@@ -44,8 +53,17 @@
   color: #92400e;
 }
 
+[data-theme="dark"] .warning {
+  background-color: #451a03;
+  color: #fde68a;
+}
+
 .warning .dot {
   background-color: #f59e0b;
+}
+
+[data-theme="dark"] .warning .dot {
+  background-color: #fbbf24;
 }
 
 .critical {
@@ -53,17 +71,26 @@
   color: #991b1b;
 }
 
+[data-theme="dark"] .critical {
+  background-color: #450a0a;
+  color: #fca5a5;
+}
+
 .critical .dot {
   background-color: #ef4444;
 }
 
+[data-theme="dark"] .critical .dot {
+  background-color: #f87171;
+}
+
 .unknown {
-  background-color: #f3f4f6;
-  color: #4b5563;
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-muted);
 }
 
 .unknown .dot {
-  background-color: #6b7280;
+  background-color: var(--color-text-muted);
 }
 
 .no_dependents {
@@ -71,8 +98,17 @@
   color: #3730a3;
 }
 
+[data-theme="dark"] .no_dependents {
+  background-color: #312e81;
+  color: #a5b4fc;
+}
+
 .no_dependents .dot {
   background-color: #6366f1;
+}
+
+[data-theme="dark"] .no_dependents .dot {
+  background-color: #818cf8;
 }
 
 .label {
