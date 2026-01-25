@@ -3,6 +3,7 @@ import db from '../../db';
 import { Service, ProactiveDepsStatus } from '../../db/types';
 import { ExponentialBackoff } from './backoff';
 import { PollResult, StatusChangeEvent } from './types';
+import { AssociationMatcher } from '../matching';
 
 const POLL_TIMEOUT_MS = 30000;
 
@@ -145,6 +146,7 @@ export class ServicePoller {
 
   private upsertDependencies(deps: ProactiveDepsStatus[]): StatusChangeEvent[] {
     const changes: StatusChangeEvent[] = [];
+    const newDependencyIds: string[] = [];
     const now = new Date().toISOString();
 
     // Get existing dependencies to detect status changes
@@ -179,6 +181,7 @@ export class ServicePoller {
     for (const dep of deps) {
       const existing = existingByName.get(dep.name);
       const newHealthy = dep.healthy ? 1 : 0;
+      const isNew = !existing;
 
       // Detect status change
       if (existing && existing.healthy !== null && existing.healthy !== newHealthy) {
@@ -209,6 +212,24 @@ export class ServicePoller {
         now,
         now
       );
+
+      // Track new dependencies for suggestion generation
+      if (isNew) {
+        newDependencyIds.push(id);
+      }
+    }
+
+    // Generate association suggestions for new dependencies
+    if (newDependencyIds.length > 0) {
+      try {
+        const matcher = AssociationMatcher.getInstance();
+        for (const depId of newDependencyIds) {
+          matcher.generateSuggestions(depId);
+        }
+      } catch (error) {
+        // Don't fail the poll if suggestion generation fails
+        console.error('[Matching] Error generating suggestions:', error);
+      }
     }
 
     return changes;
