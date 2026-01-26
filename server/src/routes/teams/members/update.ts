@@ -1,25 +1,21 @@
 import { Request, Response } from 'express';
-import db from '../../../db';
-import { Team, TeamMember, TeamMemberRole, User } from '../../../db/types';
+import { getStores } from '../../../stores';
+import { TeamMemberRole } from '../../../db/types';
 
 export function updateMember(req: Request, res: Response): void {
   try {
     const { id, userId } = req.params;
     const { role } = req.body;
+    const stores = getStores();
 
     // Validate team exists
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team | undefined;
-    if (!team) {
+    if (!stores.teams.exists(id)) {
       res.status(404).json({ error: 'Team not found' });
       return;
     }
 
     // Validate membership exists
-    const member = db
-      .prepare('SELECT * FROM team_members WHERE team_id = ? AND user_id = ?')
-      .get(id, userId) as TeamMember | undefined;
-
-    if (!member) {
+    if (!stores.teams.isMember(id, userId)) {
       res.status(404).json({ error: 'Team member not found' });
       return;
     }
@@ -36,14 +32,14 @@ export function updateMember(req: Request, res: Response): void {
       return;
     }
 
-    db.prepare('UPDATE team_members SET role = ? WHERE team_id = ? AND user_id = ?').run(
-      role,
-      id,
-      userId
-    );
+    stores.teams.updateMemberRole(id, userId, role);
 
     // Get user details
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User;
+    const user = stores.users.findById(userId)!;
+
+    // Get member to retrieve created_at
+    const members = stores.teams.findMembers(id);
+    const member = members.find(m => m.user_id === userId)!;
 
     res.json({
       team_id: id,

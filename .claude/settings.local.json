@@ -32,7 +32,9 @@
       "Bash(npm run mock:seed:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "mcp__plugin_linear_linear__list_teams",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npx jest:*)",
+      "mcp__plugin_linear_linear__list_projects"
     ]
   }
 }

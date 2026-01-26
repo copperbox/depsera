@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import db from '../db';
-import { User, TeamMember, Service } from '../db/types';
+import { getStores } from '../stores';
+import { User, TeamMember } from '../db/types';
 
 // Extend Express Request type
 declare global {
@@ -19,11 +19,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
-  const user = db
-    .prepare('SELECT * FROM users WHERE id = ? AND is_active = 1')
-    .get(req.session.userId) as User | undefined;
+  const stores = getStores();
+  const user = stores.users.findById(req.session.userId);
 
-  if (!user) {
+  if (!user || !user.is_active) {
     req.session.destroy(() => {});
     res.status(401).json({ error: 'User not found or inactive' });
     return;
@@ -47,9 +46,8 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
  * Get team membership for a user
  */
 function getTeamMembership(userId: string, teamId: string): TeamMember | undefined {
-  return db
-    .prepare('SELECT * FROM team_members WHERE user_id = ? AND team_id = ?')
-    .get(userId, teamId) as TeamMember | undefined;
+  const stores = getStores();
+  return stores.teams.getMembership(teamId, userId);
 }
 
 /**
@@ -135,9 +133,8 @@ export function requireServiceTeamLead(req: Request, res: Response, next: NextFu
     }
 
     // Look up the service to get its team_id
-    const service = db
-      .prepare('SELECT * FROM services WHERE id = ?')
-      .get(serviceId) as Service | undefined;
+    const stores = getStores();
+    const service = stores.services.findById(serviceId);
 
     if (!service) {
       res.status(404).json({ error: 'Service not found' });

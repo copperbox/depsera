@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
-import db from '../../../db';
-import { Team, TeamMember, TeamMemberRole, User } from '../../../db/types';
+import { getStores } from '../../../stores';
+import { TeamMemberRole } from '../../../db/types';
 
 export function addMember(req: Request, res: Response): void {
   try {
     const { id } = req.params;
     const { user_id, role = 'member' } = req.body;
+    const stores = getStores();
 
     // Validate team exists
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team | undefined;
-    if (!team) {
+    if (!stores.teams.exists(id)) {
       res.status(404).json({ error: 'Team not found' });
       return;
     }
@@ -21,7 +21,7 @@ export function addMember(req: Request, res: Response): void {
     }
 
     // Validate user exists
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id) as User | undefined;
+    const user = stores.users.findById(user_id);
     if (!user) {
       res.status(400).json({ error: 'User not found' });
       return;
@@ -35,29 +35,18 @@ export function addMember(req: Request, res: Response): void {
     }
 
     // Check if already a member
-    const existing = db
-      .prepare('SELECT * FROM team_members WHERE team_id = ? AND user_id = ?')
-      .get(id, user_id) as TeamMember | undefined;
-
-    if (existing) {
+    if (stores.teams.isMember(id, user_id)) {
       res.status(409).json({ error: 'User is already a member of this team' });
       return;
     }
 
-    const now = new Date().toISOString();
-
-    db.prepare(
-      `
-      INSERT INTO team_members (team_id, user_id, role, created_at)
-      VALUES (?, ?, ?, ?)
-    `
-    ).run(id, user_id, role, now);
+    const member = stores.teams.addMember(id, user_id, role);
 
     res.status(201).json({
       team_id: id,
       user_id,
-      role,
-      created_at: now,
+      role: member.role,
+      created_at: member.created_at,
       user: {
         id: user.id,
         email: user.email,

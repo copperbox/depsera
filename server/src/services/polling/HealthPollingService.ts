@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
-import db from '../../db';
+import { getStores, StoreRegistry } from '../../stores';
+import type { IServiceStore } from '../../stores/interfaces';
 import { Service } from '../../db/types';
 import { ServicePoller } from './ServicePoller';
 import { PollResult, PollingEventType, PollCompleteEvent, ServicePollState } from './types';
@@ -14,10 +15,12 @@ export class HealthPollingService extends EventEmitter {
   private stateManager: PollStateManager;
   private pollers: Map<string, ServicePoller> = new Map();
   private isShuttingDown = false;
+  private serviceStore: IServiceStore;
 
-  private constructor(stateManager?: PollStateManager) {
+  private constructor(stateManager?: PollStateManager, stores?: StoreRegistry) {
     super();
     this.stateManager = stateManager || new PollStateManager();
+    this.serviceStore = (stores || getStores()).services;
   }
 
   static getInstance(): HealthPollingService {
@@ -38,9 +41,7 @@ export class HealthPollingService extends EventEmitter {
   startAll(): void {
     if (this.isShuttingDown) return;
 
-    const services = db.prepare(`
-      SELECT * FROM services WHERE is_active = 1
-    `).all() as Service[];
+    const services = this.serviceStore.findActive();
 
     console.log(`[Polling] Starting health polling for ${services.length} active services`);
 
@@ -62,11 +63,9 @@ export class HealthPollingService extends EventEmitter {
       return;
     }
 
-    const service = db.prepare(`
-      SELECT * FROM services WHERE id = ? AND is_active = 1
-    `).get(serviceId) as Service | undefined;
+    const service = this.serviceStore.findById(serviceId);
 
-    if (!service) {
+    if (!service || !service.is_active) {
       console.log(`[Polling] Service ${serviceId} not found or inactive`);
       return;
     }
@@ -132,9 +131,7 @@ export class HealthPollingService extends EventEmitter {
 
       if (!poller) {
         // Service not actively polling, create temporary poller
-        const service = db.prepare(`
-          SELECT * FROM services WHERE id = ?
-        `).get(serviceId) as Service | undefined;
+        const service = this.serviceStore.findById(serviceId);
 
         if (!service) {
           return {

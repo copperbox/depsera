@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { Service, Dependency } from '../../db/types';
+import { getStores } from '../../stores';
 import {
   calculateAggregatedHealth,
   getDependentReports,
@@ -9,30 +8,9 @@ import {
 export function getService(req: Request, res: Response): void {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
-    const service = db
-      .prepare(
-        `
-        SELECT
-          s.*,
-          t.id as team_id,
-          t.name as team_name,
-          t.description as team_description,
-          t.created_at as team_created_at,
-          t.updated_at as team_updated_at
-        FROM services s
-        JOIN teams t ON s.team_id = t.id
-        WHERE s.id = ?
-      `
-      )
-      .get(id) as
-      | (Service & {
-          team_name: string;
-          team_description: string | null;
-          team_created_at: string;
-          team_updated_at: string;
-        })
-      | undefined;
+    const service = stores.services.findByIdWithTeam(id);
 
     if (!service) {
       res.status(404).json({ error: 'Service not found' });
@@ -40,9 +18,7 @@ export function getService(req: Request, res: Response): void {
     }
 
     // Get this service's own dependencies (what it depends on)
-    const dependencies = db
-      .prepare('SELECT * FROM dependencies WHERE service_id = ? ORDER BY name ASC')
-      .all(id) as Dependency[];
+    const dependencies = stores.dependencies.findByServiceId(id);
 
     // Calculate aggregated health from dependent reports
     const aggregatedHealth = calculateAggregatedHealth(id);

@@ -1,8 +1,12 @@
-import db from '../../db';
-import { Service, Dependency, DependencyAssociation } from '../../db/types';
+import { getStores, StoreRegistry } from '../../stores';
+import type {
+  IDependencyStore,
+  IAssociationStore,
+  IServiceStore,
+} from '../../stores/interfaces';
+import { Dependency, DependencyAssociation } from '../../db/types';
 import { MatchResult, MatchSuggestion } from './types';
 import { MatchingStrategyExecutor } from './MatchingStrategyExecutor';
-import { randomUUID } from 'crypto';
 
 /**
  * Smart matching service for auto-suggesting dependency associations.
@@ -11,9 +15,16 @@ import { randomUUID } from 'crypto';
 export class AssociationMatcher {
   private static instance: AssociationMatcher | null = null;
   private strategyExecutor: MatchingStrategyExecutor;
+  private serviceStore: IServiceStore;
+  private dependencyStore: IDependencyStore;
+  private associationStore: IAssociationStore;
 
-  private constructor() {
+  private constructor(stores?: StoreRegistry) {
+    const storeRegistry = stores || getStores();
     this.strategyExecutor = new MatchingStrategyExecutor();
+    this.serviceStore = storeRegistry.services;
+    this.dependencyStore = storeRegistry.dependencies;
+    this.associationStore = storeRegistry.associations;
   }
 
   static getInstance(): AssociationMatcher {
@@ -32,9 +43,7 @@ export class AssociationMatcher {
    * Find potential service matches for a dependency
    */
   findMatches(dependency: Dependency, excludeServiceId?: string): MatchResult[] {
-    const services = db.prepare(`
-      SELECT * FROM services WHERE is_active = 1
-    `).all() as Service[];
+    const services = this.serviceStore.findAll({ isActive: true });
 
     const excludeIds = new Set<string>();
     if (excludeServiceId) {
@@ -56,20 +65,14 @@ export class AssociationMatcher {
    * Generate and store suggestions for a dependency
    */
   generateSuggestions(dependencyId: string): MatchSuggestion[] {
-    const dependency = db.prepare(`
-      SELECT * FROM dependencies WHERE id = ?
-    `).get(dependencyId) as Dependency | undefined;
+    const dependency = this.dependencyStore.findById(dependencyId);
 
     if (!dependency) {
       return [];
     }
 
-    // Get existing associations and dismissed suggestions to exclude
-    const existingAssociations = db.prepare(`
-      SELECT linked_service_id FROM dependency_associations
-      WHERE dependency_id = ?
-    `).all(dependencyId) as { linked_service_id: string }[];
-
+    // Get existing associations to exclude
+    const existingAssociations = this.associationStore.findByDependencyId(dependencyId);
     const excludedServiceIds = new Set(existingAssociations.map(a => a.linked_service_id));
 
     const matches = this.findMatches(dependency);
@@ -79,27 +82,18 @@ export class AssociationMatcher {
       if (excludedServiceIds.has(match.serviceId)) continue;
 
       // Check if suggestion already exists
-      const existing = db.prepare(`
-        SELECT id FROM dependency_associations
-        WHERE dependency_id = ? AND linked_service_id = ?
-      `).get(dependencyId, match.serviceId) as { id: string } | undefined;
-
-      if (existing) continue;
+      if (this.associationStore.existsForDependencyAndService(dependencyId, match.serviceId)) {
+        continue;
+      }
 
       // Insert as auto-suggested association (not yet accepted)
-      const id = randomUUID();
-      db.prepare(`
-        INSERT INTO dependency_associations (
-          id, dependency_id, linked_service_id, association_type,
-          is_auto_suggested, confidence_score, is_dismissed
-        ) VALUES (?, ?, ?, ?, 1, ?, 0)
-      `).run(
-        id,
-        dependencyId,
-        match.serviceId,
-        match.associationType,
-        match.confidenceScore
-      );
+      this.associationStore.create({
+        dependency_id: dependencyId,
+        linked_service_id: match.serviceId,
+        association_type: match.associationType,
+        is_auto_suggested: true,
+        confidence_score: match.confidenceScore,
+      });
 
       suggestions.push({
         dependencyId,
@@ -119,9 +113,7 @@ export class AssociationMatcher {
    * Generate suggestions for all dependencies of a service
    */
   generateSuggestionsForService(serviceId: string): MatchSuggestion[] {
-    const dependencies = db.prepare(`
-      SELECT * FROM dependencies WHERE service_id = ?
-    `).all(serviceId) as Dependency[];
+    const dependencies = this.dependencyStore.findByServiceId(serviceId);
 
     const allSuggestions: MatchSuggestion[] = [];
 
@@ -141,49 +133,20 @@ export class AssociationMatcher {
     service_name: string;
     linked_service_name: string;
   })[] {
-    return db.prepare(`
-      SELECT
-        da.*,
-        d.name as dependency_name,
-        s.name as service_name,
-        ls.name as linked_service_name
-      FROM dependency_associations da
-      JOIN dependencies d ON da.dependency_id = d.id
-      JOIN services s ON d.service_id = s.id
-      JOIN services ls ON da.linked_service_id = ls.id
-      WHERE da.is_auto_suggested = 1
-        AND da.is_dismissed = 0
-      ORDER BY da.confidence_score DESC
-    `).all() as (DependencyAssociation & {
-      dependency_name: string;
-      service_name: string;
-      linked_service_name: string;
-    })[];
+    return this.associationStore.findPendingSuggestions();
   }
 
   /**
    * Accept a suggestion (convert to manual association)
    */
   acceptSuggestion(suggestionId: string): boolean {
-    const result = db.prepare(`
-      UPDATE dependency_associations
-      SET is_auto_suggested = 0
-      WHERE id = ? AND is_auto_suggested = 1
-    `).run(suggestionId);
-
-    return result.changes > 0;
+    return this.associationStore.acceptSuggestion(suggestionId);
   }
 
   /**
    * Dismiss a suggestion
    */
   dismissSuggestion(suggestionId: string): boolean {
-    const result = db.prepare(`
-      UPDATE dependency_associations
-      SET is_dismissed = 1
-      WHERE id = ? AND is_auto_suggested = 1
-    `).run(suggestionId);
-
-    return result.changes > 0;
+    return this.associationStore.dismissSuggestion(suggestionId);
   }
 }

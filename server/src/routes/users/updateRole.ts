@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { User, UserRole } from '../../db/types';
+import { getStores } from '../../stores';
+import { UserRole } from '../../db/types';
 
 export function updateUserRole(req: Request, res: Response): void {
   try {
     const { id } = req.params;
     const { role } = req.body;
+    const stores = getStores();
 
     // Validate role
     const validRoles: UserRole[] = ['admin', 'user'];
@@ -15,7 +16,7 @@ export function updateUserRole(req: Request, res: Response): void {
     }
 
     // Check user exists
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
+    const user = stores.users.findById(id);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -23,23 +24,15 @@ export function updateUserRole(req: Request, res: Response): void {
 
     // If demoting from admin, ensure there's at least one other admin
     if (user.role === 'admin' && role === 'user') {
-      const adminCount = db
-        .prepare('SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = 1')
-        .get('admin') as { count: number };
+      const adminCount = stores.users.countActiveAdmins();
 
-      if (adminCount.count <= 1) {
+      if (adminCount <= 1) {
         res.status(400).json({ error: 'Cannot demote the last admin user' });
         return;
       }
     }
 
-    const now = new Date().toISOString();
-
-    db.prepare('UPDATE users SET role = ?, updated_at = ? WHERE id = ?').run(role, now, id);
-
-    const updatedUser = db
-      .prepare('SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?')
-      .get(id) as User;
+    const updatedUser = stores.users.update(id, { role });
 
     res.json(updatedUser);
   } catch (error) {

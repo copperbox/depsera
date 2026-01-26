@@ -1,61 +1,53 @@
 import { ErrorHistoryRecorder } from './ErrorHistoryRecorder';
+import { DependencyErrorHistory } from '../../db/types';
 
-// Mock the database
+// Mock the stores
 const mockEntries = new Map<string, { error: string | null; error_message: string | null }[]>();
 const mockInserts: { dependency_id: string; error: string | null; error_message: string | null; recorded_at: string }[] = [];
 
-jest.mock('../../db', () => ({
-  __esModule: true,
-  default: {
-    prepare: jest.fn((sql: string) => {
-      if (sql.includes('SELECT')) {
-        return {
-          get: (depId: string) => {
-            const entries = mockEntries.get(depId) || [];
-            return entries[entries.length - 1];
-          },
-        };
-      }
-      if (sql.includes('INSERT')) {
-        // Recovery INSERT: VALUES (?, ?, NULL, NULL, ?) - 3 params
-        // Error INSERT: VALUES (?, ?, ?, ?, ?) - 5 params
-        const hasNullPlaceholders = sql.includes('NULL, NULL');
-        return {
-          run: (...args: (string | null)[]) => {
-            let depId: string;
-            let error: string | null;
-            let errorMessage: string | null;
-            let timestamp: string;
+const mockErrorHistoryStore = {
+  getLastEntry: jest.fn((depId: string): DependencyErrorHistory | undefined => {
+    const entries = mockEntries.get(depId) || [];
+    const last = entries[entries.length - 1];
+    if (!last) return undefined;
+    return {
+      id: 'mock-id',
+      dependency_id: depId,
+      error: last.error,
+      error_message: last.error_message,
+      recorded_at: '2024-01-01T00:00:00Z',
+    };
+  }),
+  record: jest.fn((dependencyId: string, error: string | null, errorMessage: string | null, timestamp: string) => {
+    mockInserts.push({
+      dependency_id: dependencyId,
+      error,
+      error_message: errorMessage,
+      recorded_at: timestamp,
+    });
+    const entries = mockEntries.get(dependencyId) || [];
+    entries.push({ error, error_message: errorMessage });
+    mockEntries.set(dependencyId, entries);
+    return {
+      id: 'mock-id',
+      dependency_id: dependencyId,
+      error,
+      error_message: errorMessage,
+      recorded_at: timestamp,
+    };
+  }),
+};
 
-            if (hasNullPlaceholders) {
-              // Recovery: (id, dependency_id, recorded_at)
-              depId = args[1] as string;
-              error = null;
-              errorMessage = null;
-              timestamp = args[2] as string;
-            } else {
-              // Error: (id, dependency_id, error, error_message, recorded_at)
-              depId = args[1] as string;
-              error = args[2] as string | null;
-              errorMessage = args[3] as string | null;
-              timestamp = args[4] as string;
-            }
-
-            mockInserts.push({ dependency_id: depId, error, error_message: errorMessage, recorded_at: timestamp });
-            const entries = mockEntries.get(depId) || [];
-            entries.push({ error, error_message: errorMessage });
-            mockEntries.set(depId, entries);
-          },
-        };
-      }
-      return { run: jest.fn(), get: jest.fn() };
-    }),
-  },
+jest.mock('../../stores', () => ({
+  getStores: jest.fn(() => ({
+    errorHistory: mockErrorHistoryStore,
+  })),
 }));
 
 const resetMocks = () => {
   mockEntries.clear();
   mockInserts.length = 0;
+  jest.clearAllMocks();
 };
 
 describe('ErrorHistoryRecorder', () => {

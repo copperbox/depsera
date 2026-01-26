@@ -1,20 +1,10 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { DependencyErrorHistory } from '../../db/types';
-
-interface ErrorHistoryRow {
-  error: string | null;
-  error_message: string | null;
-  recorded_at: string;
-}
-
-interface CountRow {
-  count: number;
-}
+import { getStores } from '../../stores';
 
 export function getErrorHistory(req: Request, res: Response): void {
   try {
     const { dependencyId } = req.params;
+    const stores = getStores();
 
     if (!dependencyId) {
       res.status(400).json({ error: 'Dependency ID is required' });
@@ -22,32 +12,16 @@ export function getErrorHistory(req: Request, res: Response): void {
     }
 
     // Verify dependency exists
-    const dependency = db.prepare(`
-      SELECT id FROM dependencies WHERE id = ?
-    `).get(dependencyId) as { id: string } | undefined;
-
-    if (!dependency) {
+    if (!stores.dependencies.exists(dependencyId)) {
       res.status(404).json({ error: 'Dependency not found' });
       return;
     }
 
     // Get error count for last 24 hours
-    const countResult = db.prepare(`
-      SELECT COUNT(*) as count
-      FROM dependency_error_history
-      WHERE dependency_id = ?
-        AND recorded_at >= datetime('now', '-24 hours')
-    `).get(dependencyId) as CountRow;
+    const errorCount = stores.errorHistory.getErrorCount24h(dependencyId);
 
     // Get last 50 errors within 24 hours
-    const errors = db.prepare(`
-      SELECT error, error_message, recorded_at
-      FROM dependency_error_history
-      WHERE dependency_id = ?
-        AND recorded_at >= datetime('now', '-24 hours')
-      ORDER BY recorded_at DESC
-      LIMIT 50
-    `).all(dependencyId) as ErrorHistoryRow[];
+    const errors = stores.errorHistory.getErrors24h(dependencyId).slice(0, 50);
 
     // Parse error JSON and format response
     const formattedErrors = errors.map(e => {
@@ -73,7 +47,7 @@ export function getErrorHistory(req: Request, res: Response): void {
 
     res.json({
       dependencyId,
-      errorCount: countResult.count,
+      errorCount,
       errors: formattedErrors,
     });
   } catch (error) {

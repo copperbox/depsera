@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { User } from '../../db/types';
+import { getStores } from '../../stores';
 
 export function listUsers(_req: Request, res: Response): void {
   try {
-    const users = db
-      .prepare('SELECT id, email, name, role, is_active, created_at, updated_at FROM users ORDER BY name ASC')
-      .all() as User[];
+    const stores = getStores();
+    const users = stores.users.findAll();
 
     res.json(users);
   } catch (error) {

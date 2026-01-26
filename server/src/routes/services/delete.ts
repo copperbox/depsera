@@ -1,15 +1,14 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { Service } from '../../db/types';
+import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
 
 export function deleteService(req: Request, res: Response): void {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
     // Check if service exists
-    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as Service | undefined;
-    if (!service) {
+    if (!stores.services.exists(id)) {
       res.status(404).json({ error: 'Service not found' });
       return;
     }
@@ -18,7 +17,7 @@ export function deleteService(req: Request, res: Response): void {
     HealthPollingService.getInstance().stopService(id);
 
     // Delete service (cascades to dependencies and associations)
-    db.prepare('DELETE FROM services WHERE id = ?').run(id);
+    stores.services.delete(id);
 
     res.status(204).send();
   } catch (error) {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import db from '../../db';
+import { getStores } from '../../stores';
 import { User } from '../../db/types';
 
 interface UserWithTeams extends User {
@@ -17,10 +17,9 @@ interface UserWithTeams extends User {
 export function getUser(req: Request, res: Response): void {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
-    const user = db
-      .prepare('SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?')
-      .get(id) as User | undefined;
+    const user = stores.users.findById(id);
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -28,27 +27,7 @@ export function getUser(req: Request, res: Response): void {
     }
 
     // Get team memberships
-    const memberships = db
-      .prepare(
-        `
-        SELECT
-          tm.team_id,
-          tm.role,
-          t.id as team_id,
-          t.name as team_name,
-          t.description as team_description
-        FROM team_members tm
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.user_id = ?
-        ORDER BY t.name ASC
-      `
-      )
-      .all(id) as {
-      team_id: string;
-      role: string;
-      team_name: string;
-      team_description: string | null;
-    }[];
+    const memberships = stores.teams.getMembershipsByUserId(id);
 
     const userWithTeams: UserWithTeams = {
       ...user,

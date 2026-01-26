@@ -1,5 +1,13 @@
-import db from '../../db';
-import { Dependency, Team } from '../../db/types';
+import { getStores, StoreRegistry } from '../../stores';
+import type {
+  IServiceStore,
+  IDependencyStore,
+  ITeamStore,
+} from '../../stores/interfaces';
+import {
+  ServiceWithTeam as StoreServiceWithTeam,
+  DependencyWithTarget as StoreDependencyWithTarget,
+} from '../../stores/types';
 import { ServiceWithTeam, DependencyWithTarget, GraphResponse } from './types';
 import { ServiceTypeInferencer } from './ServiceTypeInferencer';
 import { DependencyGraphBuilder } from './DependencyGraphBuilder';
@@ -11,17 +19,26 @@ import { groupByKey } from '../../utils/deduplication';
  */
 export class GraphService {
   private typeInferencer: ServiceTypeInferencer;
+  private serviceStore: IServiceStore;
+  private dependencyStore: IDependencyStore;
+  private teamStore: ITeamStore;
 
-  constructor(typeInferencer?: ServiceTypeInferencer) {
+  constructor(typeInferencer?: ServiceTypeInferencer, stores?: StoreRegistry) {
+    const storeRegistry = stores || getStores();
     this.typeInferencer = typeInferencer || new ServiceTypeInferencer();
+    this.serviceStore = storeRegistry.services;
+    this.dependencyStore = storeRegistry.dependencies;
+    this.teamStore = storeRegistry.teams;
   }
 
   /**
    * Get the full dependency graph for all active services.
    */
   getFullGraph(): GraphResponse {
-    const services = this.fetchAllServices();
-    const dependencies = this.fetchAllDependencies();
+    const services = this.serviceStore.findActiveWithTeam() as ServiceWithTeam[];
+    const dependencies = this.dependencyStore.findAllWithAssociationsAndLatency({
+      activeServicesOnly: true,
+    }) as DependencyWithTarget[];
 
     return this.buildGraph(services, dependencies);
   }
@@ -32,18 +49,24 @@ export class GraphService {
    */
   getTeamGraph(teamId: string): GraphResponse {
     // Verify team exists
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(teamId) as Team | undefined;
+    const team = this.teamStore.findById(teamId);
     if (!team) {
       return { nodes: [], edges: [] };
     }
 
-    const services = this.fetchTeamServices(teamId);
+    const services = this.serviceStore.findAllWithTeam({
+      teamId,
+      isActive: true,
+    }) as ServiceWithTeam[];
+
     if (services.length === 0) {
       return { nodes: [], edges: [] };
     }
 
     const serviceIds = services.map(s => s.id);
-    const dependencies = this.fetchDependenciesForServices(serviceIds);
+    const dependencies = this.dependencyStore.findByServiceIdsWithAssociationsAndLatency(
+      serviceIds
+    ) as DependencyWithTarget[];
 
     // Build initial graph with team services
     const builder = new DependencyGraphBuilder();
@@ -103,9 +126,7 @@ export class GraphService {
    * Get the subgraph for a dependency by finding its owning service.
    */
   getDependencySubgraph(dependencyId: string): GraphResponse {
-    const dependency = db.prepare(`
-      SELECT service_id FROM dependencies WHERE id = ?
-    `).get(dependencyId) as { service_id: string } | undefined;
+    const dependency = this.dependencyStore.findById(dependencyId);
 
     if (!dependency) {
       return { nodes: [], edges: [] };
@@ -151,10 +172,12 @@ export class GraphService {
     if (visitedServices.has(serviceId)) return;
     visitedServices.add(serviceId);
 
-    const service = this.fetchService(serviceId);
+    const service = this.serviceStore.findByIdWithTeam(serviceId) as ServiceWithTeam | undefined;
     if (!service) return;
 
-    const dependencies = this.fetchDependenciesForService(serviceId);
+    const dependencies = this.dependencyStore.findByServiceIdsWithAssociationsAndLatency([
+      serviceId,
+    ]) as DependencyWithTarget[];
     allDependencies.push(...dependencies);
     serviceData.push({ service, deps: dependencies });
 
@@ -196,21 +219,14 @@ export class GraphService {
   ): void {
     if (serviceIds.length === 0) return;
 
-    const placeholders = serviceIds.map(() => '?').join(',');
-    const externalServices = db.prepare(`
-      SELECT s.*, t.name as team_name
-      FROM services s
-      JOIN teams t ON s.team_id = t.id
-      WHERE s.id IN (${placeholders})
-    `).all(...serviceIds) as ServiceWithTeam[];
+    for (const serviceId of serviceIds) {
+      const service = this.serviceStore.findByIdWithTeam(serviceId) as ServiceWithTeam | undefined;
+      if (!service) continue;
 
-    for (const service of externalServices) {
-      const serviceDeps = db.prepare(`
-        SELECT * FROM dependencies WHERE service_id = ?
-      `).all(service.id) as Dependency[];
+      const serviceDeps = this.dependencyStore.findByServiceId(serviceId);
 
       // Convert to DependencyWithTarget format for compatibility
-      const depsWithTarget = serviceDeps.map(d => ({
+      const depsWithTarget: DependencyWithTarget[] = serviceDeps.map(d => ({
         ...d,
         service_name: service.name,
         target_service_id: null,
@@ -222,111 +238,6 @@ export class GraphService {
 
       builder.addServiceNode(service, depsWithTarget, serviceTypes.get(service.id));
     }
-  }
-
-  // Data fetching methods
-
-  private fetchAllServices(): ServiceWithTeam[] {
-    return db.prepare(`
-      SELECT s.*, t.name as team_name
-      FROM services s
-      JOIN teams t ON s.team_id = t.id
-      WHERE s.is_active = 1
-    `).all() as ServiceWithTeam[];
-  }
-
-  private fetchTeamServices(teamId: string): ServiceWithTeam[] {
-    return db.prepare(`
-      SELECT s.*, t.name as team_name
-      FROM services s
-      JOIN teams t ON s.team_id = t.id
-      WHERE s.team_id = ? AND s.is_active = 1
-    `).all(teamId) as ServiceWithTeam[];
-  }
-
-  private fetchService(serviceId: string): ServiceWithTeam | undefined {
-    return db.prepare(`
-      SELECT s.*, t.name as team_name
-      FROM services s
-      JOIN teams t ON s.team_id = t.id
-      WHERE s.id = ?
-    `).get(serviceId) as ServiceWithTeam | undefined;
-  }
-
-  private fetchAllDependencies(): DependencyWithTarget[] {
-    return db.prepare(`
-      SELECT
-        d.*,
-        d.check_details,
-        d.error,
-        d.error_message,
-        s.name as service_name,
-        da.linked_service_id as target_service_id,
-        da.association_type,
-        da.is_auto_suggested,
-        da.confidence_score,
-        (
-          SELECT ROUND(AVG(latency_ms))
-          FROM dependency_latency_history
-          WHERE dependency_id = d.id
-            AND recorded_at >= datetime('now', '-24 hours')
-        ) as avg_latency_24h
-      FROM dependencies d
-      JOIN services s ON d.service_id = s.id
-      LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
-      WHERE s.is_active = 1
-    `).all() as DependencyWithTarget[];
-  }
-
-  private fetchDependenciesForServices(serviceIds: string[]): DependencyWithTarget[] {
-    const placeholders = serviceIds.map(() => '?').join(',');
-    return db.prepare(`
-      SELECT
-        d.*,
-        d.check_details,
-        d.error,
-        d.error_message,
-        s.name as service_name,
-        da.linked_service_id as target_service_id,
-        da.association_type,
-        da.is_auto_suggested,
-        da.confidence_score,
-        (
-          SELECT ROUND(AVG(latency_ms))
-          FROM dependency_latency_history
-          WHERE dependency_id = d.id
-            AND recorded_at >= datetime('now', '-24 hours')
-        ) as avg_latency_24h
-      FROM dependencies d
-      JOIN services s ON d.service_id = s.id
-      LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
-      WHERE d.service_id IN (${placeholders})
-    `).all(...serviceIds) as DependencyWithTarget[];
-  }
-
-  private fetchDependenciesForService(serviceId: string): DependencyWithTarget[] {
-    return db.prepare(`
-      SELECT
-        d.*,
-        d.check_details,
-        d.error,
-        d.error_message,
-        s.name as service_name,
-        da.linked_service_id as target_service_id,
-        da.association_type,
-        da.is_auto_suggested,
-        da.confidence_score,
-        (
-          SELECT ROUND(AVG(latency_ms))
-          FROM dependency_latency_history
-          WHERE dependency_id = d.id
-            AND recorded_at >= datetime('now', '-24 hours')
-        ) as avg_latency_24h
-      FROM dependencies d
-      JOIN services s ON d.service_id = s.id
-      LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
-      WHERE d.service_id = ?
-    `).all(serviceId) as DependencyWithTarget[];
   }
 }
 

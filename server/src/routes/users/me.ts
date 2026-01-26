@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import db from '../../db';
+import { getStores } from '../../stores';
 import { User } from '../../db/types';
 
 interface UserProfile extends User {
@@ -21,6 +21,7 @@ interface UserProfile extends User {
 
 export function getCurrentUser(req: Request, res: Response): void {
   try {
+    const stores = getStores();
     // In a real app, this would come from the authenticated session/token
     // For now, we'll use a header or default to the first admin user
     const userId = req.headers['x-user-id'] as string | undefined;
@@ -28,18 +29,13 @@ export function getCurrentUser(req: Request, res: Response): void {
     let user: User | undefined;
 
     if (userId) {
-      user = db
-        .prepare('SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE id = ?')
-        .get(userId) as User | undefined;
+      user = stores.users.findById(userId);
     }
 
     // Fallback to first active admin for development
     if (!user) {
-      user = db
-        .prepare(
-          'SELECT id, email, name, role, is_active, created_at, updated_at FROM users WHERE role = ? AND is_active = 1 LIMIT 1'
-        )
-        .get('admin') as User | undefined;
+      const activeUsers = stores.users.findActive();
+      user = activeUsers.find(u => u.role === 'admin');
     }
 
     if (!user) {
@@ -48,27 +44,7 @@ export function getCurrentUser(req: Request, res: Response): void {
     }
 
     // Get team memberships
-    const memberships = db
-      .prepare(
-        `
-        SELECT
-          tm.team_id,
-          tm.role,
-          t.id as team_id,
-          t.name as team_name,
-          t.description as team_description
-        FROM team_members tm
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.user_id = ?
-        ORDER BY t.name ASC
-      `
-      )
-      .all(user.id) as {
-      team_id: string;
-      role: string;
-      team_name: string;
-      team_description: string | null;
-    }[];
+    const memberships = stores.teams.getMembershipsByUserId(user.id);
 
     const isAdmin = user.role === 'admin';
     const isTeamLead = memberships.some((m) => m.role === 'lead');

@@ -1,12 +1,5 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-
-interface TeamMembership {
-  team_id: string;
-  role: string;
-  name: string;
-  description: string | null;
-}
+import { getStores } from '../../stores';
 
 export function me(req: Request, res: Response): void {
   if (!req.user) {
@@ -16,15 +9,8 @@ export function me(req: Request, res: Response): void {
 
   try {
     // Get team memberships (same pattern as existing /users/me)
-    const memberships = db
-      .prepare(`
-        SELECT tm.team_id, tm.role, t.name, t.description
-        FROM team_members tm
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.user_id = ?
-        ORDER BY t.name ASC
-      `)
-      .all(req.user.id) as TeamMembership[];
+    const stores = getStores();
+    const memberships = stores.teams.getMembershipsByUserId(req.user.id);
 
     const isAdmin = req.user.role === 'admin';
     const isTeamLead = memberships.some((m) => m.role === 'lead');
@@ -40,8 +26,8 @@ export function me(req: Request, res: Response): void {
         role: m.role,
         team: {
           id: m.team_id,
-          name: m.name,
-          description: m.description,
+          name: m.team_name,
+          description: m.team_description,
         },
       })),
       permissions: {

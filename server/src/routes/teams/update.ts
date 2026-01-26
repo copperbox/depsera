@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { UpdateTeamInput, Team } from '../../db/types';
+import { getStores } from '../../stores';
+import { UpdateTeamInput } from '../../db/types';
 
 export function updateTeam(req: Request, res: Response): void {
   try {
     const { id } = req.params;
     const input: UpdateTeamInput = req.body;
+    const stores = getStores();
 
     // Check if team exists
-    const existingTeam = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team | undefined;
+    const existingTeam = stores.teams.findById(id);
     if (!existingTeam) {
       res.status(404).json({ error: 'Team not found' });
       return;
@@ -22,55 +23,30 @@ export function updateTeam(req: Request, res: Response): void {
       }
 
       // Check for duplicate name (excluding current team)
-      const duplicate = db
-        .prepare('SELECT id FROM teams WHERE name = ? AND id != ?')
-        .get(input.name.trim(), id) as { id: string } | undefined;
+      const duplicate = stores.teams.findByName(input.name.trim());
 
-      if (duplicate) {
+      if (duplicate && duplicate.id !== id) {
         res.status(409).json({ error: 'A team with this name already exists' });
         return;
       }
     }
 
-    // Build update query dynamically
-    const updates: string[] = [];
-    const values: (string | null)[] = [];
-
-    if (input.name !== undefined) {
-      updates.push('name = ?');
-      values.push(input.name.trim());
-    }
-    if (input.description !== undefined) {
-      updates.push('description = ?');
-      values.push(input.description || null);
-    }
-
-    if (updates.length === 0) {
+    // Check if there are any valid fields to update
+    if (input.name === undefined && input.description === undefined) {
       res.status(400).json({ error: 'No valid fields to update' });
       return;
     }
 
-    updates.push('updated_at = ?');
-    values.push(new Date().toISOString());
-    values.push(id);
-
-    db.prepare(`UPDATE teams SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-
-    // Fetch updated team
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team;
-
-    const memberCount = db
-      .prepare('SELECT COUNT(*) as count FROM team_members WHERE team_id = ?')
-      .get(id) as { count: number };
-
-    const serviceCount = db
-      .prepare('SELECT COUNT(*) as count FROM services WHERE team_id = ?')
-      .get(id) as { count: number };
+    // Update via repository
+    const team = stores.teams.update(id, {
+      name: input.name?.trim(),
+      description: input.description,
+    })!;
 
     res.json({
       ...team,
-      member_count: memberCount.count,
-      service_count: serviceCount.count,
+      member_count: stores.teams.getMemberCount(id),
+      service_count: stores.teams.getServiceCount(id),
     });
   } catch (error) {
     console.error('Error updating team:', error);

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { UpdateServiceInput, Service, Team, Dependency } from '../../db/types';
+import { getStores } from '../../stores';
+import { UpdateServiceInput } from '../../db/types';
 import { isValidUrl, MIN_POLLING_INTERVAL } from './validation';
 import { HealthPollingService } from '../../services/polling';
 
@@ -8,9 +8,10 @@ export function updateService(req: Request, res: Response): void {
   try {
     const { id } = req.params;
     const input: UpdateServiceInput = req.body;
+    const stores = getStores();
 
     // Check if service exists
-    const existingService = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as Service | undefined;
+    const existingService = stores.services.findById(id);
     if (!existingService) {
       res.status(404).json({ error: 'Service not found' });
       return;
@@ -25,8 +26,7 @@ export function updateService(req: Request, res: Response): void {
     }
 
     if (input.team_id !== undefined) {
-      const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(input.team_id) as Team | undefined;
-      if (!team) {
+      if (!stores.teams.exists(input.team_id)) {
         res.status(400).json({ error: 'Team not found' });
         return;
       }
@@ -59,45 +59,28 @@ export function updateService(req: Request, res: Response): void {
       }
     }
 
-    // Build update query dynamically
-    const updates: string[] = [];
-    const values: (string | number | null)[] = [];
+    // Check if there are any valid fields to update
+    const hasUpdates = input.name !== undefined ||
+      input.team_id !== undefined ||
+      input.health_endpoint !== undefined ||
+      input.metrics_endpoint !== undefined ||
+      input.polling_interval !== undefined ||
+      input.is_active !== undefined;
 
-    if (input.name !== undefined) {
-      updates.push('name = ?');
-      values.push(input.name.trim());
-    }
-    if (input.team_id !== undefined) {
-      updates.push('team_id = ?');
-      values.push(input.team_id);
-    }
-    if (input.health_endpoint !== undefined) {
-      updates.push('health_endpoint = ?');
-      values.push(input.health_endpoint);
-    }
-    if (input.metrics_endpoint !== undefined) {
-      updates.push('metrics_endpoint = ?');
-      values.push(input.metrics_endpoint || null);
-    }
-    if (input.polling_interval !== undefined) {
-      updates.push('polling_interval = ?');
-      values.push(input.polling_interval);
-    }
-    if (input.is_active !== undefined) {
-      updates.push('is_active = ?');
-      values.push(input.is_active ? 1 : 0);
-    }
-
-    if (updates.length === 0) {
+    if (!hasUpdates) {
       res.status(400).json({ error: 'No valid fields to update' });
       return;
     }
 
-    updates.push('updated_at = ?');
-    values.push(new Date().toISOString());
-    values.push(id);
-
-    db.prepare(`UPDATE services SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    // Update via repository
+    stores.services.update(id, {
+      name: input.name?.trim(),
+      team_id: input.team_id,
+      health_endpoint: input.health_endpoint,
+      metrics_endpoint: input.metrics_endpoint,
+      polling_interval: input.polling_interval,
+      is_active: input.is_active,
+    });
 
     // Update polling service if is_active or polling_interval changed
     if (input.is_active !== undefined || input.polling_interval !== undefined || input.health_endpoint !== undefined) {
@@ -113,32 +96,9 @@ export function updateService(req: Request, res: Response): void {
       }
     }
 
-    // Fetch updated service with team and health
-    const service = db
-      .prepare(
-        `
-        SELECT
-          s.*,
-          t.id as team_id,
-          t.name as team_name,
-          t.description as team_description,
-          t.created_at as team_created_at,
-          t.updated_at as team_updated_at
-        FROM services s
-        JOIN teams t ON s.team_id = t.id
-        WHERE s.id = ?
-      `
-      )
-      .get(id) as Service & {
-      team_name: string;
-      team_description: string | null;
-      team_created_at: string;
-      team_updated_at: string;
-    };
-
-    const dependencies = db
-      .prepare('SELECT * FROM dependencies WHERE service_id = ?')
-      .all(id) as Dependency[];
+    // Fetch updated service with team
+    const service = stores.services.findByIdWithTeam(id)!;
+    const dependencies = stores.dependencies.findByServiceId(id);
 
     const healthyCount = dependencies.filter((d) => d.healthy === 1).length;
     const unhealthyCount = dependencies.filter((d) => d.healthy === 0).length;

@@ -1,19 +1,16 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { DependencyAssociation } from '../../db/types';
+import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
 
 export function dismissSuggestion(req: Request, res: Response): void {
   try {
     const { suggestionId } = req.params;
+    const stores = getStores();
 
     // Verify suggestion exists and is auto-suggested
-    const suggestion = db.prepare(`
-      SELECT * FROM dependency_associations
-      WHERE id = ? AND is_auto_suggested = 1
-    `).get(suggestionId) as DependencyAssociation | undefined;
+    const suggestion = stores.associations.findById(suggestionId);
 
-    if (!suggestion) {
+    if (!suggestion || !suggestion.is_auto_suggested) {
       res.status(404).json({ error: 'Suggestion not found or already processed' });
       return;
     }

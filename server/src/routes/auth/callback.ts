@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
-import { randomUUID } from 'crypto';
 import { getOIDCConfig, client } from '../../auth/config';
-import db from '../../db';
+import { getStores } from '../../stores';
 import { User } from '../../db/types';
 
 export async function callback(req: Request, res: Response): Promise<void> {
@@ -39,26 +38,24 @@ export async function callback(req: Request, res: Response): Promise<void> {
 
 
     // Find or create user
-    let user = db
-      .prepare('SELECT * FROM users WHERE oidc_subject = ?')
-      .get(sub) as User | undefined;
+    const stores = getStores();
+    let user = stores.users.findByOidcSubject(sub);
 
     if (!user) {
       // Check if this is the first user (bootstrap admin)
-      const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-      const isFirstUser = userCount.count === 0;
+      const userCount = stores.users.count();
+      const isFirstUser = userCount === 0;
 
-      const id = randomUUID();
       const email = (userinfo.email as string) || `${sub}@unknown`;
       const name = (userinfo.name as string) || (userinfo.preferred_username as string) || 'Unknown User';
       const role = isFirstUser ? 'admin' : 'user';
 
-      db.prepare(`
-        INSERT INTO users (id, email, name, oidc_subject, role, is_active)
-        VALUES (?, ?, ?, ?, ?, 1)
-      `).run(id, email, name, sub, role);
-
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User;
+      user = stores.users.create({
+        email,
+        name,
+        oidc_subject: sub,
+        role,
+      });
 
       if (isFirstUser) {
         console.log(`First user ${user.email} bootstrapped as admin`);
@@ -71,12 +68,13 @@ export async function callback(req: Request, res: Response): Promise<void> {
       const newName = (userinfo.name as string) || (userinfo.preferred_username as string) || user.name;
 
       if (newEmail !== user.email || newName !== user.name) {
-        db.prepare(`
-          UPDATE users SET email = ?, name = ?, updated_at = datetime('now')
-          WHERE id = ?
-        `).run(newEmail, newName, user.id);
-
-        user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as User;
+        const updated = stores.users.update(user.id, {
+          email: newEmail,
+          name: newName,
+        });
+        if (updated) {
+          user = updated;
+        }
       }
     }
 

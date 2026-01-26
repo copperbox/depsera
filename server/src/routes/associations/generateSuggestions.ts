@@ -1,18 +1,14 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { Dependency, Service } from '../../db/types';
+import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
 
 export function generateSuggestionsForDependency(req: Request, res: Response): void {
   try {
     const { dependencyId } = req.params;
+    const stores = getStores();
 
     // Verify dependency exists
-    const dependency = db.prepare(`
-      SELECT * FROM dependencies WHERE id = ?
-    `).get(dependencyId) as Dependency | undefined;
-
-    if (!dependency) {
+    if (!stores.dependencies.exists(dependencyId)) {
       res.status(404).json({ error: 'Dependency not found' });
       return;
     }
@@ -37,13 +33,10 @@ export function generateSuggestionsForDependency(req: Request, res: Response): v
 export function generateSuggestionsForService(req: Request, res: Response): void {
   try {
     const { serviceId } = req.params;
+    const stores = getStores();
 
     // Verify service exists
-    const service = db.prepare(`
-      SELECT * FROM services WHERE id = ?
-    `).get(serviceId) as Service | undefined;
-
-    if (!service) {
+    if (!stores.services.exists(serviceId)) {
       res.status(404).json({ error: 'Service not found' });
       return;
     }

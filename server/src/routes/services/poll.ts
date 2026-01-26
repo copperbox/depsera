@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { Service } from '../../db/types';
+import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
 
 export async function pollServiceNow(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
     // Verify service exists
-    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as Service | undefined;
+    const service = stores.services.findById(id);
 
     if (!service) {
       res.status(404).json({ error: 'Service not found' });

@@ -1,33 +1,30 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { Team } from '../../db/types';
+import { getStores } from '../../stores';
 
 export function deleteTeam(req: Request, res: Response): void {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
     // Check if team exists
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team | undefined;
-    if (!team) {
+    if (!stores.teams.exists(id)) {
       res.status(404).json({ error: 'Team not found' });
       return;
     }
 
     // Check for services
-    const serviceCount = db
-      .prepare('SELECT COUNT(*) as count FROM services WHERE team_id = ?')
-      .get(id) as { count: number };
+    const serviceCount = stores.teams.getServiceCount(id);
 
-    if (serviceCount.count > 0) {
+    if (serviceCount > 0) {
       res.status(409).json({
         error: 'Cannot delete team with existing services',
-        service_count: serviceCount.count,
+        service_count: serviceCount,
       });
       return;
     }
 
     // Delete team (cascades to team_members)
-    db.prepare('DELETE FROM teams WHERE id = ?').run(id);
+    stores.teams.delete(id);
 
     res.status(204).send();
   } catch (error) {

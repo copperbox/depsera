@@ -1,5 +1,5 @@
-import { randomUUID } from 'crypto';
-import db from '../../db';
+import { getStores, StoreRegistry } from '../../stores';
+import type { IErrorHistoryStore } from '../../stores/interfaces';
 
 interface LastErrorEntry {
   error: string | null;
@@ -12,6 +12,12 @@ interface LastErrorEntry {
  * - When healthy: records a recovery entry if the last state was an error
  */
 export class ErrorHistoryRecorder {
+  private errorHistoryStore: IErrorHistoryStore;
+
+  constructor(stores?: StoreRegistry) {
+    this.errorHistoryStore = (stores || getStores()).errorHistory;
+  }
+
   /**
    * Record an error history entry with deduplication logic.
    * @param dependencyId - The ID of the dependency
@@ -40,13 +46,12 @@ export class ErrorHistoryRecorder {
    * Get the most recent error history entry for a dependency.
    */
   private getLastEntry(dependencyId: string): LastErrorEntry | undefined {
-    return db.prepare(`
-      SELECT error, error_message
-      FROM dependency_error_history
-      WHERE dependency_id = ?
-      ORDER BY recorded_at DESC
-      LIMIT 1
-    `).get(dependencyId) as LastErrorEntry | undefined;
+    const entry = this.errorHistoryStore.getLastEntry(dependencyId);
+    if (!entry) return undefined;
+    return {
+      error: entry.error,
+      error_message: entry.error_message,
+    };
   }
 
   /**
@@ -60,10 +65,7 @@ export class ErrorHistoryRecorder {
   ): void {
     // If healthy and last entry was an error, record recovery
     if (lastEntry && lastEntry.error !== null) {
-      db.prepare(`
-        INSERT INTO dependency_error_history (id, dependency_id, error, error_message, recorded_at)
-        VALUES (?, ?, NULL, NULL, ?)
-      `).run(randomUUID(), dependencyId, timestamp);
+      this.errorHistoryStore.record(dependencyId, null, null, timestamp);
     }
   }
 
@@ -84,10 +86,7 @@ export class ErrorHistoryRecorder {
       lastEntry.error !== errorJson; // Error object is different
 
     if (shouldRecord) {
-      db.prepare(`
-        INSERT INTO dependency_error_history (id, dependency_id, error, error_message, recorded_at)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(randomUUID(), dependencyId, errorJson, errorMessage, timestamp);
+      this.errorHistoryStore.record(dependencyId, errorJson, errorMessage, timestamp);
     }
   }
 }

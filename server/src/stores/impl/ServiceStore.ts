@@ -1,0 +1,212 @@
+import { randomUUID } from 'crypto';
+import { Database } from 'better-sqlite3';
+import { Service } from '../../db/types';
+import { IServiceStore } from '../interfaces/IServiceStore';
+import {
+  ServiceWithTeam,
+  ServiceListOptions,
+  ServiceCreateInput,
+  ServiceUpdateInput,
+} from '../types';
+
+/**
+ * Store implementation for Service entity operations
+ */
+export class ServiceStore implements IServiceStore {
+  constructor(private db: Database) {}
+
+  findById(id: string): Service | undefined {
+    return this.db
+      .prepare('SELECT * FROM services WHERE id = ?')
+      .get(id) as Service | undefined;
+  }
+
+  findByIdWithTeam(id: string): ServiceWithTeam | undefined {
+    return this.db
+      .prepare(`
+        SELECT
+          s.*,
+          t.name as team_name,
+          t.description as team_description,
+          t.created_at as team_created_at,
+          t.updated_at as team_updated_at
+        FROM services s
+        JOIN teams t ON s.team_id = t.id
+        WHERE s.id = ?
+      `)
+      .get(id) as ServiceWithTeam | undefined;
+  }
+
+  findAll(options?: ServiceListOptions): Service[] {
+    const { where, params } = this.buildWhereClause(options);
+    const orderBy = options?.orderBy || 'name';
+    const orderDir = options?.orderDirection || 'ASC';
+
+    let query = `SELECT * FROM services ${where} ORDER BY ${orderBy} ${orderDir}`;
+
+    if (options?.limit) {
+      query += ` LIMIT ${options.limit}`;
+      if (options.offset) {
+        query += ` OFFSET ${options.offset}`;
+      }
+    }
+
+    return this.db.prepare(query).all(...params) as Service[];
+  }
+
+  findAllWithTeam(options?: ServiceListOptions): ServiceWithTeam[] {
+    const { where, params } = this.buildWhereClause(options, 's');
+    const orderBy = options?.orderBy || 's.name';
+    const orderDir = options?.orderDirection || 'ASC';
+
+    let query = `
+      SELECT
+        s.*,
+        t.name as team_name,
+        t.description as team_description,
+        t.created_at as team_created_at,
+        t.updated_at as team_updated_at
+      FROM services s
+      JOIN teams t ON s.team_id = t.id
+      ${where}
+      ORDER BY ${orderBy} ${orderDir}
+    `;
+
+    if (options?.limit) {
+      query += ` LIMIT ${options.limit}`;
+      if (options.offset) {
+        query += ` OFFSET ${options.offset}`;
+      }
+    }
+
+    return this.db.prepare(query).all(...params) as ServiceWithTeam[];
+  }
+
+  findActive(): Service[] {
+    return this.findAll({ isActive: true });
+  }
+
+  findActiveWithTeam(): ServiceWithTeam[] {
+    return this.findAllWithTeam({ isActive: true });
+  }
+
+  findByTeamId(teamId: string): Service[] {
+    return this.findAll({ teamId });
+  }
+
+  create(input: ServiceCreateInput): Service {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(`
+        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `)
+      .run(
+        id,
+        input.name,
+        input.team_id,
+        input.health_endpoint,
+        input.metrics_endpoint ?? null,
+        input.polling_interval ?? 30000,
+        now,
+        now
+      );
+
+    return this.findById(id)!;
+  }
+
+  update(id: string, input: ServiceUpdateInput): Service | undefined {
+    const existing = this.findById(id);
+    if (!existing) {
+      return undefined;
+    }
+
+    const updates: string[] = [];
+    const params: unknown[] = [];
+
+    if (input.name !== undefined) {
+      updates.push('name = ?');
+      params.push(input.name);
+    }
+    if (input.team_id !== undefined) {
+      updates.push('team_id = ?');
+      params.push(input.team_id);
+    }
+    if (input.health_endpoint !== undefined) {
+      updates.push('health_endpoint = ?');
+      params.push(input.health_endpoint);
+    }
+    if (input.metrics_endpoint !== undefined) {
+      updates.push('metrics_endpoint = ?');
+      params.push(input.metrics_endpoint);
+    }
+    if (input.polling_interval !== undefined) {
+      updates.push('polling_interval = ?');
+      params.push(input.polling_interval);
+    }
+    if (input.is_active !== undefined) {
+      updates.push('is_active = ?');
+      params.push(input.is_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return existing;
+    }
+
+    updates.push('updated_at = ?');
+    params.push(new Date().toISOString());
+    params.push(id);
+
+    this.db
+      .prepare(`UPDATE services SET ${updates.join(', ')} WHERE id = ?`)
+      .run(...params);
+
+    return this.findById(id);
+  }
+
+  delete(id: string): boolean {
+    const result = this.db
+      .prepare('DELETE FROM services WHERE id = ?')
+      .run(id);
+    return result.changes > 0;
+  }
+
+  exists(id: string): boolean {
+    const row = this.db
+      .prepare('SELECT 1 FROM services WHERE id = ?')
+      .get(id);
+    return row !== undefined;
+  }
+
+  count(options?: ServiceListOptions): number {
+    const { where, params } = this.buildWhereClause(options);
+    const row = this.db
+      .prepare(`SELECT COUNT(*) as count FROM services ${where}`)
+      .get(...params) as { count: number };
+    return row.count;
+  }
+
+  private buildWhereClause(
+    options?: ServiceListOptions,
+    tableAlias?: string
+  ): { where: string; params: unknown[] } {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    const prefix = tableAlias ? `${tableAlias}.` : '';
+
+    if (options?.teamId) {
+      conditions.push(`${prefix}team_id = ?`);
+      params.push(options.teamId);
+    }
+
+    if (options?.isActive !== undefined) {
+      conditions.push(`${prefix}is_active = ?`);
+      params.push(options.isActive ? 1 : 0);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    return { where, params };
+  }
+}

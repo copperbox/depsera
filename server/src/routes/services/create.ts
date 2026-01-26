@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import { randomUUID } from 'crypto';
-import db from '../../db';
-import { CreateServiceInput, Service, Team } from '../../db/types';
+import { getStores } from '../../stores';
+import { CreateServiceInput } from '../../db/types';
 import { isValidUrl, MIN_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL } from './validation';
 import { HealthPollingService } from '../../services/polling';
 
 export function createService(req: Request, res: Response): void {
   try {
     const input: CreateServiceInput = req.body;
+    const stores = getStores();
 
     // Validate required fields
     if (!input.name || typeof input.name !== 'string' || input.name.trim() === '') {
@@ -53,35 +53,22 @@ export function createService(req: Request, res: Response): void {
     }
 
     // Verify team exists
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(input.team_id) as Team | undefined;
+    const team = stores.teams.findById(input.team_id);
     if (!team) {
       res.status(400).json({ error: 'Team not found' });
       return;
     }
 
-    const id = randomUUID();
-    const now = new Date().toISOString();
-
-    db.prepare(
-      `
-      INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `
-    ).run(
-      id,
-      input.name.trim(),
-      input.team_id,
-      input.health_endpoint,
-      input.metrics_endpoint || null,
-      pollingInterval,
-      now,
-      now
-    );
-
-    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as Service;
+    const service = stores.services.create({
+      name: input.name.trim(),
+      team_id: input.team_id,
+      health_endpoint: input.health_endpoint,
+      metrics_endpoint: input.metrics_endpoint || null,
+      polling_interval: pollingInterval,
+    });
 
     // Start polling for the new service (is_active defaults to 1)
-    HealthPollingService.getInstance().startService(id);
+    HealthPollingService.getInstance().startService(service.id);
 
     res.status(201).json({
       ...service,

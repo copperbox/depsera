@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import { randomUUID } from 'crypto';
-import db from '../../db';
-import { CreateTeamInput, Team } from '../../db/types';
+import { getStores } from '../../stores';
+import { CreateTeamInput } from '../../db/types';
 
 export function createTeam(req: Request, res: Response): void {
   try {
     const input: CreateTeamInput = req.body;
+    const stores = getStores();
 
     // Validate required fields
     if (!input.name || typeof input.name !== 'string' || input.name.trim() === '') {
@@ -14,26 +14,17 @@ export function createTeam(req: Request, res: Response): void {
     }
 
     // Check for duplicate name
-    const existing = db
-      .prepare('SELECT id FROM teams WHERE name = ?')
-      .get(input.name.trim()) as { id: string } | undefined;
+    const existing = stores.teams.findByName(input.name.trim());
 
     if (existing) {
       res.status(409).json({ error: 'A team with this name already exists' });
       return;
     }
 
-    const id = randomUUID();
-    const now = new Date().toISOString();
-
-    db.prepare(
-      `
-      INSERT INTO teams (id, name, description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `
-    ).run(id, input.name.trim(), input.description || null, now, now);
-
-    const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(id) as Team;
+    const team = stores.teams.create({
+      name: input.name.trim(),
+      description: input.description || null,
+    });
 
     res.status(201).json({
       ...team,

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
-import db from '../db';
+import { getStores } from '../stores';
 import { User } from '../db/types';
 
 const DEV_USER = {
@@ -30,13 +29,13 @@ export function bypassAuthMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
+  const stores = getStores();
+
   // Skip if session already has a user
   if (req.session.userId) {
     // Load user into request
-    const user = db
-      .prepare('SELECT * FROM users WHERE id = ? AND is_active = 1')
-      .get(req.session.userId) as User | undefined;
-    if (user) {
+    const user = stores.users.findById(req.session.userId);
+    if (user && user.is_active) {
       req.user = user;
     }
     next();
@@ -44,18 +43,15 @@ export function bypassAuthMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   // Check for existing dev user or create one
-  let user = db
-    .prepare('SELECT * FROM users WHERE oidc_subject = ?')
-    .get(DEV_USER.oidc_subject) as User | undefined;
+  let user = stores.users.findByOidcSubject(DEV_USER.oidc_subject);
 
   if (!user) {
-    const id = randomUUID();
-    db.prepare(`
-      INSERT INTO users (id, email, name, oidc_subject, role, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, DEV_USER.email, DEV_USER.name, DEV_USER.oidc_subject, DEV_USER.role, DEV_USER.is_active);
-
-    user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User;
+    user = stores.users.create({
+      email: DEV_USER.email,
+      name: DEV_USER.name,
+      oidc_subject: DEV_USER.oidc_subject,
+      role: DEV_USER.role,
+    });
     console.log(`Created dev bypass user: ${user.email}`);
   }
 

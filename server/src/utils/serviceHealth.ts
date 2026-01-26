@@ -1,5 +1,10 @@
-import db from '../db';
+import { getStores, StoreRegistry } from '../stores';
+import type { IDependencyStore } from '../stores/interfaces';
+import { DependentReport } from '../stores/types';
 import { HealthState } from '../db/types';
+
+// Re-export DependentReport from stores for backward compatibility
+export type { DependentReport };
 
 // Health status based on dependent reports
 export type AggregatedHealthStatus =
@@ -26,44 +31,13 @@ export interface AggregatedHealth {
   last_report: string | null;
 }
 
-export interface DependentReport {
-  dependency_id: string;
-  dependency_name: string;
-  reporting_service_id: string;
-  reporting_service_name: string;
-  healthy: number | null;
-  health_state: HealthState | null;
-  latency_ms: number | null;
-  last_checked: string | null;
-}
-
 /**
  * Get all dependency reports where other services report on this service.
  * Uses dependency_associations to find which dependencies are linked to this service.
  */
-export function getDependentReports(serviceId: string): DependentReport[] {
-  return db
-    .prepare(
-      `
-    SELECT
-      d.id as dependency_id,
-      d.name as dependency_name,
-      d.service_id as reporting_service_id,
-      s.name as reporting_service_name,
-      d.healthy,
-      d.health_state,
-      d.latency_ms,
-      d.last_checked
-    FROM dependency_associations da
-    JOIN dependencies d ON da.dependency_id = d.id
-    JOIN services s ON d.service_id = s.id
-    WHERE da.linked_service_id = ?
-      AND da.is_dismissed = 0
-      AND s.is_active = 1
-    ORDER BY d.last_checked DESC
-  `
-    )
-    .all(serviceId) as DependentReport[];
+export function getDependentReports(serviceId: string, stores?: StoreRegistry): DependentReport[] {
+  const dependencyStore = (stores || getStores()).dependencies;
+  return dependencyStore.findDependentReports(serviceId);
 }
 
 /**

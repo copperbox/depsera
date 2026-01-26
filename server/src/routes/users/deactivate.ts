@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import db from '../../db';
-import { User } from '../../db/types';
+import { getStores } from '../../stores';
 
 export function deactivateUser(req: Request, res: Response): void {
   try {
     const { id } = req.params;
+    const stores = getStores();
 
     // Check user exists
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
+    const user = stores.users.findById(id);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -15,23 +15,19 @@ export function deactivateUser(req: Request, res: Response): void {
 
     // If deactivating an admin, ensure there's at least one other active admin
     if (user.role === 'admin' && user.is_active) {
-      const adminCount = db
-        .prepare('SELECT COUNT(*) as count FROM users WHERE role = ? AND is_active = 1')
-        .get('admin') as { count: number };
+      const adminCount = stores.users.countActiveAdmins();
 
-      if (adminCount.count <= 1) {
+      if (adminCount <= 1) {
         res.status(400).json({ error: 'Cannot deactivate the last admin user' });
         return;
       }
     }
 
-    const now = new Date().toISOString();
-
     // Deactivate user
-    db.prepare('UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?').run(now, id);
+    stores.users.update(id, { is_active: false });
 
     // Remove from all teams
-    db.prepare('DELETE FROM team_members WHERE user_id = ?').run(id);
+    stores.teams.removeAllMembershipsForUser(id);
 
     res.status(204).send();
   } catch (error) {
