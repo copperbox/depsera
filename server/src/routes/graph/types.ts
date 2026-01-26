@@ -1,49 +1,12 @@
-import { AssociationType, DependencyType } from '../../db/types';
-
-export type NodeType = 'service';
-
-export interface ServiceNodeData {
-  name: string;
-  teamId: string;
-  teamName: string;
-  healthEndpoint: string;
-  isActive: boolean;
-  dependencyCount: number;
-  healthyCount: number;
-  unhealthyCount: number;
-  serviceType?: DependencyType;
-}
-
-export interface GraphNode {
-  id: string;
-  type: NodeType;
-  data: ServiceNodeData;
-}
-
-export interface GraphEdgeData {
-  relationship: 'depends_on';
-  dependencyType?: DependencyType;
-  dependencyName?: string;
-  dependencyId?: string;
-  healthy?: boolean | null;
-  latencyMs?: number | null;
-  avgLatencyMs24h?: number | null;
-  associationType?: AssociationType | null;
-  isAutoSuggested?: boolean;
-  confidenceScore?: number | null;
-  checkDetails?: Record<string, unknown>;
-  error?: unknown;
-  errorMessage?: string | null;
-}
-
-export interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  data: GraphEdgeData;
-}
-
-export interface GraphResponse {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-}
+/**
+ * Re-export graph types from the service module for backwards compatibility.
+ * New code should import directly from '../../services/graph'.
+ */
+export {
+  NodeType,
+  ServiceNodeData,
+  GraphNode,
+  GraphEdgeData,
+  GraphEdge,
+  GraphResponse,
+} from '../../services/graph';

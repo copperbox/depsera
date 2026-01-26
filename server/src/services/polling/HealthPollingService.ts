@@ -2,8 +2,8 @@ import { EventEmitter } from 'events';
 import db from '../../db';
 import { Service } from '../../db/types';
 import { ServicePoller } from './ServicePoller';
-import { ExponentialBackoff } from './backoff';
 import { PollResult, PollingEventType, PollCompleteEvent, ServicePollState } from './types';
+import { PollStateManager } from './PollStateManager';
 
 const LOOP_INTERVAL_MS = 5000; // 5 seconds
 const MAX_CONCURRENT_POLLS = 10;
@@ -11,12 +11,13 @@ const MAX_CONCURRENT_POLLS = 10;
 export class HealthPollingService extends EventEmitter {
   private static instance: HealthPollingService | null = null;
   private loopTimer: NodeJS.Timeout | null = null;
-  private pollStates: Map<string, ServicePollState> = new Map();
+  private stateManager: PollStateManager;
   private pollers: Map<string, ServicePoller> = new Map();
   private isShuttingDown = false;
 
-  private constructor() {
+  private constructor(stateManager?: PollStateManager) {
     super();
+    this.stateManager = stateManager || new PollStateManager();
   }
 
   static getInstance(): HealthPollingService {
@@ -44,11 +45,11 @@ export class HealthPollingService extends EventEmitter {
     console.log(`[Polling] Starting health polling for ${services.length} active services`);
 
     for (const service of services) {
-      this.addServiceToState(service);
+      this.addServiceToPolling(service);
     }
 
     // Start the loop if we have services
-    if (this.pollStates.size > 0) {
+    if (this.stateManager.size > 0) {
       this.startLoop();
     }
   }
@@ -57,7 +58,7 @@ export class HealthPollingService extends EventEmitter {
     if (this.isShuttingDown) return;
 
     // Don't start if already running
-    if (this.pollStates.has(serviceId)) {
+    if (this.stateManager.hasService(serviceId)) {
       return;
     }
 
@@ -70,7 +71,7 @@ export class HealthPollingService extends EventEmitter {
       return;
     }
 
-    this.addServiceToState(service);
+    this.addServiceToPolling(service);
 
     console.log(`[Polling] Started polling ${service.name} every ${service.polling_interval}s`);
     this.emit(PollingEventType.SERVICE_STARTED, { serviceId, serviceName: service.name });
@@ -82,13 +83,13 @@ export class HealthPollingService extends EventEmitter {
   }
 
   stopService(serviceId: string): void {
-    const state = this.pollStates.get(serviceId);
+    const state = this.stateManager.getState(serviceId);
     if (!state) return;
 
     const serviceName = state.serviceName;
 
-    // Remove from poll states
-    this.pollStates.delete(serviceId);
+    // Remove from state manager
+    this.stateManager.removeService(serviceId);
 
     // Remove cached poller
     this.pollers.delete(serviceId);
@@ -97,7 +98,7 @@ export class HealthPollingService extends EventEmitter {
     this.emit(PollingEventType.SERVICE_STOPPED, { serviceId, serviceName });
 
     // Stop loop if no more services
-    if (this.pollStates.size === 0) {
+    if (this.stateManager.size === 0) {
       this.stopLoop();
     }
   }
@@ -109,7 +110,7 @@ export class HealthPollingService extends EventEmitter {
 
   async pollNow(serviceId: string): Promise<PollResult> {
     // Check if service is being actively polled by the loop
-    const state = this.pollStates.get(serviceId);
+    const state = this.stateManager.getState(serviceId);
 
     if (state && state.isPolling) {
       return {
@@ -123,7 +124,7 @@ export class HealthPollingService extends EventEmitter {
 
     // Lock if state exists
     if (state) {
-      state.isPolling = true;
+      this.stateManager.markPolling(serviceId, true);
     }
 
     try {
@@ -162,21 +163,13 @@ export class HealthPollingService extends EventEmitter {
 
       // Update state if exists
       if (state) {
-        state.lastPolled = Date.now();
-        if (result.success) {
-          state.consecutiveFailures = 0;
-          state.backoff.reset();
-          state.nextPollDue = Date.now() + (state.pollingInterval * 1000);
-        } else {
-          state.consecutiveFailures++;
-          state.nextPollDue = Date.now() + state.backoff.getNextDelay();
-        }
+        this.stateManager.updateAfterPoll(serviceId, result.success, state.pollingInterval);
       }
 
       return result;
     } finally {
       if (state) {
-        state.isPolling = false;
+        this.stateManager.markPolling(serviceId, false);
       }
     }
   }
@@ -194,8 +187,7 @@ export class HealthPollingService extends EventEmitter {
     let waited = 0;
 
     while (waited < maxWait) {
-      const activePollCount = Array.from(this.pollStates.values())
-        .filter(s => s.isPolling).length;
+      const activePollCount = this.stateManager.getActivePollingCount();
 
       if (activePollCount === 0) break;
 
@@ -207,7 +199,7 @@ export class HealthPollingService extends EventEmitter {
     }
 
     // Clear all state
-    this.pollStates.clear();
+    this.stateManager.clear();
     this.pollers.clear();
 
     // Remove all event listeners
@@ -217,33 +209,21 @@ export class HealthPollingService extends EventEmitter {
   }
 
   getActivePollers(): string[] {
-    return Array.from(this.pollStates.keys());
+    return this.stateManager.getServiceIds();
   }
 
   isPolling(serviceId: string): boolean {
-    return this.pollStates.has(serviceId);
+    return this.stateManager.hasService(serviceId);
   }
 
   // Get poll state for debugging/monitoring
   getPollState(serviceId: string): ServicePollState | undefined {
-    return this.pollStates.get(serviceId);
+    return this.stateManager.getState(serviceId);
   }
 
-  private addServiceToState(service: Service): void {
-    // Create poll state
-    const state: ServicePollState = {
-      serviceId: service.id,
-      serviceName: service.name,
-      healthEndpoint: service.health_endpoint,
-      pollingInterval: service.polling_interval,
-      lastPolled: 0,
-      nextPollDue: Date.now(), // Poll immediately
-      consecutiveFailures: 0,
-      isPolling: false,
-      backoff: new ExponentialBackoff(),
-    };
-
-    this.pollStates.set(service.id, state);
+  private addServiceToPolling(service: Service): void {
+    // Add to state manager
+    this.stateManager.addService(service);
 
     // Create and cache ServicePoller for this service
     this.pollers.set(service.id, new ServicePoller(service));
@@ -277,8 +257,7 @@ export class HealthPollingService extends EventEmitter {
     const now = Date.now();
 
     // Find all services due for polling
-    const dueServices = Array.from(this.pollStates.values())
-      .filter(state => !state.isPolling && state.nextPollDue <= now);
+    const dueServices = this.stateManager.getDueServices(now);
 
     if (dueServices.length === 0) return;
 
@@ -287,7 +266,7 @@ export class HealthPollingService extends EventEmitter {
 
     // Mark all as polling (lock)
     for (const state of batch) {
-      state.isPolling = true;
+      this.stateManager.markPolling(state.serviceId, true);
     }
 
     // Execute polls concurrently
@@ -297,7 +276,7 @@ export class HealthPollingService extends EventEmitter {
 
     // Process results and update state
     for (const { serviceId, result } of results) {
-      const state = this.pollStates.get(serviceId);
+      const state = this.stateManager.getState(serviceId);
       if (!state) continue; // Service was removed during poll
 
       // Emit poll complete event
@@ -320,17 +299,7 @@ export class HealthPollingService extends EventEmitter {
       }
 
       // Update state
-      state.lastPolled = Date.now();
-      state.isPolling = false;
-
-      if (result.success) {
-        state.consecutiveFailures = 0;
-        state.backoff.reset();
-        state.nextPollDue = Date.now() + (state.pollingInterval * 1000);
-      } else {
-        state.consecutiveFailures++;
-        state.nextPollDue = Date.now() + state.backoff.getNextDelay();
-      }
+      this.stateManager.updateAfterPoll(serviceId, result.success, state.pollingInterval);
     }
   }
 

@@ -1,6 +1,7 @@
 import db from '../../db';
-import { Service, Dependency, AssociationType, DependencyAssociation } from '../../db/types';
+import { Service, Dependency, DependencyAssociation } from '../../db/types';
 import { MatchResult, MatchSuggestion } from './types';
+import { MatchingStrategyExecutor } from './MatchingStrategyExecutor';
 import { randomUUID } from 'crypto';
 
 /**
@@ -9,14 +10,22 @@ import { randomUUID } from 'crypto';
  */
 export class AssociationMatcher {
   private static instance: AssociationMatcher | null = null;
+  private strategyExecutor: MatchingStrategyExecutor;
 
-  private constructor() {}
+  private constructor() {
+    this.strategyExecutor = new MatchingStrategyExecutor();
+  }
 
   static getInstance(): AssociationMatcher {
     if (!AssociationMatcher.instance) {
       AssociationMatcher.instance = new AssociationMatcher();
     }
     return AssociationMatcher.instance;
+  }
+
+  // For testing - reset the singleton
+  static resetInstance(): void {
+    AssociationMatcher.instance = null;
   }
 
   /**
@@ -27,243 +36,20 @@ export class AssociationMatcher {
       SELECT * FROM services WHERE is_active = 1
     `).all() as Service[];
 
-    const results: MatchResult[] = [];
-
-    for (const service of services) {
-      // Skip the service that owns this dependency
-      if (service.id === dependency.service_id) continue;
-      // Skip if explicitly excluded
-      if (excludeServiceId && service.id === excludeServiceId) continue;
-
-      const match = this.calculateMatch(dependency, service);
-      if (match && match.confidenceScore >= 50) {
-        results.push(match);
-      }
+    const excludeIds = new Set<string>();
+    if (excludeServiceId) {
+      excludeIds.add(excludeServiceId);
     }
 
-    // Sort by confidence score descending
-    return results.sort((a, b) => b.confidenceScore - a.confidenceScore);
-  }
+    const matches = this.strategyExecutor.findAllMatches(dependency, services, excludeIds);
 
-  /**
-   * Calculate match between a dependency and a service
-   */
-  private calculateMatch(dependency: Dependency, service: Service): MatchResult | null {
-    const depName = dependency.name.toLowerCase();
-    const serviceName = service.name.toLowerCase();
-    const serviceEndpoint = service.health_endpoint.toLowerCase();
-
-    let bestScore = 0;
-    let bestReason = '';
-    let associationType: AssociationType = 'other';
-
-    // Strategy 1: Exact name match (100% confidence)
-    if (depName === serviceName) {
-      return {
-        serviceId: service.id,
-        serviceName: service.name,
-        associationType: this.inferAssociationType(dependency.name),
-        confidenceScore: 100,
-        matchReason: 'Exact name match',
-      };
-    }
-
-    // Strategy 2: Service name contains dependency name or vice versa (80% confidence)
-    if (serviceName.includes(depName) || depName.includes(serviceName)) {
-      const score = 80;
-      if (score > bestScore) {
-        bestScore = score;
-        bestReason = 'Name contains match';
-        associationType = this.inferAssociationType(dependency.name);
-      }
-    }
-
-    // Strategy 3: URL hostname matching (90% confidence)
-    const depHostname = this.extractHostname(dependency.name);
-    const serviceHostname = this.extractHostname(serviceEndpoint);
-    if (depHostname && serviceHostname && depHostname === serviceHostname) {
-      const score = 90;
-      if (score > bestScore) {
-        bestScore = score;
-        bestReason = 'Hostname match';
-        associationType = 'api_call';
-      }
-    }
-
-    // Strategy 4: Fuzzy name matching using normalized tokens
-    const depTokens = this.tokenize(depName);
-    const serviceTokens = this.tokenize(serviceName);
-    const tokenOverlap = this.calculateTokenOverlap(depTokens, serviceTokens);
-    if (tokenOverlap > 0) {
-      // Score based on overlap percentage
-      const overlapScore = Math.round(50 + tokenOverlap * 40); // 50-90 range
-      if (overlapScore > bestScore) {
-        bestScore = overlapScore;
-        bestReason = `Token match (${Math.round(tokenOverlap * 100)}% overlap)`;
-        associationType = this.inferAssociationType(dependency.name);
-      }
-    }
-
-    // Strategy 5: Levenshtein distance for similar names
-    if (bestScore < 60) {
-      const distance = this.levenshteinDistance(depName, serviceName);
-      const maxLen = Math.max(depName.length, serviceName.length);
-      const similarity = 1 - distance / maxLen;
-      if (similarity >= 0.6) {
-        const score = Math.round(50 + similarity * 30); // 50-80 range
-        if (score > bestScore) {
-          bestScore = score;
-          bestReason = `Similar names (${Math.round(similarity * 100)}% similar)`;
-          associationType = this.inferAssociationType(dependency.name);
-        }
-      }
-    }
-
-    if (bestScore >= 50) {
-      return {
-        serviceId: service.id,
-        serviceName: service.name,
-        associationType,
-        confidenceScore: bestScore,
-        matchReason: bestReason,
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Infer association type from dependency name
-   */
-  private inferAssociationType(name: string): AssociationType {
-    const lower = name.toLowerCase();
-
-    // Database indicators
-    if (
-      lower.includes('db') ||
-      lower.includes('database') ||
-      lower.includes('postgres') ||
-      lower.includes('mysql') ||
-      lower.includes('mongo') ||
-      lower.includes('redis') ||
-      lower.includes('sqlite')
-    ) {
-      return 'database';
-    }
-
-    // Cache indicators
-    if (
-      lower.includes('cache') ||
-      lower.includes('redis') ||
-      lower.includes('memcache')
-    ) {
-      return 'cache';
-    }
-
-    // Message queue indicators
-    if (
-      lower.includes('queue') ||
-      lower.includes('kafka') ||
-      lower.includes('rabbit') ||
-      lower.includes('sqs') ||
-      lower.includes('pubsub') ||
-      lower.includes('message')
-    ) {
-      return 'message_queue';
-    }
-
-    // API indicators
-    if (
-      lower.includes('api') ||
-      lower.includes('service') ||
-      lower.includes('http') ||
-      lower.includes('rest') ||
-      lower.includes('grpc')
-    ) {
-      return 'api_call';
-    }
-
-    return 'other';
-  }
-
-  /**
-   * Extract hostname from a URL or URL-like string
-   */
-  private extractHostname(input: string): string | null {
-    try {
-      // Try parsing as URL first
-      const url = new URL(input);
-      return url.hostname.toLowerCase();
-    } catch {
-      // Try extracting from common patterns
-      const hostMatch = input.match(/(?:https?:\/\/)?([a-zA-Z0-9.-]+)/);
-      if (hostMatch) {
-        return hostMatch[1].toLowerCase();
-      }
-      return null;
-    }
-  }
-
-  /**
-   * Tokenize a name into words
-   */
-  private tokenize(name: string): string[] {
-    return name
-      .toLowerCase()
-      .replace(/[-_./]/g, ' ')
-      .split(/\s+/)
-      .filter(token => token.length > 1);
-  }
-
-  /**
-   * Calculate token overlap ratio
-   */
-  private calculateTokenOverlap(tokens1: string[], tokens2: string[]): number {
-    if (tokens1.length === 0 || tokens2.length === 0) return 0;
-
-    const set1 = new Set(tokens1);
-    const set2 = new Set(tokens2);
-
-    let overlap = 0;
-    for (const token of set1) {
-      if (set2.has(token)) {
-        overlap++;
-      }
-    }
-
-    // Return ratio of overlap to smaller set
-    return overlap / Math.min(set1.size, set2.size);
-  }
-
-  /**
-   * Calculate Levenshtein distance between two strings
-   */
-  private levenshteinDistance(a: string, b: string): number {
-    const matrix: number[][] = [];
-
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
-    }
-
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
-      }
-    }
-
-    return matrix[b.length][a.length];
+    return matches.map(match => ({
+      serviceId: match.serviceId,
+      serviceName: match.serviceName,
+      associationType: match.result.associationType,
+      confidenceScore: match.result.score,
+      matchReason: match.result.reason,
+    }));
   }
 
   /**
