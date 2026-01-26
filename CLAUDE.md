@@ -68,7 +68,21 @@ Core tables:
 Migrations are in `/server/src/db/migrations/`. Types are in `/server/src/db/types.ts`.
 
 ## General Guidance
-Unless answers already specified, Always ask clarifying questions any time there are decisions to be made.
+
+- Unless answers are already specified, always ask clarifying questions when there are decisions to be made.
+- When encountering important decisions regarding **file structure**, **infrastructure**, **UI behavior**, or other architectural concerns, always:
+  1. Pause and ask for direction
+  2. Present the available options with pros/cons
+  3. Wait for confirmation before proceeding
+
+## Linear Workflow
+
+When working on a Linear ticket:
+1. Set the issue status to "In Progress" when starting work
+2. Upon completing the work, update the issue status to "Done" (or the appropriate completed state)
+3. Add a brief comment summarizing what was done if the changes differ from the original requirements
+
+Always update the ticket status - do not leave tickets in "In Progress" after completing work.
 
 ## Linear Issue Template
 
