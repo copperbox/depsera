@@ -1,4 +1,5 @@
 import type { User, UserRole } from '../types/user';
+import { handleResponse } from './common';
 
 export interface UserWithTeams extends User {
   teams: {
@@ -10,14 +11,6 @@ export interface UserWithTeams extends User {
       description: string | null;
     };
   }[];
-}
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || error.error || `HTTP error ${response.status}`);
-  }
-  return response.json();
 }
 
 export async function fetchUsers(): Promise<User[]> {

@@ -67,6 +67,9 @@ Core tables:
 
 Migrations are in `/server/src/db/migrations/`. Types are in `/server/src/db/types.ts`.
 
+## General Guidance
+Unless answers already specified, Always ask clarifying questions any time there are decisions to be made.
+
 ## Linear Issue Template
 
 When creating or updating Linear issues for this project, use this structure:

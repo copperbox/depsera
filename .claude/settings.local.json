@@ -30,7 +30,9 @@
       "Bash(npm run test:server:*)",
       "Bash(npm run build:*)",
       "Bash(npm run mock:seed:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__plugin_linear_linear__list_teams",
+      "Bash(find:*)"
     ]
   }
 }

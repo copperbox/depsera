@@ -1,51 +1,12 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchServices, fetchTeams } from '../../../api/services';
 import type { Service, TeamWithCounts } from '../../../types/service';
-import StatusBadge, { type BadgeStatus } from '../../common/StatusBadge';
+import StatusBadge from '../../common/StatusBadge';
+import { formatRelativeTime } from '../../../utils/formatting';
+import { getHealthBadgeStatus } from '../../../utils/statusMapping';
+import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import styles from './Dashboard.module.css';
-
-const POLLING_ENABLED_KEY = 'dashboard-auto-refresh';
-const POLLING_INTERVAL_KEY = 'dashboard-refresh-interval';
-const DEFAULT_INTERVAL = 30000;
-
-const INTERVAL_OPTIONS = [
-  { value: 10000, label: '10s' },
-  { value: 20000, label: '20s' },
-  { value: 30000, label: '30s' },
-  { value: 60000, label: '1m' },
-];
-
-function formatRelativeTime(dateString: string | null): string {
-  if (!dateString) return 'Never';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSecs < 60) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
-
-function getHealthBadgeStatus(status: string): BadgeStatus {
-  switch (status) {
-    case 'healthy':
-      return 'healthy';
-    case 'warning':
-      return 'warning';
-    case 'critical':
-      return 'critical';
-    case 'no_dependents':
-      return 'no_dependents';
-    default:
-      return 'unknown';
-  }
-}
 
 interface TeamHealthSummary {
   team: TeamWithCounts;
@@ -61,18 +22,7 @@ function Dashboard() {
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Polling state
-  const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
-    const stored = localStorage.getItem(POLLING_ENABLED_KEY);
-    return stored === 'true';
-  });
-  const [pollingInterval, setPollingInterval] = useState(() => {
-    const stored = localStorage.getItem(POLLING_INTERVAL_KEY);
-    return stored ? parseInt(stored, 10) : DEFAULT_INTERVAL;
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const pollingIntervalRef = useRef<number | null>(null);
 
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
     if (!isBackgroundRefresh) {
@@ -105,35 +55,11 @@ function Dashboard() {
     loadData();
   }, [loadData]);
 
-  // Polling effect
-  useEffect(() => {
-    if (isPollingEnabled) {
-      pollingIntervalRef.current = window.setInterval(() => {
-        loadData(true);
-      }, pollingInterval);
-    }
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [isPollingEnabled, pollingInterval, loadData]);
-
-  // Toggle polling on/off
-  const togglePolling = () => {
-    const newValue = !isPollingEnabled;
-    setIsPollingEnabled(newValue);
-    localStorage.setItem(POLLING_ENABLED_KEY, String(newValue));
-  };
-
-  // Change polling interval
-  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newInterval = parseInt(e.target.value, 10);
-    setPollingInterval(newInterval);
-    localStorage.setItem(POLLING_INTERVAL_KEY, String(newInterval));
-  };
+  // Polling hook
+  const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
+    storageKey: 'dashboard',
+    onPoll: useCallback(() => loadData(true), [loadData]),
+  });
 
   // Calculate summary statistics
   const stats = useMemo(() => {

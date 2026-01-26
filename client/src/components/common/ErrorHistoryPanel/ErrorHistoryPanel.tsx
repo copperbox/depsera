@@ -1,25 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ErrorHistoryResponse } from '../../../types/graph';
 import { fetchErrorHistory } from '../../../api/errors';
+import { formatRelativeTime } from '../../../utils/formatting';
 import styles from './ErrorHistoryPanel.module.css';
 
 interface ErrorHistoryPanelProps {
   dependencyId: string;
   dependencyName: string;
   onBack: () => void;
-}
-
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-
-  if (diffMinutes < 1) return 'just now';
-  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export function ErrorHistoryPanel({ dependencyId, dependencyName, onBack }: ErrorHistoryPanelProps) {

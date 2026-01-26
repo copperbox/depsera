@@ -31,17 +31,15 @@ import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeDetailsPanel } from './NodeDetailsPanel';
 import { EdgeDetailsPanel } from './EdgeDetailsPanel';
+import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import styles from './DependencyGraph.module.css';
 
 type AppNode = Node<ServiceNodeData, 'service'>;
 type AppEdge = Edge<GraphEdgeData, 'custom'>;
 
-const POLLING_ENABLED_KEY = 'graph-auto-refresh';
-const POLLING_INTERVAL_KEY = 'graph-refresh-interval';
 const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 const TIER_SPACING_KEY = 'graph-tier-spacing';
 const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-const DEFAULT_INTERVAL = 30000;
 const DEFAULT_TIER_SPACING = 180;
 const MIN_TIER_SPACING = 80;
 const MAX_TIER_SPACING = 400;
@@ -50,13 +48,6 @@ const MIN_LATENCY_THRESHOLD = 10;
 const MAX_LATENCY_THRESHOLD = 200;
 
 type LayoutDirection = 'TB' | 'LR';
-
-const INTERVAL_OPTIONS = [
-  { value: 10000, label: '10s' },
-  { value: 20000, label: '20s' },
-  { value: 30000, label: '30s' },
-  { value: 60000, label: '1m' },
-];
 
 const nodeTypes = {
   service: ServiceNode,
@@ -333,17 +324,7 @@ function DependencyGraphInner() {
     return DEFAULT_LATENCY_THRESHOLD;
   });
 
-  // Polling state
-  const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
-    const stored = localStorage.getItem(POLLING_ENABLED_KEY);
-    return stored === 'true';
-  });
-  const [pollingInterval, setPollingInterval] = useState(() => {
-    const stored = localStorage.getItem(POLLING_INTERVAL_KEY);
-    return stored ? parseInt(stored, 10) : DEFAULT_INTERVAL;
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const pollingIntervalRef = useRef<number | null>(null);
   const selectedTeamRef = useRef(selectedTeam);
   const layoutDirectionRef = useRef(layoutDirection);
   const tierSpacingRef = useRef(tierSpacing);
@@ -429,38 +410,16 @@ function DependencyGraphInner() {
     loadData(selectedTeam || undefined, layoutDirection, tierSpacing);
   }, [selectedTeam, layoutDirection, tierSpacing]);
 
-  // Polling effect
-  useEffect(() => {
-    if (isPollingEnabled) {
-      pollingIntervalRef.current = window.setInterval(() => {
-        loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, tierSpacingRef.current, true);
-      }, pollingInterval);
-    }
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [isPollingEnabled, pollingInterval, loadData]);
+  // Polling hook
+  const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
+    storageKey: 'graph',
+    onPoll: useCallback(() => {
+      loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, tierSpacingRef.current, true);
+    }, [loadData]),
+  });
 
   const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedTeam(e.target.value);
-  };
-
-  // Toggle polling on/off
-  const togglePolling = () => {
-    const newValue = !isPollingEnabled;
-    setIsPollingEnabled(newValue);
-    localStorage.setItem(POLLING_ENABLED_KEY, String(newValue));
-  };
-
-  // Change polling interval
-  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newInterval = parseInt(e.target.value, 10);
-    setPollingInterval(newInterval);
-    localStorage.setItem(POLLING_INTERVAL_KEY, String(newInterval));
   };
 
   // Change layout direction

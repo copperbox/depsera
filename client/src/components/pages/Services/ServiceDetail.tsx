@@ -2,70 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchService, fetchTeams, deleteService } from '../../../api/services';
-import type { ServiceWithDependencies, TeamWithCounts, Dependency, DependentReport } from '../../../types/service';
-import StatusBadge, { type BadgeStatus } from '../../common/StatusBadge';
+import type { ServiceWithDependencies, TeamWithCounts, Dependency } from '../../../types/service';
+import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
 import ServiceForm from './ServiceForm';
+import { formatRelativeTime } from '../../../utils/formatting';
+import { getHealthBadgeStatus, getHealthStateBadgeStatus } from '../../../utils/statusMapping';
 import styles from './Services.module.css';
-
-function formatRelativeTime(dateString: string | null): string {
-  if (!dateString) return 'Never';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSecs < 60) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
-}
-
-function getHealthBadgeStatus(status: string): BadgeStatus {
-  switch (status) {
-    case 'healthy':
-      return 'healthy';
-    case 'warning':
-      return 'warning';
-    case 'critical':
-      return 'critical';
-    case 'no_dependents':
-      return 'no_dependents';
-    default:
-      return 'unknown';
-  }
-}
-
-function getDependencyBadgeStatus(dep: Dependency): BadgeStatus {
-  if (dep.healthy === null && dep.health_state === null) {
-    return 'unknown';
-  }
-  if (dep.healthy === 0 || dep.health_state === 2) {
-    return 'critical';
-  }
-  if (dep.health_state === 1) {
-    return 'warning';
-  }
-  return 'healthy';
-}
-
-function getReportBadgeStatus(report: DependentReport): BadgeStatus {
-  if (report.healthy === null && report.health_state === null) {
-    return 'unknown';
-  }
-  if (report.healthy === 0 || report.health_state === 2) {
-    return 'critical';
-  }
-  if (report.health_state === 1) {
-    return 'warning';
-  }
-  return 'healthy';
-}
 
 function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
@@ -337,7 +282,7 @@ function ServiceDetail() {
                   <td className={styles.teamCell}>{report.dependency_name}</td>
                   <td>
                     <StatusBadge
-                      status={getReportBadgeStatus(report)}
+                      status={getHealthStateBadgeStatus(report)}
                       size="small"
                       showLabel={true}
                     />
@@ -392,7 +337,7 @@ function ServiceDetail() {
                   </td>
                   <td>
                     <StatusBadge
-                      status={getDependencyBadgeStatus(dep)}
+                      status={getHealthStateBadgeStatus(dep)}
                       size="small"
                       showLabel={true}
                     />
