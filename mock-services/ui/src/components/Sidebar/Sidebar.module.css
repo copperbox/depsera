@@ -1,0 +1,50 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.section {
+  background-color: var(--color-bg-panel);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.title {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.scenarioList,
+.failureList {
+  display: flex;
+  flex-direction: column;
+}
+
+.emptyState {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .section {
+    flex: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    flex-direction: column;
+  }
+}

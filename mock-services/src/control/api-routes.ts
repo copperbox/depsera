@@ -32,22 +32,59 @@ async function parseJsonBody<T>(req: http.IncomingMessage): Promise<T> {
 }
 
 function getUiPath(filePath: string): string {
-  // Check if running from dist (compiled) or src (ts-node dev)
-  const distPath = path.join(__dirname, '..', 'ui', filePath);
+  // Check if built UI exists in ui/dist (Vite build output)
+  const uiDistPath = path.join(__dirname, '..', '..', 'ui', 'dist', filePath);
+  if (fs.existsSync(uiDistPath)) {
+    return uiDistPath;
+  }
+  // Fallback for development: try compiled output location
+  const distPath = path.join(__dirname, '..', 'ui', 'dist', filePath);
   if (fs.existsSync(distPath)) {
     return distPath;
   }
-  // Fallback to src/ui when running compiled code from dist
-  const srcPath = path.join(__dirname, '..', '..', 'src', 'ui', filePath);
-  return srcPath;
+  // Final fallback to ui/dist relative to project root
+  const rootUiPath = path.join(__dirname, '..', '..', '..', 'ui', 'dist', filePath);
+  return rootUiPath;
 }
 
-function serveStaticFile(res: http.ServerResponse, filePath: string, contentType: string): void {
+function getContentType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentTypes: Record<string, string> = {
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'application/javascript',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+  };
+  return contentTypes[ext] || 'application/octet-stream';
+}
+
+function serveStaticFile(res: http.ServerResponse, filePath: string, contentType?: string): void {
   try {
     const fullPath = getUiPath(filePath);
-    const content = fs.readFileSync(fullPath, 'utf-8');
-    res.writeHead(200, { 'Content-Type': contentType });
-    res.end(content);
+    const mimeType = contentType || getContentType(filePath);
+
+    // Check if binary file
+    const binaryExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf'];
+    const isBinary = binaryExtensions.some(ext => filePath.toLowerCase().endsWith(ext));
+
+    if (isBinary) {
+      const content = fs.readFileSync(fullPath);
+      res.writeHead(200, { 'Content-Type': mimeType });
+      res.end(content);
+    } else {
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      res.writeHead(200, { 'Content-Type': mimeType });
+      res.end(content);
+    }
   } catch {
     res.writeHead(404);
     res.end('File not found');
@@ -65,18 +102,23 @@ export function createControlRoutes(config: ControlRoutesConfig) {
     ): Promise<void> {
       const method = req.method || 'GET';
 
+      // Serve index.html for root or /ui
       if (pathParts.length === 0 || pathParts[0] === '' || pathParts[0] === 'ui') {
         serveStaticFile(res, 'index.html', 'text/html');
         return;
       }
 
-      if (pathParts[0] === 'styles.css') {
-        serveStaticFile(res, 'styles.css', 'text/css');
+      // Serve Vite assets (JS, CSS bundles)
+      if (pathParts[0] === 'assets') {
+        const assetPath = pathParts.join('/');
+        serveStaticFile(res, assetPath);
         return;
       }
 
-      if (pathParts[0] === 'app.js') {
-        serveStaticFile(res, 'app.js', 'application/javascript');
+      // Serve other static files (favicon, etc.)
+      const staticExtensions = ['.css', '.js', '.ico', '.png', '.svg', '.json'];
+      if (staticExtensions.some(ext => pathParts[0].endsWith(ext))) {
+        serveStaticFile(res, pathParts[0]);
         return;
       }
 
@@ -96,7 +138,8 @@ export function createControlRoutes(config: ControlRoutesConfig) {
         }
 
         if (method === 'GET' && apiPath[0] === 'services' && apiPath.length === 1) {
-          const services = await registry.getAllServiceStatuses();
+          // Use fast method for control panel - skips simulated latency
+          const services = registry.getAllServiceStatusesFast();
           jsonResponse(res, 200, { success: true, data: services });
           return;
         }

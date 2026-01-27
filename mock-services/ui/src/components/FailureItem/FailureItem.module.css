@@ -1,0 +1,40 @@
+.item {
+  background-color: var(--color-bg-card);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info {
+  flex: 1;
+}
+
+.serviceName {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+}
+
+.mode {
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  text-transform: capitalize;
+}
+
+.clearButton {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.2rem;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.clearButton:hover {
+  color: var(--color-danger);
+}

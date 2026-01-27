@@ -1,5 +1,5 @@
 import { Topology, GeneratedService, ServiceTier } from '../topology/types';
-import { FailureState } from '../failures/types';
+import { FailureState, FailureMode } from '../failures/types';
 import { MockService } from './mock-service';
 import { DependencyStatus, ServiceHealth, DependencyType } from './types';
 
@@ -267,6 +267,38 @@ export class ServiceRegistry {
         tier: service.tier,
         health: await service.getHealth(),
         failureState: service.getFailureState()
+      });
+    }
+    return statuses;
+  }
+
+  /**
+   * Fast version for control panel - skips simulated latency and dependency checks.
+   * Returns basic service status based on failure state only.
+   */
+  public getAllServiceStatusesFast(): Array<{
+    id: string;
+    name: string;
+    tier: string;
+    health: { healthy: boolean; timestamp: string };
+    failureState: FailureState | null;
+  }> {
+    const statuses = [];
+    for (const service of this.services.values()) {
+      const failureState = service.getFailureState();
+      // Service is unhealthy if it has an active failure (except high_latency which is still "healthy")
+      const isUnhealthy = failureState !== null &&
+        failureState.mode !== FailureMode.HIGH_LATENCY;
+
+      statuses.push({
+        id: service.id,
+        name: service.name,
+        tier: service.tier,
+        health: {
+          healthy: !isUnhealthy,
+          timestamp: new Date().toISOString()
+        },
+        failureState
       });
     }
     return statuses;

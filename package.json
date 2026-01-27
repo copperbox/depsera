@@ -3,7 +3,8 @@
   "version": "1.3.0",
   "description": "A dashboard to review and manage all tracked dependencies and services",
   "scripts": {
-    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\"",
+    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\" \"npm run dev:mock-ui\"",
+    "dev:mock-ui": "cd mock-services && npm run dev:ui",
     "dev:clean": "node scripts/kill-dev-ports.js && npm run dev",
     "cleanup": "node scripts/kill-dev-ports.js",
     "dev:server": "cd server && npm run dev",
@@ -18,9 +19,10 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "cd server && npm run lint",
     "lint:client": "cd client && npm run lint",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install && cd ../mock-services && npm install",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install && cd ../mock-services && npm install && cd ui && npm install",
     "mock:start": "cd mock-services && npm run dev",
     "mock:build": "cd mock-services && npm run build",
+    "mock:build-ui": "cd mock-services && npm run build:ui",
     "mock:seed": "cd mock-services && npm run build && npm run start:seed",
     "mock:new": "cd mock-services && npm run build && npm run start:new",
     "mock:reset": "cd mock-services && npm run build && npm run reset"
