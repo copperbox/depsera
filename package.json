@@ -25,7 +25,8 @@
     "mock:build-ui": "cd mock-services && npm run build:ui",
     "mock:seed": "cd mock-services && npm run build && npm run start:seed",
     "mock:new": "cd mock-services && npm run build && npm run start:new",
-    "mock:reset": "cd mock-services && npm run build && npm run reset"
+    "mock:reset": "cd mock-services && npm run build && npm run reset",
+    "db:reseed": "cd server && npm run db:reseed -- && cd ../mock-services && npm run build && node dist/index.js --seed-only --new-topology"
   },
   "keywords": [
     "dashboard",

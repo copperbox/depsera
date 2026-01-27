@@ -1,6 +1,104 @@
 import { Database } from 'better-sqlite3';
 import { randomUUID } from 'crypto';
 
+// Team definitions for consistent use across the application
+export interface TeamDefinition {
+  name: string;
+  description: string;
+}
+
+export const TEAMS: Record<string, TeamDefinition> = {
+  platform: {
+    name: 'Platform',
+    description: 'Core platform services, infrastructure, and shared tooling'
+  },
+  payments: {
+    name: 'Payments',
+    description: 'Payment processing, billing, and financial transaction services'
+  },
+  identity: {
+    name: 'Identity',
+    description: 'Authentication, authorization, and user identity management'
+  },
+  frontend: {
+    name: 'Frontend',
+    description: 'Web and mobile client applications, BFF services, and UI components'
+  },
+  data: {
+    name: 'Data',
+    description: 'Data infrastructure, analytics, caching, and database services'
+  }
+};
+
+// Mapping of service name prefixes to team keys
+export const SERVICE_TEAM_MAPPING: Record<string, string> = {
+  // Identity team
+  'auth': 'identity',
+  'user': 'identity',
+  'account': 'identity',
+  'identity': 'identity',
+
+  // Payments team
+  'payment': 'payments',
+  'billing': 'payments',
+  'pricing': 'payments',
+  'order': 'payments',
+  'cart': 'payments',
+
+  // Frontend team
+  'gateway': 'frontend',
+  'web': 'frontend',
+  'portal': 'frontend',
+  'dashboard': 'frontend',
+  'app': 'frontend',
+  'client': 'frontend',
+  'mobile': 'frontend',
+  'admin': 'frontend',
+
+  // Data team
+  'db': 'data',
+  'cache': 'data',
+  'store': 'data',
+  'data': 'data',
+  'queue': 'data',
+  'stream': 'data',
+  'event': 'data',
+  'analytics': 'data',
+
+  // Platform team (default for backend services)
+  'worker': 'platform',
+  'processor': 'platform',
+  'scheduler': 'platform',
+  'aggregator': 'platform',
+  'transformer': 'platform',
+  'validator': 'platform',
+  'batch': 'platform',
+  'inventory': 'platform',
+  'shipping': 'platform',
+  'catalog': 'platform',
+  'search': 'platform',
+  'notification': 'platform',
+  'product': 'platform',
+  'review': 'platform',
+  'recommendation': 'platform'
+};
+
+/**
+ * Get the team key for a given service name based on prefix matching
+ */
+export function getTeamKeyForService(serviceName: string): string {
+  const lowerName = serviceName.toLowerCase();
+
+  for (const [prefix, teamKey] of Object.entries(SERVICE_TEAM_MAPPING)) {
+    if (lowerName.startsWith(prefix)) {
+      return teamKey;
+    }
+  }
+
+  // Default to platform for unmatched services
+  return 'platform';
+}
+
 export function seedDatabase(db: Database): void {
   // Check if data already exists
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
@@ -22,6 +120,8 @@ export function seedDatabase(db: Database): void {
   const user1Id = randomUUID();
   const user2Id = randomUUID();
   const user3Id = randomUUID();
+  const user4Id = randomUUID();
+  const user5Id = randomUUID();
 
   db.prepare(`
     INSERT INTO users (id, email, name, role)
@@ -38,62 +138,89 @@ export function seedDatabase(db: Database): void {
     VALUES (?, ?, ?, ?)
   `).run(user3Id, 'charlie@example.com', 'Charlie Brown', 'user');
 
+  db.prepare(`
+    INSERT INTO users (id, email, name, role)
+    VALUES (?, ?, ?, ?)
+  `).run(user4Id, 'dana@example.com', 'Dana Lee', 'user');
+
+  db.prepare(`
+    INSERT INTO users (id, email, name, role)
+    VALUES (?, ?, ?, ?)
+  `).run(user5Id, 'eve@example.com', 'Eve Martinez', 'user');
+
   // Create teams
-  const platformTeamId = randomUUID();
-  const paymentsTeamId = randomUUID();
-  const notificationsTeamId = randomUUID();
+  const teamIds: Record<string, string> = {};
 
-  db.prepare(`
-    INSERT INTO teams (id, name, description)
-    VALUES (?, ?, ?)
-  `).run(platformTeamId, 'Platform', 'Core platform services and infrastructure');
-
-  db.prepare(`
-    INSERT INTO teams (id, name, description)
-    VALUES (?, ?, ?)
-  `).run(paymentsTeamId, 'Payments', 'Payment processing and billing services');
-
-  db.prepare(`
-    INSERT INTO teams (id, name, description)
-    VALUES (?, ?, ?)
-  `).run(notificationsTeamId, 'Notifications', 'Email, SMS, and push notification services');
+  for (const [key, team] of Object.entries(TEAMS)) {
+    const teamId = randomUUID();
+    teamIds[key] = teamId;
+    db.prepare(`
+      INSERT INTO teams (id, name, description)
+      VALUES (?, ?, ?)
+    `).run(teamId, team.name, team.description);
+  }
 
   // Assign users to teams
+  // Platform team
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(platformTeamId, adminId, 'lead');
+  `).run(teamIds.platform, adminId, 'lead');
 
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(platformTeamId, user1Id, 'member');
+  `).run(teamIds.platform, user1Id, 'member');
+
+  // Payments team
+  db.prepare(`
+    INSERT INTO team_members (team_id, user_id, role)
+    VALUES (?, ?, ?)
+  `).run(teamIds.payments, user1Id, 'lead');
 
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(paymentsTeamId, user1Id, 'lead');
+  `).run(teamIds.payments, user2Id, 'member');
+
+  // Identity team
+  db.prepare(`
+    INSERT INTO team_members (team_id, user_id, role)
+    VALUES (?, ?, ?)
+  `).run(teamIds.identity, user3Id, 'lead');
 
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(paymentsTeamId, user2Id, 'member');
+  `).run(teamIds.identity, adminId, 'member');
+
+  // Frontend team
+  db.prepare(`
+    INSERT INTO team_members (team_id, user_id, role)
+    VALUES (?, ?, ?)
+  `).run(teamIds.frontend, user4Id, 'lead');
 
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(notificationsTeamId, user2Id, 'lead');
+  `).run(teamIds.frontend, user2Id, 'member');
+
+  // Data team
+  db.prepare(`
+    INSERT INTO team_members (team_id, user_id, role)
+    VALUES (?, ?, ?)
+  `).run(teamIds.data, user5Id, 'lead');
 
   db.prepare(`
     INSERT INTO team_members (team_id, user_id, role)
     VALUES (?, ?, ?)
-  `).run(notificationsTeamId, user3Id, 'member');
+  `).run(teamIds.data, user3Id, 'member');
 
-  // Create services
+  // Create services with logical team assignments
   const userServiceId = randomUUID();
   const authServiceId = randomUUID();
   const paymentServiceId = randomUUID();
-  const emailServiceId = randomUUID();
+  const notificationServiceId = randomUUID();
 
   db.prepare(`
     INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
@@ -101,7 +228,7 @@ export function seedDatabase(db: Database): void {
   `).run(
     userServiceId,
     'User Service',
-    platformTeamId,
+    teamIds.identity,  // Identity team owns user management
     'http://localhost:4001/dependencies',
     'http://localhost:4001/metrics',
     30
@@ -113,7 +240,7 @@ export function seedDatabase(db: Database): void {
   `).run(
     authServiceId,
     'Auth Service',
-    platformTeamId,
+    teamIds.identity,  // Identity team owns authentication
     'http://localhost:4002/dependencies',
     'http://localhost:4002/metrics',
     30
@@ -125,7 +252,7 @@ export function seedDatabase(db: Database): void {
   `).run(
     paymentServiceId,
     'Payment Service',
-    paymentsTeamId,
+    teamIds.payments,  // Payments team owns payment processing
     'http://localhost:4003/dependencies',
     'http://localhost:4003/metrics',
     15
@@ -135,9 +262,9 @@ export function seedDatabase(db: Database): void {
     INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(
-    emailServiceId,
-    'Email Service',
-    notificationsTeamId,
+    notificationServiceId,
+    'Notification Service',
+    teamIds.platform,  // Platform team owns notification infrastructure
     'http://localhost:4004/dependencies',
     'http://localhost:4004/metrics',
     60
@@ -283,4 +410,76 @@ export function clearServices(db: Database): void {
   db.exec('DELETE FROM services');
 
   console.log('All services cleared');
+}
+
+/**
+ * Clear services and teams, keeping users intact
+ */
+export function clearServicesAndTeams(db: Database): void {
+  console.log('Clearing services and teams...');
+
+  db.exec(`
+    DELETE FROM dependency_associations;
+    DELETE FROM dependencies;
+    DELETE FROM services;
+    DELETE FROM team_members;
+    DELETE FROM teams;
+  `);
+
+  console.log('Services and teams cleared');
+}
+
+/**
+ * Ensure all defined teams exist in the database, creating them if needed
+ * Returns a map of team keys to team IDs
+ */
+export function ensureTeams(db: Database): Record<string, string> {
+  const teamIds: Record<string, string> = {};
+
+  for (const [key, team] of Object.entries(TEAMS)) {
+    const existing = db.prepare(
+      `SELECT id FROM teams WHERE name = ?`
+    ).get(team.name) as { id: string } | undefined;
+
+    if (existing) {
+      teamIds[key] = existing.id;
+    } else {
+      const teamId = randomUUID();
+      teamIds[key] = teamId;
+      db.prepare(`
+        INSERT INTO teams (id, name, description)
+        VALUES (?, ?, ?)
+      `).run(teamId, team.name, team.description);
+      console.log(`Created team: ${team.name}`);
+    }
+  }
+
+  return teamIds;
+}
+
+/**
+ * Get team ID by team key, creating teams if necessary
+ */
+export function getTeamId(db: Database, teamKey: string): string {
+  const team = TEAMS[teamKey];
+  if (!team) {
+    throw new Error(`Unknown team key: ${teamKey}`);
+  }
+
+  const existing = db.prepare(
+    `SELECT id FROM teams WHERE name = ?`
+  ).get(team.name) as { id: string } | undefined;
+
+  if (existing) {
+    return existing.id;
+  }
+
+  // Create the team if it doesn't exist
+  const teamId = randomUUID();
+  db.prepare(`
+    INSERT INTO teams (id, name, description)
+    VALUES (?, ?, ?)
+  `).run(teamId, team.name, team.description);
+
+  return teamId;
 }

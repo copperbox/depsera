@@ -19,6 +19,7 @@ const { values: args } = parseArgs({
     count: { type: 'string', short: 'c', default: '20' },
     port: { type: 'string', short: 'p', default: '4000' },
     seed: { type: 'boolean', short: 's', default: false },
+    'seed-only': { type: 'boolean', default: false },
     reset: { type: 'boolean', short: 'r', default: false },
     'new-topology': { type: 'boolean', short: 'n', default: false },
     'db-path': { type: 'string', default: '../server/data/database.sqlite' }
@@ -43,7 +44,7 @@ if (args.reset) {
 
 // Load existing topology or generate new one
 let topology: Topology;
-const forceNewTopology = args['new-topology'] || args.seed || args.reset;
+const forceNewTopology = args['new-topology'] || args.seed || args['seed-only'] || args.reset;
 
 if (!forceNewTopology) {
   const existingTopology = loadTopology();
@@ -80,7 +81,7 @@ const registry = new ServiceRegistry(topology);
 const failureController = new FailureController(topology);
 failureController.setRegistry(registry);
 
-if (args.seed || args.reset) {
+if (args.seed || args['seed-only'] || args.reset) {
   console.log(`Seeding mock services to dashboard database...`);
   console.log(`Database path: ${dbPath}`);
   seedMockServices({
@@ -89,6 +90,11 @@ if (args.seed || args.reset) {
     mockServicesBaseUrl: `http://localhost:${port}`
   });
   console.log('');
+}
+
+if (args['seed-only']) {
+  console.log('Seed complete. Exiting.');
+  process.exit(0);
 }
 
 if (args.reset && !args.seed) {

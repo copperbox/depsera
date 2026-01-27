@@ -9,6 +9,104 @@ export interface SeedConfig {
   mockServicesBaseUrl: string;
 }
 
+// Team definitions matching the server's seed.ts
+interface TeamDefinition {
+  name: string;
+  description: string;
+}
+
+const TEAMS: Record<string, TeamDefinition> = {
+  platform: {
+    name: 'Platform',
+    description: 'Core platform services, infrastructure, and shared tooling'
+  },
+  payments: {
+    name: 'Payments',
+    description: 'Payment processing, billing, and financial transaction services'
+  },
+  identity: {
+    name: 'Identity',
+    description: 'Authentication, authorization, and user identity management'
+  },
+  frontend: {
+    name: 'Frontend',
+    description: 'Web and mobile client applications, BFF services, and UI components'
+  },
+  data: {
+    name: 'Data',
+    description: 'Data infrastructure, analytics, caching, and database services'
+  }
+};
+
+// Mapping of service name prefixes to team keys
+const SERVICE_TEAM_MAPPING: Record<string, string> = {
+  // Identity team
+  'auth': 'identity',
+  'user': 'identity',
+  'account': 'identity',
+  'identity': 'identity',
+
+  // Payments team
+  'payment': 'payments',
+  'billing': 'payments',
+  'pricing': 'payments',
+  'order': 'payments',
+  'cart': 'payments',
+
+  // Frontend team
+  'gateway': 'frontend',
+  'web': 'frontend',
+  'portal': 'frontend',
+  'dashboard': 'frontend',
+  'app': 'frontend',
+  'client': 'frontend',
+  'mobile': 'frontend',
+  'admin': 'frontend',
+
+  // Data team
+  'db': 'data',
+  'cache': 'data',
+  'store': 'data',
+  'data': 'data',
+  'queue': 'data',
+  'stream': 'data',
+  'event': 'data',
+  'analytics': 'data',
+
+  // Platform team (default for backend services)
+  'worker': 'platform',
+  'processor': 'platform',
+  'scheduler': 'platform',
+  'aggregator': 'platform',
+  'transformer': 'platform',
+  'validator': 'platform',
+  'batch': 'platform',
+  'inventory': 'platform',
+  'shipping': 'platform',
+  'catalog': 'platform',
+  'search': 'platform',
+  'notification': 'platform',
+  'product': 'platform',
+  'review': 'platform',
+  'recommendation': 'platform'
+};
+
+/**
+ * Get the team key for a given service name based on prefix matching
+ */
+function getTeamKeyForService(serviceName: string): string {
+  const lowerName = serviceName.toLowerCase();
+
+  for (const [prefix, teamKey] of Object.entries(SERVICE_TEAM_MAPPING)) {
+    if (lowerName.startsWith(prefix)) {
+      return teamKey;
+    }
+  }
+
+  // Default to platform for unmatched services
+  return 'platform';
+}
+
 function getAssociationType(tier: ServiceTier): string {
   switch (tier) {
     case ServiceTier.DATABASE:
@@ -20,24 +118,33 @@ function getAssociationType(tier: ServiceTier): string {
   }
 }
 
-function ensureMockTeam(db: Database.Database): string {
-  const existing = db.prepare(
-    `SELECT id FROM teams WHERE name = 'Mock Services'`
-  ).get() as { id: string } | undefined;
-
-  if (existing) {
-    return existing.id;
-  }
-
-  const teamId = randomUUID();
+/**
+ * Ensure all defined teams exist in the database
+ * Returns a map of team keys to team IDs
+ */
+function ensureTeams(db: Database.Database): Record<string, string> {
+  const teamIds: Record<string, string> = {};
   const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO teams (id, name, description, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(teamId, 'Mock Services', 'Auto-generated mock services for testing', now, now);
+  for (const [key, team] of Object.entries(TEAMS)) {
+    const existing = db.prepare(
+      `SELECT id FROM teams WHERE name = ?`
+    ).get(team.name) as { id: string } | undefined;
 
-  return teamId;
+    if (existing) {
+      teamIds[key] = existing.id;
+    } else {
+      const teamId = randomUUID();
+      teamIds[key] = teamId;
+      db.prepare(`
+        INSERT INTO teams (id, name, description, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(teamId, team.name, team.description, now, now);
+      console.log(`Created team: ${team.name}`);
+    }
+  }
+
+  return teamIds;
 }
 
 function clearExistingMockServices(db: Database.Database, baseUrl: string): void {
@@ -64,8 +171,9 @@ export function seedMockServices(config: SeedConfig): void {
   db.pragma('foreign_keys = ON');
 
   try {
-    const teamId = ensureMockTeam(db);
-    console.log(`Using team ID: ${teamId}`);
+    // Ensure all teams exist and get their IDs
+    const teamIds = ensureTeams(db);
+    console.log(`Teams ready: ${Object.keys(teamIds).join(', ')}`);
 
     console.log('Clearing existing mock services...');
     clearExistingMockServices(db, mockServicesBaseUrl);
@@ -89,6 +197,12 @@ export function seedMockServices(config: SeedConfig): void {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // Track team assignment counts for logging
+    const teamCounts: Record<string, number> = {};
+    for (const key of Object.keys(TEAMS)) {
+      teamCounts[key] = 0;
+    }
+
     const transaction = db.transaction(() => {
       const serviceIdMap = new Map<string, string>();
 
@@ -96,6 +210,11 @@ export function seedMockServices(config: SeedConfig): void {
       for (const service of services) {
         const dashboardServiceId = randomUUID();
         serviceIdMap.set(service.id, dashboardServiceId);
+
+        // Determine team based on service name
+        const teamKey = getTeamKeyForService(service.name);
+        const teamId = teamIds[teamKey];
+        teamCounts[teamKey]++;
 
         insertService.run(
           dashboardServiceId,
@@ -152,7 +271,16 @@ export function seedMockServices(config: SeedConfig): void {
     });
 
     transaction();
-    console.log(`Successfully seeded ${services.length} mock services into dashboard database`);
+
+    // Log team distribution
+    console.log('\nTeam distribution:');
+    for (const [teamKey, count] of Object.entries(teamCounts)) {
+      if (count > 0) {
+        console.log(`  ${TEAMS[teamKey].name}: ${count} services`);
+      }
+    }
+
+    console.log(`\nSuccessfully seeded ${services.length} mock services into dashboard database`);
 
   } finally {
     db.close();
