@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { fetchService, fetchTeams, deleteService } from '../../../api/services';
-import type { ServiceWithDependencies, TeamWithCounts, Dependency } from '../../../types/service';
+import { useServiceDetail } from '../../../hooks/useServiceDetail';
+import type { Dependency } from '../../../types/service';
 import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
@@ -14,36 +14,23 @@ import styles from './Services.module.css';
 
 function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { isAdmin } = useAuth();
 
-  const [service, setService] = useState<ServiceWithDependencies | null>(null);
-  const [teams, setTeams] = useState<TeamWithCounts[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    service,
+    teams,
+    isLoading,
+    error,
+    isDeleting,
+    isPolling,
+    loadService,
+    handleDelete,
+    handlePoll,
+  } = useServiceDetail(id);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
   const [errorHistoryDep, setErrorHistoryDep] = useState<Dependency | null>(null);
-
-  const loadService = useCallback(async () => {
-    if (!id) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [serviceData, teamsData] = await Promise.all([
-        fetchService(id),
-        fetchTeams(),
-      ]);
-      setService(serviceData);
-      setTeams(teamsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load service');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
 
   useEffect(() => {
     loadService();
@@ -54,31 +41,9 @@ function ServiceDetail() {
     loadService();
   };
 
-  const handleDelete = async () => {
-    if (!id) return;
-    setIsDeleting(true);
-    try {
-      await deleteService(id);
-      navigate('/services');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete service');
-      setIsDeleteDialogOpen(false);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handlePoll = async () => {
-    if (!id) return;
-    setIsPolling(true);
-    try {
-      const serviceData = await fetchService(id);
-      setService(serviceData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh service');
-    } finally {
-      setIsPolling(false);
-    }
+  const handleDeleteConfirm = async () => {
+    await handleDelete();
+    setIsDeleteDialogOpen(false);
   };
 
   if (isLoading) {
@@ -384,7 +349,7 @@ function ServiceDetail() {
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={handleDelete}
+        onConfirm={handleDeleteConfirm}
         title="Delete Service"
         message={`Are you sure you want to delete "${service.name}"? This action cannot be undone.`}
         confirmLabel="Delete"

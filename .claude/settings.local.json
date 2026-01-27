@@ -34,7 +34,8 @@
       "mcp__plugin_linear_linear__list_teams",
       "Bash(find:*)",
       "Bash(npx jest:*)",
-      "mcp__plugin_linear_linear__list_projects"
+      "mcp__plugin_linear_linear__list_projects",
+      "Bash(cd:*)"
     ]
   }
 }

@@ -1,53 +1,38 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
   Controls,
   MiniMap,
   Background,
-  useNodesState,
-  useEdgesState,
   useOnSelectionChange,
-  type Node,
-  type Edge,
   type EdgeMouseHandler,
   BackgroundVariant,
 } from '@xyflow/react';
-import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js';
 import '@xyflow/react/dist/style.css';
 
-import { fetchGraph } from '../../../api/graph';
-import { fetchTeams } from '../../../api/teams';
-import {
-  GraphResponse,
-  GraphNode,
-  GraphEdge,
-  ServiceNodeData,
-  GraphEdgeData,
-  getServiceHealthStatus,
-} from '../../../types/graph';
-import { TeamWithCounts } from '../../../types/team';
+import { getServiceHealthStatus } from '../../../types/graph';
 import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
 import { NodeDetailsPanel } from './NodeDetailsPanel';
 import { EdgeDetailsPanel } from './EdgeDetailsPanel';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
+import { useGraphState } from '../../../hooks/useGraphState';
+import {
+  type AppNode,
+  type AppEdge,
+  type LayoutDirection,
+  MIN_TIER_SPACING,
+  MAX_TIER_SPACING,
+  MIN_LATENCY_THRESHOLD,
+  MAX_LATENCY_THRESHOLD,
+} from '../../../utils/graphLayout';
+import {
+  getRelatedNodeIds,
+  getRelatedNodeIdsFromEdge,
+  getRelatedEdgeIds,
+} from '../../../utils/graphTraversal';
 import styles from './DependencyGraph.module.css';
-
-type AppNode = Node<ServiceNodeData, 'service'>;
-type AppEdge = Edge<GraphEdgeData, 'custom'>;
-
-const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
-const TIER_SPACING_KEY = 'graph-tier-spacing';
-const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-const DEFAULT_TIER_SPACING = 180;
-const MIN_TIER_SPACING = 80;
-const MAX_TIER_SPACING = 400;
-const DEFAULT_LATENCY_THRESHOLD = 50;
-const MIN_LATENCY_THRESHOLD = 10;
-const MAX_LATENCY_THRESHOLD = 200;
-
-type LayoutDirection = 'TB' | 'LR';
 
 const nodeTypes = {
   service: ServiceNode,
@@ -57,364 +42,43 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
-const NODE_WIDTH = 180;
-const NODE_HEIGHT = 100;
-
-const elk = new ELK();
-
-async function getLayoutedElements(
-  nodes: AppNode[],
-  edges: AppEdge[],
-  direction: 'TB' | 'LR' = 'TB',
-  tierSpacing: number = DEFAULT_TIER_SPACING
-): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
-  // ELK uses 'DOWN' for top-to-bottom and 'RIGHT' for left-to-right
-  const elkDirection = direction === 'TB' ? 'DOWN' : 'RIGHT';
-
-  const elkGraph: ElkNode = {
-    id: 'root',
-    layoutOptions: {
-      'elk.algorithm': 'layered',
-      'elk.direction': elkDirection,
-      // Node spacing within the same layer
-      'elk.spacing.nodeNode': '100',
-      // Spacing between layers (tiers)
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(tierSpacing),
-      // Edge spacing
-      'elk.spacing.edgeNode': '50',
-      'elk.spacing.edgeEdge': '30',
-      // Minimize edge crossings
-      'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
-      // Consider node size for spacing
-      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
-      // Better edge routing
-      'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
-      // Separate connected components
-      'elk.separateConnectedComponents': 'true',
-      'elk.spacing.componentComponent': '150',
-    },
-    children: nodes.map((node) => ({
-      id: node.id,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-    })),
-    edges: edges.map((edge): ElkExtendedEdge => ({
-      id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
-    })),
-  };
-
-  const layoutedGraph = await elk.layout(elkGraph);
-
-  const layoutedNodes: AppNode[] = nodes.map((node) => {
-    const elkNode = layoutedGraph.children?.find((n) => n.id === node.id);
-    return {
-      ...node,
-      position: {
-        x: elkNode?.x ?? 0,
-        y: elkNode?.y ?? 0,
-      },
-    };
-  });
-
-  return { nodes: layoutedNodes, edges };
-}
-
-async function transformGraphData(
-  data: GraphResponse,
-  direction: LayoutDirection = 'TB',
-  tierSpacing: number = DEFAULT_TIER_SPACING
-): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
-  // Calculate reported health for each node based on incoming edges
-  // (edges where the node is the SOURCE, meaning other services depend on it)
-  const reportedHealth = new Map<string, { healthy: number; unhealthy: number }>();
-
-  for (const edge of data.edges) {
-    // edge.source is the dependency provider (the service being depended upon)
-    // edge.data.healthy is what the dependent reports about this service
-    const sourceId = edge.source;
-    if (!reportedHealth.has(sourceId)) {
-      reportedHealth.set(sourceId, { healthy: 0, unhealthy: 0 });
-    }
-    const counts = reportedHealth.get(sourceId)!;
-    if (edge.data.healthy === true) {
-      counts.healthy++;
-    } else if (edge.data.healthy === false) {
-      counts.unhealthy++;
-    }
-  }
-
-  const nodes: AppNode[] = data.nodes.map((node: GraphNode) => {
-    const reported = reportedHealth.get(node.id) || { healthy: 0, unhealthy: 0 };
-    return {
-      id: node.id,
-      type: 'service' as const,
-      position: { x: 0, y: 0 },
-      data: {
-        ...node.data,
-        reportedHealthyCount: reported.healthy,
-        reportedUnhealthyCount: reported.unhealthy,
-        layoutDirection: direction,
-      },
-    };
-  });
-
-  const edges: AppEdge[] = data.edges.map((edge: GraphEdge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    type: 'custom' as const,
-    data: edge.data,
-    animated: true,
-  }));
-
-  return await getLayoutedElements(nodes, edges, direction, tierSpacing);
-}
-
-// Find all upstream nodes (nodes that the selected node depends on, following edge direction)
-function getUpstreamNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
-  const upstream = new Set<string>();
-  const visited = new Set<string>();
-  const queue = [nodeId];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    upstream.add(current);
-
-    // Follow edges where current node is the SOURCE (current depends on target)
-    for (const edge of edges) {
-      if (edge.source === current && !visited.has(edge.target)) {
-        queue.push(edge.target);
-      }
-    }
-  }
-
-  return upstream;
-}
-
-// Find all downstream nodes (nodes that depend on the selected node, following edge direction backwards)
-function getDownstreamNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
-  const downstream = new Set<string>();
-  const visited = new Set<string>();
-  const queue = [nodeId];
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    downstream.add(current);
-
-    // Follow edges where current node is the TARGET (source depends on current)
-    for (const edge of edges) {
-      if (edge.target === current && !visited.has(edge.source)) {
-        queue.push(edge.source);
-      }
-    }
-  }
-
-  return downstream;
-}
-
-// Find all nodes related to a given node (upstream + downstream, no turning around)
-function getRelatedNodeIds(nodeId: string, edges: AppEdge[]): Set<string> {
-  const upstream = getUpstreamNodeIds(nodeId, edges);
-  const downstream = getDownstreamNodeIds(nodeId, edges);
-  return new Set([...upstream, ...downstream]);
-}
-
-// Find all nodes related to an edge (only the direct chain the edge is part of)
-function getRelatedNodeIdsFromEdge(edgeId: string, edges: AppEdge[]): Set<string> {
-  const edge = edges.find((e) => e.id === edgeId);
-  if (!edge) return new Set<string>();
-
-  // For edge source→target (source depends on target):
-  // - Downstream from source: things that depend on the source
-  // - Upstream from target: things the target depends on
-  const downstreamFromSource = getDownstreamNodeIds(edge.source, edges);
-  const upstreamFromTarget = getUpstreamNodeIds(edge.target, edges);
-
-  // Combine to get just the chain this edge is part of
-  return new Set([...downstreamFromSource, ...upstreamFromTarget]);
-}
-
-// Find all edges that connect related nodes in the dependency chain
-function getRelatedEdgeIds(
-  selectedNodeId: string | null,
-  selectedEdgeId: string | null,
-  edges: AppEdge[]
-): Set<string> {
-  const relatedEdges = new Set<string>();
-
-  // For node selection: only include edges that are part of the upstream/downstream chains
-  if (selectedNodeId) {
-    const upstream = getUpstreamNodeIds(selectedNodeId, edges);
-    const downstream = getDownstreamNodeIds(selectedNodeId, edges);
-
-    for (const edge of edges) {
-      // Edge is in upstream chain: source is in upstream, target is in upstream
-      const inUpstream = upstream.has(edge.source) && upstream.has(edge.target);
-      // Edge is in downstream chain: source is in downstream, target is in downstream
-      const inDownstream = downstream.has(edge.source) && downstream.has(edge.target);
-
-      if (inUpstream || inDownstream) {
-        relatedEdges.add(edge.id);
-      }
-    }
-  } else if (selectedEdgeId) {
-    // For edge selection: only include edges in the direct chain
-    const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
-    if (selectedEdge) {
-      // Always include the selected edge itself
-      relatedEdges.add(selectedEdgeId);
-
-      const downstreamFromSource = getDownstreamNodeIds(selectedEdge.source, edges);
-      const upstreamFromTarget = getUpstreamNodeIds(selectedEdge.target, edges);
-
-      for (const edge of edges) {
-        // Edge is in downstream chain from source
-        const inDownstream = downstreamFromSource.has(edge.source) && downstreamFromSource.has(edge.target);
-        // Edge is in upstream chain from target
-        const inUpstream = upstreamFromTarget.has(edge.source) && upstreamFromTarget.has(edge.target);
-
-        if (inDownstream || inUpstream) {
-          relatedEdges.add(edge.id);
-        }
-      }
-    }
-  }
-
-  return relatedEdges;
-}
-
 function DependencyGraphInner() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<AppEdge>([]);
-  const [teams, setTeams] = useState<TeamWithCounts[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [layoutDirection, setLayoutDirection] = useState<LayoutDirection>(() => {
-    const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
-    return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
-  });
-  const [tierSpacing, setTierSpacing] = useState(() => {
-    const stored = localStorage.getItem(TIER_SPACING_KEY);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_TIER_SPACING && parsed <= MAX_TIER_SPACING) {
-        return parsed;
-      }
-    }
-    return DEFAULT_TIER_SPACING;
-  });
-  const [latencyThreshold, setLatencyThreshold] = useState(() => {
-    const stored = localStorage.getItem(LATENCY_THRESHOLD_KEY);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_LATENCY_THRESHOLD && parsed <= MAX_LATENCY_THRESHOLD) {
-        return parsed;
-      }
-    }
-    return DEFAULT_LATENCY_THRESHOLD;
-  });
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const selectedTeamRef = useRef(selectedTeam);
-  const layoutDirectionRef = useRef(layoutDirection);
-  const tierSpacingRef = useRef(tierSpacing);
-  const selectedNodeIdRef = useRef(selectedNodeId);
-  const selectedEdgeIdRef = useRef(selectedEdgeId);
-
-  // Keep refs in sync with state for use in polling callback
-  useEffect(() => {
-    selectedTeamRef.current = selectedTeam;
-  }, [selectedTeam]);
-
-  useEffect(() => {
-    layoutDirectionRef.current = layoutDirection;
-  }, [layoutDirection]);
-
-  useEffect(() => {
-    tierSpacingRef.current = tierSpacing;
-  }, [tierSpacing]);
-
-  useEffect(() => {
-    selectedNodeIdRef.current = selectedNodeId;
-  }, [selectedNodeId]);
-
-  useEffect(() => {
-    selectedEdgeIdRef.current = selectedEdgeId;
-  }, [selectedEdgeId]);
-
-  const loadData = useCallback(async (
-    teamId?: string,
-    direction: LayoutDirection = 'TB',
-    spacing: number = DEFAULT_TIER_SPACING,
-    isBackgroundRefresh = false
-  ) => {
-    if (!isBackgroundRefresh) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
-    setError(null);
-
-    try {
-      const [graphData, teamsData] = await Promise.all([
-        fetchGraph(teamId ? { team: teamId } : undefined),
-        teams.length === 0 ? fetchTeams() : Promise.resolve(teams),
-      ]);
-
-      if (teams.length === 0) {
-        setTeams(teamsData);
-      }
-
-      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, spacing);
-
-      // Preserve selection during refresh
-      const currentSelectedNodeId = selectedNodeIdRef.current;
-      const currentSelectedEdgeId = selectedEdgeIdRef.current;
-
-      const nodesWithSelection = currentSelectedNodeId
-        ? layoutedNodes.map(node => ({
-            ...node,
-            selected: node.id === currentSelectedNodeId,
-          }))
-        : layoutedNodes;
-
-      const edgesWithSelection = currentSelectedEdgeId
-        ? layoutedEdges.map(edge => ({
-            ...edge,
-            selected: edge.id === currentSelectedEdgeId,
-          }))
-        : layoutedEdges;
-
-      setNodes(nodesWithSelection);
-      setEdges(edgesWithSelection);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load graph data');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [teams, setNodes, setEdges]);
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    teams,
+    selectedTeam,
+    setSelectedTeam,
+    searchQuery,
+    setSearchQuery,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedEdgeId,
+    setSelectedEdgeId,
+    layoutDirection,
+    setLayoutDirection,
+    tierSpacing,
+    setTierSpacing,
+    latencyThreshold,
+    setLatencyThreshold,
+    isLoading,
+    isRefreshing,
+    error,
+    loadData,
+  } = useGraphState();
 
   // Initial load and team/direction/spacing change
   useEffect(() => {
-    loadData(selectedTeam || undefined, layoutDirection, tierSpacing);
+    loadData();
   }, [selectedTeam, layoutDirection, tierSpacing]);
 
   // Polling hook
   const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
     storageKey: 'graph',
     onPoll: useCallback(() => {
-      loadData(selectedTeamRef.current || undefined, layoutDirectionRef.current, tierSpacingRef.current, true);
+      loadData(true);
     }, [loadData]),
   });
 
@@ -422,24 +86,18 @@ function DependencyGraphInner() {
     setSelectedTeam(e.target.value);
   };
 
-  // Change layout direction
   const handleDirectionChange = (direction: LayoutDirection) => {
     setLayoutDirection(direction);
-    localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
   };
 
-  // Change tier spacing
   const handleTierSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSpacing = parseInt(e.target.value, 10);
     setTierSpacing(newSpacing);
-    localStorage.setItem(TIER_SPACING_KEY, String(newSpacing));
   };
 
-  // Change latency threshold
   const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newThreshold = parseInt(e.target.value, 10);
     setLatencyThreshold(newThreshold);
-    localStorage.setItem(LATENCY_THRESHOLD_KEY, String(newThreshold));
   };
 
   // Get the selected node's data for the details panel
@@ -553,7 +211,7 @@ function DependencyGraphInner() {
     onChange: ({ nodes: selectedNodes }) => {
       if (selectedNodes.length > 0) {
         setSelectedNodeId(selectedNodes[0].id);
-        setSelectedEdgeId(null); // Clear edge selection when node is selected
+        setSelectedEdgeId(null);
       } else {
         setSelectedNodeId(null);
       }
@@ -563,14 +221,14 @@ function DependencyGraphInner() {
   // Handle edge click
   const handleEdgeClick: EdgeMouseHandler<AppEdge> = useCallback((_, edge) => {
     setSelectedEdgeId(edge.id);
-    setSelectedNodeId(null); // Clear node selection when edge is selected
-  }, []);
+    setSelectedNodeId(null);
+  }, [setSelectedEdgeId, setSelectedNodeId]);
 
   // Handle pane click (deselect all)
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-  }, []);
+  }, [setSelectedNodeId, setSelectedEdgeId]);
 
   const getMiniMapNodeColor = (node: AppNode) => {
     const status = getServiceHealthStatus(node.data);
@@ -603,7 +261,7 @@ function DependencyGraphInner() {
       <div className={styles.container}>
         <div className={styles.error}>
           <span>{error}</span>
-          <button className={styles.retryButton} onClick={() => loadData(selectedTeam || undefined, layoutDirection, tierSpacing)}>
+          <button className={styles.retryButton} onClick={() => loadData()}>
             Retry
           </button>
         </div>

@@ -1,43 +1,30 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { CreateTeamInput } from '../../db/types';
+import { validateTeamCreate } from '../../utils/validation';
+import { formatNewTeam } from '../formatters';
+import { ConflictError, formatError, getErrorStatusCode } from '../../utils/errors';
 
 export function createTeam(req: Request, res: Response): void {
   try {
-    const input: CreateTeamInput = req.body;
     const stores = getStores();
 
-    // Validate required fields
-    if (!input.name || typeof input.name !== 'string' || input.name.trim() === '') {
-      res.status(400).json({ error: 'name is required and must be a non-empty string' });
-      return;
-    }
+    // Validate input using centralized validation
+    const validated = validateTeamCreate(req.body);
 
     // Check for duplicate name
-    const existing = stores.teams.findByName(input.name.trim());
-
+    const existing = stores.teams.findByName(validated.name);
     if (existing) {
-      res.status(409).json({ error: 'A team with this name already exists' });
-      return;
+      throw new ConflictError('A team with this name already exists');
     }
 
     const team = stores.teams.create({
-      name: input.name.trim(),
-      description: input.description || null,
+      name: validated.name,
+      description: validated.description,
     });
 
-    res.status(201).json({
-      ...team,
-      members: [],
-      services: [],
-      member_count: 0,
-      service_count: 0,
-    });
+    res.status(201).json(formatNewTeam(team));
   } catch (error) {
     console.error('Error creating team:', error);
-    res.status(500).json({
-      error: 'Failed to create team',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    res.status(getErrorStatusCode(error)).json(formatError(error));
   }
 }

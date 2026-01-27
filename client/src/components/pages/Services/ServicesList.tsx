@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { fetchServices, fetchTeams } from '../../../api/services';
-import type { Service, TeamWithCounts } from '../../../types/service';
+import { useServicesList } from '../../../hooks/useServicesList';
 import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ServiceForm from './ServiceForm';
@@ -13,40 +12,21 @@ import styles from './Services.module.css';
 
 function ServicesList() {
   const { isAdmin } = useAuth();
-  const [services, setServices] = useState<Service[]>([]);
-  const [teams, setTeams] = useState<TeamWithCounts[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [teamFilter, setTeamFilter] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadData = useCallback(async (isBackgroundRefresh = false) => {
-    if (!isBackgroundRefresh) {
-      setIsLoading(true);
-    } else {
-      setIsRefreshing(true);
-    }
-    setError(null);
-    try {
-      const [servicesData, teamsData] = await Promise.all([
-        fetchServices(),
-        fetchTeams(),
-      ]);
-      setServices(servicesData);
-      setTeams(teamsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load services');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  const handleRetry = () => {
-    loadData(false);
-  };
+  const {
+    services,
+    teams,
+    filteredServices,
+    isLoading,
+    isRefreshing,
+    error,
+    searchQuery,
+    setSearchQuery,
+    teamFilter,
+    setTeamFilter,
+    loadData,
+  } = useServicesList();
 
   // Initial load
   useEffect(() => {
@@ -58,16 +38,6 @@ function ServicesList() {
     storageKey: 'services',
     onPoll: useCallback(() => loadData(true), [loadData]),
   });
-
-  const filteredServices = useMemo(() => {
-    return services.filter((service) => {
-      const matchesSearch = service.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesTeam = !teamFilter || service.team_id === teamFilter;
-      return matchesSearch && matchesTeam;
-    });
-  }, [services, searchQuery, teamFilter]);
 
   const handleServiceCreated = () => {
     setIsAddModalOpen(false);
@@ -90,7 +60,7 @@ function ServicesList() {
       <div className={styles.container}>
         <div className={styles.error}>
           <p>{error}</p>
-          <button onClick={handleRetry} className={styles.retryButton}>
+          <button onClick={() => loadData(false)} className={styles.retryButton}>
             Retry
           </button>
         </div>

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getStores } from '../stores';
 import { User, TeamMember } from '../db/types';
+import { AuthorizationService } from './authorizationService';
 
 // Extend Express Request type
 declare global {
@@ -13,6 +14,9 @@ declare global {
   }
 }
 
+/**
+ * Middleware: require authenticated user
+ */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   if (!req.session.userId) {
     res.status(401).json({ error: 'Not authenticated' });
@@ -32,22 +36,18 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   next();
 }
 
+/**
+ * Middleware: require admin role
+ */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    if (req.user?.role !== 'admin') {
-      res.status(403).json({ error: 'Admin access required' });
+    const result = AuthorizationService.checkAdminAccess(req.user!);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
       return;
     }
     next();
   });
-}
-
-/**
- * Get team membership for a user
- */
-function getTeamMembership(userId: string, teamId: string): TeamMember | undefined {
-  const stores = getStores();
-  return stores.teams.getMembership(teamId, userId);
 }
 
 /**
@@ -56,27 +56,21 @@ function getTeamMembership(userId: string, teamId: string): TeamMember | undefin
  */
 export function requireTeamAccess(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    const user = req.user!;
-
-    // Admins have access to all teams
-    if (user.role === 'admin') {
-      next();
-      return;
-    }
-
     const teamId = req.params.id || req.params.teamId;
     if (!teamId) {
       res.status(400).json({ error: 'Team ID required' });
       return;
     }
 
-    const membership = getTeamMembership(user.id, teamId);
-    if (!membership) {
-      res.status(403).json({ error: 'Team access required' });
+    const result = AuthorizationService.checkTeamAccess(req.user!, teamId);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
       return;
     }
 
-    req.teamMembership = membership;
+    if (result.membership) {
+      req.teamMembership = result.membership;
+    }
     next();
   });
 }
@@ -87,27 +81,21 @@ export function requireTeamAccess(req: Request, res: Response, next: NextFunctio
  */
 export function requireTeamLead(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    const user = req.user!;
-
-    // Admins have full access
-    if (user.role === 'admin') {
-      next();
-      return;
-    }
-
     const teamId = req.params.id || req.params.teamId;
     if (!teamId) {
       res.status(400).json({ error: 'Team ID required' });
       return;
     }
 
-    const membership = getTeamMembership(user.id, teamId);
-    if (!membership || membership.role !== 'lead') {
-      res.status(403).json({ error: 'Team lead access required' });
+    const result = AuthorizationService.checkTeamLeadAccess(req.user!, teamId);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
       return;
     }
 
-    req.teamMembership = membership;
+    if (result.membership) {
+      req.teamMembership = result.membership;
+    }
     next();
   });
 }
@@ -118,36 +106,21 @@ export function requireTeamLead(req: Request, res: Response, next: NextFunction)
  */
 export function requireServiceTeamLead(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    const user = req.user!;
-
-    // Admins have full access
-    if (user.role === 'admin') {
-      next();
-      return;
-    }
-
     const serviceId = req.params.id;
     if (!serviceId) {
       res.status(400).json({ error: 'Service ID required' });
       return;
     }
 
-    // Look up the service to get its team_id
-    const stores = getStores();
-    const service = stores.services.findById(serviceId);
-
-    if (!service) {
-      res.status(404).json({ error: 'Service not found' });
+    const result = AuthorizationService.checkServiceTeamLeadAccess(req.user!, serviceId);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
       return;
     }
 
-    const membership = getTeamMembership(user.id, service.team_id);
-    if (!membership || membership.role !== 'lead') {
-      res.status(403).json({ error: 'Team lead access required' });
-      return;
+    if (result.membership) {
+      req.teamMembership = result.membership;
     }
-
-    req.teamMembership = membership;
     next();
   });
 }
@@ -158,27 +131,21 @@ export function requireServiceTeamLead(req: Request, res: Response, next: NextFu
  */
 export function requireBodyTeamLead(req: Request, res: Response, next: NextFunction): void {
   requireAuth(req, res, () => {
-    const user = req.user!;
-
-    // Admins have full access
-    if (user.role === 'admin') {
-      next();
-      return;
-    }
-
     const teamId = req.body?.team_id;
     if (!teamId) {
       res.status(400).json({ error: 'team_id required in request body' });
       return;
     }
 
-    const membership = getTeamMembership(user.id, teamId);
-    if (!membership || membership.role !== 'lead') {
-      res.status(403).json({ error: 'Team lead access required' });
+    const result = AuthorizationService.checkTeamLeadAccess(req.user!, teamId);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
       return;
     }
 
-    req.teamMembership = membership;
+    if (result.membership) {
+      req.teamMembership = result.membership;
+    }
     next();
   });
 }

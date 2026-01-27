@@ -1,16 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import {
-  fetchTeam,
-  deleteTeam,
-  fetchUsers,
-  addTeamMember,
-  updateTeamMember,
-  removeTeamMember,
-} from '../../../api/teams';
-import type { TeamWithDetails, TeamMember, TeamMemberRole } from '../../../types/team';
-import type { User } from '../../../types/user';
+import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import TeamForm from './TeamForm';
@@ -18,43 +9,34 @@ import styles from './Teams.module.css';
 
 function TeamDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const { isAdmin } = useAuth();
 
-  const [team, setTeam] = useState<TeamWithDetails | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    team,
+    availableUsers,
+    isLoading,
+    error,
+    isDeleting,
+    loadTeam,
+    handleDelete,
+    setError,
+  } = useTeamDetail(id, isAdmin);
+
+  const {
+    selectedUserId,
+    setSelectedUserId,
+    selectedRole,
+    setSelectedRole,
+    isAddingMember,
+    addMemberError,
+    actionInProgress,
+    handleAddMember,
+    handleToggleRole,
+    handleRemoveMember,
+  } = useTeamMembers(id, loadTeam, setError);
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // Add member form state
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState<TeamMemberRole>('member');
-  const [isAddingMember, setIsAddingMember] = useState(false);
-  const [addMemberError, setAddMemberError] = useState<string | null>(null);
-
-  // Member action state
-  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
-
-  const loadTeam = useCallback(async () => {
-    if (!id) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [teamData, usersData] = await Promise.all([
-        fetchTeam(id),
-        isAdmin ? fetchUsers() : Promise.resolve([]),
-      ]);
-      setTeam(teamData);
-      setUsers(usersData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load team');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id, isAdmin]);
 
   useEffect(() => {
     loadTeam();
@@ -65,67 +47,10 @@ function TeamDetail() {
     loadTeam();
   };
 
-  const handleDelete = async () => {
-    if (!id) return;
-    setIsDeleting(true);
-    try {
-      await deleteTeam(id);
-      navigate('/teams');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete team');
-      setIsDeleteDialogOpen(false);
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDeleteConfirm = async () => {
+    await handleDelete();
+    setIsDeleteDialogOpen(false);
   };
-
-  const handleAddMember = async () => {
-    if (!id || !selectedUserId) return;
-    setIsAddingMember(true);
-    setAddMemberError(null);
-    try {
-      await addTeamMember(id, { user_id: selectedUserId, role: selectedRole });
-      setSelectedUserId('');
-      setSelectedRole('member');
-      loadTeam();
-    } catch (err) {
-      setAddMemberError(err instanceof Error ? err.message : 'Failed to add member');
-    } finally {
-      setIsAddingMember(false);
-    }
-  };
-
-  const handleToggleRole = async (member: TeamMember) => {
-    if (!id) return;
-    const newRole: TeamMemberRole = member.role === 'lead' ? 'member' : 'lead';
-    setActionInProgress(member.user_id);
-    try {
-      await updateTeamMember(id, member.user_id, { role: newRole });
-      loadTeam();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update role');
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!id) return;
-    setActionInProgress(userId);
-    try {
-      await removeTeamMember(id, userId);
-      loadTeam();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove member');
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
-  // Get users that are not already members
-  const availableUsers = users.filter(
-    (user) => !team?.members.some((member) => member.user_id === user.id)
-  );
 
   if (isLoading) {
     return (
@@ -262,7 +187,7 @@ function TeamDetail() {
               <label className={styles.label}>Role</label>
               <select
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as TeamMemberRole)}
+                onChange={(e) => setSelectedRole(e.target.value as 'lead' | 'member')}
                 className={styles.select}
                 disabled={isAddingMember}
               >
@@ -400,7 +325,7 @@ function TeamDetail() {
       <ConfirmDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={handleDelete}
+        onConfirm={handleDeleteConfirm}
         title="Delete Team"
         message={`Are you sure you want to delete "${team.name}"? This will remove all team memberships. Services owned by this team will need to be reassigned.`}
         confirmLabel="Delete"
