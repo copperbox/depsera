@@ -83,20 +83,22 @@ export function ServicesProvider({ children, pollInterval = 2000 }: ServicesProv
       ]);
       setServices(servicesData);
       setFailures(failuresData);
-
-      // Update selected service if it exists
-      if (selectedService) {
-        const updated = servicesData.find(s => s.id === selectedService.id);
-        if (updated) {
-          setSelectedService(updated);
-        }
-      }
     } catch (err) {
       console.error('Failed to refresh:', err);
     } finally {
       setLoading(false);
     }
-  }, [selectedService]);
+  }, []);
+
+  // Keep selected service in sync with latest fetched data
+  useEffect(() => {
+    if (selectedService) {
+      const updated = services.find(s => s.id === selectedService.id);
+      if (updated && updated !== selectedService) {
+        setSelectedService(updated);
+      }
+    }
+  }, [services, selectedService]);
 
   // Initial load - fetch all data in parallel
   useEffect(() => {

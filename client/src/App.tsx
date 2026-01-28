@@ -10,6 +10,7 @@ import TeamsList from './components/pages/Teams/TeamsList';
 import TeamDetail from './components/pages/Teams/TeamDetail';
 import UserManagement from './components/pages/Admin/UserManagement';
 import { DependencyGraph } from './components/pages/DependencyGraph/DependencyGraph';
+import Wallboard from './components/pages/Wallboard/Wallboard';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         <Route path="teams" element={<TeamsList />} />
         <Route path="teams/:id" element={<TeamDetail />} />
         <Route path="graph" element={<DependencyGraph />} />
+        <Route path="wallboard" element={<Wallboard />} />
         <Route
           path="admin/users"
           element={
