@@ -223,6 +223,13 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
           )}
         </div>
 
+        {data.impact && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Impact</h4>
+            <p className={styles.impactText}>{data.impact}</p>
+          </div>
+        )}
+
         {data.dependencyType && (
           <div className={styles.section}>
             <h4 className={styles.sectionTitle}>Details</h4>

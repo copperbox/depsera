@@ -7,6 +7,7 @@ import type { Service, HealthStatus } from '../../../types/service';
 import styles from './Wallboard.module.css';
 
 const FILTER_KEY = 'wallboard-filter-unhealthy';
+const HIDE_NO_DEPENDENTS_KEY = 'wallboard-hide-no-dependents';
 
 function getCardClass(status: HealthStatus): string {
   switch (status) {
@@ -42,6 +43,10 @@ function Wallboard() {
   const [showUnhealthyOnly, setShowUnhealthyOnly] = useState(() => {
     return localStorage.getItem(FILTER_KEY) === 'true';
   });
+  const [hideNoDependents, setHideNoDependents] = useState(() => {
+    const stored = localStorage.getItem(HIDE_NO_DEPENDENTS_KEY);
+    return stored === null ? true : stored === 'true';
+  });
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -71,13 +76,25 @@ function Wallboard() {
     localStorage.setItem(FILTER_KEY, String(newValue));
   };
 
+  const handleHideNoDependentsChange = () => {
+    const newValue = !hideNoDependents;
+    setHideNoDependents(newValue);
+    localStorage.setItem(HIDE_NO_DEPENDENTS_KEY, String(newValue));
+  };
+
   const handleCardClick = (serviceId: string) => {
     setSelectedServiceId((prev) => (prev === serviceId ? null : serviceId));
   };
 
-  const filtered = showUnhealthyOnly
-    ? services.filter((s) => s.health.status === 'warning' || s.health.status === 'critical')
-    : services;
+  const filtered = services.filter((s) => {
+    if (showUnhealthyOnly && s.health.status !== 'warning' && s.health.status !== 'critical') {
+      return false;
+    }
+    if (hideNoDependents && s.health.dependent_count === 0) {
+      return false;
+    }
+    return true;
+  });
 
   if (isLoading) {
     return (
@@ -107,6 +124,14 @@ function Wallboard() {
         <div className={styles.header}>
           <h2 className={styles.title}>Wallboard</h2>
           <div className={styles.controls}>
+            <label className={styles.filterToggle}>
+              <input
+                type="checkbox"
+                checked={hideNoDependents}
+                onChange={handleHideNoDependentsChange}
+              />
+              Hide no dependents
+            </label>
             <label className={styles.filterToggle}>
               <input
                 type="checkbox"
@@ -143,7 +168,9 @@ function Wallboard() {
           <div className={styles.emptyState}>
             {showUnhealthyOnly
               ? 'All services are healthy!'
-              : 'No services found.'}
+              : hideNoDependents
+                ? 'No services with dependents found.'
+                : 'No services found.'}
           </div>
         ) : (
           <div className={styles.grid}>

@@ -216,6 +216,18 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
                 </li>
               ))}
             </ul>
+            {(() => {
+              const downImpacts = service.dependent_reports
+                .filter((r) => r.healthy === 0 && r.impact)
+                .map((r) => `${r.reporting_service_name}: ${r.impact}`);
+              if (downImpacts.length === 0) return null;
+              return (
+                <div className={styles.impactSummary}>
+                  <span className={styles.impactLabel}>Impact</span>
+                  <p className={styles.impactText}>{downImpacts.join(' ')}</p>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
