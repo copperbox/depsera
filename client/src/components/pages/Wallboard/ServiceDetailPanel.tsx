@@ -188,6 +188,27 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
           </div>
         )}
 
+        {service.health.status === 'critical' &&
+          service.dependencies.some((d) => d.healthy === 0 && d.impact !== null) && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Impact</h4>
+            <p className={styles.sectionDescription}>Dependencies currently reporting down</p>
+            <ul className={styles.serviceList}>
+              {service.dependencies
+                .filter((d) => d.healthy === 0 && d.impact !== null)
+                .map((dep) => (
+                  <li key={dep.id} className={styles.serviceListItem}>
+                    <span className={`${styles.healthDot} ${styles.critical}`} />
+                    <div className={styles.impactItem}>
+                      <span className={styles.impactDepName}>{dep.name}</span>
+                      <span className={styles.impactText}>{dep.impact}</span>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
+
         {service.dependent_reports.length > 0 && (
           <div className={styles.section}>
             <h4 className={styles.sectionTitle}>

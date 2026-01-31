@@ -120,7 +120,10 @@ describe('Wallboard', () => {
 
     render(<Wallboard />);
     await waitFor(() => expect(screen.getByText('Impact')).toBeInTheDocument());
-    expect(screen.getByText('Data unavailable, Slow responses')).toBeInTheDocument();
+    expect(screen.getByText('DB')).toBeInTheDocument();
+    expect(screen.getByText('Data unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Cache')).toBeInTheDocument();
+    expect(screen.getByText('Slow responses')).toBeInTheDocument();
   });
 
   it('hides impact row for non-critical services', async () => {

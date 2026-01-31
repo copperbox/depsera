@@ -207,8 +207,8 @@ function Wallboard() {
             {filtered.map((service) => {
               const latency = computeLatencySummary(service.dependent_reports);
               const isCritical = service.health.status === 'critical';
-              const impacts = isCritical
-                ? [...new Set(service.dependencies.map((d) => d.impact).filter((v): v is string => v !== null))]
+              const downDeps = isCritical
+                ? service.dependencies.filter((d) => d.healthy === 0 && d.impact !== null)
                 : [];
 
               return (
@@ -256,10 +256,17 @@ function Wallboard() {
                       </span>
                     </div>
                   </div>
-                  {impacts.length > 0 && (
+                  {downDeps.length > 0 && (
                     <div className={styles.impactRow}>
                       <span className={styles.impactLabel}>Impact</span>
-                      <span>{impacts.join(', ')}</span>
+                      <ul className={styles.impactList}>
+                        {downDeps.map((dep) => (
+                          <li key={dep.id}>
+                            <span className={styles.impactDepName}>{dep.name}</span>
+                            {dep.impact}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
