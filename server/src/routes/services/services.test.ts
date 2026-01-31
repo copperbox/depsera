@@ -69,6 +69,22 @@ describe('Services API', () => {
       )
     `);
 
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS dependency_associations (
+        id TEXT PRIMARY KEY,
+        dependency_id TEXT NOT NULL,
+        linked_service_id TEXT NOT NULL,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
+        dismissed_by TEXT,
+        dismissed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
+        FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,
+        UNIQUE (dependency_id, linked_service_id)
+      )
+    `);
+
     // Create a test team
     teamId = randomUUID();
     testDb.prepare(`
@@ -78,7 +94,8 @@ describe('Services API', () => {
   });
 
   beforeEach(() => {
-    // Clear services and dependencies before each test
+    // Clear data before each test
+    testDb.exec('DELETE FROM dependency_associations');
     testDb.exec('DELETE FROM dependencies');
     testDb.exec('DELETE FROM services');
   });
@@ -217,13 +234,17 @@ describe('Services API', () => {
       serviceId = service1Id;
     });
 
-    it('should list all services', async () => {
+    it('should list all services with dependencies and dependent_reports', async () => {
       const response = await request(app).get('/api/services');
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveLength(2);
       expect(response.body[0].team).toBeDefined();
       expect(response.body[0].health).toBeDefined();
+      expect(response.body[0].dependencies).toBeDefined();
+      expect(Array.isArray(response.body[0].dependencies)).toBe(true);
+      expect(response.body[0].dependent_reports).toBeDefined();
+      expect(Array.isArray(response.body[0].dependent_reports)).toBe(true);
     });
 
     it('should filter by team_id', async () => {
@@ -250,20 +271,19 @@ describe('Services API', () => {
       });
     });
 
-    it('should include correct health status', async () => {
+    it('should include correct health status and dependencies', async () => {
       const response = await request(app).get('/api/services');
 
-      // Service A has mixed dependencies (one healthy, one unhealthy)
+      // Service A has dependencies
       const serviceA = response.body.find((s: { name: string }) => s.name === 'Service A');
-      expect(serviceA.health.status).toBe('unhealthy');
-      expect(serviceA.health.healthy_count).toBe(1);
-      expect(serviceA.health.unhealthy_count).toBe(1);
-      expect(serviceA.health.total_dependencies).toBe(2);
+      expect(serviceA.dependencies).toHaveLength(2);
+      expect(serviceA.health).toBeDefined();
+      expect(serviceA.health.status).toBe('no_dependents'); // no dependency_associations linked
 
       // Service B has no dependencies
       const serviceB = response.body.find((s: { name: string }) => s.name === 'Service B');
-      expect(serviceB.health.status).toBe('unknown');
-      expect(serviceB.health.total_dependencies).toBe(0);
+      expect(serviceB.dependencies).toHaveLength(0);
+      expect(serviceB.health.status).toBe('no_dependents');
     });
   });
 

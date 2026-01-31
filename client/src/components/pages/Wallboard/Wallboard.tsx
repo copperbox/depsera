@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchServices } from '../../../api/services';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import { ServiceDetailPanel } from './ServiceDetailPanel';
-import type { Service, HealthStatus } from '../../../types/service';
+import type { ServiceWithDependencies, HealthStatus } from '../../../types/service';
 import styles from './Wallboard.module.css';
 
 const FILTER_KEY = 'wallboard-filter-unhealthy';
+const TEAM_FILTER_KEY = 'wallboard-filter-team';
 
 function getCardClass(status: HealthStatus): string {
   switch (status) {
@@ -34,13 +35,27 @@ function getStatusClass(status: HealthStatus): string {
   }
 }
 
+function computeLatencySummary(
+  reports: ServiceWithDependencies['dependent_reports']
+): { min: number; avg: number; max: number } | null {
+  const values = reports.map((r) => r.latency_ms).filter((v): v is number => v !== null);
+  if (values.length === 0) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+  return { min, avg, max };
+}
+
 function Wallboard() {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceWithDependencies[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [showUnhealthyOnly, setShowUnhealthyOnly] = useState(() => {
     return localStorage.getItem(FILTER_KEY) === 'true';
+  });
+  const [selectedTeamId, setSelectedTeamId] = useState(() => {
+    return localStorage.getItem(TEAM_FILTER_KEY) || '';
   });
 
   const loadData = useCallback(async (silent = false) => {
@@ -65,19 +80,48 @@ function Wallboard() {
     onPoll: useCallback(() => loadData(true), [loadData]),
   });
 
+  const teams = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of services) {
+      if (s.team && !map.has(s.team.id)) {
+        map.set(s.team.id, s.team.name);
+      }
+    }
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [services]);
+
   const handleFilterChange = () => {
     const newValue = !showUnhealthyOnly;
     setShowUnhealthyOnly(newValue);
     localStorage.setItem(FILTER_KEY, String(newValue));
   };
 
+  const handleTeamFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedTeamId(value);
+    if (value) {
+      localStorage.setItem(TEAM_FILTER_KEY, value);
+    } else {
+      localStorage.removeItem(TEAM_FILTER_KEY);
+    }
+  };
+
   const handleCardClick = (serviceId: string) => {
     setSelectedServiceId((prev) => (prev === serviceId ? null : serviceId));
   };
 
-  const filtered = showUnhealthyOnly
-    ? services.filter((s) => s.health.status === 'warning' || s.health.status === 'critical')
-    : services;
+  const filtered = useMemo(() => {
+    let result = services;
+    if (selectedTeamId) {
+      result = result.filter((s) => s.team.id === selectedTeamId);
+    }
+    if (showUnhealthyOnly) {
+      result = result.filter((s) => s.health.status === 'warning' || s.health.status === 'critical');
+    }
+    return result;
+  }, [services, selectedTeamId, showUnhealthyOnly]);
 
   if (isLoading) {
     return (
@@ -107,6 +151,19 @@ function Wallboard() {
         <div className={styles.header}>
           <h2 className={styles.title}>Wallboard</h2>
           <div className={styles.controls}>
+            <select
+              className={styles.teamSelect}
+              value={selectedTeamId}
+              onChange={handleTeamFilterChange}
+              aria-label="Filter by team"
+            >
+              <option value="">All teams</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
             <label className={styles.filterToggle}>
               <input
                 type="checkbox"
@@ -147,43 +204,67 @@ function Wallboard() {
           </div>
         ) : (
           <div className={styles.grid}>
-            {filtered.map((service) => (
-              <div
-                key={service.id}
-                className={`${styles.card} ${getCardClass(service.health.status)} ${selectedServiceId === service.id ? styles.cardSelected : ''}`}
-                onClick={() => handleCardClick(service.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleCardClick(service.id);
-                  }
-                }}
-              >
-                <span className={styles.cardName}>{service.name}</span>
-                <div className={styles.cardMeta}>
-                  <div className={styles.cardMetaRow}>
-                    <span>Status</span>
-                    <span className={`${styles.statusBadge} ${getStatusClass(service.health.status)}`}>
-                      {service.health.status}
-                    </span>
+            {filtered.map((service) => {
+              const latency = computeLatencySummary(service.dependent_reports);
+              const isCritical = service.health.status === 'critical';
+              const impacts = isCritical
+                ? [...new Set(service.dependencies.map((d) => d.impact).filter((v): v is string => v !== null))]
+                : [];
+
+              return (
+                <div
+                  key={service.id}
+                  className={`${styles.card} ${getCardClass(service.health.status)} ${selectedServiceId === service.id ? styles.cardSelected : ''}`}
+                  onClick={() => handleCardClick(service.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleCardClick(service.id);
+                    }
+                  }}
+                >
+                  <span className={styles.cardName}>{service.name}</span>
+                  <div className={styles.cardMeta}>
+                    <div className={styles.cardMetaRow}>
+                      <span>Status</span>
+                      <span className={`${styles.statusBadge} ${getStatusClass(service.health.status)}`}>
+                        {service.health.status}
+                      </span>
+                    </div>
+                    <div className={styles.cardMetaRow}>
+                      <span>Team</span>
+                      <span>{service.team.name}</span>
+                    </div>
+                    <div className={styles.cardMetaRow}>
+                      <span>Dependents</span>
+                      <span>{service.health.dependent_count}</span>
+                    </div>
+                    {latency && (
+                      <div className={styles.cardMetaRow}>
+                        <span>Latency</span>
+                        <span>{latency.min} / {latency.avg} / {latency.max} ms</span>
+                      </div>
+                    )}
+                    <div className={styles.cardMetaRow}>
+                      <span>Last report</span>
+                      <span>
+                        {service.health.last_report
+                          ? formatRelativeTime(service.health.last_report)
+                          : 'Never'}
+                      </span>
+                    </div>
                   </div>
-                  <div className={styles.cardMetaRow}>
-                    <span>Dependents</span>
-                    <span>{service.health.dependent_count}</span>
-                  </div>
-                  <div className={styles.cardMetaRow}>
-                    <span>Last report</span>
-                    <span>
-                      {service.health.last_report
-                        ? formatRelativeTime(service.health.last_report)
-                        : 'Never'}
-                    </span>
-                  </div>
+                  {impacts.length > 0 && (
+                    <div className={styles.impactRow}>
+                      <span className={styles.impactLabel}>Impact</span>
+                      <span>{impacts.join(', ')}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -78,7 +78,8 @@
   background-color: var(--color-primary-hover);
 }
 
-.intervalSelect {
+.intervalSelect,
+.teamSelect {
   padding: 0.375rem 0.5rem;
   font-size: 0.8rem;
   border: 1px solid var(--color-border);
@@ -187,6 +188,23 @@
 .statusUnknown {
   background-color: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
   color: var(--color-text-muted);
+}
+
+/* Impact row */
+.impactRow {
+  margin-top: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  background-color: color-mix(in srgb, var(--color-error) 8%, transparent);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.impactLabel {
+  font-weight: 600;
+  margin-right: 0.375rem;
+  color: var(--color-error);
 }
 
 /* States */
