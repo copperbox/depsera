@@ -152,7 +152,8 @@ export class DependencyStore implements IDependencyStore {
           d.healthy,
           d.health_state,
           d.latency_ms,
-          d.last_checked
+          d.last_checked,
+          d.impact
         FROM dependency_associations da
         JOIN dependencies d ON da.dependency_id = d.id
         JOIN services s ON d.service_id = s.id

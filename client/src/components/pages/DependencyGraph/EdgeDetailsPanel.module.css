@@ -280,6 +280,14 @@
   text-align: center;
 }
 
+/* Impact */
+.impactText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
 /* Details grid */
 .detailsGrid {
   display: flex;
