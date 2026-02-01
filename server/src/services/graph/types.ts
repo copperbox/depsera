@@ -65,6 +65,7 @@ export interface GraphEdgeData {
   checkDetails?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string | null;
+  impact?: string | null;
 }
 
 /**

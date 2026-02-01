@@ -41,6 +41,7 @@ export interface DependentReport {
   health_state: HealthState | null;
   latency_ms: number | null;
   last_checked: string | null;
+  impact: string | null;
 }
 
 export interface Service {

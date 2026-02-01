@@ -143,6 +143,7 @@ export class DependencyGraphBuilder {
       checkDetails,
       error,
       errorMessage: dep.error_message,
+      impact: dep.impact,
     };
   }
 }
