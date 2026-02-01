@@ -2,6 +2,8 @@
 
 A dashboard to review and manage all tracked dependencies and services. Monitor service health, visualize dependency relationships, and track issues across teams.
 
+> **Note:** This project is in early stages of development and is not ready for production deployment.
+
 ## Features
 
 - **Dashboard Overview** — Summary of service health across all teams with quick links to issues and recent activity
@@ -202,7 +204,7 @@ npm run mock:reset
 
 ### Control Panel
 
-Access the control panel at http://localhost:4000/control/ to:
+Access the control panel at http://localhost:3010 to:
 - View the service topology organized by tier (Frontend, API, Backend, Database)
 - Click services to view details and dependencies
 - Inject failures into individual services
