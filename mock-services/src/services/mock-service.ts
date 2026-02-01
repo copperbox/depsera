@@ -164,7 +164,7 @@ export class MockService {
     const statuses: DependencyStatus[] = [];
 
     for (const dep of this.dependencies) {
-      const status = await this.checkDependencyHealth(dep.id, dep.type);
+      const status = await this.checkDependencyHealth(dep.id, dep.type, dep.externalUrl, dep.externalName);
       statuses.push(status);
     }
 

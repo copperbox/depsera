@@ -11,7 +11,8 @@ describe('DependencyGraphBuilder', () => {
     team_name: 'Test Team',
     health_endpoint: `http://${name}.local/health`,
     metrics_endpoint: null,
-    polling_interval: 30,
+    last_poll_success: null,
+    last_poll_error: null,
     is_active: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -192,6 +193,94 @@ describe('DependencyGraphBuilder', () => {
 
     it('should return false for non-existing node', () => {
       expect(builder.hasNode('svc-1')).toBe(false);
+    });
+  });
+
+  describe('addExternalNode', () => {
+    it('should add an external node', () => {
+      builder.addExternalNode('external-abc', {
+        name: 'Redis',
+        teamId: 'external',
+        teamName: 'External',
+        healthEndpoint: '',
+        isActive: true,
+        dependencyCount: 2,
+        healthyCount: 2,
+        unhealthyCount: 0,
+        lastPollSuccess: null,
+        lastPollError: null,
+        isExternal: true,
+      });
+
+      const graph = builder.build();
+      expect(graph.nodes).toHaveLength(1);
+      expect(graph.nodes[0].id).toBe('external-abc');
+      expect(graph.nodes[0].data.isExternal).toBe(true);
+    });
+
+    it('should not add duplicate external nodes', () => {
+      const data = {
+        name: 'Redis',
+        teamId: 'external',
+        teamName: 'External',
+        healthEndpoint: '',
+        isActive: true,
+        dependencyCount: 1,
+        healthyCount: 1,
+        unhealthyCount: 0,
+        lastPollSuccess: null,
+        lastPollError: null,
+        isExternal: true as const,
+      };
+
+      builder.addExternalNode('external-abc', data);
+      builder.addExternalNode('external-abc', data);
+
+      const graph = builder.build();
+      expect(graph.nodes).toHaveLength(1);
+    });
+  });
+
+  describe('addEdge with external node map', () => {
+    it('should create edge to external node for unassociated dep', () => {
+      const service = createService('svc-1', 'User Service');
+      builder.addServiceNode(service, []);
+      builder.addExternalNode('external-redis', {
+        name: 'Redis',
+        teamId: 'external',
+        teamName: 'External',
+        healthEndpoint: '',
+        isActive: true,
+        dependencyCount: 1,
+        healthyCount: 1,
+        unhealthyCount: 0,
+        lastPollSuccess: null,
+        lastPollError: null,
+        isExternal: true,
+      });
+
+      builder.setExternalNodeMap(new Map([['redis', 'external-redis']]));
+
+      const dep = createDependency('svc-1', null);
+      dep.name = 'Redis';
+      builder.addEdge(dep);
+
+      const graph = builder.build();
+      expect(graph.edges).toHaveLength(1);
+      expect(graph.edges[0].source).toBe('external-redis');
+      expect(graph.edges[0].target).toBe('svc-1');
+    });
+
+    it('should not create edge if no external node map set', () => {
+      const service = createService('svc-1', 'User Service');
+      builder.addServiceNode(service, []);
+
+      const dep = createDependency('svc-1', null);
+      dep.name = 'Redis';
+      builder.addEdge(dep);
+
+      const graph = builder.build();
+      expect(graph.edges).toHaveLength(0);
     });
   });
 

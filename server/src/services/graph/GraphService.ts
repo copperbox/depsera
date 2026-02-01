@@ -11,6 +11,7 @@ import {
 import { ServiceWithTeam, DependencyWithTarget, GraphResponse } from './types';
 import { ServiceTypeInferencer } from './ServiceTypeInferencer';
 import { DependencyGraphBuilder } from './DependencyGraphBuilder';
+import { ExternalNodeBuilder } from './ExternalNodeBuilder';
 import { groupByKey } from '../../utils/deduplication';
 
 /**
@@ -78,11 +79,14 @@ export class GraphService {
       builder.addServiceNode(service, serviceDeps, serviceTypes.get(service.id));
     }
 
-    // Find external services and add them
+    // Find external services (associated but from other teams) and add them
     const externalServiceIds = this.findExternalServiceIds(dependencies, builder);
     if (externalServiceIds.length > 0) {
       this.addExternalServices(builder, externalServiceIds, serviceTypes);
     }
+
+    // Add external nodes for unassociated dependencies
+    this.addExternalNodes(builder, dependencies);
 
     // Add edges
     for (const dep of dependencies) {
@@ -111,6 +115,9 @@ export class GraphService {
     for (const { service, deps } of serviceData) {
       builder.addServiceNode(service, deps, serviceTypes.get(service.id));
     }
+
+    // Add external nodes for unassociated dependencies
+    this.addExternalNodes(builder, allDependencies);
 
     // Build edges
     for (const { deps } of serviceData) {
@@ -152,12 +159,33 @@ export class GraphService {
       builder.addServiceNode(service, serviceDeps, serviceTypes.get(service.id));
     }
 
+    // Add external nodes for unassociated dependencies
+    this.addExternalNodes(builder, dependencies);
+
     // Add edges
     for (const dep of dependencies) {
       builder.addEdge(dep);
     }
 
     return builder.build();
+  }
+
+  /**
+   * Add external (virtual) nodes for unassociated dependencies.
+   */
+  private addExternalNodes(
+    builder: DependencyGraphBuilder,
+    dependencies: DependencyWithTarget[]
+  ): void {
+    const groups = ExternalNodeBuilder.groupUnassociatedDeps(dependencies);
+    if (groups.size === 0) return;
+
+    for (const [, group] of groups) {
+      const nodeData = ExternalNodeBuilder.buildNodeData(group.name, group.deps);
+      builder.addExternalNode(group.id, nodeData);
+    }
+
+    builder.setExternalNodeMap(ExternalNodeBuilder.buildNameToIdMap(groups));
   }
 
   /**

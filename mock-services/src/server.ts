@@ -1,6 +1,7 @@
 import * as http from 'http';
 import { ServiceRegistry } from './services/service-registry';
 import { FailureController } from './failures/failure-controller';
+import { FailureMode } from './failures/types';
 import { createControlRoutes } from './control/api-routes';
 
 export interface ServerConfig {
@@ -31,6 +32,13 @@ export function createServer(config: ServerConfig): http.Server {
       if (pathParts[0] === 'control') {
         await controlRoutes.handle(req, res, pathParts.slice(1));
         return;
+      }
+
+      if (pathParts.length === 2 && (pathParts[1] === 'health' || pathParts[1] === 'dependencies')) {
+        // If unresponsive, never respond — request hangs until caller times out
+        if (registry.getServiceFailureMode(pathParts[0]) === FailureMode.UNRESPONSIVE) {
+          return;
+        }
       }
 
       if (pathParts.length === 2 && pathParts[1] === 'health') {

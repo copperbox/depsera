@@ -223,51 +223,47 @@ export function seedDatabase(db: Database): void {
   const notificationServiceId = randomUUID();
 
   db.prepare(`
-    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint)
+    VALUES (?, ?, ?, ?, ?)
   `).run(
     userServiceId,
     'User Service',
     teamIds.identity,  // Identity team owns user management
     'http://localhost:4001/dependencies',
-    'http://localhost:4001/metrics',
-    30
+    'http://localhost:4001/metrics'
   );
 
   db.prepare(`
-    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint)
+    VALUES (?, ?, ?, ?, ?)
   `).run(
     authServiceId,
     'Auth Service',
     teamIds.identity,  // Identity team owns authentication
     'http://localhost:4002/dependencies',
-    'http://localhost:4002/metrics',
-    30
+    'http://localhost:4002/metrics'
   );
 
   db.prepare(`
-    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint)
+    VALUES (?, ?, ?, ?, ?)
   `).run(
     paymentServiceId,
     'Payment Service',
     teamIds.payments,  // Payments team owns payment processing
     'http://localhost:4003/dependencies',
-    'http://localhost:4003/metrics',
-    15
+    'http://localhost:4003/metrics'
   );
 
   db.prepare(`
-    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint)
+    VALUES (?, ?, ?, ?, ?)
   `).run(
     notificationServiceId,
     'Notification Service',
     teamIds.platform,  // Platform team owns notification infrastructure
     'http://localhost:4004/dependencies',
-    'http://localhost:4004/metrics',
-    60
+    'http://localhost:4004/metrics'
   );
 
   // Create sample dependencies

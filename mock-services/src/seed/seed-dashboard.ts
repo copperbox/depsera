@@ -183,8 +183,8 @@ export function seedMockServices(config: SeedConfig): void {
     const now = new Date().toISOString();
 
     const insertService = db.prepare(`
-      INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertDependency = db.prepare(`
@@ -222,7 +222,6 @@ export function seedMockServices(config: SeedConfig): void {
           teamId,
           `${mockServicesBaseUrl}/${service.name}/dependencies`,
           `${mockServicesBaseUrl}/${service.name}/metrics`,
-          30,
           1,
           now,
           now
@@ -236,6 +235,25 @@ export function seedMockServices(config: SeedConfig): void {
 
         if (topoService && topoService.dependencies.length > 0) {
           for (const topoDep of topoService.dependencies) {
+            // External API dependency — no linked internal service
+            if (topoDep.externalUrl) {
+              const dependencyId = randomUUID();
+              const extName = topoDep.externalName || topoDep.externalUrl;
+
+              insertDependency.run(
+                dependencyId,
+                dashboardServiceId,
+                extName,
+                `External dependency: ${extName}`,
+                `Service may be affected if ${extName} is unavailable`,
+                topoDep.type,
+                now,
+                now
+              );
+              // No association row for external deps
+              continue;
+            }
+
             const depService = registry.getService(topoDep.serviceId);
             if (depService) {
               const depDashboardId = serviceIdMap.get(depService.id);

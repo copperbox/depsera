@@ -39,6 +39,8 @@ export interface ServiceHealth {
 export interface DependencyConfig {
   id: string;
   type: DependencyType;
+  externalUrl?: string;
+  externalName?: string;
 }
 
 export interface MockServiceConfig {
@@ -48,4 +50,4 @@ export interface MockServiceConfig {
   dependencies: DependencyConfig[];
 }
 
-export type HealthCheckCallback = (serviceId: string, depType: DependencyType) => Promise<DependencyStatus>;
+export type HealthCheckCallback = (serviceId: string, depType: DependencyType, externalUrl?: string, externalName?: string) => Promise<DependencyStatus>;

@@ -2,12 +2,14 @@ import { DependencyType } from '../../db/types';
 import {
   ServiceWithTeam,
   DependencyWithTarget,
+  ServiceNodeData,
   GraphNode,
   GraphEdge,
   GraphEdgeData,
   GraphResponse,
 } from './types';
 import { deduplicateById } from '../../utils/deduplication';
+import { ExternalNodeBuilder } from './ExternalNodeBuilder';
 
 /**
  * Builds a dependency graph with service nodes and dependency edges.
@@ -17,6 +19,7 @@ export class DependencyGraphBuilder {
   private edges: GraphEdge[] = [];
   private nodeIds = new Set<string>();
   private edgeIds = new Set<string>();
+  private externalNodeMap: Map<string, string> | null = null;
 
   /**
    * Add a service node to the graph.
@@ -48,6 +51,8 @@ export class DependencyGraphBuilder {
         dependencyCount: uniqueDeps.length,
         healthyCount,
         unhealthyCount,
+        lastPollSuccess: service.last_poll_success === null ? null : service.last_poll_success === 1,
+        lastPollError: service.last_poll_error ?? null,
         serviceType,
       },
     });
@@ -56,15 +61,41 @@ export class DependencyGraphBuilder {
   }
 
   /**
+   * Add an external (virtual) node to the graph.
+   */
+  addExternalNode(id: string, data: ServiceNodeData): void {
+    if (this.nodeIds.has(id)) return;
+
+    this.nodes.push({ id, type: 'service', data });
+    this.nodeIds.add(id);
+  }
+
+  /**
+   * Set the external node map for resolving unassociated dependencies to external nodes.
+   * Map keys are normalized dependency names, values are external node IDs.
+   */
+  setExternalNodeMap(map: Map<string, string>): void {
+    this.externalNodeMap = map;
+  }
+
+  /**
    * Add an edge for a dependency relationship.
    * Edge direction represents data flow: from dependency (provider) to dependent (consumer).
    * @param dep - The dependency with target service info
    */
   addEdge(dep: DependencyWithTarget): void {
-    if (!dep.target_service_id) return;
-    if (!this.nodeIds.has(dep.target_service_id)) return;
+    let sourceId = dep.target_service_id;
 
-    const edgeId = `${dep.target_service_id}-${dep.service_id}-${dep.type}`;
+    // If no target_service_id, try to resolve via external node map
+    if (!sourceId && this.externalNodeMap) {
+      const normalized = ExternalNodeBuilder.normalizeDepName(dep.name);
+      sourceId = this.externalNodeMap.get(normalized) ?? null;
+    }
+
+    if (!sourceId) return;
+    if (!this.nodeIds.has(sourceId)) return;
+
+    const edgeId = `${sourceId}-${dep.service_id}-${dep.type}`;
 
     // Avoid duplicate edges for same source->target->type
     if (this.edgeIds.has(edgeId)) return;
@@ -72,7 +103,7 @@ export class DependencyGraphBuilder {
     this.edgeIds.add(edgeId);
     this.edges.push({
       id: edgeId,
-      source: dep.target_service_id,
+      source: sourceId,
       target: dep.service_id,
       data: this.createEdgeData(dep),
     });
@@ -103,6 +134,7 @@ export class DependencyGraphBuilder {
     this.edges = [];
     this.nodeIds.clear();
     this.edgeIds.clear();
+    this.externalNodeMap = null;
   }
 
   /**

@@ -4,8 +4,7 @@ export type HealthStatus =
   | 'healthy'
   | 'warning'
   | 'critical'
-  | 'unknown'
-  | 'no_dependents';
+  | 'unknown';
 
 export interface Team {
   id: string;
@@ -50,8 +49,9 @@ export interface Service {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
-  polling_interval: number;
   is_active: number;
+  last_poll_success: number | null;
+  last_poll_error: string | null;
   created_at: string;
   updated_at: string;
   team: Team;
@@ -84,7 +84,6 @@ export interface CreateServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string;
-  polling_interval?: number;
 }
 
 export interface UpdateServiceInput {
@@ -92,6 +91,5 @@ export interface UpdateServiceInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
-  polling_interval?: number;
   is_active?: boolean;
 }

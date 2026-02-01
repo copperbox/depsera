@@ -15,7 +15,6 @@ const healthStatusLabels: Record<HealthStatus, string> = {
   warning: 'Warning',
   critical: 'Critical',
   unknown: 'Unknown',
-  no_dependents: 'No Dependents',
 };
 
 function getHealthClass(status: HealthStatus): string {
@@ -118,6 +117,15 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
             <span className={styles.statusDot} />
             {healthStatusLabels[service.health.status]}
           </div>
+          {service.last_poll_success === 0 && (
+            <div className={styles.pollFailure}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3M8 10v1" />
+              </svg>
+              Poll failed{service.last_poll_error ? `: ${service.last_poll_error}` : ''}
+            </div>
+          )}
         </div>
 
         <div className={styles.section}>
@@ -184,6 +192,27 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
                   )}
                 </li>
               ))}
+            </ul>
+          </div>
+        )}
+
+        {service.health.status === 'critical' &&
+          service.dependencies.some((d) => d.healthy === 0 && d.impact !== null) && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Impact</h4>
+            <p className={styles.sectionDescription}>Dependencies currently reporting down</p>
+            <ul className={styles.serviceList}>
+              {service.dependencies
+                .filter((d) => d.healthy === 0 && d.impact !== null)
+                .map((dep) => (
+                  <li key={dep.id} className={styles.serviceListItem}>
+                    <span className={`${styles.healthDot} ${styles.critical}`} />
+                    <div className={styles.impactItem}>
+                      <span className={styles.impactDepName}>{dep.name}</span>
+                      <span className={styles.impactText}>{dep.impact}</span>
+                    </div>
+                  </li>
+                ))}
             </ul>
           </div>
         )}

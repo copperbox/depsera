@@ -202,10 +202,14 @@ function ServiceDetail() {
               </span>
             </div>
           )}
-          <div className={styles.metadataItem}>
-            <span className={styles.metadataLabel}>Polling Interval</span>
-            <span className={styles.metadataValue}>{service.polling_interval}s</span>
-          </div>
+          {service.last_poll_success === 0 && (
+            <div className={styles.metadataItem}>
+              <span className={styles.metadataLabel}>Poll Status</span>
+              <span className={styles.metadataValue} style={{ color: 'var(--color-error, #dc3545)' }}>
+                Failed: {service.last_poll_error || 'Unknown error'}
+              </span>
+            </div>
+          )}
           <div className={styles.metadataItem}>
             <span className={styles.metadataLabel}>Last Updated</span>
             <span className={styles.metadataValue}>{formatRelativeTime(service.updated_at)}</span>

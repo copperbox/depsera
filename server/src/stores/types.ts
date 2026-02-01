@@ -132,7 +132,6 @@ export interface ServiceCreateInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string | null;
-  polling_interval?: number;
 }
 
 export interface ServiceUpdateInput {
@@ -140,7 +139,6 @@ export interface ServiceUpdateInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string | null;
-  polling_interval?: number;
   is_active?: boolean;
 }
 

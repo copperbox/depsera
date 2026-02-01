@@ -65,8 +65,9 @@ export interface Service {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
-  polling_interval: number;
   is_active: number; // SQLite boolean
+  last_poll_success: number | null; // SQLite boolean (0/1)
+  last_poll_error: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,7 +77,6 @@ export interface CreateServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string;
-  polling_interval?: number;
 }
 
 export interface UpdateServiceInput {
@@ -84,7 +84,6 @@ export interface UpdateServiceInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
-  polling_interval?: number;
   is_active?: boolean;
 }
 
@@ -210,8 +209,7 @@ export type AggregatedHealthStatus =
   | 'healthy'
   | 'warning'
   | 'critical'
-  | 'unknown'
-  | 'no_dependents';
+  | 'unknown';
 
 export interface AggregatedHealth {
   status: AggregatedHealthStatus;

@@ -240,7 +240,7 @@ function Dashboard() {
                           <path d="M10 6l-4 4M6 6l4 4" />
                         </svg>
                       )}
-                      {(service.health.status === 'unknown' || service.health.status === 'no_dependents') && (
+                      {service.health.status === 'unknown' && (
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="8" cy="8" r="6" />
                           <path d="M8 5v3M8 10v1" />

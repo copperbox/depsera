@@ -91,6 +91,25 @@
 .statusSection {
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pollFailure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--color-warning);
+  line-height: 1.3;
+}
+
+.pollFailure svg {
+  flex-shrink: 0;
 }
 
 .statusBadge {
@@ -304,27 +323,22 @@
   flex-shrink: 0;
 }
 
-.impactSummary {
-  margin-top: 12px;
-  padding: 10px;
-  background: var(--color-error-bg);
-  border: 1px solid var(--color-error);
-  border-radius: 6px;
+.impactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.impactLabel {
-  font-size: 11px;
+.impactDepName {
+  font-size: 13px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-error);
+  color: var(--color-text-primary);
 }
 
 .impactText {
-  margin: 4px 0 0;
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--color-text-primary);
+  color: var(--color-text-muted);
 }
 
 .actions {

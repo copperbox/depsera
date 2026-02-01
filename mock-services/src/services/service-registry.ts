@@ -1,3 +1,5 @@
+import * as http from 'http';
+import * as https from 'https';
 import { Topology, GeneratedService, ServiceTier } from '../topology/types';
 import { FailureState, FailureMode } from '../failures/types';
 import { MockService } from './mock-service';
@@ -124,7 +126,9 @@ export class ServiceRegistry {
           tier: genService.tier,
           dependencies: genService.dependencies.map(dep => ({
             id: dep.serviceId,
-            type: dep.type
+            type: dep.type,
+            externalUrl: dep.externalUrl,
+            externalName: dep.externalName
           }))
         },
         this.createHealthCheckCallback()
@@ -135,8 +139,23 @@ export class ServiceRegistry {
     }
   }
 
+  private externalCheckCache = new Map<string, { result: DependencyStatus; checkedAt: number }>();
+  private static readonly EXTERNAL_CHECK_INTERVAL_MS = 30_000;
+
   private createHealthCheckCallback() {
-    return async (serviceId: string, depType: DependencyType): Promise<DependencyStatus> => {
+    return async (serviceId: string, depType: DependencyType, externalUrl?: string, externalName?: string): Promise<DependencyStatus> => {
+      // Handle external URL dependencies with a real HTTP request, throttled
+      if (externalUrl) {
+        const cached = this.externalCheckCache.get(externalUrl);
+        const now = Date.now();
+        if (cached && (now - cached.checkedAt) < ServiceRegistry.EXTERNAL_CHECK_INTERVAL_MS) {
+          return { ...cached.result, lastChecked: new Date().toISOString() };
+        }
+        const result = await this.checkExternalDependency(externalUrl, externalName || externalUrl, depType);
+        this.externalCheckCache.set(externalUrl, { result, checkedAt: now });
+        return result;
+      }
+
       const service = this.services.get(serviceId);
       if (!service) {
         return {
@@ -197,8 +216,71 @@ export class ServiceRegistry {
     };
   }
 
+  private async checkExternalDependency(
+    url: string,
+    name: string,
+    depType: DependencyType
+  ): Promise<DependencyStatus> {
+    const start = Date.now();
+    try {
+      const statusCode = await new Promise<number>((resolve, reject) => {
+        const client = url.startsWith('https') ? https : http;
+        const req = client.get(url, { timeout: 5000 }, (res) => {
+          // Consume body to free socket
+          res.resume();
+          resolve(res.statusCode || 0);
+        });
+        req.on('error', reject);
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+      });
+
+      const latency = Date.now() - start;
+      const healthy = statusCode >= 200 && statusCode < 300;
+
+      return {
+        name,
+        description: `External dependency: ${name}`,
+        type: depType,
+        healthy,
+        healthCode: statusCode,
+        latencyMs: latency,
+        lastChecked: new Date().toISOString(),
+        checkDetails: { url },
+        ...(!healthy ? {
+          errorMessage: `External API returned ${statusCode}`,
+          error: { code: 'EHTTPSTATUS', statusCode }
+        } : {})
+      };
+    } catch (err) {
+      const latency = Date.now() - start;
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return {
+        name,
+        description: `External dependency: ${name}`,
+        type: depType,
+        healthy: false,
+        healthCode: 0,
+        latencyMs: latency,
+        lastChecked: new Date().toISOString(),
+        checkDetails: { url },
+        errorMessage: message,
+        error: { code: 'EEXTERNAL', message }
+      };
+    }
+  }
+
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  public getServiceFailureMode(idOrName: string): FailureMode | null {
+    const service = this.getService(idOrName);
+    if (!service) return null;
+    const state = service.getFailureState();
+    return state ? state.mode : null;
   }
 
   public getService(idOrName: string): MockService | undefined {
@@ -287,6 +369,7 @@ export class ServiceRegistry {
     for (const service of this.services.values()) {
       const failureState = service.getFailureState();
       // Service is unhealthy if it has an active failure (except high_latency which is still "healthy")
+      // Unresponsive services are also unhealthy
       const isUnhealthy = failureState !== null &&
         failureState.mode !== FailureMode.HIGH_LATENCY;
 

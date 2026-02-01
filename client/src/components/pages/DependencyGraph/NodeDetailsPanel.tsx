@@ -43,6 +43,7 @@ function formatLatency(latencyMs: number | null | undefined): string {
 
 function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: NodeDetailsPanelProps) {
   const healthStatus = getServiceHealthStatus(data);
+  const isExternal = data.isExternal === true;
 
   // Build a map of node IDs to names for lookup
   const nodeNameMap = useMemo(() => {
@@ -84,7 +85,10 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3 className={styles.title}>{data.name}</h3>
+        <div className={styles.titleRow}>
+          <h3 className={styles.title}>{data.name}</h3>
+          {isExternal && <span className={styles.externalBadge}>External</span>}
+        </div>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 5L5 15M5 5l10 10" />
@@ -97,6 +101,18 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
           <span className={styles.statusDot} />
           {healthStatusLabels[healthStatus]}
         </div>
+        {!isExternal && data.lastPollSuccess === false && (
+          <div className={styles.pollFailure}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 5v3M8 10v1" />
+            </svg>
+            Poll failed{data.lastPollError ? `: ${data.lastPollError}` : ''}
+          </div>
+        )}
+        {isExternal && (
+          <p className={styles.externalDescription}>External dependency not tracked as a service</p>
+        )}
       </div>
 
       <div className={styles.section}>
@@ -106,7 +122,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
             <span className={styles.detailLabel}>Team</span>
             <span className={styles.detailValue}>{data.teamName}</span>
           </div>
-          {data.healthEndpoint && (
+          {!isExternal && data.healthEndpoint && (
             <div className={styles.detailItem}>
               <span className={styles.detailLabel}>Health Endpoint</span>
               <a
@@ -124,8 +140,12 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
 
       {dependents.length > 0 && (
         <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Dependents ({dependents.length})</h4>
-          <p className={styles.sectionDescription}>Services that depend on this service</p>
+          <h4 className={styles.sectionTitle}>
+            {isExternal ? `Reporting Services (${dependents.length})` : `Dependents (${dependents.length})`}
+          </h4>
+          <p className={styles.sectionDescription}>
+            {isExternal ? 'Services that report on this dependency' : 'Services that depend on this service'}
+          </p>
           <ul className={styles.serviceList}>
             {dependents.map((dep) => (
               <li key={dep.id} className={styles.serviceListItem}>
@@ -149,55 +169,59 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         </div>
       )}
 
-      <div className={styles.section}>
-        <h4 className={styles.sectionTitle}>Dependencies Report</h4>
-        <p className={styles.sectionDescription}>What this service reports about its dependencies</p>
-        <div className={styles.statsGrid}>
-          <div className={styles.statItem}>
-            <span className={styles.statValue}>{data.dependencyCount}</span>
-            <span className={styles.statLabel}>Total</span>
+      {!isExternal && (
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Dependencies Report</h4>
+          <p className={styles.sectionDescription}>What this service reports about its dependencies</p>
+          <div className={styles.statsGrid}>
+            <div className={styles.statItem}>
+              <span className={styles.statValue}>{data.dependencyCount}</span>
+              <span className={styles.statLabel}>Total</span>
+            </div>
+            <div className={`${styles.statItem} ${styles.healthy}`}>
+              <span className={styles.statValue}>{data.healthyCount}</span>
+              <span className={styles.statLabel}>Healthy</span>
+            </div>
+            <div className={`${styles.statItem} ${styles.critical}`}>
+              <span className={styles.statValue}>{data.unhealthyCount}</span>
+              <span className={styles.statLabel}>Unhealthy</span>
+            </div>
           </div>
-          <div className={`${styles.statItem} ${styles.healthy}`}>
-            <span className={styles.statValue}>{data.healthyCount}</span>
-            <span className={styles.statLabel}>Healthy</span>
-          </div>
-          <div className={`${styles.statItem} ${styles.critical}`}>
-            <span className={styles.statValue}>{data.unhealthyCount}</span>
-            <span className={styles.statLabel}>Unhealthy</span>
-          </div>
+          {dependencies.length > 0 && (
+            <ul className={styles.serviceList}>
+              {dependencies.map((dep) => (
+                <li key={dep.id} className={styles.serviceListItem}>
+                  <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
+                  <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
+                    {dep.name}
+                  </Link>
+                  {formatLatency(dep.latencyMs) && (
+                    <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
+                      {formatLatency(dep.latencyMs)}
+                      {dep.isHighLatency && (
+                        <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        {dependencies.length > 0 && (
-          <ul className={styles.serviceList}>
-            {dependencies.map((dep) => (
-              <li key={dep.id} className={styles.serviceListItem}>
-                <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
-                <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
-                  {dep.name}
-                </Link>
-                {formatLatency(dep.latencyMs) && (
-                  <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
-                    {formatLatency(dep.latencyMs)}
-                    {dep.isHighLatency && (
-                      <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
-                      </svg>
-                    )}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      )}
 
-      <div className={styles.actions}>
-        <Link to={`/services/${nodeId}`} className={styles.viewDetailsButton}>
-          View Full Details
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 12l4-4-4-4" />
-          </svg>
-        </Link>
-      </div>
+      {!isExternal && (
+        <div className={styles.actions}>
+          <Link to={`/services/${nodeId}`} className={styles.viewDetailsButton}>
+            View Full Details
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 12l4-4-4-4" />
+            </svg>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

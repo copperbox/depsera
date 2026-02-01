@@ -93,24 +93,6 @@
   background-color: var(--color-text-muted);
 }
 
-.no_dependents {
-  background-color: #e0e7ff;
-  color: #3730a3;
-}
-
-[data-theme="dark"] .no_dependents {
-  background-color: #312e81;
-  color: #a5b4fc;
-}
-
-.no_dependents .dot {
-  background-color: #6366f1;
-}
-
-[data-theme="dark"] .no_dependents .dot {
-  background-color: #818cf8;
-}
-
 .label {
   line-height: 1;
 }

@@ -4,14 +4,15 @@ import { Service } from '../../db/types';
 describe('PollStateManager', () => {
   let manager: PollStateManager;
 
-  const createService = (id: string, name: string, pollingInterval = 30): Service => ({
+  const createService = (id: string, name: string): Service => ({
     id,
     name,
     team_id: 'team-1',
     health_endpoint: `http://${name}.local/health`,
     metrics_endpoint: null,
-    polling_interval: pollingInterval,
     is_active: 1,
+    last_poll_success: null,
+    last_poll_error: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
@@ -27,19 +28,8 @@ describe('PollStateManager', () => {
 
       expect(state.serviceId).toBe('svc-1');
       expect(state.serviceName).toBe('user-service');
-      expect(state.pollingInterval).toBe(30);
       expect(state.isPolling).toBe(false);
       expect(state.consecutiveFailures).toBe(0);
-    });
-
-    it('should set nextPollDue to now (immediate poll)', () => {
-      const before = Date.now();
-      const service = createService('svc-1', 'user-service');
-      const state = manager.addService(service);
-      const after = Date.now();
-
-      expect(state.nextPollDue).toBeGreaterThanOrEqual(before);
-      expect(state.nextPollDue).toBeLessThanOrEqual(after);
     });
 
     it('should increase size', () => {
@@ -109,37 +99,14 @@ describe('PollStateManager', () => {
     });
   });
 
-  describe('getDueServices', () => {
-    it('should return services that are due for polling', () => {
-      const now = Date.now();
+  describe('getAllStates', () => {
+    it('should return all states', () => {
       manager.addService(createService('svc-1', 'service-1'));
       manager.addService(createService('svc-2', 'service-2'));
 
-      const due = manager.getDueServices(now);
+      const states = manager.getAllStates();
 
-      expect(due).toHaveLength(2);
-    });
-
-    it('should not return services currently polling', () => {
-      const now = Date.now();
-      manager.addService(createService('svc-1', 'service-1'));
-      manager.addService(createService('svc-2', 'service-2'));
-      manager.markPolling('svc-1', true);
-
-      const due = manager.getDueServices(now);
-
-      expect(due).toHaveLength(1);
-      expect(due[0].serviceId).toBe('svc-2');
-    });
-
-    it('should not return services not yet due', () => {
-      manager.addService(createService('svc-1', 'service-1'));
-      const state = manager.getState('svc-1')!;
-      state.nextPollDue = Date.now() + 60000; // 1 minute in the future
-
-      const due = manager.getDueServices(Date.now());
-
-      expect(due).toHaveLength(0);
+      expect(states).toHaveLength(2);
     });
   });
 
@@ -164,59 +131,6 @@ describe('PollStateManager', () => {
 
     it('should return false for non-existent service', () => {
       const result = manager.markPolling('non-existent', true);
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('updateAfterPoll', () => {
-    it('should update state on successful poll', () => {
-      manager.addService(createService('svc-1', 'service-1', 30));
-      const before = Date.now();
-
-      manager.updateAfterPoll('svc-1', true);
-
-      const state = manager.getState('svc-1')!;
-      expect(state.consecutiveFailures).toBe(0);
-      expect(state.isPolling).toBe(false);
-      expect(state.lastPolled).toBeGreaterThanOrEqual(before);
-      // Next poll should be ~30 seconds later
-      expect(state.nextPollDue).toBeGreaterThan(before);
-    });
-
-    it('should update state on failed poll', () => {
-      manager.addService(createService('svc-1', 'service-1'));
-      const before = Date.now();
-
-      manager.updateAfterPoll('svc-1', false);
-
-      const state = manager.getState('svc-1')!;
-      expect(state.consecutiveFailures).toBe(1);
-      expect(state.isPolling).toBe(false);
-      expect(state.lastPolled).toBeGreaterThanOrEqual(before);
-    });
-
-    it('should increment consecutive failures on repeated failures', () => {
-      manager.addService(createService('svc-1', 'service-1'));
-
-      manager.updateAfterPoll('svc-1', false);
-      manager.updateAfterPoll('svc-1', false);
-      manager.updateAfterPoll('svc-1', false);
-
-      expect(manager.getState('svc-1')?.consecutiveFailures).toBe(3);
-    });
-
-    it('should reset consecutive failures on success', () => {
-      manager.addService(createService('svc-1', 'service-1'));
-      manager.updateAfterPoll('svc-1', false);
-      manager.updateAfterPoll('svc-1', false);
-
-      manager.updateAfterPoll('svc-1', true);
-
-      expect(manager.getState('svc-1')?.consecutiveFailures).toBe(0);
-    });
-
-    it('should return false for non-existent service', () => {
-      const result = manager.updateAfterPoll('non-existent', true);
       expect(result).toBe(false);
     });
   });

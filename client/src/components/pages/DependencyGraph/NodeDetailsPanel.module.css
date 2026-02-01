@@ -19,6 +19,14 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
 .title {
   margin: 0;
   font-size: 18px;
@@ -27,6 +35,28 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.externalBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-hover);
+  border: 1px dashed var(--color-border);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.externalDescription {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 .closeButton {
@@ -53,6 +83,25 @@
 .statusSection {
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pollFailure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--color-warning);
+  line-height: 1.3;
+}
+
+.pollFailure svg {
+  flex-shrink: 0;
 }
 
 .statusBadge {

@@ -7,10 +7,10 @@ import type {
 } from '../types/service';
 import { handleResponse } from './common';
 
-export async function fetchServices(teamId?: string): Promise<Service[]> {
+export async function fetchServices(teamId?: string): Promise<ServiceWithDependencies[]> {
   const url = teamId ? `/api/services?team_id=${teamId}` : '/api/services';
   const response = await fetch(url, { credentials: 'include' });
-  return handleResponse<Service[]>(response);
+  return handleResponse<ServiceWithDependencies[]>(response);
 }
 
 export async function fetchService(id: string): Promise<ServiceWithDependencies> {

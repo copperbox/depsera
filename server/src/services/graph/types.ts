@@ -36,7 +36,10 @@ export interface ServiceNodeData {
   dependencyCount: number;
   healthyCount: number;
   unhealthyCount: number;
+  lastPollSuccess: boolean | null;
+  lastPollError: string | null;
   serviceType?: DependencyType;
+  isExternal?: boolean;
 }
 
 /**

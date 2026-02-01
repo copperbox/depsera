@@ -1,7 +1,7 @@
 import { getStores, StoreRegistry } from '../stores';
 import type { IDependencyStore } from '../stores/interfaces';
 import { DependentReport } from '../stores/types';
-import { HealthState } from '../db/types';
+import { Dependency } from '../db/types';
 
 // Re-export DependentReport from stores for backward compatibility
 export type { DependentReport };
@@ -11,8 +11,7 @@ export type AggregatedHealthStatus =
   | 'healthy'
   | 'warning'
   | 'critical'
-  | 'unknown'
-  | 'no_dependents';
+  | 'unknown';
 
 // Thresholds for health status calculation (percentages)
 export const HEALTH_THRESHOLDS = {
@@ -42,14 +41,59 @@ export function getDependentReports(serviceId: string, stores?: StoreRegistry): 
 
 /**
  * Calculate aggregated health status for a service based on what dependents report about it.
- * A service's health is determined by what other services say about it, not what it depends on.
+ * When no dependents exist but dependencies are provided, derives status from dependency health.
  */
-export function calculateAggregatedHealth(serviceId: string): AggregatedHealth {
+export function calculateAggregatedHealth(serviceId: string, dependencies?: Dependency[]): AggregatedHealth {
   const reports = getDependentReports(serviceId);
 
   if (reports.length === 0) {
+    // No dependents — derive status from own dependencies if available
+    if (dependencies && dependencies.length > 0) {
+      let healthyCount = 0;
+      let warningCount = 0;
+      let criticalCount = 0;
+
+      for (const dep of dependencies) {
+        if (dep.health_state === 2 || dep.healthy === 0) {
+          criticalCount++;
+        } else if (dep.health_state === 1) {
+          warningCount++;
+        } else if (dep.healthy === 1) {
+          healthyCount++;
+        }
+      }
+
+      const countedDeps = healthyCount + warningCount + criticalCount;
+      const healthyPercentage = countedDeps > 0 ? (healthyCount / countedDeps) * 100 : 0;
+
+      let status: AggregatedHealthStatus;
+      if (countedDeps === 0) {
+        status = 'unknown';
+      } else if (healthyPercentage >= HEALTH_THRESHOLDS.HEALTHY_PERCENTAGE) {
+        status = 'healthy';
+      } else if (healthyPercentage >= HEALTH_THRESHOLDS.WARNING_PERCENTAGE) {
+        status = 'warning';
+      } else {
+        status = 'critical';
+      }
+
+      return {
+        status,
+        healthy_reports: healthyCount,
+        warning_reports: warningCount,
+        critical_reports: criticalCount,
+        total_reports: dependencies.length,
+        dependent_count: 0,
+        last_report: dependencies.reduce<string | null>((latest, dep) => {
+          if (!dep.last_checked) return latest;
+          if (!latest) return dep.last_checked;
+          return dep.last_checked > latest ? dep.last_checked : latest;
+        }, null),
+      };
+    }
+
     return {
-      status: 'no_dependents',
+      status: 'unknown',
       healthy_reports: 0,
       warning_reports: 0,
       critical_reports: 0,

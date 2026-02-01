@@ -6,8 +6,7 @@ import { ServicePoller } from './ServicePoller';
 import { PollResult, PollingEventType, PollCompleteEvent, ServicePollState } from './types';
 import { PollStateManager } from './PollStateManager';
 
-const LOOP_INTERVAL_MS = 5000; // 5 seconds
-const MAX_CONCURRENT_POLLS = 10;
+const POLL_CYCLE_MS = 30000; // 30 seconds
 
 export class HealthPollingService extends EventEmitter {
   private static instance: HealthPollingService | null = null;
@@ -49,10 +48,8 @@ export class HealthPollingService extends EventEmitter {
       this.addServiceToPolling(service);
     }
 
-    // Start the loop if we have services
-    if (this.stateManager.size > 0) {
-      this.startLoop();
-    }
+    // Always start the loop — syncServices will pick up new services
+    this.startLoop();
   }
 
   startService(serviceId: string): void {
@@ -72,7 +69,7 @@ export class HealthPollingService extends EventEmitter {
 
     this.addServiceToPolling(service);
 
-    console.log(`[Polling] Started polling ${service.name} every ${service.polling_interval}s`);
+    console.log(`[Polling] Started polling ${service.name}`);
     this.emit(PollingEventType.SERVICE_STARTED, { serviceId, serviceName: service.name });
 
     // Start the loop if not already running
@@ -158,10 +155,8 @@ export class HealthPollingService extends EventEmitter {
         ...result,
       } as PollCompleteEvent);
 
-      // Update state if exists
-      if (state) {
-        this.stateManager.updateAfterPoll(serviceId, result.success, state.pollingInterval);
-      }
+      // Store poll result in database
+      this.serviceStore.updatePollResult(serviceId, result.success, result.error);
 
       return result;
     } finally {
@@ -218,6 +213,45 @@ export class HealthPollingService extends EventEmitter {
     return this.stateManager.getState(serviceId);
   }
 
+  /**
+   * Sync the poller's service list with the database.
+   * Adds new active services, removes deleted/deactivated ones,
+   * and updates pollers whose endpoint changed.
+   */
+  private syncServices(): void {
+    const activeServices = this.serviceStore.findActive();
+    const activeIds = new Set(activeServices.map(s => s.id));
+    const trackedIds = new Set(this.stateManager.getServiceIds());
+
+    // Remove services that are no longer active or were deleted
+    for (const id of trackedIds) {
+      if (!activeIds.has(id)) {
+        const state = this.stateManager.getState(id);
+        if (state && !state.isPolling) {
+          this.stateManager.removeService(id);
+          this.pollers.delete(id);
+        }
+      }
+    }
+
+    // Add new services and update changed ones
+    for (const service of activeServices) {
+      if (!trackedIds.has(service.id)) {
+        this.addServiceToPolling(service);
+      } else {
+        // Update poller if endpoint changed
+        const state = this.stateManager.getState(service.id);
+        if (state && state.healthEndpoint !== service.health_endpoint) {
+          state.healthEndpoint = service.health_endpoint;
+          const poller = this.pollers.get(service.id);
+          if (poller) {
+            poller.updateService(service);
+          }
+        }
+      }
+    }
+  }
+
   private addServiceToPolling(service: Service): void {
     // Add to state manager
     this.stateManager.addService(service);
@@ -229,7 +263,7 @@ export class HealthPollingService extends EventEmitter {
   private startLoop(): void {
     if (this.loopTimer || this.isShuttingDown) return;
 
-    console.log(`[Polling] Starting poll loop (interval: ${LOOP_INTERVAL_MS}ms, max concurrent: ${MAX_CONCURRENT_POLLS})`);
+    console.log(`[Polling] Starting poll loop (cycle: ${POLL_CYCLE_MS}ms)`);
 
     // Run immediately on start
     this.runPollCycle();
@@ -237,7 +271,7 @@ export class HealthPollingService extends EventEmitter {
     // Then schedule recurring
     this.loopTimer = setInterval(() => {
       this.runPollCycle();
-    }, LOOP_INTERVAL_MS);
+    }, POLL_CYCLE_MS);
   }
 
   private stopLoop(): void {
@@ -251,52 +285,70 @@ export class HealthPollingService extends EventEmitter {
   private async runPollCycle(): Promise<void> {
     if (this.isShuttingDown) return;
 
-    const now = Date.now();
+    // Sync with database to pick up new/removed/changed services
+    this.syncServices();
 
-    // Find all services due for polling
-    const dueServices = this.stateManager.getDueServices(now);
+    // Get ALL services (no scheduling logic)
+    const allStates = this.stateManager.getAllStates()
+      .filter(state => !state.isPolling);
 
-    if (dueServices.length === 0) return;
-
-    // Limit concurrency
-    const batch = dueServices.slice(0, MAX_CONCURRENT_POLLS);
+    if (allStates.length === 0) return;
 
     // Mark all as polling (lock)
-    for (const state of batch) {
+    for (const state of allStates) {
       this.stateManager.markPolling(state.serviceId, true);
     }
 
-    // Execute polls concurrently
-    const results = await Promise.all(
-      batch.map(state => this.pollService(state))
+    // Execute all polls concurrently
+    const results = await Promise.allSettled(
+      allStates.map(state => this.pollService(state))
     );
 
     // Process results and update state
-    for (const { serviceId, result } of results) {
+    for (const result of results) {
+      if (result.status === 'rejected') continue;
+
+      const { serviceId, result: pollResult } = result.value;
       const state = this.stateManager.getState(serviceId);
       if (!state) continue; // Service was removed during poll
+
+      // Update in-memory state
+      state.lastPolled = Date.now();
+      state.isPolling = false;
+      if (pollResult.success) {
+        state.consecutiveFailures = 0;
+      } else {
+        state.consecutiveFailures++;
+      }
+
+      // Persist poll result to database
+      this.serviceStore.updatePollResult(serviceId, pollResult.success, pollResult.error);
 
       // Emit poll complete event
       this.emit(PollingEventType.POLL_COMPLETE, {
         serviceId,
-        ...result,
+        ...pollResult,
       } as PollCompleteEvent);
 
       // Emit status change events
-      for (const change of result.statusChanges) {
+      for (const change of pollResult.statusChanges) {
         this.emit(PollingEventType.STATUS_CHANGE, change);
       }
 
-      if (!result.success) {
+      if (!pollResult.success) {
         this.emit(PollingEventType.POLL_ERROR, {
           serviceId,
           serviceName: state.serviceName,
-          error: result.error,
+          error: pollResult.error,
         });
       }
+    }
 
-      // Update state
-      this.stateManager.updateAfterPoll(serviceId, result.success, state.pollingInterval);
+    // Ensure any remaining locks are released (e.g., if Promise.allSettled had rejections)
+    for (const state of allStates) {
+      if (state.isPolling) {
+        state.isPolling = false;
+      }
     }
   }
 

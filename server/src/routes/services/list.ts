@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { formatServiceListItem } from '../formatters';
+import { formatServiceDetail } from '../formatters';
+import { getDependentReports } from '../../utils/serviceHealth';
 import { formatError, getErrorStatusCode } from '../../utils/errors';
 
 export function listServices(req: Request, res: Response): void {
@@ -12,10 +13,14 @@ export function listServices(req: Request, res: Response): void {
       teamId: team_id && typeof team_id === 'string' ? team_id : undefined,
     });
 
-    // Format each service with aggregated health from dependent reports
-    const servicesWithHealth = rows.map(formatServiceListItem);
+    // Format each service with dependencies and dependent reports
+    const servicesWithDetails = rows.map((row) => {
+      const dependencies = stores.dependencies.findByServiceId(row.id);
+      const dependentReports = getDependentReports(row.id);
+      return formatServiceDetail(row, dependencies, dependentReports);
+    });
 
-    res.json(servicesWithHealth);
+    res.json(servicesWithDetails);
   } catch (error) {
     console.error('Error listing services:', error);
     res.status(getErrorStatusCode(error)).json(formatError(error));
