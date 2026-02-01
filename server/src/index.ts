@@ -12,6 +12,7 @@ import associationsRouter from './routes/associations';
 import graphRouter from './routes/graph';
 import latencyRouter from './routes/latency';
 import errorsRouter from './routes/errors';
+import aliasesRouter from './routes/aliases';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/users', requireAuth, usersRouter);
 app.use('/api/graph', requireAuth, graphRouter);
 app.use('/api/latency', requireAuth, latencyRouter);
 app.use('/api/errors', requireAuth, errorsRouter);
+app.use('/api/aliases', requireAuth, aliasesRouter);
 app.use('/api', requireAuth, associationsRouter);
 
 // Initialize and start server

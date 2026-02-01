@@ -8,6 +8,7 @@ describe('MatchingStrategyExecutor', () => {
     id: 'dep-1',
     service_id: serviceId,
     name,
+    canonical_name: null,
     description: null,
     impact: null,
     type: 'rest',

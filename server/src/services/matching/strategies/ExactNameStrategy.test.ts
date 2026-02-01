@@ -8,6 +8,7 @@ describe('ExactNameStrategy', () => {
     id: 'dep-1',
     service_id: 'svc-1',
     name,
+    canonical_name: null,
     description: null,
     impact: null,
     type: 'rest',

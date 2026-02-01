@@ -1,5 +1,5 @@
 import { getStores, StoreRegistry } from '../../stores';
-import type { IDependencyStore, ILatencyHistoryStore } from '../../stores/interfaces';
+import type { IDependencyStore, ILatencyHistoryStore, IDependencyAliasStore } from '../../stores/interfaces';
 import { Service, ProactiveDepsStatus } from '../../db/types';
 import { StatusChangeEvent } from './types';
 import { ErrorHistoryRecorder, getErrorHistoryRecorder } from './ErrorHistoryRecorder';
@@ -13,12 +13,14 @@ export class DependencyUpsertService {
   private errorRecorder: ErrorHistoryRecorder;
   private dependencyStore: IDependencyStore;
   private latencyStore: ILatencyHistoryStore;
+  private aliasStore: IDependencyAliasStore;
 
   constructor(errorRecorder?: ErrorHistoryRecorder, stores?: StoreRegistry) {
     const storeRegistry = stores || getStores();
     this.errorRecorder = errorRecorder || getErrorHistoryRecorder();
     this.dependencyStore = storeRegistry.dependencies;
     this.latencyStore = storeRegistry.latencyHistory;
+    this.aliasStore = storeRegistry.aliases;
   }
 
   /**
@@ -33,10 +35,14 @@ export class DependencyUpsertService {
     const now = new Date().toISOString();
 
     for (const dep of deps) {
+      // Resolve alias to canonical name
+      const canonicalName = this.aliasStore.resolveAlias(dep.name);
+
       // Upsert via store
       const result = this.dependencyStore.upsert({
         service_id: service.id,
         name: dep.name,
+        canonical_name: canonicalName,
         description: dep.description ?? null,
         impact: dep.impact ?? null,
         type: dep.type ?? 'other',
