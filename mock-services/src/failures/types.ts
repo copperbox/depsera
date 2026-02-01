@@ -2,7 +2,8 @@ export enum FailureMode {
   OUTAGE = 'outage',
   HIGH_LATENCY = 'high_latency',
   ERROR = 'error',
-  INTERMITTENT = 'intermittent'
+  INTERMITTENT = 'intermittent',
+  UNRESPONSIVE = 'unresponsive'
 }
 
 export interface FailureConfig {
@@ -64,5 +65,13 @@ export const PREDEFINED_SCENARIOS: FailureScenario[] = [
     mode: FailureMode.INTERMITTENT,
     config: { errorRate: 0.5 },
     cascade: true
+  },
+  {
+    name: 'service-unresponsive',
+    description: '2 random API services stop responding entirely',
+    targetTier: 'api',
+    mode: FailureMode.UNRESPONSIVE,
+    config: {},
+    cascade: false
   }
 ];

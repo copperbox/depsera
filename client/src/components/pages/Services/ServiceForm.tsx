@@ -20,7 +20,6 @@ interface FormErrors {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
-  polling_interval?: string;
 }
 
 function isValidUrl(value: string): boolean {
@@ -40,7 +39,6 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     team_id: service?.team_id ?? '',
     health_endpoint: service?.health_endpoint ?? '',
     metrics_endpoint: service?.metrics_endpoint ?? '',
-    polling_interval: service?.polling_interval ?? 30,
     is_active: service?.is_active === 1,
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -68,10 +66,6 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
       newErrors.metrics_endpoint = 'Must be a valid HTTP or HTTPS URL';
     }
 
-    if (formData.polling_interval < 10) {
-      newErrors.polling_interval = 'Polling interval must be at least 10 seconds';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -93,7 +87,6 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           team_id: formData.team_id,
           health_endpoint: formData.health_endpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
-          polling_interval: formData.polling_interval,
           is_active: formData.is_active,
         };
         await updateService(service.id, updateData);
@@ -103,7 +96,6 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           team_id: formData.team_id,
           health_endpoint: formData.health_endpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
-          polling_interval: formData.polling_interval,
         };
         await createService(createData);
       }
@@ -208,32 +200,6 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           </span>
         )}
         <span className={styles.hint}>Optional URL for metrics data</span>
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="polling_interval" className={styles.label}>
-          Polling Interval (seconds)
-        </label>
-        <input
-          id="polling_interval"
-          type="number"
-          min="10"
-          value={formData.polling_interval}
-          onChange={(e) =>
-            setFormData({ ...formData, polling_interval: parseInt(e.target.value, 10) || 30 })
-          }
-          className={`${styles.input} ${styles.numberInput} ${
-            errors.polling_interval ? styles.inputError : ''
-          }`}
-          disabled={isSubmitting}
-          aria-describedby={errors.polling_interval ? 'polling-error' : undefined}
-        />
-        {errors.polling_interval && (
-          <span id="polling-error" className={styles.fieldError}>
-            {errors.polling_interval}
-          </span>
-        )}
-        <span className={styles.hint}>How often to check health status (minimum 10s)</span>
       </div>
 
       {isEdit && (

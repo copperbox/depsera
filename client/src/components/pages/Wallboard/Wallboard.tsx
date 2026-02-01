@@ -8,7 +8,6 @@ import styles from './Wallboard.module.css';
 
 const FILTER_KEY = 'wallboard-filter-unhealthy';
 const TEAM_FILTER_KEY = 'wallboard-filter-team';
-const HIDE_NO_DEPENDENTS_KEY = 'wallboard-hide-no-dependents';
 
 function getCardClass(status: HealthStatus): string {
   switch (status) {
@@ -58,11 +57,6 @@ function Wallboard() {
   const [selectedTeamId, setSelectedTeamId] = useState(() => {
     return localStorage.getItem(TEAM_FILTER_KEY) || '';
   });
-  const [hideNoDependents, setHideNoDependents] = useState(() => {
-    const stored = localStorage.getItem(HIDE_NO_DEPENDENTS_KEY);
-    return stored === null ? true : stored === 'true';
-  });
-
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
@@ -111,12 +105,6 @@ function Wallboard() {
     } else {
       localStorage.removeItem(TEAM_FILTER_KEY);
     }
-  };
-
-  const handleHideNoDependentsChange = () => {
-    const newValue = !hideNoDependents;
-    setHideNoDependents(newValue);
-    localStorage.setItem(HIDE_NO_DEPENDENTS_KEY, String(newValue));
   };
 
   const handleCardClick = (serviceId: string) => {
@@ -178,14 +166,6 @@ function Wallboard() {
             <label className={styles.filterToggle}>
               <input
                 type="checkbox"
-                checked={hideNoDependents}
-                onChange={handleHideNoDependentsChange}
-              />
-              Hide no dependents
-            </label>
-            <label className={styles.filterToggle}>
-              <input
-                type="checkbox"
                 checked={showUnhealthyOnly}
                 onChange={handleFilterChange}
               />
@@ -219,9 +199,7 @@ function Wallboard() {
           <div className={styles.emptyState}>
             {showUnhealthyOnly
               ? 'All services are healthy!'
-              : hideNoDependents
-                ? 'No services with dependents found.'
-                : 'No services found.'}
+              : 'No services found.'}
           </div>
         ) : (
           <div className={styles.grid}>
@@ -247,6 +225,15 @@ function Wallboard() {
                   }}
                 >
                   <span className={styles.cardName}>{service.name}</span>
+                  {service.last_poll_success === 0 && (
+                    <div className={styles.pollFailure}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="8" cy="8" r="6" />
+                        <path d="M8 5v3M8 10v1" />
+                      </svg>
+                      Poll failed{service.last_poll_error ? `: ${service.last_poll_error}` : ''}
+                    </div>
+                  )}
                   <div className={styles.cardMeta}>
                     <div className={styles.cardMetaRow}>
                       <span>Status</span>
@@ -257,10 +244,6 @@ function Wallboard() {
                     <div className={styles.cardMetaRow}>
                       <span>Team</span>
                       <span>{service.team.name}</span>
-                    </div>
-                    <div className={styles.cardMetaRow}>
-                      <span>Dependents</span>
-                      <span>{service.health.dependent_count}</span>
                     </div>
                     {latency && (
                       <div className={styles.cardMetaRow}>

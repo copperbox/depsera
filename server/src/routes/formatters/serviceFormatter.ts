@@ -33,8 +33,9 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     team_id: row.team_id,
     health_endpoint: row.health_endpoint,
     metrics_endpoint: row.metrics_endpoint,
-    polling_interval: row.polling_interval,
     is_active: row.is_active,
+    last_poll_success: row.last_poll_success ?? null,
+    last_poll_error: row.last_poll_error ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -88,7 +89,7 @@ export function formatServiceDetail(
   dependencies: Dependency[],
   dependentReports: DependentReport[]
 ): FormattedServiceDetail {
-  const aggregatedHealth = calculateAggregatedHealth(row.id);
+  const aggregatedHealth = calculateAggregatedHealth(row.id, dependencies);
 
   return {
     ...extractServiceFields(row),

@@ -24,6 +24,9 @@ export interface IServiceStore {
   update(id: string, input: ServiceUpdateInput): Service | undefined;
   delete(id: string): boolean;
 
+  // Poll result tracking
+  updatePollResult(serviceId: string, success: boolean, error?: string): void;
+
   // Utility
   exists(id: string): boolean;
   count(options?: ServiceListOptions): number;

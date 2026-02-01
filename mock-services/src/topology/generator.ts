@@ -11,6 +11,7 @@ import {
   ServiceDependency
 } from './types';
 import { generateServiceName, resetNameGenerator } from './service-names';
+import { assignExternalApis } from './external-apis';
 
 // Dependency types based on target service tier
 const TIER_DEPENDENCY_TYPES: Record<ServiceTier, DependencyType[]> = {
@@ -203,7 +204,9 @@ export function generateTopology(config: TopologyConfig): Topology {
     }
   }
 
-  return { services, edges };
+  const topology = { services, edges };
+  assignExternalApis(topology);
+  return topology;
 }
 
 export function getTopologyStats(topology: Topology): Record<string, number> {

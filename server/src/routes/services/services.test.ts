@@ -43,6 +43,8 @@ describe('Services API', () => {
         metrics_endpoint TEXT,
         polling_interval INTEGER NOT NULL DEFAULT 30,
         is_active INTEGER NOT NULL DEFAULT 1,
+        last_poll_success INTEGER,
+        last_poll_error TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE RESTRICT
@@ -118,7 +120,6 @@ describe('Services API', () => {
       expect(response.body.name).toBe('Test Service');
       expect(response.body.team_id).toBe(teamId);
       expect(response.body.health_endpoint).toBe('https://example.com/health');
-      expect(response.body.polling_interval).toBe(30); // default
       expect(response.body.team).toBeDefined();
       expect(response.body.health.status).toBe('unknown');
 
@@ -133,12 +134,10 @@ describe('Services API', () => {
           team_id: teamId,
           health_endpoint: 'https://example.com/health',
           metrics_endpoint: 'https://example.com/metrics',
-          polling_interval: 60,
         });
 
       expect(response.status).toBe(201);
       expect(response.body.metrics_endpoint).toBe('https://example.com/metrics');
-      expect(response.body.polling_interval).toBe(60);
     });
 
     it('should reject invalid health_endpoint URL', async () => {
@@ -166,20 +165,6 @@ describe('Services API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain('metrics_endpoint');
-    });
-
-    it('should reject polling_interval below minimum', async () => {
-      const response = await request(app)
-        .post('/api/services')
-        .send({
-          name: 'Bad Service',
-          team_id: teamId,
-          health_endpoint: 'https://example.com/health',
-          polling_interval: 5,
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('polling_interval');
     });
 
     it('should reject non-existent team', async () => {
@@ -211,14 +196,14 @@ describe('Services API', () => {
       const service2Id = randomUUID();
 
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(service1Id, 'Service A', teamId, 'https://a.example.com/health', 30);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(service1Id, 'Service A', teamId, 'https://a.example.com/health');
 
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(service2Id, 'Service B', teamId, 'https://b.example.com/health', 60);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(service2Id, 'Service B', teamId, 'https://b.example.com/health');
 
       // Add dependencies to Service A
       testDb.prepare(`
@@ -256,9 +241,9 @@ describe('Services API', () => {
       `).run(otherTeamId, 'Other Team', 'Another team');
 
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(randomUUID(), 'Other Service', otherTeamId, 'https://other.example.com/health', 30);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(randomUUID(), 'Other Service', otherTeamId, 'https://other.example.com/health');
 
       const response = await request(app)
         .get('/api/services')
@@ -278,12 +263,12 @@ describe('Services API', () => {
       const serviceA = response.body.find((s: { name: string }) => s.name === 'Service A');
       expect(serviceA.dependencies).toHaveLength(2);
       expect(serviceA.health).toBeDefined();
-      expect(serviceA.health.status).toBe('no_dependents'); // no dependency_associations linked
+      expect(serviceA.health.status).toBe('critical'); // derived from own deps (1 healthy, 1 critical = 50%)
 
       // Service B has no dependencies
       const serviceB = response.body.find((s: { name: string }) => s.name === 'Service B');
       expect(serviceB.dependencies).toHaveLength(0);
-      expect(serviceB.health.status).toBe('no_dependents');
+      expect(serviceB.health.status).toBe('unknown');
     });
   });
 
@@ -291,9 +276,9 @@ describe('Services API', () => {
     beforeEach(() => {
       serviceId = randomUUID();
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(serviceId, 'Detail Service', teamId, 'https://detail.example.com/health', 30);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(serviceId, 'Detail Service', teamId, 'https://detail.example.com/health');
 
       testDb.prepare(`
         INSERT INTO dependencies (id, service_id, name, healthy, health_state, latency_ms)
@@ -325,9 +310,9 @@ describe('Services API', () => {
     beforeEach(() => {
       serviceId = randomUUID();
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(serviceId, 'Update Service', teamId, 'https://update.example.com/health', 30);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(serviceId, 'Update Service', teamId, 'https://update.example.com/health');
     });
 
     it('should update service name', async () => {
@@ -345,13 +330,11 @@ describe('Services API', () => {
         .send({
           name: 'Multi Update',
           health_endpoint: 'https://new.example.com/health',
-          polling_interval: 45,
         });
 
       expect(response.status).toBe(200);
       expect(response.body.name).toBe('Multi Update');
       expect(response.body.health_endpoint).toBe('https://new.example.com/health');
-      expect(response.body.polling_interval).toBe(45);
     });
 
     it('should update is_active status', async () => {
@@ -367,14 +350,6 @@ describe('Services API', () => {
       const response = await request(app)
         .put(`/api/services/${serviceId}`)
         .send({ health_endpoint: 'bad-url' });
-
-      expect(response.status).toBe(400);
-    });
-
-    it('should reject invalid polling_interval on update', async () => {
-      const response = await request(app)
-        .put(`/api/services/${serviceId}`)
-        .send({ polling_interval: 5 });
 
       expect(response.status).toBe(400);
     });
@@ -401,9 +376,9 @@ describe('Services API', () => {
     beforeEach(() => {
       serviceId = randomUUID();
       testDb.prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(serviceId, 'Delete Service', teamId, 'https://delete.example.com/health', 30);
+        INSERT INTO services (id, name, team_id, health_endpoint)
+        VALUES (?, ?, ?, ?)
+      `).run(serviceId, 'Delete Service', teamId, 'https://delete.example.com/health');
 
       // Add a dependency
       testDb.prepare(`

@@ -32,6 +32,8 @@ export type DependencyType =
 export interface ServiceDependency {
   serviceId: string;
   type: DependencyType;
+  externalUrl?: string;
+  externalName?: string;
 }
 
 export interface GeneratedService {

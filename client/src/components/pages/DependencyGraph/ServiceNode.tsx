@@ -18,6 +18,15 @@ const TYPE_LABELS: Record<DependencyType, string> = {
   other: 'Service',
 };
 
+function ExternalIcon() {
+  return (
+    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
 function TypeIcon({ type }: { type?: DependencyType }) {
   const iconProps = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
 
@@ -85,10 +94,11 @@ function TypeIcon({ type }: { type?: DependencyType }) {
 function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
   const healthStatus = getServiceHealthStatus(data);
   const isHorizontal = data.layoutDirection === 'LR';
-  const typeLabel = data.serviceType ? TYPE_LABELS[data.serviceType] : 'Service';
+  const isExternal = data.isExternal === true;
+  const typeLabel = isExternal ? 'External' : (data.serviceType ? TYPE_LABELS[data.serviceType] : 'Service');
 
   return (
-    <div className={`${styles.serviceNode} ${styles[healthStatus]} ${selected ? styles.selected : ''}`}>
+    <div className={`${styles.serviceNode} ${styles[healthStatus]} ${selected ? styles.selected : ''} ${isExternal ? styles.external : ''}`}>
       <Handle
         type="target"
         position={isHorizontal ? Position.Left : Position.Top}
@@ -97,17 +107,38 @@ function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
 
       <div className={styles.nodeHeader}>
         <span className={styles.typeIcon}>
-          <TypeIcon type={data.serviceType} />
+          {isExternal ? <ExternalIcon /> : <TypeIcon type={data.serviceType} />}
         </span>
         <span className={styles.nodeType}>{typeLabel}</span>
       </div>
 
       <div className={styles.nodeName}>{data.name}</div>
 
+      {!isExternal && data.lastPollSuccess === false && (
+        <div className={styles.pollFailure}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 5v3M8 10v1" />
+          </svg>
+          Poll failed
+        </div>
+      )}
+
       <div className={styles.nodeDetails}>
         <span className={styles.teamName}>{data.teamName}</span>
         <div className={styles.healthSummary}>
-          {data.dependencyCount > 0 ? (
+          {isExternal ? (
+            data.dependencyCount > 0 ? (
+              <>
+                <span className={styles.healthyCount}>{data.healthyCount}</span>
+                <span className={styles.separator}>/</span>
+                <span className={styles.totalCount}>{data.dependencyCount}</span>
+                <span className={styles.label}>reports</span>
+              </>
+            ) : (
+              <span className={styles.noDeps}>No reports</span>
+            )
+          ) : data.dependencyCount > 0 ? (
             <>
               <span className={styles.healthyCount}>{data.healthyCount}</span>
               <span className={styles.separator}>/</span>

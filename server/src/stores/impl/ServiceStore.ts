@@ -100,8 +100,8 @@ export class ServiceStore implements IServiceStore {
 
     this.db
       .prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, polling_interval, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
       `)
       .run(
         id,
@@ -109,7 +109,6 @@ export class ServiceStore implements IServiceStore {
         input.team_id,
         input.health_endpoint,
         input.metrics_endpoint ?? null,
-        input.polling_interval ?? 30000,
         now,
         now
       );
@@ -142,10 +141,6 @@ export class ServiceStore implements IServiceStore {
       updates.push('metrics_endpoint = ?');
       params.push(input.metrics_endpoint);
     }
-    if (input.polling_interval !== undefined) {
-      updates.push('polling_interval = ?');
-      params.push(input.polling_interval);
-    }
     if (input.is_active !== undefined) {
       updates.push('is_active = ?');
       params.push(input.is_active ? 1 : 0);
@@ -164,6 +159,12 @@ export class ServiceStore implements IServiceStore {
       .run(...params);
 
     return this.findById(id);
+  }
+
+  updatePollResult(serviceId: string, success: boolean, error?: string): void {
+    this.db
+      .prepare(`UPDATE services SET last_poll_success = ?, last_poll_error = ?, updated_at = ? WHERE id = ?`)
+      .run(success ? 1 : 0, error ?? null, new Date().toISOString(), serviceId);
   }
 
   delete(id: string): boolean {

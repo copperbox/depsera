@@ -33,7 +33,6 @@ export interface TeamService {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
-  polling_interval: number;
   is_active: number;
   created_at: string;
   updated_at: string;

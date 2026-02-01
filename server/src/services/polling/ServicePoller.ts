@@ -4,7 +4,7 @@ import { PollResult } from './types';
 import { DependencyParser, getDependencyParser } from './DependencyParser';
 import { DependencyUpsertService, getDependencyUpsertService } from './DependencyUpsertService';
 
-const POLL_TIMEOUT_MS = 30000;
+const POLL_TIMEOUT_MS = 10000;
 
 export class ServicePoller {
   private service: Service;
@@ -60,13 +60,6 @@ export class ServicePoller {
         latencyMs: Date.now() - startTime,
       };
     }
-  }
-
-  getNextPollDelay(): number {
-    if (this.consecutiveFailures > 0) {
-      return this.backoff.getNextDelay();
-    }
-    return this.service.polling_interval * 1000;
   }
 
   updateService(service: Service): void {

@@ -83,7 +83,6 @@ export interface ValidatedServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
-  polling_interval: number;
 }
 
 export interface ValidatedServiceUpdateInput {
@@ -91,7 +90,6 @@ export interface ValidatedServiceUpdateInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string | null;
-  polling_interval?: number;
   is_active?: boolean;
 }
 
@@ -137,24 +135,11 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     metricsEndpoint = input.metrics_endpoint || null;
   }
 
-  // Optional: polling_interval
-  let pollingInterval = DEFAULT_POLLING_INTERVAL;
-  if (input.polling_interval !== undefined) {
-    if (!isNumber(input.polling_interval) || input.polling_interval < MIN_POLLING_INTERVAL) {
-      throw new ValidationError(
-        `polling_interval must be a number >= ${MIN_POLLING_INTERVAL} seconds`,
-        'polling_interval'
-      );
-    }
-    pollingInterval = input.polling_interval;
-  }
-
   return {
     name: input.name.trim(),
     team_id: input.team_id,
     health_endpoint: input.health_endpoint,
     metrics_endpoint: metricsEndpoint,
-    polling_interval: pollingInterval,
   };
 }
 
@@ -208,18 +193,6 @@ export function validateServiceUpdate(
       );
     }
     result.metrics_endpoint = input.metrics_endpoint as string | null;
-    hasUpdates = true;
-  }
-
-  // Optional: polling_interval
-  if (input.polling_interval !== undefined) {
-    if (!isNumber(input.polling_interval) || input.polling_interval < MIN_POLLING_INTERVAL) {
-      throw new ValidationError(
-        `polling_interval must be a number >= ${MIN_POLLING_INTERVAL} seconds`,
-        'polling_interval'
-      );
-    }
-    result.polling_interval = input.polling_interval;
     hasUpdates = true;
   }
 

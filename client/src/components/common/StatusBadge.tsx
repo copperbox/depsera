@@ -1,6 +1,6 @@
 import styles from './StatusBadge.module.css';
 
-export type BadgeStatus = 'healthy' | 'warning' | 'critical' | 'unknown' | 'no_dependents';
+export type BadgeStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 
 interface StatusBadgeProps {
   status: BadgeStatus;
@@ -13,7 +13,6 @@ const statusLabels: Record<BadgeStatus, string> = {
   warning: 'Warning',
   critical: 'Critical',
   unknown: 'Unknown',
-  no_dependents: 'No Dependents',
 };
 
 function StatusBadge({ status, showLabel = true, size = 'medium' }: StatusBadgeProps) {

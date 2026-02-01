@@ -21,8 +21,6 @@ export function getHealthBadgeStatus(status: string): BadgeStatus {
       return 'warning';
     case 'critical':
       return 'critical';
-    case 'no_dependents':
-      return 'no_dependents';
     default:
       return 'unknown';
   }
