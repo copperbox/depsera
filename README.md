@@ -14,6 +14,7 @@ A dashboard to review and manage all tracked dependencies and services. Monitor 
 - **User Administration** — Admin panel for managing users, roles, and account status
 - **Auto-Polling** — Server-side health polling on a 30-second cycle with exponential backoff on failures; client-side auto-refresh with configurable intervals (10s, 20s, 30s, 1m)
 - **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
+- **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
 - **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
@@ -120,12 +121,13 @@ npm run lint
 │       │   ├── Layout/          # App shell and navigation
 │       │   ├── Login/           # Login page
 │       │   ├── ProtectedRoute/  # Auth/role guard
-│       │   ├── common/          # StatusBadge, Modal, ConfirmDialog, ErrorHistoryPanel
+│       │   ├── common/          # StatusBadge, Modal, ConfirmDialog, ErrorHistoryPanel, SearchableSelect
 │       │   └── pages/
 │       │       ├── Dashboard/       # Health summary overview
 │       │       ├── Services/        # Service list, detail, and form
 │       │       ├── Teams/           # Team list, detail, and form
 │       │       ├── DependencyGraph/ # Interactive graph visualization
+│       │       ├── Associations/     # Association management
 │       │       ├── Wallboard/       # Real-time status board
 │       │       └── Admin/           # User management
 │       ├── contexts/        # Auth and Theme contexts
@@ -162,6 +164,9 @@ Team listing with member/service counts. Team detail shows members with role man
 ### Dependency Graph (`/graph`)
 Interactive graph built with React Flow. Controls include team filter, search/highlight, horizontal/vertical layout, tier spacing, latency threshold slider, and minimap.
 
+### Associations (`/associations`)
+Manage dependency-to-service associations. Four tabs: **Suggestions Inbox** for reviewing auto-generated association suggestions with accept/dismiss (individual and bulk), filterable by source or linked service; **Create** for manually linking a dependency to a target service with searchable dropdowns; **Existing** for browsing confirmed associations by dependency with search, type filter, and delete; **Aliases** for mapping reported dependency names to canonical names so that the same external dependency reported under different names can be unified. Associations are also shown inline on each Service Detail page with a "Generate Suggestions" button.
+
 ### Wallboard (`/wallboard`)
 Status board showing service health cards with latency stats, impact info, and poll failure indicators. Supports team filtering and unhealthy-only view. Filter preferences persist in localStorage.
 
@@ -179,6 +184,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Teams | CRUD on `/api/teams`, member management via `/api/teams/:id/members` |
 | Services | CRUD on `/api/services`, `POST /api/services/:id/poll` for manual polling |
 | Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |
+| Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:dependencyId`, `GET /api/errors/:dependencyId` |
 

@@ -170,6 +170,7 @@ function createDependency(
     id: `dep-${serviceId}-${targetServiceId}`,
     service_id: serviceId,
     name: 'test-dep',
+    canonical_name: null,
     description: null,
     impact: null,
     type,

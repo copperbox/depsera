@@ -62,6 +62,7 @@ export interface Dependency {
   id: string;
   service_id: string;
   name: string;
+  canonical_name: string | null;
   description: string | null;
   impact: string | null;
   healthy: number | null;

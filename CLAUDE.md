@@ -62,10 +62,33 @@ Core tables:
 - `teams` - Organizational units that own services
 - `team_members` - Junction table for user-team membership
 - `services` - Tracked APIs/microservices with health endpoints
-- `dependencies` - Dependency status data from proactive-deps
+- `dependencies` - Dependency status data from proactive-deps (has `canonical_name` column for alias resolution)
 - `dependency_associations` - Links between dependencies and services
+- `dependency_aliases` - Maps reported dependency names (alias) to canonical names
+- `dependency_latency_history` - Historical latency data points per dependency
+- `dependency_error_history` - Historical error records per dependency
 
-Migrations are in `/server/src/db/migrations/`. Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-006). Types are in `/server/src/db/types.ts`.
+
+## Store Registry
+
+All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). Stores:
+- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`
+
+Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
+
+## API Routes
+
+- `/api/auth` - OIDC authentication
+- `/api/services` - CRUD + manual polling
+- `/api/teams` - CRUD + member management
+- `/api/users` - Admin user management
+- `/api/aliases` - Dependency alias CRUD + canonical name lookup
+- `/api/dependencies/:id/associations` - Association CRUD
+- `/api/associations/suggestions` - Auto-suggestion management
+- `/api/graph` - Dependency graph data
+- `/api/latency/:id` - Latency history
+- `/api/errors/:id` - Error history
 
 ## General Guidance
 

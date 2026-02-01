@@ -8,6 +8,7 @@ import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
 import ServiceForm from './ServiceForm';
+import ServiceAssociations from './ServiceAssociations';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { getHealthBadgeStatus, getHealthStateBadgeStatus } from '../../../utils/statusMapping';
 import styles from './Services.module.css';
@@ -297,7 +298,19 @@ function ServiceDetail() {
             <tbody>
               {service.dependencies.map((dep) => (
                 <tr key={dep.id} className={styles.dependencyRow}>
-                  <td>{dep.name}</td>
+                  <td>
+                    {dep.canonical_name ? (
+                      <>
+                        <strong>{dep.canonical_name}</strong>
+                        <br />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                          {dep.name}
+                        </span>
+                      </>
+                    ) : (
+                      dep.name
+                    )}
+                  </td>
                   <td className={styles.teamCell}>{dep.description || '-'}</td>
                   <td className={styles.impactCell}>
                     <span className={styles.impactText} title={dep.impact || undefined}>
@@ -335,6 +348,8 @@ function ServiceDetail() {
           </table>
         </div>
       )}
+
+      <ServiceAssociations serviceId={service.id} dependencies={service.dependencies} />
 
       <Modal
         isOpen={isEditModalOpen}

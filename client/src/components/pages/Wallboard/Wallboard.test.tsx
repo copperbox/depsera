@@ -98,8 +98,8 @@ describe('Wallboard', () => {
     mockFetchServices.mockResolvedValue([
       makeService({
         dependent_reports: [
-          { dependency_id: 'd1', dependency_name: 'dep', reporting_service_id: 's2', reporting_service_name: 'Svc2', healthy: 1, health_state: 0, latency_ms: 10, last_checked: null },
-          { dependency_id: 'd2', dependency_name: 'dep2', reporting_service_id: 's3', reporting_service_name: 'Svc3', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+          { dependency_id: 'd1', dependency_name: 'dep', reporting_service_id: 's2', reporting_service_name: 'Svc2', healthy: 1, health_state: 0, latency_ms: 10, last_checked: null, impact: null },
+          { dependency_id: 'd2', dependency_name: 'dep2', reporting_service_id: 's3', reporting_service_name: 'Svc3', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null, impact: null },
         ],
       }),
     ]);
@@ -113,8 +113,8 @@ describe('Wallboard', () => {
       makeService({
         health: { status: 'critical', healthy_reports: 0, warning_reports: 0, critical_reports: 1, total_reports: 1, dependent_count: 1, last_report: null },
         dependencies: [
-          { id: 'd1', service_id: 'svc-1', name: 'DB', description: null, impact: 'Data unavailable', healthy: 0, health_state: 2, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
-          { id: 'd2', service_id: 'svc-1', name: 'Cache', description: null, impact: 'Slow responses', healthy: 0, health_state: 2, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'd1', service_id: 'svc-1', name: 'DB', canonical_name: null, description: null, impact: 'Data unavailable', healthy: 0, health_state: 2, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'd2', service_id: 'svc-1', name: 'Cache', canonical_name: null, description: null, impact: 'Slow responses', healthy: 0, health_state: 2, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
         ],
       }),
     ]);
@@ -132,7 +132,7 @@ describe('Wallboard', () => {
       makeService({
         health: { status: 'healthy', healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null },
         dependencies: [
-          { id: 'd1', service_id: 'svc-1', name: 'DB', description: null, impact: 'Data unavailable', healthy: 1, health_state: 0, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'd1', service_id: 'svc-1', name: 'DB', canonical_name: null, description: null, impact: 'Data unavailable', healthy: 1, health_state: 0, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
         ],
       }),
     ]);

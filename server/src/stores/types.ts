@@ -169,6 +169,7 @@ export interface UserUpdateInput {
 export interface DependencyUpsertInput {
   service_id: string;
   name: string;
+  canonical_name?: string | null;
   description?: string | null;
   impact?: string | null;
   type?: DependencyType;

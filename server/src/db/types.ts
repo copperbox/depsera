@@ -124,6 +124,7 @@ export interface Dependency {
   id: string;
   service_id: string;
   name: string;
+  canonical_name: string | null;
   description: string | null;
   impact: string | null;
   type: DependencyType;
@@ -183,6 +184,14 @@ export interface CreateAssociationInput {
 
 export interface DependencyWithAssociations extends Dependency {
   associations: (DependencyAssociation & { linked_service: Service })[];
+}
+
+// Dependency alias types
+export interface DependencyAlias {
+  id: string;
+  alias: string;
+  canonical_name: string;
+  created_at: string;
 }
 
 // proactive-deps response format

@@ -186,12 +186,13 @@ export class DependencyStore implements IDependencyStore {
     this.db
       .prepare(`
         INSERT INTO dependencies (
-          id, service_id, name, description, impact, type,
+          id, service_id, name, canonical_name, description, impact, type,
           healthy, health_state, health_code, latency_ms,
           check_details, error, error_message,
           last_checked, last_status_change, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(service_id, name) DO UPDATE SET
+          canonical_name = excluded.canonical_name,
           description = excluded.description,
           impact = excluded.impact,
           type = excluded.type,
@@ -214,6 +215,7 @@ export class DependencyStore implements IDependencyStore {
         id,
         input.service_id,
         input.name,
+        input.canonical_name ?? null,
         input.description ?? null,
         input.impact ?? null,
         input.type ?? 'other',
