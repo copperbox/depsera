@@ -1,6 +1,6 @@
 {
   "name": "dependencies-dashboard",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "A dashboard to review and manage all tracked dependencies and services",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\" \"npm run dev:mock-ui\"",
