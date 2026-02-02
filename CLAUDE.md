@@ -70,6 +70,13 @@ Core tables:
 
 Migrations are in `/server/src/db/migrations/` (001-006). Types are in `/server/src/db/types.ts`.
 
+## Client-Side Storage
+
+- `graph-node-positions-{userId}` — Persisted node positions for manually dragged graph nodes (per user)
+- `graph-layout-direction` — Graph layout direction (TB/LR)
+- `graph-tier-spacing` — Graph tier spacing value
+- `graph-latency-threshold` — High latency threshold percentage
+
 ## Store Registry
 
 All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). Stores:

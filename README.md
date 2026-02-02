@@ -162,7 +162,7 @@ Searchable, filterable list of all registered services. Click through to service
 Team listing with member/service counts. Team detail shows members with role management and owned services.
 
 ### Dependency Graph (`/graph`)
-Interactive graph built with React Flow. Controls include team filter, search/highlight, horizontal/vertical layout, tier spacing, latency threshold slider, and minimap.
+Interactive graph built with React Flow. Controls include team filter, search/highlight, horizontal/vertical layout, tier spacing, latency threshold slider, and minimap. Dragged node positions are persisted per user across page refreshes; use the "Reset Layout" button to revert to auto-layout.
 
 ### Associations (`/associations`)
 Manage dependency-to-service associations. Four tabs: **Suggestions Inbox** for reviewing auto-generated association suggestions with accept/dismiss (individual and bulk), filterable by source or linked service; **Create** for manually linking a dependency to a target service with searchable dropdowns; **Existing** for browsing confirmed associations by dependency with search, type filter, and delete; **Aliases** for mapping reported dependency names to canonical names so that the same external dependency reported under different names can be unified. Associations are also shown inline on each Service Detail page with a "Generate Suggestions" button.
