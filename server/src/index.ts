@@ -14,6 +14,7 @@ import latencyRouter from './routes/latency';
 import errorsRouter from './routes/errors';
 import aliasesRouter from './routes/aliases';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
+import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 
 dotenv.config();
 
@@ -47,6 +48,12 @@ app.use('/api/latency', requireAuth, latencyRouter);
 app.use('/api/errors', requireAuth, errorsRouter);
 app.use('/api/aliases', requireAuth, aliasesRouter);
 app.use('/api', requireAuth, associationsRouter);
+
+// Serve built client in production (auto-detected by presence of client/dist/index.html)
+if (clientBuildExists()) {
+  console.log('[Static] Serving client build from client/dist/');
+  app.use(createStaticMiddleware());
+}
 
 // Initialize and start server
 async function start() {

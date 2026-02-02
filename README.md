@@ -105,6 +105,18 @@ npm run test:client
 npm run build
 ```
 
+### Production Mode
+
+After building, the server can serve both the API and the client UI from a single process:
+
+```bash
+npm run build
+cd server
+npm start
+```
+
+The server auto-detects the built client at `client/dist/` and serves it with compression and appropriate cache headers. No separate web server (nginx, etc.) is required. In development, the Vite dev server continues to be used as before.
+
 ### Linting
 
 ```bash

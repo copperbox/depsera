@@ -53,7 +53,9 @@ npm run db:clear      # Clear all data (dangerous!)
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/`
+- `/server/src/middleware/` - Express middleware (static file serving, compression)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
+- In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
 
 ## Database Schema
 
