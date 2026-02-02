@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNodesState, useEdgesState } from '@xyflow/react';
+import { useNodesState, useEdgesState, type NodeChange } from '@xyflow/react';
 import { TeamWithCounts } from '../types/team';
 import {
   type AppNode,
@@ -18,6 +18,12 @@ import {
 } from '../utils/graphLayout';
 import { fetchGraph } from '../api/graph';
 import { fetchTeams } from '../api/teams';
+import {
+  type NodePositions,
+  saveNodePositions,
+  loadNodePositions,
+  clearNodePositions,
+} from '../utils/graphLayoutStorage';
 
 export interface UseGraphStateReturn {
   // Node and edge state
@@ -58,6 +64,7 @@ export interface UseGraphStateReturn {
 
   // Actions
   loadData: (isBackgroundRefresh?: boolean) => Promise<void>;
+  resetLayout: () => void;
 
   // Refs for polling
   selectedTeamRef: React.MutableRefObject<string>;
@@ -65,8 +72,13 @@ export interface UseGraphStateReturn {
   tierSpacingRef: React.MutableRefObject<number>;
 }
 
-export function useGraphState(): UseGraphStateReturn {
-  const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>([]);
+export interface UseGraphStateOptions {
+  userId?: string;
+}
+
+export function useGraphState(options: UseGraphStateOptions = {}): UseGraphStateReturn {
+  const { userId } = options;
+  const [nodes, setNodes, baseOnNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<AppEdge>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
   const [selectedTeam, setSelectedTeamState] = useState<string>('');
@@ -133,6 +145,43 @@ export function useGraphState(): UseGraphStateReturn {
     selectedEdgeIdRef.current = selectedEdgeId;
   }, [selectedEdgeId]);
 
+  // Track manually dragged node IDs
+  const movedNodeIdsRef = useRef<Set<string>>(new Set());
+  const savedPositionsRef = useRef<NodePositions>({});
+
+  // Initialize saved positions from localStorage
+  useEffect(() => {
+    if (userId) {
+      savedPositionsRef.current = loadNodePositions(userId);
+      movedNodeIdsRef.current = new Set(Object.keys(savedPositionsRef.current));
+    }
+  }, [userId]);
+
+  // Wrap onNodesChange to detect drag-end events and persist positions
+  const onNodesChange = useCallback((changes: NodeChange<AppNode>[]) => {
+    baseOnNodesChange(changes);
+
+    if (!userId) return;
+
+    for (const change of changes) {
+      if (change.type === 'position' && !change.dragging && change.position) {
+        movedNodeIdsRef.current.add(change.id);
+        savedPositionsRef.current[change.id] = {
+          x: change.position.x,
+          y: change.position.y,
+        };
+      }
+    }
+
+    // Check if any drag-end occurred and persist
+    const hasDragEnd = changes.some(
+      (c) => c.type === 'position' && !c.dragging && 'position' in c && c.position
+    );
+    if (hasDragEnd) {
+      saveNodePositions(userId, savedPositionsRef.current);
+    }
+  }, [baseOnNodesChange, userId]);
+
   // Setters that persist to localStorage
   const setSelectedTeam = useCallback((team: string) => {
     setSelectedTeamState(team);
@@ -177,16 +226,46 @@ export function useGraphState(): UseGraphStateReturn {
 
       const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, spacing);
 
+      // Apply saved positions for manually dragged nodes
+      const currentNodeIds = new Set(layoutedNodes.map(n => n.id));
+      const positions = savedPositionsRef.current;
+      const movedIds = movedNodeIdsRef.current;
+
+      // Clean up stale node IDs from saved positions
+      if (userId) {
+        let staleRemoved = false;
+        for (const id of movedIds) {
+          if (!currentNodeIds.has(id)) {
+            movedIds.delete(id);
+            delete positions[id];
+            staleRemoved = true;
+          }
+        }
+        if (staleRemoved) {
+          saveNodePositions(userId, positions);
+        }
+      }
+
+      const mergedNodes = layoutedNodes.map(node => {
+        if (movedIds.has(node.id) && positions[node.id]) {
+          return {
+            ...node,
+            position: positions[node.id],
+          };
+        }
+        return node;
+      });
+
       // Preserve selection during refresh
       const currentSelectedNodeId = selectedNodeIdRef.current;
       const currentSelectedEdgeId = selectedEdgeIdRef.current;
 
       const nodesWithSelection = currentSelectedNodeId
-        ? layoutedNodes.map(node => ({
+        ? mergedNodes.map(node => ({
             ...node,
             selected: node.id === currentSelectedNodeId,
           }))
-        : layoutedNodes;
+        : mergedNodes;
 
       const edgesWithSelection = currentSelectedEdgeId
         ? layoutedEdges.map(edge => ({
@@ -203,7 +282,16 @@ export function useGraphState(): UseGraphStateReturn {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [teams, setNodes, setEdges]);
+  }, [teams, setNodes, setEdges, userId]);
+
+  const resetLayout = useCallback(() => {
+    if (userId) {
+      clearNodePositions(userId);
+    }
+    movedNodeIdsRef.current.clear();
+    savedPositionsRef.current = {};
+    loadData();
+  }, [userId, loadData]);
 
   return {
     nodes,
@@ -231,6 +319,7 @@ export function useGraphState(): UseGraphStateReturn {
     isRefreshing,
     error,
     loadData,
+    resetLayout,
     selectedTeamRef,
     layoutDirectionRef,
     tierSpacingRef,

@@ -18,6 +18,7 @@ import { NodeDetailsPanel } from './NodeDetailsPanel';
 import { EdgeDetailsPanel } from './EdgeDetailsPanel';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import { useGraphState } from '../../../hooks/useGraphState';
+import { useAuth } from '../../../contexts/AuthContext';
 import {
   type AppNode,
   type AppEdge,
@@ -43,6 +44,7 @@ const edgeTypes = {
 };
 
 function DependencyGraphInner() {
+  const { user } = useAuth();
   const {
     nodes,
     edges,
@@ -67,7 +69,8 @@ function DependencyGraphInner() {
     isRefreshing,
     error,
     loadData,
-  } = useGraphState();
+    resetLayout,
+  } = useGraphState({ userId: user?.id });
 
   // Initial load and team/direction/spacing change
   useEffect(() => {
@@ -320,6 +323,20 @@ function DependencyGraphInner() {
               </svg>
             </button>
           </div>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <button
+            className={styles.toolbarButton}
+            onClick={resetLayout}
+            title="Reset to auto-layout"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M1 4v6h6M23 20v-6h-6" />
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+            </svg>
+            Reset Layout
+          </button>
         </div>
 
         <div className={styles.toolbarGroup}>
