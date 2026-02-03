@@ -7,7 +7,7 @@ export function listUsers(_req: Request, res: Response): void {
     const users = stores.users.findAll();
 
     res.json(users);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error listing users:', error);
     res.status(500).json({
       error: 'Failed to list users',

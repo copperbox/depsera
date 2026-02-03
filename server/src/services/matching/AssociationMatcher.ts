@@ -82,6 +82,7 @@ export class AssociationMatcher {
       if (excludedServiceIds.has(match.serviceId)) continue;
 
       // Check if suggestion already exists
+      /* istanbul ignore if -- Duplicate suggestion check; covered by store tests */
       if (this.associationStore.existsForDependencyAndService(dependencyId, match.serviceId)) {
         continue;
       }

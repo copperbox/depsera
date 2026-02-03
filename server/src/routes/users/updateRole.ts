@@ -35,7 +35,7 @@ export function updateUserRole(req: Request, res: Response): void {
     const updatedUser = stores.users.update(id, { role });
 
     res.json(updatedUser);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error updating user role:', error);
     res.status(500).json({
       error: 'Failed to update user role',

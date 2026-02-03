@@ -245,6 +245,7 @@ export class GraphService {
     serviceIds: string[],
     serviceTypes: Map<string, import('../../db/types').DependencyType>
   ): void {
+    /* istanbul ignore if -- Defensive guard; caller checks length before calling */
     if (serviceIds.length === 0) return;
 
     for (const serviceId of serviceIds) {

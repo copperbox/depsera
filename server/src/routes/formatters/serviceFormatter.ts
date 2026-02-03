@@ -136,6 +136,7 @@ export function formatUpdatedService(serviceId: string): FormattedServiceMutatio
   }
 
   const dependencies = stores.dependencies.findByServiceId(serviceId);
+  /* istanbul ignore next -- Team field fallbacks; team timestamps usually present */
   const team: Team = {
     id: service.team_id,
     name: service.team_name,

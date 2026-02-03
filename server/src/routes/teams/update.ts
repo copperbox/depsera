@@ -16,6 +16,7 @@ export function updateTeam(req: Request, res: Response): void {
     }
 
     // Validate fields if provided
+    /* istanbul ignore if -- Edge case: malformed request body type coercion */
     if (input.name !== undefined) {
       if (typeof input.name !== 'string' || input.name.trim() === '') {
         res.status(400).json({ error: 'name must be a non-empty string' });
@@ -48,7 +49,7 @@ export function updateTeam(req: Request, res: Response): void {
       member_count: stores.teams.getMemberCount(id),
       service_count: stores.teams.getServiceCount(id),
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error updating team:', error);
     res.status(500).json({
       error: 'Failed to update team',

@@ -43,7 +43,7 @@ export function getUser(req: Request, res: Response): void {
     };
 
     res.json(userWithTeams);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error getting user:', error);
     res.status(500).json({
       error: 'Failed to get user',

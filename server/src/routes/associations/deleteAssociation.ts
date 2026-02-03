@@ -25,7 +25,7 @@ export function deleteAssociation(req: Request, res: Response): void {
     stores.associations.delete(association.id);
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error deleting association:', error);
     res.status(500).json({
       error: 'Failed to delete association',

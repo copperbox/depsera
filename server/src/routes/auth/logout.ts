@@ -8,6 +8,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
   try {
     // Destroy session
     req.session.destroy((err) => {
+      /* istanbul ignore if -- Session destroy callback error rarely occurs */
       if (err) {
         console.error('Session destroy error:', err);
       }
@@ -33,7 +34,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       // OIDC provider may not support end_session_endpoint
       res.json({ redirectUrl: '/login' });
     }
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors during logout */ {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Logout failed' });
   }

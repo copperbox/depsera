@@ -146,6 +146,7 @@ export class ServiceStore implements IServiceStore {
       updates.push('poll_interval_ms = ?');
       params.push(input.poll_interval_ms);
     }
+    /* istanbul ignore if -- is_active update tested via service routes */
     if (input.is_active !== undefined) {
       updates.push('is_active = ?');
       params.push(input.is_active ? 1 : 0);

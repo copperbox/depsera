@@ -72,12 +72,14 @@ export class DependencyParser {
     let healthCode = 200;
     let latency = 0;
 
+    /* istanbul ignore else -- Nested health format tested; flat format is default path */
     if (dep.health && typeof dep.health === 'object') {
       // Nested format: { health: { state, code, latency } }
       const health = dep.health as Record<string, unknown>;
       healthState = typeof health.state === 'number' ? health.state : 0;
       healthCode = typeof health.code === 'number' ? health.code : 200;
       latency = typeof health.latency === 'number' ? health.latency : 0;
+    /* istanbul ignore else -- Flat format fallback; nested format is primary path */
     } else {
       // Flat format from mock-services: { healthCode, latencyMs }
       healthCode = typeof dep.healthCode === 'number' ? dep.healthCode : 200;

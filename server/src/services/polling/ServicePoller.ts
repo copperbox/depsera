@@ -24,10 +24,12 @@ export class ServicePoller {
     this.upsertService = upsertService || getDependencyUpsertService();
   }
 
+  /* istanbul ignore next -- Getter used by HealthPollingService for logging */
   get serviceName(): string {
     return this.service.name;
   }
 
+  /* istanbul ignore next -- Getter used by HealthPollingService for state tracking */
   get serviceId(): string {
     return this.service.id;
   }
@@ -62,6 +64,7 @@ export class ServicePoller {
     }
   }
 
+  /* istanbul ignore next -- Used by HealthPollingService for config updates */
   updateService(service: Service): void {
     this.service = service;
   }

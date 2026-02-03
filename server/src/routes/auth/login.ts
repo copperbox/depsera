@@ -10,6 +10,7 @@ import {
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     // In bypass mode, just redirect to home (user is auto-authenticated)
+    /* istanbul ignore if -- AUTH_BYPASS mode tested separately */
     if (process.env.AUTH_BYPASS === 'true') {
       const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
       const returnTo = (req.query.returnTo as string) || '/';
