@@ -65,6 +65,7 @@ export interface Service {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  poll_interval_ms: number;
   is_active: number; // SQLite boolean
   last_poll_success: number | null; // SQLite boolean (0/1)
   last_poll_error: string | null;
@@ -77,6 +78,7 @@ export interface CreateServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string;
+  poll_interval_ms?: number;
 }
 
 export interface UpdateServiceInput {
@@ -84,6 +86,7 @@ export interface UpdateServiceInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
+  poll_interval_ms?: number;
   is_active?: boolean;
 }
 

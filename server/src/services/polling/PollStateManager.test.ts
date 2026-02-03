@@ -4,17 +4,19 @@ import { Service } from '../../db/types';
 describe('PollStateManager', () => {
   let manager: PollStateManager;
 
-  const createService = (id: string, name: string): Service => ({
+  const createService = (id: string, name: string, overrides: Partial<Service> = {}): Service => ({
     id,
     name,
     team_id: 'team-1',
     health_endpoint: `http://${name}.local/health`,
     metrics_endpoint: null,
+    poll_interval_ms: 30000,
     is_active: 1,
     last_poll_success: null,
     last_poll_error: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    ...overrides,
   });
 
   beforeEach(() => {
@@ -30,6 +32,15 @@ describe('PollStateManager', () => {
       expect(state.serviceName).toBe('user-service');
       expect(state.isPolling).toBe(false);
       expect(state.consecutiveFailures).toBe(0);
+      expect(state.circuitState).toBe('closed');
+      expect(state.pollIntervalMs).toBe(30000);
+    });
+
+    it('should respect custom poll_interval_ms', () => {
+      const service = createService('svc-1', 'user-service', { poll_interval_ms: 60000 });
+      const state = manager.addService(service);
+
+      expect(state.pollIntervalMs).toBe(60000);
     });
 
     it('should increase size', () => {

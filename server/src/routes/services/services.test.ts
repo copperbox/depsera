@@ -41,7 +41,7 @@ describe('Services API', () => {
         team_id TEXT NOT NULL,
         health_endpoint TEXT NOT NULL,
         metrics_endpoint TEXT,
-        polling_interval INTEGER NOT NULL DEFAULT 30,
+        poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,
         last_poll_error TEXT,
@@ -138,6 +138,48 @@ describe('Services API', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.metrics_endpoint).toBe('https://example.com/metrics');
+    });
+
+    it('should create a service with custom poll_interval_ms', async () => {
+      const response = await request(app)
+        .post('/api/services')
+        .send({
+          name: 'Interval Service',
+          team_id: teamId,
+          health_endpoint: 'https://example.com/health',
+          poll_interval_ms: 60000,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.poll_interval_ms).toBe(60000);
+    });
+
+    it('should reject poll_interval_ms below minimum', async () => {
+      const response = await request(app)
+        .post('/api/services')
+        .send({
+          name: 'Bad Interval',
+          team_id: teamId,
+          health_endpoint: 'https://example.com/health',
+          poll_interval_ms: 1000,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('poll_interval_ms');
+    });
+
+    it('should reject poll_interval_ms above maximum', async () => {
+      const response = await request(app)
+        .post('/api/services')
+        .send({
+          name: 'Bad Interval',
+          team_id: teamId,
+          health_endpoint: 'https://example.com/health',
+          poll_interval_ms: 4000000,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('poll_interval_ms');
     });
 
     it('should reject invalid health_endpoint URL', async () => {
@@ -344,6 +386,24 @@ describe('Services API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.is_active).toBe(0);
+    });
+
+    it('should update poll_interval_ms', async () => {
+      const response = await request(app)
+        .put(`/api/services/${serviceId}`)
+        .send({ poll_interval_ms: 60000 });
+
+      expect(response.status).toBe(200);
+      expect(response.body.poll_interval_ms).toBe(60000);
+    });
+
+    it('should reject invalid poll_interval_ms on update', async () => {
+      const response = await request(app)
+        .put(`/api/services/${serviceId}`)
+        .send({ poll_interval_ms: 100 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('poll_interval_ms');
     });
 
     it('should reject invalid URL on update', async () => {

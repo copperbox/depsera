@@ -5,6 +5,7 @@ import * as migration003 from './migrations/003_add_latency_history';
 import * as migration004 from './migrations/004_add_check_details_and_errors';
 import * as migration005 from './migrations/005_simplify_polling';
 import * as migration006 from './migrations/006_add_dependency_aliases';
+import * as migration007 from './migrations/007_poll_interval_ms';
 
 interface Migration {
   id: string;
@@ -49,6 +50,12 @@ const migrations: Migration[] = [
     name: 'add_dependency_aliases',
     up: migration006.up,
     down: migration006.down
+  },
+  {
+    id: '007',
+    name: 'poll_interval_ms',
+    up: migration007.up,
+    down: migration007.down
   }
 ];
 

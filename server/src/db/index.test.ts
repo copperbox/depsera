@@ -61,8 +61,8 @@ describe('Database', () => {
 
     // Insert a service
     testDb.prepare(`
-      INSERT INTO services (id, name, team_id, health_endpoint, polling_interval)
-      VALUES ('service-1', 'Test Service', 'team-1', 'http://localhost/health', 30)
+      INSERT INTO services (id, name, team_id, health_endpoint, poll_interval_ms)
+      VALUES ('service-1', 'Test Service', 'team-1', 'http://localhost/health', 30000)
     `).run();
 
     // Insert a dependency

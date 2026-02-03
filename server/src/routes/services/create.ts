@@ -23,6 +23,7 @@ export function createService(req: Request, res: Response): void {
       team_id: validated.team_id,
       health_endpoint: validated.health_endpoint,
       metrics_endpoint: validated.metrics_endpoint,
+      poll_interval_ms: validated.poll_interval_ms,
     });
 
     // Start polling for the new service (is_active defaults to 1)
