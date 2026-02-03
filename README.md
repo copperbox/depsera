@@ -16,7 +16,7 @@ A dashboard to review and manage all tracked dependencies and services. Monitor 
 - **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
 - **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
-- **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode
+- **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
 
 ## Tech Stack
