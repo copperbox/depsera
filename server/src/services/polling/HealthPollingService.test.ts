@@ -209,3 +209,652 @@ describe('HealthPollingService - syncServices', () => {
     expect(backoffs.has('svc-1')).toBe(false);
   });
 });
+
+describe('HealthPollingService - lifecycle methods', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should start all active services', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const svc2 = createService('svc-2', 'service-b');
+    const { instance, stateManager } = createPollingService([svc1, svc2]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+
+    expect(stateManager.size).toBe(2);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Starting health polling for 2 active services')
+    );
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should not start if shutting down', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager } = createPollingService([svc1]);
+
+    await instance.shutdown();
+    instance.startAll();
+
+    expect(stateManager.size).toBe(0);
+  });
+
+  it('should not start service if already running', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager } = createPollingService([svc1]);
+
+    instance.startAll();
+    expect(stateManager.size).toBe(1);
+
+    // Try to start again
+    instance.startService('svc-1');
+    expect(stateManager.size).toBe(1); // Still only 1
+
+    await instance.shutdown();
+  });
+
+  it('should not start inactive service', () => {
+    const svc1 = createService('svc-1', 'service-a', { is_active: 0 });
+    const { instance, stateManager, mockServiceStore } = createPollingService([]);
+
+    mockServiceStore.findById.mockReturnValue(svc1);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startService('svc-1');
+
+    expect(stateManager.hasService('svc-1')).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('not found or inactive')
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('should not start non-existent service', () => {
+    const { instance, stateManager, mockServiceStore } = createPollingService([]);
+
+    mockServiceStore.findById.mockReturnValue(null);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startService('non-existent');
+
+    expect(stateManager.hasService('non-existent')).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('not found or inactive')
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('should stop a specific service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, pollers, circuitBreakers, backoffs } =
+      createPollingService([svc1]);
+
+    instance.startAll();
+    expect(stateManager.hasService('svc-1')).toBe(true);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.stopService('svc-1');
+
+    expect(stateManager.hasService('svc-1')).toBe(false);
+    expect(pollers.has('svc-1')).toBe(false);
+    expect(circuitBreakers.has('svc-1')).toBe(false);
+    expect(backoffs.has('svc-1')).toBe(false);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Stopped polling service-a')
+    );
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should not fail when stopping non-existent service', () => {
+    const { instance } = createPollingService([]);
+
+    // Should not throw
+    instance.stopService('non-existent');
+  });
+
+  it('should stop loop when last service removed', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+    expect(stateManager.size).toBe(1);
+
+    instance.stopService('svc-1');
+    expect(stateManager.size).toBe(0);
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Poll loop stopped')
+    );
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should shutdown cleanly', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager } = createPollingService([svc1]);
+
+    instance.startAll();
+    expect(stateManager.size).toBe(1);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    await instance.shutdown();
+
+    expect(stateManager.size).toBe(0);
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Shutting down health polling service')
+    );
+
+    logSpy.mockRestore();
+  });
+});
+
+describe('HealthPollingService - singleton', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should return singleton instance from getInstance', () => {
+    const instance1 = HealthPollingService.getInstance();
+    const instance2 = HealthPollingService.getInstance();
+
+    expect(instance1).toBe(instance2);
+  });
+
+  it('should reset instance on resetInstance when instance exists', async () => {
+    const instance1 = HealthPollingService.getInstance();
+    await HealthPollingService.resetInstance();
+    const instance2 = HealthPollingService.getInstance();
+
+    expect(instance1).not.toBe(instance2);
+  });
+});
+
+describe('HealthPollingService - state methods', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should return list of active pollers', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const svc2 = createService('svc-2', 'service-b');
+    const { instance } = createPollingService([svc1, svc2]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+
+    const activePollers = instance.getActivePollers();
+    expect(activePollers).toContain('svc-1');
+    expect(activePollers).toContain('svc-2');
+    expect(activePollers).toHaveLength(2);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should check if service is polling', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    expect(instance.isPolling('svc-1')).toBe(false);
+
+    instance.startAll();
+
+    expect(instance.isPolling('svc-1')).toBe(true);
+    expect(instance.isPolling('non-existent')).toBe(false);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should return poll state for service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+
+    const state = instance.getPollState('svc-1');
+    expect(state).toBeDefined();
+    expect(state!.serviceName).toBe('service-a');
+    expect(state!.circuitState).toBe('closed');
+
+    const noState = instance.getPollState('non-existent');
+    expect(noState).toBeUndefined();
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should restart a service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, mockServiceStore } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+    expect(stateManager.hasService('svc-1')).toBe(true);
+
+    mockServiceStore.findById.mockReturnValue(svc1);
+
+    instance.restartService('svc-1');
+
+    expect(stateManager.hasService('svc-1')).toBe(true);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+});
+
+describe('HealthPollingService - pollNow', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should return error when service is already being polled', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, syncServices } = createPollingService([svc1]);
+
+    // Add service without starting the loop
+    syncServices();
+
+    // Mark as currently polling
+    stateManager.markPolling('svc-1', true);
+
+    const result = await instance.pollNow('svc-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Service is currently being polled');
+
+    // Unmark to avoid shutdown timeout
+    stateManager.markPolling('svc-1', false);
+
+    await instance.shutdown();
+  });
+
+  it('should return error when service not found', async () => {
+    const { instance, mockServiceStore } = createPollingService([]);
+
+    mockServiceStore.findById.mockReturnValue(null);
+
+    const result = await instance.pollNow('non-existent');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Service not found');
+  });
+
+  it('should create temporary poller for non-tracked service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, mockServiceStore } = createPollingService([]);
+
+    mockServiceStore.findById.mockReturnValue(svc1);
+
+    // Will fail due to network but should create temp poller
+    const result = await instance.pollNow('svc-1');
+
+    // The poll will fail since there's no real endpoint, but it should have tried
+    expect(result).toBeDefined();
+    expect(mockServiceStore.findById).toHaveBeenCalledWith('svc-1');
+  });
+
+  it('should poll tracked service and update poll result', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices, mockServiceStore } = createPollingService([svc1]);
+
+    // Add service without starting the loop
+    syncServices();
+
+    // pollNow will use the real poller which will fail due to no real endpoint
+    // This tests that the poll flow works and updatePollResult is called
+    const result = await instance.pollNow('svc-1');
+
+    // Poll should have run (will fail due to network, but that's expected)
+    expect(result).toBeDefined();
+    expect(mockServiceStore.updatePollResult).toHaveBeenCalled();
+
+    await instance.shutdown();
+  });
+
+  it('should handle poll for tracked service with state', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, syncServices, circuitBreakers, backoffs } = createPollingService([svc1]);
+
+    // Add service without starting the loop
+    syncServices();
+
+    // Verify state exists before poll
+    expect(stateManager.hasService('svc-1')).toBe(true);
+    expect(stateManager.getState('svc-1')!.isPolling).toBe(false);
+
+    // Poll will fail due to no real endpoint but should update state
+    await instance.pollNow('svc-1');
+
+    // Verify state was updated - circuit breaker and backoff should exist after a poll
+    expect(circuitBreakers.has('svc-1')).toBe(true);
+    expect(backoffs.has('svc-1')).toBe(true);
+
+    // Lock should be released after poll
+    expect(stateManager.getState('svc-1')!.isPolling).toBe(false);
+
+    await instance.shutdown();
+  });
+});
+
+describe('HealthPollingService - runPollCycle', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should skip services with open circuit breaker', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, circuitBreakers, pollers, syncServices, pollCache } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Open the circuit breaker by recording many failures
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const getCircuitBreaker = (instance as any).getCircuitBreaker.bind(instance);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    const cb = getCircuitBreaker('svc-1');
+    for (let i = 0; i < 10; i++) {
+      cb.recordFailure();
+    }
+
+    expect(cb.getState()).toBe('open');
+    expect(circuitBreakers.has('svc-1')).toBe(true);
+
+    // Invalidate cache so service would be eligible for poll
+    pollCache.invalidate('svc-1');
+
+    // Replace the poller with a mock to verify it's not called
+    const mockPoller = {
+      poll: jest.fn().mockResolvedValue({
+        success: true,
+        dependenciesUpdated: 0,
+        statusChanges: [],
+        latencyMs: 50,
+      }),
+    };
+    pollers.set('svc-1', mockPoller as unknown as ReturnType<typeof pollers.get>);
+
+    // Trigger runPollCycle manually
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Poll should not have been called due to circuit breaker being open
+    expect(mockPoller.poll).not.toHaveBeenCalled();
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should track circuit breaker state during failures', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices } = createPollingService([svc1]);
+
+    // Add service without starting loop
+    syncServices();
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const getCircuitBreaker = (instance as any).getCircuitBreaker.bind(instance);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Verify circuit is initially closed
+    const cb = getCircuitBreaker('svc-1');
+    expect(cb.getState()).toBe('closed');
+
+    // Record failures to open circuit
+    for (let i = 0; i < 10; i++) {
+      cb.recordFailure();
+    }
+
+    expect(cb.getState()).toBe('open');
+    expect(cb.canAttempt()).toBe(false);
+
+    await instance.shutdown();
+  });
+
+  it('should transition circuit from open to half-open after cooldown', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices } = createPollingService([svc1]);
+
+    // Add service without starting loop
+    syncServices();
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const getCircuitBreaker = (instance as any).getCircuitBreaker.bind(instance);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Open the circuit
+    const cb = getCircuitBreaker('svc-1');
+    for (let i = 0; i < 10; i++) {
+      cb.recordFailure();
+    }
+
+    expect(cb.getState()).toBe('open');
+
+    // Simulate cooldown passed
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    (cb as any).lastFailureTime = Date.now() - 400000;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // canAttempt should transition to half-open
+    expect(cb.canAttempt()).toBe(true);
+    expect(cb.getState()).toBe('half-open');
+
+    // Success should close the circuit
+    cb.recordSuccess();
+    expect(cb.getState()).toBe('closed');
+
+    await instance.shutdown();
+  });
+
+  it('should get and use backoff for service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices, backoffs } = createPollingService([svc1]);
+
+    // Add service without starting loop
+    syncServices();
+
+    // Poll will create backoff
+    await instance.pollNow('svc-1');
+
+    expect(backoffs.has('svc-1')).toBe(true);
+
+    await instance.shutdown();
+  });
+
+  it('should get and use circuit breaker for service', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices, circuitBreakers } = createPollingService([svc1]);
+
+    // Add service without starting loop
+    syncServices();
+
+    // Poll will create circuit breaker
+    await instance.pollNow('svc-1');
+
+    expect(circuitBreakers.has('svc-1')).toBe(true);
+
+    await instance.shutdown();
+  });
+
+  it('should handle pollService returning no poller found', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, pollers, syncServices } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Remove the poller manually to simulate edge case
+    pollers.delete('svc-1');
+
+    const state = stateManager.getState('svc-1')!;
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const pollService = (instance as any).pollService.bind(instance);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    const result = await pollService(state);
+
+    expect(result.result.success).toBe(false);
+    expect(result.result.error).toBe('No poller found');
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should skip polling when cache says not to poll', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, pollCache, pollers, syncServices } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Mark as recently polled with long TTL
+    pollCache.markPolled('svc-1', 60000);
+
+    // Replace the poller with a mock
+    const mockPoller = {
+      poll: jest.fn().mockResolvedValue({
+        success: true,
+        dependenciesUpdated: 0,
+        statusChanges: [],
+        latencyMs: 50,
+      }),
+    };
+    pollers.set('svc-1', mockPoller as unknown as ReturnType<typeof pollers.get>);
+
+    // Trigger runPollCycle manually
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Should not have called poll since cache says don't poll
+    expect(mockPoller.poll).not.toHaveBeenCalled();
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should handle rejected promises in poll cycle', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, pollCache, pollers, syncServices } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Invalidate cache so it polls
+    pollCache.invalidate('svc-1');
+
+    // Replace the poller with a mock that throws
+    const mockPoller = {
+      poll: jest.fn().mockRejectedValue(new Error('Network error')),
+    };
+    pollers.set('svc-1', mockPoller as unknown as ReturnType<typeof pollers.get>);
+
+    // Trigger runPollCycle - should handle rejection gracefully
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Should not throw - handled gracefully
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should run poll cycle and update state', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, syncServices, pollCache, stateManager } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Invalidate cache so service is eligible for poll
+    pollCache.invalidate('svc-1');
+
+    // Verify service is tracked
+    expect(stateManager.hasService('svc-1')).toBe(true);
+
+    // Run poll cycle - this will poll the service (will fail due to no real endpoint)
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Verify state was updated
+    const state = stateManager.getState('svc-1');
+    expect(state).toBeDefined();
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should handle service removed during poll', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, stateManager, pollers, syncServices, pollCache } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Add service without starting loop
+    syncServices();
+
+    // Invalidate cache so it polls
+    pollCache.invalidate('svc-1');
+
+    // Replace the poller with a mock that removes the service mid-poll
+    const mockPoller = {
+      poll: jest.fn().mockImplementation(async () => {
+        // Remove service during poll
+        stateManager.removeService('svc-1');
+        return {
+          success: true,
+          dependenciesUpdated: 1,
+          statusChanges: [],
+          latencyMs: 50,
+        };
+      }),
+    };
+    pollers.set('svc-1', mockPoller as unknown as ReturnType<typeof pollers.get>);
+
+    // Trigger runPollCycle - should handle gracefully
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Should not throw
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+});
