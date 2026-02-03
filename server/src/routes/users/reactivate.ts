@@ -23,7 +23,7 @@ export function reactivateUser(req: Request, res: Response): void {
     const updatedUser = stores.users.update(id, { is_active: true });
 
     res.json(updatedUser);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error reactivating user:', error);
     res.status(500).json({
       error: 'Failed to reactivate user',

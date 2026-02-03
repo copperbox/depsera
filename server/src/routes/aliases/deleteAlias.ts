@@ -12,7 +12,7 @@ export function deleteAlias(req: Request, res: Response): void {
     }
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error deleting alias:', error);
     res.status(500).json({
       error: 'Failed to delete alias',

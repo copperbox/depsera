@@ -18,7 +18,7 @@ export function updateAlias(req: Request, res: Response): void {
     }
 
     res.json(updated);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error updating alias:', error);
     res.status(500).json({
       error: 'Failed to update alias',

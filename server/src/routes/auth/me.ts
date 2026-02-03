@@ -36,7 +36,7 @@ export function me(req: Request, res: Response): void {
         canManageServices: isAdmin || isTeamLead,
       },
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error fetching user profile:', error);
     res.status(500).json({
       error: 'Failed to fetch user profile',

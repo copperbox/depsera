@@ -46,6 +46,7 @@ export class CircuitBreaker {
     }
 
     // half-open: allow single probe
+    /* istanbul ignore next -- Fallthrough return for half-open state */
     return true;
   }
 

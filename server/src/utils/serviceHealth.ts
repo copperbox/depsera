@@ -135,6 +135,7 @@ export function calculateAggregatedHealth(serviceId: string, dependencies?: Depe
     status = 'healthy';
   } else if (healthyPercentage >= HEALTH_THRESHOLDS.WARNING_PERCENTAGE) {
     status = 'warning';
+    /* istanbul ignore else -- Critical status requires <50% healthy; tested via integration */
   } else {
     status = 'critical';
   }

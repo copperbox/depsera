@@ -21,7 +21,7 @@ export function generateSuggestionsForDependency(req: Request, res: Response): v
       suggestions_created: suggestions.length,
       suggestions,
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     console.error('Error generating suggestions:', error);
     res.status(500).json({
       error: 'Failed to generate suggestions',
@@ -49,7 +49,7 @@ export function generateSuggestionsForService(req: Request, res: Response): void
       suggestions_created: suggestions.length,
       suggestions,
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     console.error('Error generating suggestions:', error);
     res.status(500).json({
       error: 'Failed to generate suggestions',

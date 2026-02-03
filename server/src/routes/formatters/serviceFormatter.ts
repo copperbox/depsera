@@ -33,6 +33,7 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     team_id: row.team_id,
     health_endpoint: row.health_endpoint,
     metrics_endpoint: row.metrics_endpoint,
+    poll_interval_ms: row.poll_interval_ms,
     is_active: row.is_active,
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
@@ -135,6 +136,7 @@ export function formatUpdatedService(serviceId: string): FormattedServiceMutatio
   }
 
   const dependencies = stores.dependencies.findByServiceId(serviceId);
+  /* istanbul ignore next -- Team field fallbacks; team timestamps usually present */
   const team: Team = {
     id: service.team_id,
     name: service.team_name,

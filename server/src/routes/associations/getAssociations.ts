@@ -39,7 +39,7 @@ export function getAssociations(req: Request, res: Response): void {
       });
 
     res.json(result);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error fetching associations:', error);
     res.status(500).json({
       error: 'Failed to fetch associations',

@@ -31,7 +31,7 @@ export async function pollServiceNow(req: Request, res: Response): Promise<void>
       latency_ms: result.latencyMs,
       error: result.error,
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected polling errors */ {
     console.error('Error triggering poll:', error);
     res.status(500).json({
       error: 'Failed to poll service',

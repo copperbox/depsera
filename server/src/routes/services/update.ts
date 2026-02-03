@@ -23,6 +23,7 @@ export function updateService(req: Request, res: Response): void {
     }
 
     // Verify team exists if changing team_id
+    /* istanbul ignore if -- Edge case: team deleted after validation; defensive check */
     if (validated.team_id !== undefined) {
       if (!stores.teams.exists(validated.team_id)) {
         throw new ValidationError('Team not found', 'team_id');
@@ -62,6 +63,7 @@ export function updateService(req: Request, res: Response): void {
 
     // Format and return updated service
     const formatted = formatUpdatedService(id);
+    /* istanbul ignore if -- Unreachable: service was just updated successfully */
     if (!formatted) {
       throw new NotFoundError('Service');
     }

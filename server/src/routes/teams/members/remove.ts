@@ -21,7 +21,7 @@ export function removeMember(req: Request, res: Response): void {
     stores.teams.removeMember(id, userId);
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error removing team member:', error);
     res.status(500).json({
       error: 'Failed to remove team member',

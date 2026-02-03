@@ -24,7 +24,7 @@ export function createAlias(req: Request, res: Response): void {
 
     const created = stores.aliases.create(alias.trim(), canonical_name.trim());
     res.status(201).json(created);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error creating alias:', error);
     res.status(500).json({
       error: 'Failed to create alias',

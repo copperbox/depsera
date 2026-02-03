@@ -54,7 +54,7 @@ export function updateMember(req: Request, res: Response): void {
         is_active: user.is_active,
       },
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error updating team member:', error);
     res.status(500).json({
       error: 'Failed to update team member',

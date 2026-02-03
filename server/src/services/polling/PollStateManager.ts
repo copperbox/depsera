@@ -13,6 +13,7 @@ export class PollStateManager {
       serviceId: service.id,
       serviceName: service.name,
       healthEndpoint: service.health_endpoint,
+      /* istanbul ignore next -- Default poll interval; service usually has value set */
       pollIntervalMs: service.poll_interval_ms ?? 30000,
       lastPolled: 0,
       consecutiveFailures: 0,

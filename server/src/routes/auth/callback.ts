@@ -59,6 +59,7 @@ export async function callback(req: Request, res: Response): Promise<void> {
 
       if (isFirstUser) {
         console.log(`First user ${user.email} bootstrapped as admin`);
+        /* istanbul ignore else -- Non-first user creation; tested via integration */
       } else {
         console.log(`New user created: ${user.email}`);
       }

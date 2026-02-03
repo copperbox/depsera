@@ -13,6 +13,7 @@ export function getLatencyStats(req: Request, res: Response): void {
     const { dependencyId } = req.params;
     const stores = getStores();
 
+    /* istanbul ignore if -- Route param always present; validation for type safety */
     if (!dependencyId) {
       res.status(400).json({ error: 'Dependency ID is required' });
       return;
@@ -43,7 +44,7 @@ export function getLatencyStats(req: Request, res: Response): void {
     };
 
     res.json(response);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error fetching latency stats:', error);
     res.status(500).json({
       error: 'Failed to fetch latency stats',

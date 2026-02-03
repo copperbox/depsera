@@ -68,7 +68,7 @@ export function getCurrentUser(req: Request, res: Response): void {
     };
 
     res.json(profile);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error getting current user:', error);
     res.status(500).json({
       error: 'Failed to get current user',

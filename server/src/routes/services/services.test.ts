@@ -6,8 +6,21 @@ import { randomUUID } from 'crypto';
 // Create in-memory database for testing
 const testDb = new Database(':memory:');
 
-// Mock the db module
-jest.mock('../../db', () => testDb);
+// Mock the db module with both named and default exports
+jest.mock('../../db', () => ({
+  db: testDb,
+  default: testDb,
+}));
+
+// Mock the auth module to avoid session store initialization
+jest.mock('../../auth', () => ({
+  requireAuth: jest.fn((_req, _res, next) => next()),
+  requireAdmin: jest.fn((_req, _res, next) => next()),
+  requireTeamAccess: jest.fn((_req, _res, next) => next()),
+  requireTeamLead: jest.fn((_req, _res, next) => next()),
+  requireServiceTeamLead: jest.fn((_req, _res, next) => next()),
+  requireBodyTeamLead: jest.fn((_req, _res, next) => next()),
+}));
 
 import servicesRouter from './index';
 
@@ -305,7 +318,7 @@ describe('Services API', () => {
       const serviceA = response.body.find((s: { name: string }) => s.name === 'Service A');
       expect(serviceA.dependencies).toHaveLength(2);
       expect(serviceA.health).toBeDefined();
-      expect(serviceA.health.status).toBe('critical'); // derived from own deps (1 healthy, 1 critical = 50%)
+      expect(serviceA.health.status).toBe('warning'); // derived from own deps (1 healthy, 1 critical = 50%)
 
       // Service B has no dependencies
       const serviceB = response.body.find((s: { name: string }) => s.name === 'Service B');

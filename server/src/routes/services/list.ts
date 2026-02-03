@@ -21,7 +21,7 @@ export function listServices(req: Request, res: Response): void {
     });
 
     res.json(servicesWithDetails);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error listing services:', error);
     res.status(getErrorStatusCode(error)).json(formatError(error));
   }

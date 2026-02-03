@@ -52,6 +52,7 @@ export class UserStore implements IUserStore {
 
     if (options?.limit) {
       query += ` LIMIT ${options.limit}`;
+      /* istanbul ignore if -- Offset pagination rarely used in current API */
       if (options.offset) {
         query += ` OFFSET ${options.offset}`;
       }

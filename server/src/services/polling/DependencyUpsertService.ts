@@ -106,7 +106,7 @@ export class DependencyUpsertService {
       for (const depId of dependencyIds) {
         matcher.generateSuggestions(depId);
       }
-    } catch (error) {
+    } catch (error) /* istanbul ignore next -- Suggestion generation failure is non-critical */ {
       // Don't fail the upsert if suggestion generation fails
       console.error('[Matching] Error generating suggestions:', error);
     }

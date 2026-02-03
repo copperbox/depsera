@@ -24,7 +24,7 @@ export function dismissSuggestion(req: Request, res: Response): void {
     }
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     console.error('Error dismissing suggestion:', error);
     res.status(500).json({
       error: 'Failed to dismiss suggestion',

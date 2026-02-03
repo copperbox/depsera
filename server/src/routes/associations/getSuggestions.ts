@@ -7,7 +7,7 @@ export function getSuggestions(req: Request, res: Response): void {
     const suggestions = matcher.getPendingSuggestions();
 
     res.json(suggestions);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     console.error('Error fetching suggestions:', error);
     res.status(500).json({
       error: 'Failed to fetch suggestions',

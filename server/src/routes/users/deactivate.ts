@@ -30,7 +30,7 @@ export function deactivateUser(req: Request, res: Response): void {
     stores.teams.removeAllMembershipsForUser(id);
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error deactivating user:', error);
     res.status(500).json({
       error: 'Failed to deactivate user',

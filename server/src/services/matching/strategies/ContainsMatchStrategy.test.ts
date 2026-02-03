@@ -31,6 +31,7 @@ describe('ContainsMatchStrategy', () => {
     team_id: 'team-1',
     health_endpoint: 'http://localhost:3000/health',
     metrics_endpoint: null,
+    poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,

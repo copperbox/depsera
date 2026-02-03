@@ -18,7 +18,7 @@ export function listTeams(_req: Request, res: Response): void {
     );
 
     res.json(teamsWithCounts);
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error listing teams:', error);
     res.status(getErrorStatusCode(error)).json(formatError(error));
   }

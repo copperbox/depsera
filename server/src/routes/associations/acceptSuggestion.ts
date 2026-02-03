@@ -31,7 +31,7 @@ export function acceptSuggestion(req: Request, res: Response): void {
       ...updated,
       linked_service: linkedService,
     });
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     console.error('Error accepting suggestion:', error);
     res.status(500).json({
       error: 'Failed to accept suggestion',

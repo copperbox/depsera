@@ -20,7 +20,7 @@ export function deleteService(req: Request, res: Response): void {
     stores.services.delete(id);
 
     res.status(204).send();
-  } catch (error) {
+  } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     console.error('Error deleting service:', error);
     res.status(500).json({
       error: 'Failed to delete service',

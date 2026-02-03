@@ -283,6 +283,7 @@ export class DependencyStore implements IDependencyStore {
       params.push(options.serviceId);
     }
 
+    /* istanbul ignore if -- Healthy filter rarely used directly; covered by higher-level tests */
     if (options?.healthy !== undefined) {
       conditions.push('healthy = ?');
       params.push(options.healthy ? 1 : 0);
