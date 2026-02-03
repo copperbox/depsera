@@ -11,6 +11,7 @@ describe('DependencyGraphBuilder', () => {
     team_name: 'Test Team',
     health_endpoint: `http://${name}.local/health`,
     metrics_endpoint: null,
+    poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,

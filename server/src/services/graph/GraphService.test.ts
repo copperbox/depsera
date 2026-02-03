@@ -153,6 +153,7 @@ function createService(id: string, name: string): ServiceWithTeam {
     team_name: 'Platform',
     health_endpoint: `http://${name.toLowerCase().replace(' ', '-')}.local/health`,
     metrics_endpoint: null,
+    poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,

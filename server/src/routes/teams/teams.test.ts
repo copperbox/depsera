@@ -6,8 +6,21 @@ import { randomUUID } from 'crypto';
 // Create in-memory database for testing
 const testDb = new Database(':memory:');
 
-// Mock the db module
-jest.mock('../../db', () => testDb);
+// Mock the db module with both named and default exports
+jest.mock('../../db', () => ({
+  db: testDb,
+  default: testDb,
+}));
+
+// Mock the auth module to avoid session store initialization
+jest.mock('../../auth', () => ({
+  requireAuth: jest.fn((_req, _res, next) => next()),
+  requireAdmin: jest.fn((_req, _res, next) => next()),
+  requireTeamAccess: jest.fn((_req, _res, next) => next()),
+  requireTeamLead: jest.fn((_req, _res, next) => next()),
+  requireServiceTeamLead: jest.fn((_req, _res, next) => next()),
+  requireBodyTeamLead: jest.fn((_req, _res, next) => next()),
+}));
 
 import teamsRouter from './index';
 
