@@ -63,14 +63,14 @@ Core tables:
 - `users` - User accounts (OIDC authenticated)
 - `teams` - Organizational units that own services
 - `team_members` - Junction table for user-team membership
-- `services` - Tracked APIs/microservices with health endpoints
+- `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling)
 - `dependencies` - Dependency status data from proactive-deps (has `canonical_name` column for alias resolution)
 - `dependency_associations` - Links between dependencies and services
 - `dependency_aliases` - Maps reported dependency names (alias) to canonical names
 - `dependency_latency_history` - Historical latency data points per dependency
 - `dependency_error_history` - Historical error records per dependency
 
-Migrations are in `/server/src/db/migrations/` (001-006). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-007). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 
@@ -85,6 +85,24 @@ All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). St
 - `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`
 
 Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
+
+## Polling Architecture
+
+The health polling system uses cache-TTL-driven per-service scheduling with resilience patterns:
+
+- **Tick interval:** 5 seconds — each tick checks which services are due for polling
+- **Per-service interval:** Configurable via `poll_interval_ms` (default 30000, min 5000, max 3600000)
+- **Exponential backoff:** On failure, poll delay increases exponentially (base 1s, max 5min, 2x multiplier)
+- **Circuit breaker:** After 10 consecutive failures, circuit opens for 5min cooldown. After cooldown, a single probe is allowed (half-open). Success closes the circuit; failure re-opens it.
+- **PollCache:** In-memory TTL cache that tracks when each service was last polled. Services are only polled when their cache entry expires.
+
+Key files in `/server/src/services/polling/`:
+- `HealthPollingService.ts` — Main orchestrator (singleton)
+- `CircuitBreaker.ts` — Per-service circuit breaker (closed/open/half-open)
+- `PollCache.ts` — In-memory TTL cache for poll scheduling
+- `backoff.ts` — Exponential backoff utility
+- `PollStateManager.ts` — In-memory state tracking per service
+- `ServicePoller.ts` — Executes individual service polls
 
 ## API Routes
 

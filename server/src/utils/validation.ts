@@ -24,6 +24,10 @@ export function isValidUrl(urlString: string): boolean {
 export const MIN_POLLING_INTERVAL = 10;
 export const DEFAULT_POLLING_INTERVAL = 30;
 
+export const MIN_POLL_INTERVAL_MS = 5000;
+export const MAX_POLL_INTERVAL_MS = 3600000;
+export const DEFAULT_POLL_INTERVAL_MS = 30000;
+
 // ============================================================================
 // Association Types
 // ============================================================================
@@ -83,6 +87,7 @@ export interface ValidatedServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  poll_interval_ms?: number;
 }
 
 export interface ValidatedServiceUpdateInput {
@@ -90,6 +95,7 @@ export interface ValidatedServiceUpdateInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string | null;
+  poll_interval_ms?: number;
   is_active?: boolean;
 }
 
@@ -135,11 +141,27 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     metricsEndpoint = input.metrics_endpoint || null;
   }
 
+  // Optional: poll_interval_ms
+  let pollIntervalMs: number | undefined;
+  if (input.poll_interval_ms !== undefined) {
+    if (!isNumber(input.poll_interval_ms) || !Number.isInteger(input.poll_interval_ms)) {
+      throw new ValidationError('poll_interval_ms must be an integer', 'poll_interval_ms');
+    }
+    if (input.poll_interval_ms < MIN_POLL_INTERVAL_MS || input.poll_interval_ms > MAX_POLL_INTERVAL_MS) {
+      throw new ValidationError(
+        `poll_interval_ms must be between ${MIN_POLL_INTERVAL_MS} and ${MAX_POLL_INTERVAL_MS}`,
+        'poll_interval_ms'
+      );
+    }
+    pollIntervalMs = input.poll_interval_ms;
+  }
+
   return {
     name: input.name.trim(),
     team_id: input.team_id,
     health_endpoint: input.health_endpoint,
     metrics_endpoint: metricsEndpoint,
+    poll_interval_ms: pollIntervalMs,
   };
 }
 
@@ -193,6 +215,21 @@ export function validateServiceUpdate(
       );
     }
     result.metrics_endpoint = input.metrics_endpoint as string | null;
+    hasUpdates = true;
+  }
+
+  // Optional: poll_interval_ms
+  if (input.poll_interval_ms !== undefined) {
+    if (!isNumber(input.poll_interval_ms) || !Number.isInteger(input.poll_interval_ms)) {
+      throw new ValidationError('poll_interval_ms must be an integer', 'poll_interval_ms');
+    }
+    if (input.poll_interval_ms < MIN_POLL_INTERVAL_MS || input.poll_interval_ms > MAX_POLL_INTERVAL_MS) {
+      throw new ValidationError(
+        `poll_interval_ms must be between ${MIN_POLL_INTERVAL_MS} and ${MAX_POLL_INTERVAL_MS}`,
+        'poll_interval_ms'
+      );
+    }
+    result.poll_interval_ms = input.poll_interval_ms;
     hasUpdates = true;
   }
 

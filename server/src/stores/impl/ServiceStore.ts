@@ -100,8 +100,8 @@ export class ServiceStore implements IServiceStore {
 
     this.db
       .prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, poll_interval_ms, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
       `)
       .run(
         id,
@@ -109,6 +109,7 @@ export class ServiceStore implements IServiceStore {
         input.team_id,
         input.health_endpoint,
         input.metrics_endpoint ?? null,
+        input.poll_interval_ms ?? 30000,
         now,
         now
       );
@@ -140,6 +141,10 @@ export class ServiceStore implements IServiceStore {
     if (input.metrics_endpoint !== undefined) {
       updates.push('metrics_endpoint = ?');
       params.push(input.metrics_endpoint);
+    }
+    if (input.poll_interval_ms !== undefined) {
+      updates.push('poll_interval_ms = ?');
+      params.push(input.poll_interval_ms);
     }
     if (input.is_active !== undefined) {
       updates.push('is_active = ?');

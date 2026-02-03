@@ -12,6 +12,7 @@ const createService = (
   team_id: 'team-1',
   health_endpoint: `http://localhost:4000/${name}/dependencies`,
   metrics_endpoint: null,
+  poll_interval_ms: 30000,
   is_active: 1,
   last_poll_success: null,
   last_poll_error: null,
@@ -59,6 +60,9 @@ function createPollingService(activeServices: Service[]) {
     stateManager,
     pollers: (instance as any).pollers as Map<string, unknown>,
     syncServices: () => (instance as any).syncServices(),
+    pollCache: (instance as any).pollCache,
+    circuitBreakers: (instance as any).circuitBreakers as Map<string, unknown>,
+    backoffs: (instance as any).backoffs as Map<string, unknown>,
     /* eslint-enable @typescript-eslint/no-explicit-any */
     mockServiceStore,
   };
@@ -150,5 +154,58 @@ describe('HealthPollingService - syncServices', () => {
     syncServices();
 
     expect(stateManager.getState('svc-1')!.consecutiveFailures).toBe(2);
+  });
+
+  it('should track poll_interval_ms from service', () => {
+    const svc1 = createService('svc-1', 'service-a', { poll_interval_ms: 60000 });
+    const { stateManager, syncServices } = createPollingService([svc1]);
+
+    syncServices();
+
+    expect(stateManager.getState('svc-1')!.pollIntervalMs).toBe(60000);
+  });
+
+  it('should update poll interval when it changes and invalidate cache', () => {
+    const svc1 = createService('svc-1', 'service-a', { poll_interval_ms: 30000 });
+    const { stateManager, syncServices, mockServiceStore, pollCache } = createPollingService([svc1]);
+
+    syncServices();
+    pollCache.markPolled('svc-1', 30000);
+
+    const updatedSvc1 = createService('svc-1', 'service-a', { poll_interval_ms: 60000 });
+    mockServiceStore.findActive.mockReturnValue([updatedSvc1]);
+
+    syncServices();
+
+    expect(stateManager.getState('svc-1')!.pollIntervalMs).toBe(60000);
+    // Cache should be invalidated so service is eligible for polling
+    expect(pollCache.shouldPoll('svc-1')).toBe(true);
+  });
+
+  it('should initialize circuit state as closed', () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { stateManager, syncServices } = createPollingService([svc1]);
+
+    syncServices();
+
+    expect(stateManager.getState('svc-1')!.circuitState).toBe('closed');
+  });
+
+  it('should clean up circuit breakers and backoffs on service removal', () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { stateManager, pollers, syncServices, circuitBreakers, backoffs, mockServiceStore } =
+      createPollingService([svc1]);
+
+    syncServices();
+    // Simulate that circuit breaker and backoff were created
+    circuitBreakers.set('svc-1', {});
+    backoffs.set('svc-1', {});
+
+    mockServiceStore.findActive.mockReturnValue([]);
+    syncServices();
+
+    expect(stateManager.hasService('svc-1')).toBe(false);
+    expect(circuitBreakers.has('svc-1')).toBe(false);
+    expect(backoffs.has('svc-1')).toBe(false);
   });
 });

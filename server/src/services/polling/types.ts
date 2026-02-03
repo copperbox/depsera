@@ -1,3 +1,5 @@
+import { CircuitState } from './CircuitBreaker';
+
 export interface StatusChangeEvent {
   serviceId: string;
   serviceName: string;
@@ -11,9 +13,11 @@ export interface ServicePollState {
   serviceId: string;
   serviceName: string;
   healthEndpoint: string;
+  pollIntervalMs: number;
   lastPolled: number;         // timestamp ms
   consecutiveFailures: number;
   isPolling: boolean;         // lock to prevent double-polling
+  circuitState: CircuitState;
 }
 
 export interface PollResult {
@@ -34,4 +38,6 @@ export enum PollingEventType {
   POLL_ERROR = 'poll:error',
   SERVICE_STARTED = 'service:started',
   SERVICE_STOPPED = 'service:stopped',
+  CIRCUIT_OPEN = 'circuit:open',
+  CIRCUIT_CLOSE = 'circuit:close',
 }

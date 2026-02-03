@@ -5,14 +5,20 @@ import { Service } from '../../db/types';
 import { ServicePoller } from './ServicePoller';
 import { PollResult, PollingEventType, PollCompleteEvent, ServicePollState } from './types';
 import { PollStateManager } from './PollStateManager';
+import { CircuitBreaker } from './CircuitBreaker';
+import { ExponentialBackoff } from './backoff';
+import { PollCache } from './PollCache';
 
-const POLL_CYCLE_MS = 30000; // 30 seconds
+const POLL_CYCLE_MS = 5000; // 5 second tick interval
 
 export class HealthPollingService extends EventEmitter {
   private static instance: HealthPollingService | null = null;
   private loopTimer: NodeJS.Timeout | null = null;
   private stateManager: PollStateManager;
   private pollers: Map<string, ServicePoller> = new Map();
+  private circuitBreakers: Map<string, CircuitBreaker> = new Map();
+  private backoffs: Map<string, ExponentialBackoff> = new Map();
+  private pollCache: PollCache;
   private isShuttingDown = false;
   private serviceStore: IServiceStore;
 
@@ -20,6 +26,7 @@ export class HealthPollingService extends EventEmitter {
     super();
     this.stateManager = stateManager || new PollStateManager();
     this.serviceStore = (stores || getStores()).services;
+    this.pollCache = new PollCache();
   }
 
   static getInstance(): HealthPollingService {
@@ -84,11 +91,12 @@ export class HealthPollingService extends EventEmitter {
 
     const serviceName = state.serviceName;
 
-    // Remove from state manager
+    // Remove from state manager and caches
     this.stateManager.removeService(serviceId);
-
-    // Remove cached poller
     this.pollers.delete(serviceId);
+    this.circuitBreakers.delete(serviceId);
+    this.backoffs.delete(serviceId);
+    this.pollCache.remove(serviceId);
 
     console.log(`[Polling] Stopped polling ${serviceName}`);
     this.emit(PollingEventType.SERVICE_STOPPED, { serviceId, serviceName });
@@ -158,6 +166,18 @@ export class HealthPollingService extends EventEmitter {
       // Store poll result in database
       this.serviceStore.updatePollResult(serviceId, result.success, result.error);
 
+      // Update backoff/circuit on manual poll
+      if (result.success) {
+        this.getBackoff(serviceId).reset();
+        this.getCircuitBreaker(serviceId).recordSuccess();
+      } else {
+        this.getBackoff(serviceId).getNextDelay();
+        this.getCircuitBreaker(serviceId).recordFailure();
+      }
+
+      // Invalidate cache so next tick respects the new timing
+      this.pollCache.invalidate(serviceId);
+
       return result;
     } finally {
       if (state) {
@@ -193,6 +213,9 @@ export class HealthPollingService extends EventEmitter {
     // Clear all state
     this.stateManager.clear();
     this.pollers.clear();
+    this.circuitBreakers.clear();
+    this.backoffs.clear();
+    this.pollCache.clear();
 
     // Remove all event listeners
     this.removeAllListeners();
@@ -216,7 +239,7 @@ export class HealthPollingService extends EventEmitter {
   /**
    * Sync the poller's service list with the database.
    * Adds new active services, removes deleted/deactivated ones,
-   * and updates pollers whose endpoint changed.
+   * and updates pollers whose endpoint or interval changed.
    */
   private syncServices(): void {
     const activeServices = this.serviceStore.findActive();
@@ -230,6 +253,9 @@ export class HealthPollingService extends EventEmitter {
         if (state && !state.isPolling) {
           this.stateManager.removeService(id);
           this.pollers.delete(id);
+          this.circuitBreakers.delete(id);
+          this.backoffs.delete(id);
+          this.pollCache.remove(id);
         }
       }
     }
@@ -239,13 +265,25 @@ export class HealthPollingService extends EventEmitter {
       if (!trackedIds.has(service.id)) {
         this.addServiceToPolling(service);
       } else {
-        // Update poller if endpoint changed
+        // Update poller if endpoint or interval changed
         const state = this.stateManager.getState(service.id);
-        if (state && state.healthEndpoint !== service.health_endpoint) {
-          state.healthEndpoint = service.health_endpoint;
-          const poller = this.pollers.get(service.id);
-          if (poller) {
-            poller.updateService(service);
+        if (state) {
+          let changed = false;
+          if (state.healthEndpoint !== service.health_endpoint) {
+            state.healthEndpoint = service.health_endpoint;
+            changed = true;
+          }
+          const newInterval = service.poll_interval_ms ?? 30000;
+          if (state.pollIntervalMs !== newInterval) {
+            state.pollIntervalMs = newInterval;
+            this.pollCache.invalidate(service.id);
+            changed = true;
+          }
+          if (changed) {
+            const poller = this.pollers.get(service.id);
+            if (poller) {
+              poller.updateService(service);
+            }
           }
         }
       }
@@ -260,10 +298,28 @@ export class HealthPollingService extends EventEmitter {
     this.pollers.set(service.id, new ServicePoller(service));
   }
 
+  private getCircuitBreaker(serviceId: string): CircuitBreaker {
+    let cb = this.circuitBreakers.get(serviceId);
+    if (!cb) {
+      cb = new CircuitBreaker();
+      this.circuitBreakers.set(serviceId, cb);
+    }
+    return cb;
+  }
+
+  private getBackoff(serviceId: string): ExponentialBackoff {
+    let bo = this.backoffs.get(serviceId);
+    if (!bo) {
+      bo = new ExponentialBackoff();
+      this.backoffs.set(serviceId, bo);
+    }
+    return bo;
+  }
+
   private startLoop(): void {
     if (this.loopTimer || this.isShuttingDown) return;
 
-    console.log(`[Polling] Starting poll loop (cycle: ${POLL_CYCLE_MS}ms)`);
+    console.log(`[Polling] Starting poll loop (tick: ${POLL_CYCLE_MS}ms)`);
 
     // Run immediately on start
     this.runPollCycle();
@@ -288,20 +344,39 @@ export class HealthPollingService extends EventEmitter {
     // Sync with database to pick up new/removed/changed services
     this.syncServices();
 
-    // Get ALL services (no scheduling logic)
+    // Determine which services are eligible for polling this tick
     const allStates = this.stateManager.getAllStates()
       .filter(state => !state.isPolling);
 
-    if (allStates.length === 0) return;
+    const toPoll: ServicePollState[] = [];
+
+    for (const state of allStates) {
+      const cb = this.getCircuitBreaker(state.serviceId);
+
+      if (!cb.canAttempt()) {
+        // Circuit is open — schedule next check after cooldown
+        this.pollCache.markPolled(state.serviceId, cb.getCooldownMs());
+        state.circuitState = cb.getState();
+        continue;
+      }
+
+      if (!this.pollCache.shouldPoll(state.serviceId)) {
+        continue;
+      }
+
+      toPoll.push(state);
+    }
+
+    if (toPoll.length === 0) return;
 
     // Mark all as polling (lock)
-    for (const state of allStates) {
+    for (const state of toPoll) {
       this.stateManager.markPolling(state.serviceId, true);
     }
 
     // Execute all polls concurrently
     const results = await Promise.allSettled(
-      allStates.map(state => this.pollService(state))
+      toPoll.map(state => this.pollService(state))
     );
 
     // Process results and update state
@@ -312,14 +387,44 @@ export class HealthPollingService extends EventEmitter {
       const state = this.stateManager.getState(serviceId);
       if (!state) continue; // Service was removed during poll
 
+      const cb = this.getCircuitBreaker(serviceId);
+      const backoff = this.getBackoff(serviceId);
+      const previousCircuitState = cb.getState();
+
       // Update in-memory state
       state.lastPolled = Date.now();
       state.isPolling = false;
+
       if (pollResult.success) {
         state.consecutiveFailures = 0;
+        backoff.reset();
+        cb.recordSuccess();
+        this.pollCache.markPolled(serviceId, state.pollIntervalMs);
+
+        // Emit circuit close if transitioning from half-open
+        if (previousCircuitState === 'half-open') {
+          this.emit(PollingEventType.CIRCUIT_CLOSE, {
+            serviceId,
+            serviceName: state.serviceName,
+          });
+        }
       } else {
         state.consecutiveFailures++;
+        const delay = backoff.getNextDelay();
+        cb.recordFailure();
+        // Use the larger of poll interval and backoff delay
+        this.pollCache.markPolled(serviceId, Math.max(state.pollIntervalMs, delay));
+
+        // Emit circuit open if just opened
+        if (cb.getState() === 'open' && previousCircuitState !== 'open') {
+          this.emit(PollingEventType.CIRCUIT_OPEN, {
+            serviceId,
+            serviceName: state.serviceName,
+          });
+        }
       }
+
+      state.circuitState = cb.getState();
 
       // Persist poll result to database
       this.serviceStore.updatePollResult(serviceId, pollResult.success, pollResult.error);
@@ -345,7 +450,7 @@ export class HealthPollingService extends EventEmitter {
     }
 
     // Ensure any remaining locks are released (e.g., if Promise.allSettled had rejections)
-    for (const state of allStates) {
+    for (const state of toPoll) {
       if (state.isPolling) {
         state.isPolling = false;
       }

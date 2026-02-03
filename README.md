@@ -12,7 +12,7 @@ A dashboard to review and manage all tracked dependencies and services. Monitor 
 - **Wallboard** — Real-time status board with service health cards, team filtering, and unhealthy-only view
 - **Team Management** — Organize services by team, manage members and roles (lead/member)
 - **User Administration** — Admin panel for managing users, roles, and account status
-- **Auto-Polling** — Server-side health polling on a 30-second cycle with exponential backoff on failures; client-side auto-refresh with configurable intervals (10s, 20s, 30s, 1m)
+- **Auto-Polling** — Server-side health polling with per-service configurable intervals (default 30s), exponential backoff on failures, and circuit breaker protection (opens after 10 consecutive failures, 5-minute cooldown); client-side auto-refresh with configurable intervals (10s, 20s, 30s, 1m)
 - **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
 - **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis

@@ -35,13 +35,15 @@ export function updateService(req: Request, res: Response): void {
       team_id: validated.team_id,
       health_endpoint: validated.health_endpoint,
       metrics_endpoint: validated.metrics_endpoint,
+      poll_interval_ms: validated.poll_interval_ms,
       is_active: validated.is_active,
     });
 
-    // Update polling service if is_active or health_endpoint changed
+    // Update polling service if is_active, health_endpoint, or poll_interval_ms changed
     if (
       validated.is_active !== undefined ||
-      validated.health_endpoint !== undefined
+      validated.health_endpoint !== undefined ||
+      validated.poll_interval_ms !== undefined
     ) {
       const pollingService = HealthPollingService.getInstance();
       const newIsActive =
