@@ -1,6 +1,6 @@
 {
   "name": "depsera",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Dependency monitoring and service health dashboard",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\" \"npm run dev:mock-ui\"",
