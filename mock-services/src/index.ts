@@ -31,7 +31,7 @@ const port = parseInt(args.port as string, 10);
 const dbPath = path.resolve(__dirname, '..', args['db-path'] as string);
 
 console.log('='.repeat(50));
-console.log('Mock Services for Dependencies Dashboard');
+console.log('Mock Services for Depsera');
 console.log('='.repeat(50));
 console.log('');
 

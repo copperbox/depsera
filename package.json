@@ -1,7 +1,7 @@
 {
-  "name": "dependencies-dashboard",
+  "name": "depsera",
   "version": "1.8.1",
-  "description": "A dashboard to review and manage all tracked dependencies and services",
+  "description": "Dependency monitoring and service health dashboard",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\" \"npm run dev:mock-ui\"",
     "dev:mock-ui": "cd mock-services && npm run dev:ui",

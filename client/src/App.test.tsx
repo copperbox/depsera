@@ -21,6 +21,6 @@ describe('App', () => {
 
   it('shows the dashboard title on login page', () => {
     renderApp();
-    expect(screen.getByRole('heading', { name: 'Dependencies Dashboard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Depsera' })).toBeInTheDocument();
   });
 });

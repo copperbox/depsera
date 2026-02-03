@@ -29,7 +29,7 @@ function Login() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1 className={styles.title}>Dependencies Dashboard</h1>
+        <h1 className={styles.title}>Depsera</h1>
         <p className={styles.subtitle}>Sign in to continue</p>
 
         {error && (
