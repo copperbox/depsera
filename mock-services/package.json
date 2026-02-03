@@ -1,7 +1,7 @@
 {
-  "name": "dependencies-dashboard-mock-services",
+  "name": "depsera-mock-services",
   "version": "1.0.0",
-  "description": "Mock services ecosystem for testing the Dependencies Dashboard",
+  "description": "Mock services ecosystem for testing Depsera",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

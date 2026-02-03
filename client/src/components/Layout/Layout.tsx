@@ -46,7 +46,7 @@ function Layout() {
           >
             <span className={styles.menuIcon} />
           </button>
-          <h1 className={styles.title}>Dependencies Dashboard</h1>
+          <h1 className={styles.title}>Depsera</h1>
         </div>
         <div className={styles.headerRight}>
           <span className={styles.userName}>{user?.name}</span>
@@ -220,7 +220,7 @@ function Layout() {
       </div>
 
       <footer className={styles.footer}>
-        <p>&copy; {new Date().getFullYear()} Dependencies Dashboard</p>
+        <p>&copy; {new Date().getFullYear()} Depsera</p>
       </footer>
     </div>
   );

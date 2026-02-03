@@ -1,6 +1,6 @@
-# Dependencies Dashboard
+# Depsera
 
-A dashboard to review and manage all tracked dependencies and services. Monitor service health, visualize dependency relationships, and track issues across teams.
+A dependency monitoring and service health dashboard. Monitor service health, visualize dependency relationships, and track issues across teams.
 
 > **Note:** This project is in early stages of development and is not ready for production deployment.
 

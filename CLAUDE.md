@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Dependencies Dashboard - A dashboard to review and manage all tracked dependencies and services.
+Depsera - A dependency monitoring and service health dashboard.
 
 ## Tech Stack
 
