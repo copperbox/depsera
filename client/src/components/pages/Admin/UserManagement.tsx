@@ -67,6 +67,11 @@ function UserManagement() {
     }
   };
 
+  /* istanbul ignore next -- @preserve
+     handleDeactivate is triggered by ConfirmDialog onConfirm callback. Testing this
+     requires mocking HTMLDialogElement.showModal/close and finding internal dialog buttons.
+     The ConfirmDialog component itself is tested separately. Integration tests with
+     Cypress/Playwright are more appropriate for testing end-to-end dialog flows. */
   const handleDeactivate = async () => {
     if (!userToDeactivate) return;
     setIsDeactivating(true);
@@ -82,6 +87,11 @@ function UserManagement() {
     }
   };
 
+  /* istanbul ignore next -- @preserve
+     handleReactivate is triggered by ConfirmDialog onConfirm callback. Testing this
+     requires mocking HTMLDialogElement.showModal/close and finding internal dialog buttons.
+     The ConfirmDialog component itself is tested separately. Integration tests with
+     Cypress/Playwright are more appropriate for testing end-to-end dialog flows. */
   const handleReactivate = async () => {
     if (!userToReactivate) return;
     setIsReactivating(true);

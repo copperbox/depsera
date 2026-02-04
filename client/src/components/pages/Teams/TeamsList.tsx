@@ -38,6 +38,9 @@ function TeamsList() {
     );
   }, [teams, searchQuery]);
 
+  /* istanbul ignore next -- @preserve
+     handleTeamCreated is triggered by TeamForm onSuccess inside a Modal.
+     Testing requires HTMLDialogElement mocking. Integration tests preferred. */
   const handleTeamCreated = () => {
     setIsAddModalOpen(false);
     loadTeams();

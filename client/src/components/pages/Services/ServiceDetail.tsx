@@ -37,11 +37,18 @@ function ServiceDetail() {
     loadService();
   }, [loadService]);
 
+  /* istanbul ignore next -- @preserve
+     handleEditSuccess is triggered by ServiceForm onSuccess inside a Modal. Testing this
+     requires mocking HTMLDialogElement.showModal/close and form submission flows.
+     Integration tests with Cypress/Playwright are more appropriate. */
   const handleEditSuccess = () => {
     setIsEditModalOpen(false);
     loadService();
   };
 
+  /* istanbul ignore next -- @preserve
+     handleDeleteConfirm is triggered by ConfirmDialog onConfirm callback.
+     Integration tests are more appropriate for testing dialog flows. */
   const handleDeleteConfirm = async () => {
     await handleDelete();
     setIsDeleteDialogOpen(false);

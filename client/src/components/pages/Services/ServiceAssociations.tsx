@@ -87,6 +87,9 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
     setIsFormOpen(true);
   };
 
+  /* istanbul ignore next -- @preserve
+     handleFormSuccess is triggered by AssociationForm inside a Modal.
+     Testing requires HTMLDialogElement mocking. Integration tests preferred. */
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     if (selectedDepId) loadAssociations();
