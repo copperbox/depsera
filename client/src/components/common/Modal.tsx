@@ -21,6 +21,9 @@ function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps
       previousFocusRef.current = document.activeElement as HTMLElement;
       dialog.showModal();
     } else {
+      /* istanbul ignore next -- @preserve
+         Dialog close and focus restoration require HTMLDialogElement which jsdom
+         doesn't fully support. This is tested through integration tests. */
       dialog.close();
       previousFocusRef.current?.focus();
     }

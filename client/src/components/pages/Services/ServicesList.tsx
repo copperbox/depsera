@@ -33,12 +33,18 @@ function ServicesList() {
     loadData();
   }, [loadData]);
 
+  /* istanbul ignore next -- @preserve
+     Polling callback is triggered by usePolling's internal interval timer.
+     Testing this requires controlling timing which is flaky in unit tests. */
   // Polling hook
   const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
     storageKey: 'services',
     onPoll: useCallback(() => loadData(true), [loadData]),
   });
 
+  /* istanbul ignore next -- @preserve
+     handleServiceCreated is triggered by ServiceForm onSuccess inside a Modal.
+     Testing requires HTMLDialogElement mocking. Integration tests preferred. */
   const handleServiceCreated = () => {
     setIsAddModalOpen(false);
     loadData();

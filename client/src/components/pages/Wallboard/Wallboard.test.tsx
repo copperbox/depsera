@@ -154,4 +154,156 @@ describe('Wallboard', () => {
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-2' } });
     expect(localStorage.getItem('wallboard-filter-team')).toBe('team-2');
   });
+
+  it('shows loading state initially', async () => {
+    mockFetchServices.mockImplementation(() => new Promise(() => {}));
+
+    render(<Wallboard />);
+
+    expect(screen.getByText('Loading wallboard...')).toBeInTheDocument();
+  });
+
+  it('shows error state and allows retry', async () => {
+    mockFetchServices
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce([makeService()]);
+
+    render(<Wallboard />);
+
+    await waitFor(() => expect(screen.getByText(/Error:.*Network error/)).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Retry'));
+
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+  });
+
+  it('shows empty state when no services', async () => {
+    mockFetchServices.mockResolvedValue([]);
+
+    render(<Wallboard />);
+
+    await waitFor(() => expect(screen.getByText('No services found.')).toBeInTheDocument());
+  });
+
+  it('shows empty state when no services match filters', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ health: { status: 'healthy', healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+
+    // Enable unhealthy only filter
+    fireEvent.click(screen.getByLabelText('Unhealthy only'));
+
+    expect(screen.getByText('All services are healthy!')).toBeInTheDocument();
+  });
+
+  it('toggles unhealthy only filter', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ id: 'svc-1', name: 'Healthy Service', health: { status: 'healthy', healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null } }),
+      makeService({ id: 'svc-2', name: 'Critical Service', health: { status: 'critical', healthy_reports: 0, warning_reports: 0, critical_reports: 1, total_reports: 1, dependent_count: 1, last_report: null } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Healthy Service')).toBeInTheDocument());
+    expect(screen.getByText('Critical Service')).toBeInTheDocument();
+
+    // Enable unhealthy only filter
+    fireEvent.click(screen.getByLabelText('Unhealthy only'));
+
+    expect(screen.queryByText('Healthy Service')).not.toBeInTheDocument();
+    expect(screen.getByText('Critical Service')).toBeInTheDocument();
+    expect(localStorage.getItem('wallboard-filter-unhealthy')).toBe('true');
+
+    // Disable filter
+    fireEvent.click(screen.getByLabelText('Unhealthy only'));
+    expect(screen.getByText('Healthy Service')).toBeInTheDocument();
+    expect(localStorage.getItem('wallboard-filter-unhealthy')).toBe('false');
+  });
+
+  it('opens service detail panel when card clicked', async () => {
+    mockFetchServices.mockResolvedValue([makeService()]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Service Alpha').closest('div[class*="card"]')!);
+
+    expect(screen.getByTestId('detail-panel')).toBeInTheDocument();
+  });
+
+  it('displays warning status services', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ health: { status: 'warning', healthy_reports: 0, warning_reports: 1, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+  });
+
+  it('displays unknown status services', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ health: { status: 'unknown', healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0, last_report: null } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+  });
+
+  it('handles non-Error exception', async () => {
+    mockFetchServices.mockRejectedValueOnce('String error');
+
+    render(<Wallboard />);
+
+    await waitFor(() => expect(screen.getByText(/Error:.*Failed to load services/)).toBeInTheDocument());
+  });
+
+  it('restores team filter from localStorage', async () => {
+    localStorage.setItem('wallboard-filter-team', 'team-2');
+    mockFetchServices.mockResolvedValue([
+      makeService(),
+      makeService({ id: 'svc-2', name: 'Service Beta', team_id: 'team-2', team: { id: 'team-2', name: 'Team Two', description: null, created_at: '', updated_at: '' } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Beta')).toBeInTheDocument());
+
+    // Only Team Two services should be visible
+    expect(screen.queryByText('Service Alpha')).not.toBeInTheDocument();
+  });
+
+  it('restores unhealthy filter from localStorage', async () => {
+    localStorage.setItem('wallboard-filter-unhealthy', 'true');
+    mockFetchServices.mockResolvedValue([
+      makeService({ id: 'svc-1', name: 'Healthy Service', health: { status: 'healthy', healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null } }),
+      makeService({ id: 'svc-2', name: 'Critical Service', health: { status: 'critical', healthy_reports: 0, warning_reports: 0, critical_reports: 1, total_reports: 1, dependent_count: 1, last_report: null } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Critical Service')).toBeInTheDocument());
+
+    // Healthy service should not be visible
+    expect(screen.queryByText('Healthy Service')).not.toBeInTheDocument();
+  });
+
+  it('hides latency row when no latency data', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ dependent_reports: [] }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+    // Latency row should not be present when there's no latency data
+    expect(screen.queryByText(/Latency/)).not.toBeInTheDocument();
+  });
+
+  it('shows last report time', async () => {
+    mockFetchServices.mockResolvedValue([
+      makeService({ health: { status: 'healthy', healthy_reports: 5, warning_reports: 0, critical_reports: 0, total_reports: 5, dependent_count: 3, last_report: '2025-01-01T00:00:00Z' } }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Last report')).toBeInTheDocument());
+  });
 });

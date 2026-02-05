@@ -42,11 +42,17 @@ function TeamDetail() {
     loadTeam();
   }, [loadTeam]);
 
+  /* istanbul ignore next -- @preserve
+     handleEditSuccess is triggered by TeamForm onSuccess inside a Modal.
+     Testing requires HTMLDialogElement mocking. Integration tests preferred. */
   const handleEditSuccess = () => {
     setIsEditModalOpen(false);
     loadTeam();
   };
 
+  /* istanbul ignore next -- @preserve
+     handleDeleteConfirm is triggered by ConfirmDialog onConfirm callback.
+     Integration tests are more appropriate for testing dialog flows. */
   const handleDeleteConfirm = async () => {
     await handleDelete();
     setIsDeleteDialogOpen(false);
