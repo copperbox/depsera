@@ -54,7 +54,7 @@ describe('createAssociation', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/dependencies/d1/associations', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -70,6 +70,7 @@ describe('deleteAssociation', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/dependencies/d1/associations/s1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
@@ -90,6 +91,7 @@ describe('generateDependencySuggestions', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/dependencies/d1/suggestions/generate', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
     expect(result).toEqual(data);
@@ -105,6 +107,7 @@ describe('generateServiceSuggestions', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/services/svc1/suggestions/generate', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
     expect(result).toEqual(data);
@@ -133,6 +136,7 @@ describe('acceptSuggestion', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/associations/suggestions/s1/accept', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
@@ -152,6 +156,7 @@ describe('dismissSuggestion', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/associations/suggestions/s1/dismiss', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });

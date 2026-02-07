@@ -1,5 +1,6 @@
 import type { Association, AssociationSuggestion, CreateAssociationInput } from '../types/association';
 import { handleResponse } from './common';
+import { withCsrfToken } from './csrf';
 
 export async function fetchAssociations(dependencyId: string): Promise<Association[]> {
   const response = await fetch(`/api/dependencies/${dependencyId}/associations`, {
@@ -14,7 +15,7 @@ export async function createAssociation(
 ): Promise<Association> {
   const response = await fetch(`/api/dependencies/${dependencyId}/associations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -27,7 +28,7 @@ export async function deleteAssociation(
 ): Promise<void> {
   const response = await fetch(
     `/api/dependencies/${dependencyId}/associations/${serviceId}`,
-    { method: 'DELETE', credentials: 'include' },
+    { method: 'DELETE', headers: withCsrfToken(), credentials: 'include' },
   );
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Delete failed' }));
@@ -40,7 +41,7 @@ export async function generateDependencySuggestions(
 ): Promise<AssociationSuggestion[]> {
   const response = await fetch(
     `/api/dependencies/${dependencyId}/suggestions/generate`,
-    { method: 'POST', credentials: 'include' },
+    { method: 'POST', headers: withCsrfToken(), credentials: 'include' },
   );
   return handleResponse<AssociationSuggestion[]>(response);
 }
@@ -50,7 +51,7 @@ export async function generateServiceSuggestions(
 ): Promise<AssociationSuggestion[]> {
   const response = await fetch(
     `/api/services/${serviceId}/suggestions/generate`,
-    { method: 'POST', credentials: 'include' },
+    { method: 'POST', headers: withCsrfToken(), credentials: 'include' },
   );
   return handleResponse<AssociationSuggestion[]>(response);
 }
@@ -65,7 +66,7 @@ export async function fetchSuggestions(): Promise<AssociationSuggestion[]> {
 export async function acceptSuggestion(suggestionId: string): Promise<void> {
   const response = await fetch(
     `/api/associations/suggestions/${suggestionId}/accept`,
-    { method: 'POST', credentials: 'include' },
+    { method: 'POST', headers: withCsrfToken(), credentials: 'include' },
   );
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Accept failed' }));
@@ -76,7 +77,7 @@ export async function acceptSuggestion(suggestionId: string): Promise<void> {
 export async function dismissSuggestion(suggestionId: string): Promise<void> {
   const response = await fetch(
     `/api/associations/suggestions/${suggestionId}/dismiss`,
-    { method: 'POST', credentials: 'include' },
+    { method: 'POST', headers: withCsrfToken(), credentials: 'include' },
   );
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Dismiss failed' }));

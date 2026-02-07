@@ -1,5 +1,6 @@
 import {
   isValidUrl,
+  validateEndpointUrl,
   isNonEmptyString,
   isString,
   isNumber,
@@ -19,6 +20,7 @@ import {
 } from './validation';
 import { ValidationError } from './errors';
 import { DEPENDENCY_TYPES } from '../db/types';
+import { clearAllowlistCache } from './ssrf-allowlist';
 
 describe('URL Validation', () => {
   describe('isValidUrl', () => {
@@ -36,6 +38,75 @@ describe('URL Validation', () => {
       expect(isValidUrl('not-a-url')).toBe(false);
       expect(isValidUrl('')).toBe(false);
       expect(isValidUrl('ftp://example.com')).toBe(false);
+    });
+  });
+
+  describe('validateEndpointUrl', () => {
+    it('should accept valid public URLs', () => {
+      expect(() => validateEndpointUrl('https://example.com/health', 'health_endpoint')).not.toThrow();
+      expect(() => validateEndpointUrl('https://api.example.com:8080/health', 'health_endpoint')).not.toThrow();
+    });
+
+    it('should throw ValidationError for invalid URLs', () => {
+      expect(() => validateEndpointUrl('not-a-url', 'health_endpoint')).toThrow(ValidationError);
+      expect(() => validateEndpointUrl('ftp://example.com', 'health_endpoint')).toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError for private IPs', () => {
+      expect(() => validateEndpointUrl('http://127.0.0.1/health', 'health_endpoint')).toThrow(ValidationError);
+      expect(() => validateEndpointUrl('http://192.168.1.1/health', 'health_endpoint')).toThrow(ValidationError);
+      expect(() => validateEndpointUrl('http://10.0.0.1/health', 'health_endpoint')).toThrow(ValidationError);
+      expect(() => validateEndpointUrl('http://169.254.169.254/meta-data', 'health_endpoint')).toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError for localhost', () => {
+      expect(() => validateEndpointUrl('http://localhost:3000/health', 'health_endpoint')).toThrow(ValidationError);
+    });
+
+    it('should include field name in error', () => {
+      try {
+        validateEndpointUrl('http://127.0.0.1/health', 'my_field');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ValidationError);
+        expect((error as ValidationError).field).toBe('my_field');
+      }
+    });
+  });
+
+  describe('validateEndpointUrl with SSRF_ALLOWLIST', () => {
+    const originalEnv = process.env.SSRF_ALLOWLIST;
+
+    beforeEach(() => {
+      clearAllowlistCache();
+    });
+
+    afterEach(() => {
+      if (originalEnv === undefined) {
+        delete process.env.SSRF_ALLOWLIST;
+      } else {
+        process.env.SSRF_ALLOWLIST = originalEnv;
+      }
+      clearAllowlistCache();
+    });
+
+    it('should allow localhost when allowlisted', () => {
+      process.env.SSRF_ALLOWLIST = 'localhost,127.0.0.0/8';
+      expect(() => validateEndpointUrl('http://localhost:3001/health', 'health_endpoint')).not.toThrow();
+    });
+
+    it('should allow private IPs when CIDR is allowlisted', () => {
+      process.env.SSRF_ALLOWLIST = '192.168.0.0/16';
+      expect(() => validateEndpointUrl('http://192.168.1.1/health', 'health_endpoint')).not.toThrow();
+    });
+
+    it('should still reject invalid URLs even with allowlist', () => {
+      process.env.SSRF_ALLOWLIST = 'localhost';
+      expect(() => validateEndpointUrl('not-a-url', 'health_endpoint')).toThrow(ValidationError);
+    });
+
+    it('should still block cloud metadata without explicit allowlist', () => {
+      process.env.SSRF_ALLOWLIST = 'localhost,10.0.0.0/8';
+      expect(() => validateEndpointUrl('http://169.254.169.254/meta-data', 'health_endpoint')).toThrow(ValidationError);
     });
   });
 });
@@ -149,6 +220,20 @@ describe('Service Validation', () => {
 
     it('should throw on invalid health_endpoint URL', () => {
       expect(() => validateServiceCreate({ ...validInput, health_endpoint: 'not-a-url' }))
+        .toThrow(ValidationError);
+    });
+
+    it('should throw on private IP health_endpoint (SSRF)', () => {
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint: 'http://127.0.0.1/health' }))
+        .toThrow(ValidationError);
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint: 'http://192.168.1.1/health' }))
+        .toThrow(ValidationError);
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint: 'http://169.254.169.254/meta-data' }))
+        .toThrow(ValidationError);
+    });
+
+    it('should throw on localhost health_endpoint (SSRF)', () => {
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint: 'http://localhost:3001/health' }))
         .toThrow(ValidationError);
     });
 

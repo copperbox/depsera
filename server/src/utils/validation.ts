@@ -1,5 +1,6 @@
 import { ValidationError } from './errors';
 import { AssociationType, DependencyType, DEPENDENCY_TYPES, TeamMemberRole } from '../db/types';
+import { validateUrlHostname } from './ssrf';
 
 // ============================================================================
 // URL Validation (moved from routes/services/validation.ts)
@@ -14,6 +15,29 @@ export function isValidUrl(urlString: string): boolean {
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
+  }
+}
+
+/**
+ * Validate a health/metrics endpoint URL.
+ * Checks protocol AND blocks private/reserved IPs and localhost.
+ * @throws ValidationError if URL targets a private/internal address
+ */
+export function validateEndpointUrl(urlString: string, field: string): void {
+  if (!isValidUrl(urlString)) {
+    throw new ValidationError(
+      `${field} must be a valid HTTP or HTTPS URL`,
+      field
+    );
+  }
+
+  try {
+    validateUrlHostname(urlString);
+  } catch (error) {
+    throw new ValidationError(
+      `${field} must not target private or internal addresses`,
+      field
+    );
   }
 }
 
@@ -119,12 +143,7 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     throw new ValidationError('health_endpoint is required', 'health_endpoint');
   }
 
-  if (!isValidUrl(input.health_endpoint)) {
-    throw new ValidationError(
-      'health_endpoint must be a valid HTTP or HTTPS URL',
-      'health_endpoint'
-    );
-  }
+  validateEndpointUrl(input.health_endpoint, 'health_endpoint');
 
   // Optional: metrics_endpoint
   let metricsEndpoint: string | null = null;
@@ -132,11 +151,8 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     if (!isString(input.metrics_endpoint)) {
       throw new ValidationError('metrics_endpoint must be a string', 'metrics_endpoint');
     }
-    if (input.metrics_endpoint && !isValidUrl(input.metrics_endpoint)) {
-      throw new ValidationError(
-        'metrics_endpoint must be a valid HTTP or HTTPS URL',
-        'metrics_endpoint'
-      );
+    if (input.metrics_endpoint) {
+      validateEndpointUrl(input.metrics_endpoint, 'metrics_endpoint');
     }
     metricsEndpoint = input.metrics_endpoint || null;
   }
@@ -196,23 +212,15 @@ export function validateServiceUpdate(
 
   // Optional: health_endpoint
   if (input.health_endpoint !== undefined) {
-    if (!isValidUrl(input.health_endpoint as string)) {
-      throw new ValidationError(
-        'health_endpoint must be a valid HTTP or HTTPS URL',
-        'health_endpoint'
-      );
-    }
+    validateEndpointUrl(input.health_endpoint as string, 'health_endpoint');
     result.health_endpoint = input.health_endpoint as string;
     hasUpdates = true;
   }
 
   // Optional: metrics_endpoint
   if (input.metrics_endpoint !== undefined) {
-    if (input.metrics_endpoint !== null && !isValidUrl(input.metrics_endpoint as string)) {
-      throw new ValidationError(
-        'metrics_endpoint must be a valid HTTP or HTTPS URL',
-        'metrics_endpoint'
-      );
+    if (input.metrics_endpoint !== null) {
+      validateEndpointUrl(input.metrics_endpoint as string, 'metrics_endpoint');
     }
     result.metrics_endpoint = input.metrics_endpoint as string | null;
     hasUpdates = true;

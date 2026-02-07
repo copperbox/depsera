@@ -1,5 +1,6 @@
 import type { User, UserRole } from '../types/user';
 import { handleResponse } from './common';
+import { withCsrfToken } from './csrf';
 
 export interface UserWithTeams extends User {
   teams: {
@@ -26,7 +27,7 @@ export async function fetchUser(id: string): Promise<UserWithTeams> {
 export async function updateUserRole(id: string, role: UserRole): Promise<User> {
   const response = await fetch(`/api/users/${id}/role`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ role }),
     credentials: 'include',
   });
@@ -36,6 +37,7 @@ export async function updateUserRole(id: string, role: UserRole): Promise<User> 
 export async function deactivateUser(id: string): Promise<void> {
   const response = await fetch(`/api/users/${id}`, {
     method: 'DELETE',
+    headers: withCsrfToken(),
     credentials: 'include',
   });
   if (!response.ok) {
@@ -47,6 +49,7 @@ export async function deactivateUser(id: string): Promise<void> {
 export async function reactivateUser(id: string): Promise<User> {
   const response = await fetch(`/api/users/${id}/reactivate`, {
     method: 'POST',
+    headers: withCsrfToken(),
     credentials: 'include',
   });
   return handleResponse<User>(response);

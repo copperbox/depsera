@@ -18,6 +18,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
 - **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
+- **Security Hardening** — SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, session secret enforcement, and redirect URL validation
 
 ## Tech Stack
 
@@ -53,12 +54,13 @@ cp server/.env.example server/.env
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port |
 | `DATABASE_PATH` | `./data/database.sqlite` | SQLite database location |
-| `SESSION_SECRET` | — | Session secret (change in production) |
+| `SESSION_SECRET` | — | Session secret (must be 32+ chars in production; weak defaults rejected) |
 | `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
 | `OIDC_ISSUER_URL` | — | OIDC provider issuer URL |
 | `OIDC_CLIENT_ID` | — | OAuth2 client ID |
 | `OIDC_CLIENT_SECRET` | — | OAuth2 client secret |
 | `OIDC_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` | OAuth2 callback URL |
+| `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), and CIDRs (`10.0.0.0/8`) to bypass SSRF blocking for internal services |
 | `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |
@@ -270,6 +272,36 @@ Options:
   --reset, -r     Clear existing mock services and regenerate
   --db-path       Path to dashboard database (default: ../server/data/database.sqlite)
 ```
+
+## Security
+
+### SSRF Protection
+
+Health endpoint URLs are validated against private/reserved IP ranges (RFC 1918, link-local, loopback, multicast, etc.) at two points: service creation/update time (synchronous hostname and IP check) and poll time (DNS resolution to catch DNS rebinding attacks). This prevents the server from being used to probe internal infrastructure or access cloud metadata endpoints (169.254.169.254).
+
+Since this app is designed to monitor internal services, a configurable **`SSRF_ALLOWLIST`** env var lets you open specific ranges while keeping the full block list as a default:
+
+```bash
+# Local development
+SSRF_ALLOWLIST=localhost,127.0.0.0/8
+
+# Corporate network
+SSRF_ALLOWLIST=*.internal,*.corp.com,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,localhost
+```
+
+Supported formats: exact hostnames (`localhost`), wildcard patterns (`*.internal`), and CIDR ranges (`10.0.0.0/8`). Cloud metadata IPs are only allowed if explicitly included in the allowlist.
+
+### CSRF Protection
+
+All mutating API routes are protected by a double-submit cookie pattern. The server sets a `csrf-token` cookie readable by JavaScript; the client reads it and sends it back as an `X-CSRF-Token` header on POST/PUT/DELETE requests. The middleware validates that they match. This prevents cross-site request forgery without requiring additional dependencies.
+
+### Session Secret Validation
+
+In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. This prevents accidental deployment with insecure session signing.
+
+### Redirect Validation
+
+Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed.
 
 ## License
 

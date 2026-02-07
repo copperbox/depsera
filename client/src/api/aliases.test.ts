@@ -49,7 +49,7 @@ describe('createAlias', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/aliases', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -72,7 +72,7 @@ describe('updateAlias', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/aliases/1', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify({ canonical_name: 'New Name' }),
       credentials: 'include',
     });
@@ -88,6 +88,7 @@ describe('deleteAlias', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/aliases/1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });

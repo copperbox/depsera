@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
+import { validateRedirectUrl } from '../utils/redirect';
+import { withCsrfToken } from '../api/csrf';
 
 interface AuthContextType {
   user: User | null;
@@ -54,18 +56,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
+        headers: withCsrfToken(),
         credentials: 'include',
       });
 
       if (response.ok) {
         const { redirectUrl } = await response.json();
         setUser(null);
-        // Redirect to OIDC provider logout or login page
-        if (redirectUrl.startsWith('http')) {
-          window.location.href = redirectUrl;
-        } else {
-          window.location.href = redirectUrl;
-        }
+        window.location.href = validateRedirectUrl(redirectUrl);
       }
     } catch (error) {
       console.error('Logout error:', error);

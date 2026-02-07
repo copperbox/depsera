@@ -53,7 +53,7 @@ npm run db:clear      # Clear all data (dangerous!)
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/` (sessions also stored in SQLite via `better-sqlite3-session-store`)
-- `/server/src/middleware/` - Express middleware (static file serving, compression)
+- `/server/src/middleware/` - Express middleware (static file serving, compression, CSRF protection)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
 - In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
 
@@ -95,6 +95,13 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Exponential backoff:** On failure, poll delay increases exponentially (base 1s, max 5min, 2x multiplier)
 - **Circuit breaker:** After 10 consecutive failures, circuit opens for 5min cooldown. After cooldown, a single probe is allowed (half-open). Success closes the circuit; failure re-opens it.
 - **PollCache:** In-memory TTL cache that tracks when each service was last polled. Services are only polled when their cache entry expires.
+
+## Security
+
+- **SSRF Protection:** Health endpoint URLs are validated against private/reserved IP ranges (RFC 1918, link-local, loopback, etc.) at service creation/update time. At poll time, DNS is resolved and the resolved IP is checked to prevent DNS rebinding attacks. A configurable `SSRF_ALLOWLIST` env var supports exact hostnames (`localhost`), wildcard patterns (`*.internal`), and CIDR ranges (`10.0.0.0/8`) to allow internal network monitoring while keeping the full block list as a safety default. See `/server/src/utils/ssrf.ts` and `/server/src/utils/ssrf-allowlist.ts`.
+- **CSRF Protection:** Double-submit cookie pattern. Server sets a `csrf-token` cookie (readable by JS); client reads it and sends `X-CSRF-Token` header on all mutating requests. Middleware in `/server/src/middleware/csrf.ts` validates the match. Client utility in `/client/src/api/csrf.ts`.
+- **Session Secret Validation:** In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. See `/server/src/auth/validateSessionSecret.ts`.
+- **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC logout) are allowed. See `/client/src/utils/redirect.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)

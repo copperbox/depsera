@@ -9,6 +9,7 @@ import type {
 } from '../types/team';
 import type { User } from '../types/user';
 import { handleResponse } from './common';
+import { withCsrfToken } from './csrf';
 
 export async function fetchTeams(): Promise<TeamWithCounts[]> {
   const response = await fetch('/api/teams', { credentials: 'include' });
@@ -23,7 +24,7 @@ export async function fetchTeam(id: string): Promise<TeamWithDetails> {
 export async function createTeam(input: CreateTeamInput): Promise<TeamWithCounts> {
   const response = await fetch('/api/teams', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -33,7 +34,7 @@ export async function createTeam(input: CreateTeamInput): Promise<TeamWithCounts
 export async function updateTeam(id: string, input: UpdateTeamInput): Promise<TeamWithCounts> {
   const response = await fetch(`/api/teams/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -43,6 +44,7 @@ export async function updateTeam(id: string, input: UpdateTeamInput): Promise<Te
 export async function deleteTeam(id: string): Promise<void> {
   const response = await fetch(`/api/teams/${id}`, {
     method: 'DELETE',
+    headers: withCsrfToken(),
     credentials: 'include',
   });
   if (!response.ok) {
@@ -57,7 +59,7 @@ export async function addTeamMember(
 ): Promise<TeamMember> {
   const response = await fetch(`/api/teams/${teamId}/members`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -71,7 +73,7 @@ export async function updateTeamMember(
 ): Promise<TeamMember> {
   const response = await fetch(`/api/teams/${teamId}/members/${userId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -81,6 +83,7 @@ export async function updateTeamMember(
 export async function removeTeamMember(teamId: string, userId: string): Promise<void> {
   const response = await fetch(`/api/teams/${teamId}/members/${userId}`, {
     method: 'DELETE',
+    headers: withCsrfToken(),
     credentials: 'include',
   });
   if (!response.ok) {

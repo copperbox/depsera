@@ -1,6 +1,7 @@
 import session from 'express-session';
 import SqliteStore from 'better-sqlite3-session-store';
 import { db } from '../db';
+import { validateSessionSecret } from './validateSessionSecret';
 
 const BetterSqlite3Store = SqliteStore(session);
 
@@ -22,7 +23,7 @@ export const sessionMiddleware = session({
       intervalMs: 15 * 60 * 1000, // Clean up expired sessions every 15 minutes
     },
   }),
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+  secret: validateSessionSecret(),
   resave: false,
   saveUninitialized: false,
   cookie: {

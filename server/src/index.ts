@@ -15,6 +15,7 @@ import errorsRouter from './routes/errors';
 import aliasesRouter from './routes/aliases';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
+import { csrfProtection } from './middleware/csrf';
 
 dotenv.config();
 
@@ -34,6 +35,9 @@ app.use(sessionMiddleware);
 
 // Dev bypass middleware (auto-authenticates in dev mode when AUTH_BYPASS=true)
 app.use(bypassAuthMiddleware);
+
+// CSRF protection (must come after session middleware)
+app.use('/api', csrfProtection);
 
 // Public routes
 app.use('/api/auth', authRouter);
@@ -81,6 +85,11 @@ async function start() {
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
     console.error(`[Health] Poll failed for ${event.serviceName}: ${event.error}`);
   });
+
+  // Log SSRF allowlist configuration
+  if (process.env.SSRF_ALLOWLIST) {
+    console.log(`[Security] SSRF allowlist: ${process.env.SSRF_ALLOWLIST}`);
+  }
 
   // Start polling all active services
   pollingService.startAll();

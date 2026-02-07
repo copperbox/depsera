@@ -6,6 +6,7 @@ global.fetch = mockFetch;
 
 // Mock window.location
 const mockLocation = {
+  origin: 'http://localhost',
   href: '',
   pathname: '/dashboard',
 };
@@ -165,6 +166,7 @@ describe('AuthProvider', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
     expect(mockLocation.href).toBe('https://auth.example.com/logout');
@@ -179,6 +181,62 @@ describe('AuthProvider', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ redirectUrl: '/login' }),
+      });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Logout'));
+    });
+
+    expect(mockLocation.href).toBe('/login');
+  });
+
+  it('logout blocks javascript: redirect URLs', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', name: 'Test User', role: 'user' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ redirectUrl: 'javascript:alert(1)' }),
+      });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Logout'));
+    });
+
+    expect(mockLocation.href).toBe('/login');
+  });
+
+  it('logout blocks external HTTP redirect URLs', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ id: '1', name: 'Test User', role: 'user' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ redirectUrl: 'http://evil.com/phish' }),
       });
 
     render(

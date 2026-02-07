@@ -71,7 +71,7 @@ describe('createTeam', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -95,7 +95,7 @@ describe('updateTeam', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams/1', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -117,6 +117,7 @@ describe('deleteTeam', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams/1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
@@ -162,7 +163,7 @@ describe('addTeamMember', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams/team-1/members', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -188,7 +189,7 @@ describe('updateTeamMember', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams/team-1/members/user-1', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -210,6 +211,7 @@ describe('removeTeamMember', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/teams/team-1/members/user-1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
