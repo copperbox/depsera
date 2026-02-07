@@ -3,6 +3,7 @@ import { ExponentialBackoff } from './backoff';
 import { PollResult } from './types';
 import { DependencyParser, getDependencyParser } from './DependencyParser';
 import { DependencyUpsertService, getDependencyUpsertService } from './DependencyUpsertService';
+import { validateUrlNotPrivate } from '../../utils/ssrf';
 
 const POLL_TIMEOUT_MS = 10000;
 
@@ -70,6 +71,9 @@ export class ServicePoller {
   }
 
   private async fetchHealthEndpoint(): Promise<ProactiveDepsStatus[]> {
+    // Validate URL against private/internal IPs (DNS rebinding protection)
+    await validateUrlNotPrivate(this.service.health_endpoint);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), POLL_TIMEOUT_MS);
 

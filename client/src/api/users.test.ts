@@ -66,7 +66,7 @@ describe('updateUserRole', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/users/1/role', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify({ role: 'admin' }),
       credentials: 'include',
     });
@@ -88,6 +88,7 @@ describe('deactivateUser', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/users/1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
@@ -132,6 +133,7 @@ describe('reactivateUser', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/users/1/reactivate', {
       method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
     expect(result).toEqual(data);

@@ -3,6 +3,14 @@ import { Service } from '../../db/types';
 import { DependencyParser } from './DependencyParser';
 import { DependencyUpsertService } from './DependencyUpsertService';
 
+// Mock SSRF validation
+jest.mock('../../utils/ssrf', () => ({
+  validateUrlNotPrivate: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { validateUrlNotPrivate } from '../../utils/ssrf';
+const mockValidateUrl = validateUrlNotPrivate as jest.MockedFunction<typeof validateUrlNotPrivate>;
+
 // Mock fetch globally
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
@@ -154,6 +162,35 @@ describe('ServicePoller', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('string error');
+    });
+  });
+
+  describe('SSRF protection', () => {
+    it('should validate URL before fetching', async () => {
+      const service = createService();
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await poller.poll();
+
+      expect(mockValidateUrl).toHaveBeenCalledWith('http://test-service/health');
+    });
+
+    it('should fail poll when SSRF validation rejects', async () => {
+      const service = createService({ health_endpoint: 'http://169.254.169.254/meta-data' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockValidateUrl.mockRejectedValueOnce(new Error('Blocked private IP: 169.254.169.254'));
+
+      const result = await poller.poll();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Blocked private IP');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 

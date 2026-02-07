@@ -6,6 +6,7 @@ import type {
   TeamWithCounts,
 } from '../types/service';
 import { handleResponse } from './common';
+import { withCsrfToken } from './csrf';
 
 export async function fetchServices(teamId?: string): Promise<ServiceWithDependencies[]> {
   const url = teamId ? `/api/services?team_id=${teamId}` : '/api/services';
@@ -21,7 +22,7 @@ export async function fetchService(id: string): Promise<ServiceWithDependencies>
 export async function createService(input: CreateServiceInput): Promise<Service> {
   const response = await fetch('/api/services', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -31,7 +32,7 @@ export async function createService(input: CreateServiceInput): Promise<Service>
 export async function updateService(id: string, input: UpdateServiceInput): Promise<Service> {
   const response = await fetch(`/api/services/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
     credentials: 'include',
   });
@@ -41,6 +42,7 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
 export async function deleteService(id: string): Promise<void> {
   const response = await fetch(`/api/services/${id}`, {
     method: 'DELETE',
+    headers: withCsrfToken(),
     credentials: 'include',
   });
   if (!response.ok) {

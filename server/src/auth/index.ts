@@ -1,4 +1,5 @@
 export { sessionMiddleware } from './session';
+export { validateSessionSecret } from './validateSessionSecret';
 export {
   requireAuth,
   requireAdmin,

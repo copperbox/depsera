@@ -108,6 +108,7 @@ describe('useServiceDetail', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/services/s1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
     expect(mockNavigate).toHaveBeenCalledWith('/services');

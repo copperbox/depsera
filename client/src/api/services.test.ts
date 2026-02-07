@@ -78,7 +78,7 @@ describe('createService', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/services', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -102,7 +102,7 @@ describe('updateService', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/services/1', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
     });
@@ -124,6 +124,7 @@ describe('deleteService', () => {
 
     expect(mockFetch).toHaveBeenCalledWith('/api/services/1', {
       method: 'DELETE',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
     });
   });
