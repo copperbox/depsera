@@ -2,8 +2,13 @@ import express from 'express';
 import request from 'supertest';
 import { csrfProtection } from './csrf';
 
-function createApp() {
+function createApp(opts: { trustProxy?: boolean } = {}) {
   const app = express();
+
+  if (opts.trustProxy) {
+    app.set('trust proxy', true);
+  }
+
   app.use(express.json());
   app.use(csrfProtection);
 
@@ -154,6 +159,38 @@ describe('CSRF Protection Middleware', () => {
         .set('X-CSRF-Token', token);
 
       expect(res.status).toBe(200);
+    });
+  });
+
+  describe('secure flag', () => {
+    it('should set Secure flag when X-Forwarded-Proto is https with trust proxy', async () => {
+      const app = createApp({ trustProxy: true });
+      const res = await request(app)
+        .get('/api/test')
+        .set('X-Forwarded-Proto', 'https');
+
+      expect(res.status).toBe(200);
+      const cookies = res.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const csrfCookie = Array.isArray(cookies)
+        ? cookies.find((c: string) => c.startsWith('csrf-token='))
+        : cookies;
+      expect(csrfCookie).toBeDefined();
+      expect(csrfCookie).toContain('Secure');
+    });
+
+    it('should not set Secure flag over plain HTTP', async () => {
+      const app = createApp();
+      const res = await request(app).get('/api/test');
+
+      expect(res.status).toBe(200);
+      const cookies = res.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const csrfCookie = Array.isArray(cookies)
+        ? cookies.find((c: string) => c.startsWith('csrf-token='))
+        : cookies;
+      expect(csrfCookie).toBeDefined();
+      expect(csrfCookie).not.toContain('Secure');
     });
   });
 });

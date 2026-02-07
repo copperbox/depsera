@@ -43,7 +43,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false, // Client JS needs to read this
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: req.secure,
       path: '/',
     });
   }

@@ -53,7 +53,7 @@ npm run db:clear      # Clear all data (dangerous!)
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/` (sessions also stored in SQLite via `better-sqlite3-session-store`)
-- `/server/src/middleware/` - Express middleware (static file serving, compression, CSRF protection)
+- `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, static file serving, compression)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
 - In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
 
@@ -98,10 +98,13 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 
 ## Security
 
+- **Security Headers:** Helmet middleware provides CSP (with `'unsafe-inline'` for styles, `'unsafe-eval'`/`ws:` in dev for Vite HMR), X-Frame-Options DENY, X-Content-Type-Options nosniff, HSTS (production only), and other defaults. See `/server/src/middleware/securityHeaders.ts`.
+- **HTTPS Redirect:** Optional 301 redirect from HTTP to HTTPS when `REQUIRE_HTTPS=true`. Exempts `/api/health` for load-balancer probes. Requires `TRUST_PROXY` when behind a reverse proxy. See `/server/src/middleware/httpsRedirect.ts`.
+- **Trust Proxy:** Configurable `TRUST_PROXY` env var parsed into Express's `trust proxy` setting (boolean, hop count, IP/subnet, or "loopback"). Enables correct `req.secure`, `req.ip` behind reverse proxies. See `/server/src/middleware/trustProxy.ts`.
 - **SSRF Protection:** Health endpoint URLs are validated against private/reserved IP ranges (RFC 1918, link-local, loopback, etc.) at service creation/update time. At poll time, DNS is resolved and the resolved IP is checked to prevent DNS rebinding attacks. A configurable `SSRF_ALLOWLIST` env var supports exact hostnames (`localhost`), wildcard patterns (`*.internal`), and CIDR ranges (`10.0.0.0/8`) to allow internal network monitoring while keeping the full block list as a safety default. See `/server/src/utils/ssrf.ts` and `/server/src/utils/ssrf-allowlist.ts`.
-- **CSRF Protection:** Double-submit cookie pattern. Server sets a `csrf-token` cookie (readable by JS); client reads it and sends `X-CSRF-Token` header on all mutating requests. Middleware in `/server/src/middleware/csrf.ts` validates the match. Client utility in `/client/src/api/csrf.ts`.
-- **Session Secret Validation:** In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. See `/server/src/auth/validateSessionSecret.ts`.
-- **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC logout) are allowed. See `/client/src/utils/redirect.ts`.
+- **CSRF Protection:** Double-submit cookie pattern. Server sets a `csrf-token` cookie (readable by JS); client reads it and sends `X-CSRF-Token` header on all mutating requests. CSRF cookie `Secure` flag is set dynamically based on `req.secure`. Middleware in `/server/src/middleware/csrf.ts` validates the match. Client utility in `/client/src/api/csrf.ts`.
+- **Session Security:** Session cookie uses `secure: 'auto'` to derive the `Secure` flag from `req.secure` (works with `trust proxy`). In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. See `/server/src/auth/session.ts` and `/server/src/auth/validateSessionSecret.ts`.
+- **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed. See `/client/src/utils/redirect.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)
