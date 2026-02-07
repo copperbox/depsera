@@ -16,6 +16,9 @@ import aliasesRouter from './routes/aliases';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
+import { createSecurityHeaders } from './middleware/securityHeaders';
+import { parseTrustProxy } from './middleware/trustProxy';
+import { createHttpsRedirect } from './middleware/httpsRedirect';
 
 dotenv.config();
 
@@ -25,7 +28,12 @@ initializeBypassMode();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy (must be set before any middleware that reads req.secure / req.ip)
+app.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+
 // Middleware
+app.use(createSecurityHeaders());
+app.use(createHttpsRedirect());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   credentials: true,
@@ -85,6 +93,11 @@ async function start() {
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
     console.error(`[Health] Poll failed for ${event.serviceName}: ${event.error}`);
   });
+
+  // Warn about HTTPS redirect without proxy trust
+  if (process.env.REQUIRE_HTTPS === 'true' && !process.env.TRUST_PROXY) {
+    console.warn('[Security] REQUIRE_HTTPS is enabled but TRUST_PROXY is not set. HTTPS redirect will not work correctly behind a reverse proxy.');
+  }
 
   // Log SSRF allowlist configuration
   if (process.env.SSRF_ALLOWLIST) {

@@ -18,7 +18,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
 - **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
-- **Security Hardening** — SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, session secret enforcement, and redirect URL validation
+- **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 
 ## Tech Stack
 
@@ -61,6 +61,8 @@ cp server/.env.example server/.env
 | `OIDC_CLIENT_SECRET` | — | OAuth2 client secret |
 | `OIDC_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` | OAuth2 callback URL |
 | `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), and CIDRs (`10.0.0.0/8`) to bypass SSRF blocking for internal services |
+| `TRUST_PROXY` | — | Express trust proxy setting for reverse proxy support (`true`, hop count, IP/subnet, `loopback`) |
+| `REQUIRE_HTTPS` | `false` | Set `true` to 301-redirect HTTP to HTTPS (requires `TRUST_PROXY` behind a proxy) |
 | `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |
@@ -274,6 +276,24 @@ Options:
 ```
 
 ## Security
+
+### Security Headers
+
+All responses include security headers via [Helmet](https://helmetjs.github.io/):
+
+- **Content-Security-Policy** — `default-src 'self'`, inline styles allowed (React Flow), `object-src 'none'`, `frame-ancestors 'none'`. In development, `'unsafe-eval'` and `ws:` are added for Vite HMR.
+- **X-Frame-Options** — `DENY`
+- **X-Content-Type-Options** — `nosniff`
+- **Strict-Transport-Security** — Production only, `max-age=31536000; includeSubDomains`
+- **Referrer-Policy**, **X-DNS-Prefetch-Control**, etc. — Helmet defaults
+
+### HTTPS & Proxy Hardening
+
+When deployed behind a reverse proxy (nginx, AWS ALB, etc.):
+
+1. Set `TRUST_PROXY` so Express reads `X-Forwarded-*` headers for `req.secure`, `req.ip`, etc.
+2. Optionally set `REQUIRE_HTTPS=true` to 301-redirect all HTTP traffic to HTTPS (except `/api/health` for load-balancer probes).
+3. Session and CSRF cookies automatically set `Secure` flag based on the actual connection protocol (`req.secure`), so they work correctly behind TLS-terminating proxies.
 
 ### SSRF Protection
 
