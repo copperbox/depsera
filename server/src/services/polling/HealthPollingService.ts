@@ -8,6 +8,8 @@ import { PollStateManager } from './PollStateManager';
 import { CircuitBreaker } from './CircuitBreaker';
 import { ExponentialBackoff } from './backoff';
 import { PollCache } from './PollCache';
+import { HostRateLimiter } from './HostRateLimiter';
+import { PollDeduplicator } from './PollDeduplicator';
 
 const POLL_CYCLE_MS = 5000; // 5 second tick interval
 
@@ -19,6 +21,8 @@ export class HealthPollingService extends EventEmitter {
   private circuitBreakers: Map<string, CircuitBreaker> = new Map();
   private backoffs: Map<string, ExponentialBackoff> = new Map();
   private pollCache: PollCache;
+  private hostRateLimiter: HostRateLimiter;
+  private pollDeduplicator: PollDeduplicator;
   private isShuttingDown = false;
   private serviceStore: IServiceStore;
 
@@ -27,6 +31,8 @@ export class HealthPollingService extends EventEmitter {
     this.stateManager = stateManager || new PollStateManager();
     this.serviceStore = (stores || getStores()).services;
     this.pollCache = new PollCache();
+    this.hostRateLimiter = new HostRateLimiter();
+    this.pollDeduplicator = new PollDeduplicator();
   }
 
   static getInstance(): HealthPollingService {
@@ -219,6 +225,8 @@ export class HealthPollingService extends EventEmitter {
     this.circuitBreakers.clear();
     this.backoffs.clear();
     this.pollCache.clear();
+    this.hostRateLimiter.clear();
+    this.pollDeduplicator.clear();
 
     // Remove all event listeners
     this.removeAllListeners();
@@ -376,15 +384,40 @@ export class HealthPollingService extends EventEmitter {
 
     if (toPoll.length === 0) return;
 
-    // Mark all as polling (lock)
+    // Apply host rate limiting — skip services whose host is at capacity
+    const eligible: ServicePollState[] = [];
+    const acquiredHosts: Map<string, string[]> = new Map(); // hostname -> serviceIds
+
     for (const state of toPoll) {
+      const hostname = HostRateLimiter.getHostname(state.healthEndpoint);
+      if (this.hostRateLimiter.acquire(hostname)) {
+        eligible.push(state);
+        const ids = acquiredHosts.get(hostname) || [];
+        ids.push(state.serviceId);
+        acquiredHosts.set(hostname, ids);
+      }
+      // Skipped services remain eligible next tick (not marked as polling)
+    }
+
+    if (eligible.length === 0) return;
+
+    // Mark eligible services as polling (lock)
+    for (const state of eligible) {
       this.stateManager.markPolling(state.serviceId, true);
     }
 
-    // Execute all polls concurrently
+    // Execute polls with deduplication — services sharing the same endpoint URL
+    // share a single HTTP request via PollDeduplicator
     const results = await Promise.allSettled(
-      toPoll.map(state => this.pollService(state))
+      eligible.map(state => this.pollServiceDeduped(state))
     );
+
+    // Release host rate limiter slots
+    for (const [hostname, serviceIds] of acquiredHosts) {
+      for (const _id of serviceIds) {
+        this.hostRateLimiter.release(hostname);
+      }
+    }
 
     // Process results and update state
     for (const result of results) {
@@ -460,14 +493,14 @@ export class HealthPollingService extends EventEmitter {
     }
 
     // Ensure any remaining locks are released (e.g., if Promise.allSettled had rejections)
-    for (const state of toPoll) {
+    for (const state of eligible) {
       if (state.isPolling) {
         state.isPolling = false;
       }
     }
   }
 
-  private async pollService(state: ServicePollState): Promise<{ serviceId: string; result: PollResult }> {
+  private async pollServiceDeduped(state: ServicePollState): Promise<{ serviceId: string; result: PollResult }> {
     const poller = this.pollers.get(state.serviceId);
     if (!poller) {
       return {
@@ -482,7 +515,10 @@ export class HealthPollingService extends EventEmitter {
       };
     }
 
-    const result = await poller.poll();
+    const result = await this.pollDeduplicator.deduplicate(
+      state.healthEndpoint,
+      () => poller.poll()
+    );
     return { serviceId: state.serviceId, result };
   }
 }

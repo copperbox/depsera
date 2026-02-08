@@ -63,6 +63,8 @@ function createPollingService(activeServices: Service[]) {
     pollCache: (instance as any).pollCache,
     circuitBreakers: (instance as any).circuitBreakers as Map<string, unknown>,
     backoffs: (instance as any).backoffs as Map<string, unknown>,
+    hostRateLimiter: (instance as any).hostRateLimiter,
+    pollDeduplicator: (instance as any).pollDeduplicator,
     /* eslint-enable @typescript-eslint/no-explicit-any */
     mockServiceStore,
   };
@@ -716,10 +718,10 @@ describe('HealthPollingService - runPollCycle', () => {
     const state = stateManager.getState('svc-1')!;
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const pollService = (instance as any).pollService.bind(instance);
+    const pollServiceDeduped = (instance as any).pollServiceDeduped.bind(instance);
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    const result = await pollService(state);
+    const result = await pollServiceDeduped(state);
 
     expect(result.result.success).toBe(false);
     expect(result.result.error).toBe('No poller found');
@@ -855,6 +857,198 @@ describe('HealthPollingService - runPollCycle', () => {
     // Should not throw
 
     await instance.shutdown();
+    logSpy.mockRestore();
+  });
+});
+
+describe('HealthPollingService - deduplication', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should call poll() only once for two services with the same endpoint', async () => {
+    const endpoint = 'http://localhost:4000/shared/dependencies';
+    const svc1 = createService('svc-1', 'service-a', { health_endpoint: endpoint });
+    const svc2 = createService('svc-2', 'service-b', { health_endpoint: endpoint });
+    const { instance, pollers, syncServices, pollCache } = createPollingService([svc1, svc2]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    syncServices();
+    pollCache.invalidate('svc-1');
+    pollCache.invalidate('svc-2');
+
+    const pollResult = {
+      success: true,
+      dependenciesUpdated: 2,
+      statusChanges: [],
+      latencyMs: 50,
+    };
+
+    // Both pollers share the same endpoint; only one poll() should fire
+    const mockPoll = jest.fn().mockResolvedValue(pollResult);
+    const mockPoller1 = { poll: mockPoll, updateService: jest.fn() };
+    const mockPoller2 = { poll: mockPoll, updateService: jest.fn() };
+    pollers.set('svc-1', mockPoller1 as unknown as ReturnType<typeof pollers.get>);
+    pollers.set('svc-2', mockPoller2 as unknown as ReturnType<typeof pollers.get>);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Deduplicator ensures poll() is called only once for the shared URL
+    expect(mockPoll).toHaveBeenCalledTimes(1);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should apply poll result to both services when deduped', async () => {
+    const endpoint = 'http://localhost:4000/shared/dependencies';
+    const svc1 = createService('svc-1', 'service-a', { health_endpoint: endpoint });
+    const svc2 = createService('svc-2', 'service-b', { health_endpoint: endpoint });
+    const { instance, pollers, syncServices, pollCache, mockServiceStore } =
+      createPollingService([svc1, svc2]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    syncServices();
+    pollCache.invalidate('svc-1');
+    pollCache.invalidate('svc-2');
+
+    const pollResult = {
+      success: true,
+      dependenciesUpdated: 2,
+      statusChanges: [],
+      latencyMs: 50,
+    };
+
+    const mockPoll = jest.fn().mockResolvedValue(pollResult);
+    pollers.set('svc-1', { poll: mockPoll } as unknown as ReturnType<typeof pollers.get>);
+    pollers.set('svc-2', { poll: mockPoll } as unknown as ReturnType<typeof pollers.get>);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Both services should have their poll results persisted
+    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-1', true, undefined);
+    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-2', true, undefined);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+});
+
+describe('HealthPollingService - host rate limiting', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should skip services when host is at capacity', async () => {
+    // Create 3 services on same host, but limit is 2
+    const svc1 = createService('svc-1', 'service-a', {
+      health_endpoint: 'http://example.com/a/dependencies',
+    });
+    const svc2 = createService('svc-2', 'service-b', {
+      health_endpoint: 'http://example.com/b/dependencies',
+    });
+    const svc3 = createService('svc-3', 'service-c', {
+      health_endpoint: 'http://example.com/c/dependencies',
+    });
+    const { instance, pollers, syncServices, pollCache, hostRateLimiter } =
+      createPollingService([svc1, svc2, svc3]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Set host rate limit to 2
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    (instance as any).hostRateLimiter = new (require('./HostRateLimiter').HostRateLimiter)(2);
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    syncServices();
+    pollCache.invalidate('svc-1');
+    pollCache.invalidate('svc-2');
+    pollCache.invalidate('svc-3');
+
+    const pollResult = {
+      success: true,
+      dependenciesUpdated: 1,
+      statusChanges: [],
+      latencyMs: 50,
+    };
+
+    const mockPoll1 = jest.fn().mockResolvedValue(pollResult);
+    const mockPoll2 = jest.fn().mockResolvedValue(pollResult);
+    const mockPoll3 = jest.fn().mockResolvedValue(pollResult);
+    pollers.set('svc-1', { poll: mockPoll1 } as unknown as ReturnType<typeof pollers.get>);
+    pollers.set('svc-2', { poll: mockPoll2 } as unknown as ReturnType<typeof pollers.get>);
+    pollers.set('svc-3', { poll: mockPoll3 } as unknown as ReturnType<typeof pollers.get>);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // Only 2 of the 3 should have been polled (host limit = 2)
+    const totalPolled = [mockPoll1, mockPoll2, mockPoll3]
+      .filter(m => m.mock.calls.length > 0).length;
+
+    // Due to dedup on same host but different URLs, each gets its own poll
+    // but host rate limiter limits to 2
+    expect(totalPolled).toBeLessThanOrEqual(2);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should release host slots after poll cycle', async () => {
+    const svc1 = createService('svc-1', 'service-a', {
+      health_endpoint: 'http://example.com/a/dependencies',
+    });
+    const { instance, pollers, syncServices, pollCache } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    syncServices();
+    pollCache.invalidate('svc-1');
+
+    const pollResult = {
+      success: true,
+      dependenciesUpdated: 1,
+      statusChanges: [],
+      latencyMs: 50,
+    };
+
+    pollers.set('svc-1', {
+      poll: jest.fn().mockResolvedValue(pollResult),
+    } as unknown as ReturnType<typeof pollers.get>);
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    const limiter = (instance as any).hostRateLimiter;
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // After poll cycle, host slots should be released
+    expect(limiter.getActiveCount('example.com')).toBe(0);
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
+  it('should clean up host rate limiter and deduplicator on shutdown', async () => {
+    const svc1 = createService('svc-1', 'service-a');
+    const { instance, hostRateLimiter, pollDeduplicator } = createPollingService([svc1]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    instance.startAll();
+
+    await instance.shutdown();
+
+    // Both should be cleared
+    expect(hostRateLimiter.getActiveCount('localhost')).toBe(0);
+    expect(pollDeduplicator.size).toBe(0);
+
     logSpy.mockRestore();
   });
 });

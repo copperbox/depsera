@@ -18,7 +18,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
 - **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
-- **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
+- **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 
 ## Tech Stack
 
@@ -63,6 +63,11 @@ cp server/.env.example server/.env
 | `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), and CIDRs (`10.0.0.0/8`) to bypass SSRF blocking for internal services |
 | `TRUST_PROXY` | — | Express trust proxy setting for reverse proxy support (`true`, hop count, IP/subnet, `loopback`) |
 | `REQUIRE_HTTPS` | `false` | Set `true` to 301-redirect HTTP to HTTPS (requires `TRUST_PROXY` behind a proxy) |
+| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Global rate limit window |
+| `RATE_LIMIT_MAX` | `100` | Max requests per IP per global window |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Auth endpoint rate limit window |
+| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per window |
+| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls to the same target hostname |
 | `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |
@@ -318,6 +323,22 @@ All mutating API routes are protected by a double-submit cookie pattern. The ser
 ### Session Secret Validation
 
 In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. This prevents accidental deployment with insecure session signing.
+
+### Rate Limiting
+
+All API endpoints are protected by in-memory rate limiting via `express-rate-limit`:
+
+- **Global limit:** 100 requests per 15 minutes per IP (configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`)
+- **Auth limit:** 10 requests per minute per IP on `/api/auth` endpoints (configurable via `AUTH_RATE_LIMIT_WINDOW_MS` and `AUTH_RATE_LIMIT_MAX`)
+
+The global rate limiter runs before session middleware to reject abusive requests early without session creation cost. Rate-limited responses return `429 Too Many Requests` with standard `RateLimit-*` and `Retry-After` headers.
+
+### Poll DDoS Protection
+
+The polling service includes per-hostname concurrency limiting and request deduplication to prevent abuse:
+
+- **Host rate limiting:** Max 3 concurrent polls per target hostname (configurable via `POLL_MAX_CONCURRENT_PER_HOST`). Services that can't acquire a slot are skipped and retried on the next 5-second tick.
+- **Poll deduplication:** Services sharing the same health endpoint URL share a single HTTP request per poll cycle. Each service maintains independent circuit breaker and backoff state.
 
 ### Redirect Validation
 
