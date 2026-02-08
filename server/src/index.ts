@@ -19,6 +19,7 @@ import { csrfProtection } from './middleware/csrf';
 import { createSecurityHeaders } from './middleware/securityHeaders';
 import { parseTrustProxy } from './middleware/trustProxy';
 import { createHttpsRedirect } from './middleware/httpsRedirect';
+import { createGlobalRateLimit, createAuthRateLimit } from './middleware/rateLimit';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use(createGlobalRateLimit());
 app.use(sessionMiddleware);
 
 // Dev bypass middleware (auto-authenticates in dev mode when AUTH_BYPASS=true)
@@ -48,7 +50,7 @@ app.use(bypassAuthMiddleware);
 app.use('/api', csrfProtection);
 
 // Public routes
-app.use('/api/auth', authRouter);
+app.use('/api/auth', createAuthRateLimit(), authRouter);
 app.use('/api/health', healthRouter);
 
 // Protected routes

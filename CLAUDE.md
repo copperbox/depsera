@@ -53,7 +53,7 @@ npm run db:clear      # Clear all data (dangerous!)
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/` (sessions also stored in SQLite via `better-sqlite3-session-store`)
-- `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, static file serving, compression)
+- `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, rate limiting, static file serving, compression)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
 - In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
 
@@ -95,6 +95,8 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Exponential backoff:** On failure, poll delay increases exponentially (base 1s, max 5min, 2x multiplier)
 - **Circuit breaker:** After 10 consecutive failures, circuit opens for 5min cooldown. After cooldown, a single probe is allowed (half-open). Success closes the circuit; failure re-opens it.
 - **PollCache:** In-memory TTL cache that tracks when each service was last polled. Services are only polled when their cache entry expires.
+- **Host rate limiting:** Per-hostname concurrency semaphore (default max 3, env: `POLL_MAX_CONCURRENT_PER_HOST`) prevents using the polling service as a DDoS amplifier. Services that can't acquire a slot are skipped this tick and retried next tick.
+- **Poll deduplication:** Promise coalescing for services sharing the same health endpoint URL. Only one HTTP request is made per unique URL per poll cycle; all services sharing that URL receive the same result but maintain independent circuit breaker and backoff state.
 
 ## Security
 
@@ -105,6 +107,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **CSRF Protection:** Double-submit cookie pattern. Server sets a `csrf-token` cookie (readable by JS); client reads it and sends `X-CSRF-Token` header on all mutating requests. CSRF cookie `Secure` flag is set dynamically based on `req.secure`. Middleware in `/server/src/middleware/csrf.ts` validates the match. Client utility in `/client/src/api/csrf.ts`.
 - **Session Security:** Session cookie uses `secure: 'auto'` to derive the `Secure` flag from `req.secure` (works with `trust proxy`). In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. See `/server/src/auth/session.ts` and `/server/src/auth/validateSessionSecret.ts`.
 - **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed. See `/client/src/utils/redirect.ts`.
+- **Rate Limiting:** In-memory rate limiting via `express-rate-limit`. Global limit (100 req/15min per IP) applied before session middleware to reject abusive requests early. Stricter auth limit (10 req/1min per IP) on `/api/auth` to prevent brute-force attacks. All limits configurable via env vars. See `/server/src/middleware/rateLimit.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)
@@ -113,6 +116,8 @@ Key files in `/server/src/services/polling/`:
 - `backoff.ts` — Exponential backoff utility
 - `PollStateManager.ts` — In-memory state tracking per service
 - `ServicePoller.ts` — Executes individual service polls
+- `HostRateLimiter.ts` — Per-hostname concurrency semaphore for poll DDoS protection
+- `PollDeduplicator.ts` — Promise coalescing for concurrent polls to the same URL
 
 ## API Routes
 

@@ -7,6 +7,8 @@ export { DependencyParser, getDependencyParser } from './DependencyParser';
 export { ErrorHistoryRecorder, getErrorHistoryRecorder } from './ErrorHistoryRecorder';
 export { DependencyUpsertService, getDependencyUpsertService } from './DependencyUpsertService';
 export { PollStateManager } from './PollStateManager';
+export { HostRateLimiter } from './HostRateLimiter';
+export { PollDeduplicator } from './PollDeduplicator';
 export type { BackoffConfig } from './backoff';
 export type { CircuitBreakerConfig, CircuitState } from './CircuitBreaker';
 export * from './types';
