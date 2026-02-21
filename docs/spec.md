@@ -1574,6 +1574,8 @@ Support for services that don't use the proactive-deps format:
 }
 ```
 
+**Alert channel management UI:** **[Implemented]** (PRO-107). `AlertChannels` component integrated into the team detail page. Displays a list of configured alert channels with type icons (Slack/Webhook), truncated webhook URLs, and active/inactive status badges. Team leads and admins can create new channels (Slack webhook or generic HTTP webhook with custom headers and method selection), edit existing channels, toggle enable/disable, test channels (sends a test alert with success/failure feedback), and delete channels with confirmation dialog. Client-side validation enforces Slack webhook URL format and valid URL format. See `client/src/components/pages/Teams/AlertChannels.tsx`, `client/src/hooks/useAlertChannels.ts`, `client/src/api/alerts.ts`, `client/src/types/alert.ts`.
+
 ### 12.7 Metrics History Charts (Phase 6)
 
 **API enhancements:**

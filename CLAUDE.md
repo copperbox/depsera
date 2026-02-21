@@ -166,6 +166,10 @@ Key files in `/server/src/services/alerts/`:
 - `senders/SlackSender.ts` — Slack incoming webhook sender (Block Kit format, 10s timeout, 429 handling)
 - `senders/WebhookSender.ts` — Generic HTTP webhook sender (JSON payload, custom headers, configurable method, 10s timeout)
 
+## Alert Channel Management UI
+
+`AlertChannels` component (`/client/src/components/pages/Teams/AlertChannels.tsx`) provides CRUD for team alert channels on the team detail page. Team leads and admins can create/edit/delete channels, toggle enable/disable, and send test alerts. Supports Slack webhook and generic HTTP webhook (with custom headers and method selection). Client-side validation for Slack URL format and valid URL. Uses `useAlertChannels` hook (`/client/src/hooks/useAlertChannels.ts`) and API client (`/client/src/api/alerts.ts`). Types in `/client/src/types/alert.ts`.
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.

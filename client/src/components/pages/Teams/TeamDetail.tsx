@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import TeamForm from './TeamForm';
+import AlertChannels from './AlertChannels';
 import styles from './Teams.module.css';
 
 function TeamDetail() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+
+  const canManageAlerts = useMemo(() => {
+    if (isAdmin) return true;
+    if (!user?.teams || !id) return false;
+    const membership = user.teams.find((t) => t.team_id === id);
+    return membership?.role === 'lead';
+  }, [isAdmin, user?.teams, id]);
 
   const {
     team,
@@ -314,6 +322,9 @@ function TeamDetail() {
           </div>
         )}
       </div>
+
+      {/* Alert Channels Section */}
+      <AlertChannels teamId={id!} canManage={canManageAlerts} />
 
       <Modal
         isOpen={isEditModalOpen}

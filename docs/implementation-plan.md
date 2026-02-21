@@ -677,16 +677,21 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** UI on team detail page for creating, editing, testing, and deleting alert channels.
 
 **Acceptance criteria:**
-- [ ] Channel list with type, status, enable/disable toggle
-- [ ] Create channel form (Slack webhook URL or generic webhook URL + headers)
-- [ ] Edit existing channels
-- [ ] Test channel button sends test alert
-- [ ] Delete confirmation
-- [ ] Tests for component
+- [x] Channel list with type, status, enable/disable toggle
+- [x] Create channel form (Slack webhook URL or generic webhook URL + headers)
+- [x] Edit existing channels
+- [x] Test channel button sends test alert
+- [x] Delete confirmation
+- [x] Tests for component
 
 **Files likely touched:**
-- `client/src/components/AlertChannels/` (new)
-- `client/src/pages/TeamDetail.tsx` — integrate section
+- `client/src/components/pages/Teams/AlertChannels.tsx` (new)
+- `client/src/components/pages/Teams/AlertChannels.module.css` (new)
+- `client/src/components/pages/Teams/AlertChannels.test.tsx` (new)
+- `client/src/hooks/useAlertChannels.ts` (new)
+- `client/src/api/alerts.ts` (new)
+- `client/src/types/alert.ts` (new)
+- `client/src/components/pages/Teams/TeamDetail.tsx` — integrated AlertChannels section
 - `client/src/api/alerts.ts` (new)
 
 ---

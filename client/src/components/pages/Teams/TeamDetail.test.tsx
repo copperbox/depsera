@@ -24,6 +24,9 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+// Mock AlertChannels to isolate TeamDetail tests
+jest.mock('./AlertChannels', () => () => <div data-testid="alert-channels" />);
+
 function jsonResponse(data: unknown, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -514,6 +517,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse(availableUsers))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockRejectedValueOnce(new Error('Failed to add member'));
 
     renderTeamDetail('t1', true);
@@ -564,6 +568,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockRejectedValueOnce(new Error('Action failed'));
 
     renderTeamDetail('t1', true);
