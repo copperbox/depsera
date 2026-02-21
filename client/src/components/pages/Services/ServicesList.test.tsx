@@ -93,7 +93,7 @@ const memberUser = {
 };
 
 interface RenderOptions {
-  user?: typeof adminUser;
+  user?: typeof adminUser | typeof teamLeadUser | typeof memberUser;
   isAdmin?: boolean;
   canManageServices?: boolean;
 }

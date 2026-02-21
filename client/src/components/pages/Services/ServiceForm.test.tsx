@@ -13,19 +13,21 @@ function jsonResponse(data: unknown, status = 200) {
 }
 
 const mockTeams = [
-  { id: 't1', name: 'Team A', service_count: 2 },
-  { id: 't2', name: 'Team B', service_count: 1 },
+  { id: 't1', name: 'Team A', description: null, created_at: '', updated_at: '', member_count: 3, service_count: 2 },
+  { id: 't2', name: 'Team B', description: null, created_at: '', updated_at: '', member_count: 2, service_count: 1 },
 ];
 
 const mockService = {
   id: 's1',
   name: 'Test Service',
   team_id: 't1',
-  team: { name: 'Team A' },
+  team: { id: 't1', name: 'Team A', description: null, created_at: '', updated_at: '' },
   health_endpoint: 'https://example.com/health',
   metrics_endpoint: 'https://example.com/metrics',
   is_active: 1,
-  health: { status: 'healthy', last_report: null, healthy_reports: 0, total_reports: 0, dependent_count: 0 },
+  last_poll_success: 1,
+  last_poll_error: null,
+  health: { status: 'healthy' as const, last_report: null, healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0 },
   dependencies: [],
   dependent_reports: [],
   created_at: '2024-01-01',

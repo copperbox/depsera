@@ -6,7 +6,6 @@ import type {
   AlertChannelType,
   SlackConfig,
   WebhookConfig,
-  CreateAlertChannelInput,
 } from '../../../types/alert';
 import styles from './Teams.module.css';
 import alertStyles from './AlertChannels.module.css';

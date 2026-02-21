@@ -86,10 +86,12 @@ beforeEach(() => {
   mockFetchLatencyStats.mockReset();
   mockFetchLatencyStats.mockResolvedValue({
     dependencyId: 'd1',
+    currentLatencyMs: 25,
     avgLatencyMs24h: 20,
     minLatencyMs24h: 10,
     maxLatencyMs24h: 50,
     dataPointCount: 100,
+    dataPoints: [],
   });
 });
 
@@ -236,7 +238,7 @@ describe('EdgeDetailsPanel', () => {
   });
 
   it('displays dependency type', async () => {
-    const dataWithType = { ...mockEdgeData, dependencyType: 'database' };
+    const dataWithType = { ...mockEdgeData, dependencyType: 'database' as const };
 
     renderPanel('e1', dataWithType);
 
@@ -247,7 +249,7 @@ describe('EdgeDetailsPanel', () => {
   });
 
   it('displays association type', async () => {
-    const dataWithAssociation = { ...mockEdgeData, dependencyType: 'rest', associationType: 'message_queue' as const };
+    const dataWithAssociation = { ...mockEdgeData, dependencyType: 'rest' as const, associationType: 'message_queue' as const };
 
     renderPanel('e1', dataWithAssociation);
 
@@ -258,7 +260,7 @@ describe('EdgeDetailsPanel', () => {
   });
 
   it('displays auto-suggested source', async () => {
-    const autoSuggestedData = { ...mockEdgeData, dependencyType: 'rest', isAutoSuggested: true };
+    const autoSuggestedData = { ...mockEdgeData, dependencyType: 'rest' as const, isAutoSuggested: true };
 
     renderPanel('e1', autoSuggestedData);
 
@@ -269,7 +271,7 @@ describe('EdgeDetailsPanel', () => {
   });
 
   it('displays manual source', async () => {
-    const manualData = { ...mockEdgeData, dependencyType: 'rest', isAutoSuggested: false };
+    const manualData = { ...mockEdgeData, dependencyType: 'rest' as const, isAutoSuggested: false };
 
     renderPanel('e1', manualData);
 
@@ -280,7 +282,7 @@ describe('EdgeDetailsPanel', () => {
   });
 
   it('displays confidence score', async () => {
-    const dataWithConfidence = { ...mockEdgeData, dependencyType: 'rest', confidenceScore: 0.85 };
+    const dataWithConfidence = { ...mockEdgeData, dependencyType: 'rest' as const, confidenceScore: 0.85 };
 
     renderPanel('e1', dataWithConfidence);
 
@@ -426,10 +428,12 @@ describe('EdgeDetailsPanel', () => {
   it('formats latency in seconds for large values', async () => {
     mockFetchLatencyStats.mockResolvedValueOnce({
       dependencyId: 'd1',
+      currentLatencyMs: 2500,
       avgLatencyMs24h: 2000,
       minLatencyMs24h: 1500,
       maxLatencyMs24h: 3500,
       dataPointCount: 50,
+      dataPoints: [],
     });
 
     const highLatencyData = { ...mockEdgeData, latencyMs: 2500 };
@@ -468,10 +472,12 @@ describe('EdgeDetailsPanel', () => {
   it('displays singular data point text', async () => {
     mockFetchLatencyStats.mockResolvedValueOnce({
       dependencyId: 'd1',
+      currentLatencyMs: 20,
       avgLatencyMs24h: 20,
       minLatencyMs24h: 20,
       maxLatencyMs24h: 20,
       dataPointCount: 1,
+      dataPoints: [],
     });
 
     renderPanel();

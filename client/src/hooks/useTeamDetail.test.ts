@@ -293,7 +293,7 @@ describe('useTeamMembers', () => {
 
     const { result } = renderHook(() => useTeamMembers('t1', mockLoadTeam, mockSetError));
 
-    const member = { user_id: 'u2', role: 'member' as const };
+    const member = { user_id: 'u2', role: 'member' as const, team_id: 't1', created_at: '', user: { id: 'u2', email: 'u2@test.com', name: 'User 2', role: 'user', is_active: 1 } };
 
     await act(async () => {
       await result.current.handleToggleRole(member);
@@ -310,7 +310,7 @@ describe('useTeamMembers', () => {
 
     const { result } = renderHook(() => useTeamMembers('t1', mockLoadTeam, mockSetError));
 
-    const member = { user_id: 'u1', role: 'lead' as const };
+    const member = { user_id: 'u1', role: 'lead' as const, team_id: 't1', created_at: '', user: { id: 'u1', email: 'u1@test.com', name: 'User 1', role: 'user', is_active: 1 } };
 
     await act(async () => {
       await result.current.handleToggleRole(member);
@@ -324,7 +324,7 @@ describe('useTeamMembers', () => {
   it('does not toggle role when id is undefined', async () => {
     const { result } = renderHook(() => useTeamMembers(undefined, mockLoadTeam, mockSetError));
 
-    const member = { user_id: 'u1', role: 'lead' as const };
+    const member = { user_id: 'u1', role: 'lead' as const, team_id: 't1', created_at: '', user: { id: 'u1', email: 'u1@test.com', name: 'User 1', role: 'user', is_active: 1 } };
 
     await act(async () => {
       await result.current.handleToggleRole(member);
@@ -338,7 +338,7 @@ describe('useTeamMembers', () => {
 
     const { result } = renderHook(() => useTeamMembers('t1', mockLoadTeam, mockSetError));
 
-    const member = { user_id: 'u1', role: 'lead' as const };
+    const member = { user_id: 'u1', role: 'lead' as const, team_id: 't1', created_at: '', user: { id: 'u1', email: 'u1@test.com', name: 'User 1', role: 'user', is_active: 1 } };
 
     await act(async () => {
       await result.current.handleToggleRole(member);
@@ -353,7 +353,7 @@ describe('useTeamMembers', () => {
 
     const { result } = renderHook(() => useTeamMembers('t1', mockLoadTeam, mockSetError));
 
-    const member = { user_id: 'u1', role: 'lead' as const };
+    const member = { user_id: 'u1', role: 'lead' as const, team_id: 't1', created_at: '', user: { id: 'u1', email: 'u1@test.com', name: 'User 1', role: 'user', is_active: 1 } };
 
     await act(async () => {
       await result.current.handleToggleRole(member);

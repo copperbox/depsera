@@ -1,11 +1,11 @@
-import type { User, UserRole } from '../types/user';
+import type { User, UserRole, TeamMemberRole } from '../types/user';
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
 
 export interface UserWithTeams extends User {
   teams: {
     team_id: string;
-    role: string;
+    role: TeamMemberRole;
     team: {
       id: string;
       name: string;

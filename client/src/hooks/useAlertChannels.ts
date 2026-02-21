@@ -8,7 +8,6 @@ import {
 } from '../api/alerts';
 import type {
   AlertChannel,
-  AlertChannelType,
   CreateAlertChannelInput,
   UpdateAlertChannelInput,
 } from '../types/alert';

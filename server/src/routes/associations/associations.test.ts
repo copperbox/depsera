@@ -49,6 +49,7 @@ const adminUser = {
   email: 'admin@test.com',
   name: 'Admin',
   oidc_subject: null,
+  password_hash: null,
   role: 'admin' as const,
   is_active: 1,
   created_at: new Date().toISOString(),
