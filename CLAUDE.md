@@ -45,7 +45,6 @@ npm run build         # Build both packages
 npm run db:migrate    # Run pending migrations
 npm run db:rollback   # Rollback last migration
 npm run db:status     # Show migration status
-npm run db:seed       # Seed with development data
 npm run db:clear      # Clear all data (dangerous!)
 ```
 

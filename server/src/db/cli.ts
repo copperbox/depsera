@@ -1,36 +1,22 @@
 #!/usr/bin/env ts-node
 /**
- * Database CLI for migrations and seeding
+ * Database CLI for migrations
  *
  * Usage:
  *   npx ts-node src/db/cli.ts migrate          - Run pending migrations
  *   npx ts-node src/db/cli.ts rollback         - Rollback last migration
  *   npx ts-node src/db/cli.ts rollback 001     - Rollback to specific migration
  *   npx ts-node src/db/cli.ts status           - Show migration status
- *   npx ts-node src/db/cli.ts seed             - Seed the database
  *   npx ts-node src/db/cli.ts clear            - Clear all data (dangerous!)
  *   npx ts-node src/db/cli.ts clear-services   - Clear all services
- *   npx ts-node src/db/cli.ts reseed           - Clear and reseed services/teams
  */
 
 import { db } from './index';
 import { runMigrations, rollbackMigration, getMigrationStatus } from './migrate';
-import { seedDatabase, clearDatabase, clearServices, clearServicesAndTeams, ensureTeams } from './seed';
+import { clearDatabase, clearServices } from './seed';
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
-
-// Parse --key=value arguments
-function parseArgs(args: string[]): Record<string, string> {
-  const parsed: Record<string, string> = {};
-  for (const arg of args) {
-    if (arg.startsWith('--')) {
-      const [key, value] = arg.slice(2).split('=');
-      parsed[key] = value || 'true';
-    }
-  }
-  return parsed;
-}
 
 function printUsage(): void {
   console.log(`
@@ -40,18 +26,14 @@ Commands:
   migrate              Run pending migrations
   rollback [id]        Rollback migrations (optionally to specific id)
   status               Show migration status
-  seed                 Seed the database with development data
   clear                Clear all data from the database (dangerous!)
   clear-services       Clear all services (and their dependencies)
-  reseed               Clear services/teams and reseed
   `);
 }
 
 async function main(): Promise<void> {
   // Enable foreign keys
   db.pragma('foreign_keys = ON');
-
-  const parsedArgs = parseArgs(args);
 
   switch (command) {
     case 'migrate':
@@ -74,12 +56,6 @@ async function main(): Promise<void> {
       break;
     }
 
-    case 'seed':
-      // Run migrations first to ensure tables exist
-      runMigrations(db);
-      seedDatabase(db);
-      break;
-
     case 'clear':
       if (!args.includes('--force')) {
         console.log('This will delete ALL data. Use --force to confirm.');
@@ -91,25 +67,6 @@ async function main(): Promise<void> {
     case 'clear-services':
       clearServices(db);
       break;
-
-    case 'reseed': {
-      console.log(`\nReseed operation:`);
-      console.log('');
-
-      // Step 1: Clear existing services and teams
-      clearServicesAndTeams(db);
-
-      // Step 2: Create teams
-      console.log('\nCreating teams...');
-      const teamIds = ensureTeams(db);
-      console.log(`Created ${Object.keys(teamIds).length} teams`);
-
-      // Step 3: Seed with development data
-      console.log('\nSeeding development data...');
-      seedDatabase(db);
-      console.log('Reseed complete.');
-      break;
-    }
 
     default:
       printUsage();
