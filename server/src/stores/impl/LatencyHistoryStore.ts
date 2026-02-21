@@ -4,8 +4,45 @@ import { DependencyLatencyHistory } from '../../db/types';
 import {
   ILatencyHistoryStore,
   LatencyDataPoint,
+  LatencyBucket,
+  LatencyRange,
 } from '../interfaces/ILatencyHistoryStore';
 import { LatencyStats } from '../types';
+
+/**
+ * Range-to-bucket configuration for time-bucketed queries.
+ * strftime expression determines bucket granularity;
+ * offset is a SQLite datetime modifier for the time window.
+ */
+/**
+ * SQL expressions for bucket timestamp grouping by range.
+ * - 1h/6h: 1-minute buckets
+ * - 24h: 15-minute buckets
+ * - 7d: 1-hour buckets
+ * - 30d: 6-hour buckets
+ */
+const RANGE_CONFIG: Record<LatencyRange, { bucketExpr: string; offset: string }> = {
+  '1h': {
+    bucketExpr: "strftime('%Y-%m-%dT%H:%M:00.000Z', recorded_at)",
+    offset: '-1 hours',
+  },
+  '6h': {
+    bucketExpr: "strftime('%Y-%m-%dT%H:%M:00.000Z', recorded_at)",
+    offset: '-6 hours',
+  },
+  '24h': {
+    bucketExpr: "strftime('%Y-%m-%dT%H:', recorded_at) || substr('0' || (CAST(strftime('%M', recorded_at) AS INTEGER) / 15 * 15), -2) || ':00.000Z'",
+    offset: '-24 hours',
+  },
+  '7d': {
+    bucketExpr: "strftime('%Y-%m-%dT%H:00:00.000Z', recorded_at)",
+    offset: '-7 days',
+  },
+  '30d': {
+    bucketExpr: "strftime('%Y-%m-%dT', recorded_at) || substr('0' || (CAST(strftime('%H', recorded_at) AS INTEGER) / 6 * 6), -2) || ':00:00.000Z'",
+    offset: '-30 days',
+  },
+};
 
 /**
  * Store implementation for DependencyLatencyHistory entity operations
@@ -105,6 +142,28 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
     }
 
     return this.db.prepare(query).all(...params) as LatencyDataPoint[];
+  }
+
+  getLatencyBuckets(dependencyId: string, range: LatencyRange): LatencyBucket[] {
+    const config = RANGE_CONFIG[range];
+
+    const rows = this.db
+      .prepare(`
+        SELECT
+          ${config.bucketExpr} as timestamp,
+          MIN(latency_ms) as min,
+          ROUND(AVG(latency_ms)) as avg,
+          MAX(latency_ms) as max,
+          COUNT(*) as count
+        FROM dependency_latency_history
+        WHERE dependency_id = ?
+          AND recorded_at >= datetime('now', '${config.offset}')
+        GROUP BY timestamp
+        ORDER BY timestamp ASC
+      `)
+      .all(dependencyId) as LatencyBucket[];
+
+    return rows;
   }
 
   deleteOlderThan(timestamp: string): number {

@@ -769,7 +769,9 @@ Rate limited: 10 requests/minute per IP.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/latency/:dependencyId` | requireAuth | Latency stats and recent data points. |
+| GET | `/api/latency/:dependencyId/buckets` | requireAuth | Time-bucketed latency data. Query: `range` (1h, 6h, 24h, 7d, 30d; default 24h). **[Implemented]** (PRO-86) |
 | GET | `/api/errors/:dependencyId` | requireAuth | Error history with recovery events. |
+| GET | `/api/dependencies/:id/timeline` | requireAuth | Health state timeline. Query: `range` (24h, 7d, 30d; default 24h). **[Implemented]** (PRO-86) |
 
 **GET /api/latency/:dependencyId response:**
 
@@ -807,6 +809,36 @@ Stats are for the last 24 hours. Data points limited to the last 100 records.
 ```
 
 Errors are for the last 24 hours, limited to the last 50 records. `isRecovery: true` indicates a recovery event (both `error` and `errorMessage` are null).
+
+**GET /api/latency/:dependencyId/buckets response:** **[Implemented]** (PRO-86)
+
+```json
+{
+  "dependencyId": "uuid",
+  "range": "24h",
+  "buckets": [
+    { "timestamp": "2024-01-15T10:00:00.000Z", "min": 8, "avg": 15, "max": 42, "count": 12 }
+  ]
+}
+```
+
+Bucket intervals: 1h/6h → 1-minute, 24h → 15-minute, 7d → 1-hour, 30d → 6-hour. Data is aggregated using SQLite `strftime` for efficient server-side bucketing. Returns 400 for invalid range values.
+
+**GET /api/dependencies/:id/timeline response:** **[Implemented]** (PRO-86)
+
+```json
+{
+  "dependencyId": "uuid",
+  "range": "24h",
+  "currentState": "healthy",
+  "transitions": [
+    { "timestamp": "2024-01-15T09:00:00.000Z", "state": "unhealthy" },
+    { "timestamp": "2024-01-15T09:05:00.000Z", "state": "healthy" }
+  ]
+}
+```
+
+Transitions derived from `dependency_error_history`: error entries map to `"unhealthy"`, recovery entries (null error) map to `"healthy"`. `currentState` reflects the dependency's current `healthy` column (`"healthy"`, `"unhealthy"`, or `"unknown"` when null). Returns 400 for invalid range values.
 
 ### 4.10 Admin
 
@@ -1580,10 +1612,10 @@ Support for services that don't use the proactive-deps format:
 
 ### 12.7 Metrics History Charts (Phase 6)
 
-**API enhancements:**
-- `GET /api/latency/:dependencyId?range=1h|6h|24h|7d|30d` — time-bucketed latency data (`{ timestamp, min, avg, max, count }`)
-- Bucket sizes: 1h/6h → 1min, 24h → 15min, 7d → 1hr, 30d → 6hr
-- `GET /api/dependencies/:id/timeline?range=24h|7d|30d` — health state transitions
+**API enhancements:** **[Implemented]** (PRO-86)
+- `GET /api/latency/:dependencyId/buckets?range=1h|6h|24h|7d|30d` — time-bucketed latency data (`{ buckets: [{ timestamp, min, avg, max, count }] }`). Default range: 24h.
+- Bucket sizes: 1h/6h → 1min, 24h → 15min, 7d → 1hr, 30d → 6hr. Efficient SQLite `strftime` aggregation queries.
+- `GET /api/dependencies/:id/timeline?range=24h|7d|30d` — health state transitions (`{ transitions: [{ timestamp, state }], currentState }`). Derived from error history (error = unhealthy, recovery = healthy). Default range: 24h.
 
 **Chart components:** Recharts library:
 - Latency chart: line chart (min/avg/max) with range selector

@@ -10,6 +10,22 @@ export interface LatencyDataPoint {
 }
 
 /**
+ * Time-bucketed latency data for chart visualization
+ */
+export interface LatencyBucket {
+  timestamp: string;
+  min: number;
+  avg: number;
+  max: number;
+  count: number;
+}
+
+/**
+ * Valid time range values for bucketed queries
+ */
+export type LatencyRange = '1h' | '6h' | '24h' | '7d' | '30d';
+
+/**
  * Store interface for DependencyLatencyHistory entity operations
  */
 export interface ILatencyHistoryStore {
@@ -39,6 +55,11 @@ export interface ILatencyHistoryStore {
       limit?: number;
     }
   ): LatencyDataPoint[];
+
+  /**
+   * Get time-bucketed latency data for chart visualization
+   */
+  getLatencyBuckets(dependencyId: string, range: LatencyRange): LatencyBucket[];
 
   /**
    * Delete old history entries (for cleanup)

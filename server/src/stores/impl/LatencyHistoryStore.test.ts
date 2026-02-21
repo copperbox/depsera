@@ -126,6 +126,84 @@ describe('LatencyHistoryStore', () => {
     });
   });
 
+  describe('getLatencyBuckets', () => {
+    it('should return 1-minute buckets for 1h range', () => {
+      const now = new Date();
+      // Insert data points at the same minute
+      store.record(testDependencyId, 10, now.toISOString());
+      store.record(testDependencyId, 20, now.toISOString());
+      store.record(testDependencyId, 30, now.toISOString());
+
+      const buckets = store.getLatencyBuckets(testDependencyId, '1h');
+
+      expect(buckets).toHaveLength(1);
+      expect(buckets[0].min).toBe(10);
+      expect(buckets[0].avg).toBe(20);
+      expect(buckets[0].max).toBe(30);
+      expect(buckets[0].count).toBe(3);
+      expect(buckets[0].timestamp).toBeDefined();
+    });
+
+    it('should group data into separate buckets for different minutes', () => {
+      const base = new Date();
+      // Two data points at minute 0
+      const t1 = new Date(base);
+      t1.setSeconds(0, 0);
+      store.record(testDependencyId, 10, t1.toISOString());
+      store.record(testDependencyId, 20, t1.toISOString());
+
+      // One data point 2 minutes later (different minute bucket)
+      const t2 = new Date(t1);
+      t2.setMinutes(t1.getMinutes() - 1);
+      store.record(testDependencyId, 50, t2.toISOString());
+
+      const buckets = store.getLatencyBuckets(testDependencyId, '1h');
+
+      expect(buckets).toHaveLength(2);
+      // Sorted ASC by timestamp
+      expect(buckets[0].count + buckets[1].count).toBe(3);
+    });
+
+    it('should return empty array when no data', () => {
+      const buckets = store.getLatencyBuckets(testDependencyId, '24h');
+      expect(buckets).toHaveLength(0);
+    });
+
+    it('should exclude data outside the range', () => {
+      const old = new Date('2020-01-01');
+      store.record(testDependencyId, 50, old.toISOString());
+
+      const buckets = store.getLatencyBuckets(testDependencyId, '1h');
+      expect(buckets).toHaveLength(0);
+    });
+
+    it('should return buckets sorted chronologically', () => {
+      const now = new Date();
+      const earlier = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes ago
+
+      store.record(testDependencyId, 100, now.toISOString());
+      store.record(testDependencyId, 50, earlier.toISOString());
+
+      const buckets = store.getLatencyBuckets(testDependencyId, '1h');
+
+      expect(buckets.length).toBeGreaterThanOrEqual(1);
+      if (buckets.length > 1) {
+        expect(buckets[0].timestamp < buckets[1].timestamp).toBe(true);
+      }
+    });
+
+    it('should work with all valid range values', () => {
+      const now = new Date();
+      store.record(testDependencyId, 42, now.toISOString());
+
+      for (const range of ['1h', '6h', '24h', '7d', '30d'] as const) {
+        const buckets = store.getLatencyBuckets(testDependencyId, range);
+        expect(buckets.length).toBeGreaterThanOrEqual(1);
+        expect(buckets[0].avg).toBe(42);
+      }
+    });
+  });
+
   describe('deleteOlderThan', () => {
     it('should delete old records', () => {
       const old = new Date('2020-01-01').toISOString();

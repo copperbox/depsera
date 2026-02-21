@@ -123,6 +123,67 @@ describe('ErrorHistoryStore', () => {
     });
   });
 
+  describe('getHealthTransitions', () => {
+    it('should return transitions for error and recovery events', () => {
+      const now = new Date();
+      const t1 = new Date(now.getTime() - 60000).toISOString(); // 1 min ago
+      const t2 = new Date(now.getTime() - 30000).toISOString(); // 30 sec ago
+
+      store.record(testDependencyId, '{"code":500}', 'Error', t1);
+      store.record(testDependencyId, null, null, t2); // recovery
+
+      const transitions = store.getHealthTransitions(testDependencyId, '24h');
+
+      expect(transitions).toHaveLength(2);
+      expect(transitions[0].state).toBe('unhealthy');
+      expect(transitions[0].timestamp).toBe(t1);
+      expect(transitions[1].state).toBe('healthy');
+      expect(transitions[1].timestamp).toBe(t2);
+    });
+
+    it('should return empty array when no events', () => {
+      const transitions = store.getHealthTransitions(testDependencyId, '24h');
+      expect(transitions).toHaveLength(0);
+    });
+
+    it('should exclude events outside the range', () => {
+      const old = new Date('2020-01-01').toISOString();
+      store.record(testDependencyId, '{"code":500}', 'Error', old);
+
+      const transitions = store.getHealthTransitions(testDependencyId, '24h');
+      expect(transitions).toHaveLength(0);
+    });
+
+    it('should return transitions sorted chronologically (ASC)', () => {
+      const now = new Date();
+      const t1 = new Date(now.getTime() - 120000).toISOString();
+      const t2 = new Date(now.getTime() - 60000).toISOString();
+      const t3 = new Date(now.getTime() - 30000).toISOString();
+
+      store.record(testDependencyId, '{"code":500}', 'Error', t1);
+      store.record(testDependencyId, null, null, t2);
+      store.record(testDependencyId, '{"code":503}', 'Unavailable', t3);
+
+      const transitions = store.getHealthTransitions(testDependencyId, '24h');
+
+      expect(transitions).toHaveLength(3);
+      expect(transitions[0].timestamp).toBe(t1);
+      expect(transitions[1].timestamp).toBe(t2);
+      expect(transitions[2].timestamp).toBe(t3);
+    });
+
+    it('should work with all valid range values', () => {
+      const now = new Date();
+      store.record(testDependencyId, '{"code":500}', 'Error', now.toISOString());
+
+      for (const range of ['24h', '7d', '30d'] as const) {
+        const transitions = store.getHealthTransitions(testDependencyId, range);
+        expect(transitions).toHaveLength(1);
+        expect(transitions[0].state).toBe('unhealthy');
+      }
+    });
+  });
+
   describe('deleteOlderThan', () => {
     it('should delete old records', () => {
       const old = new Date('2020-01-01').toISOString();

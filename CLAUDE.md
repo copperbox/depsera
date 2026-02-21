@@ -186,8 +186,10 @@ Key files in `/server/src/services/alerts/`:
 - `/api/dependencies/:id/associations` - Association CRUD (team membership required for mutations)
 - `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss)
 - `/api/graph` - Dependency graph data
-- `/api/latency/:id` - Latency history
+- `/api/latency/:id` - Latency history (24h stats + recent data points)
+- `/api/latency/:id/buckets` - Time-bucketed latency data for charts. Query param `range`: `1h`, `6h`, `24h` (default), `7d`, `30d`. Bucket sizes: 1h/6h→1min, 24h→15min, 7d→1hr, 30d→6hr.
 - `/api/errors/:id` - Error history
+- `/api/dependencies/:id/timeline` - Health state timeline. Query param `range`: `24h` (default), `7d`, `30d`. Returns state transitions derived from error history.
 - `/api/admin/audit-log` - Audit log query (admin only, filterable by date range, user, action, resource type)
 - `/api/admin/settings` - Admin settings CRUD (admin only, GET returns all settings with defaults, PUT updates settings)
 - `/api/teams/:id/alert-channels` - Team alert channel CRUD (GET: team member+, POST/PUT/DELETE: team lead+). `POST /:channelId/test` sends a test alert. Supports Slack webhook and generic HTTP webhook channel types.

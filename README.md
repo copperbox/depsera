@@ -15,7 +15,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Auto-Polling** — Server-side health polling with per-service configurable intervals (default 30s), exponential backoff on failures, and circuit breaker protection (opens after 10 consecutive failures, 5-minute cooldown); client-side auto-refresh with configurable intervals (10s, 20s, 30s, 1m)
 - **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
 - **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
-- **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
+- **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis; time-bucketed latency API for chart rendering (configurable ranges: 1h, 6h, 24h, 7d, 30d) and health state timeline API showing dependency health transitions over time
 - **Authentication** — OpenID Connect integration or local username/password auth (`LOCAL_AUTH=true`) for zero-external-dependency deployment; optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions. Service list and detail views are team-scoped for non-admin users; admin users see all services org-wide
 - **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
@@ -223,7 +223,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |
 | Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |
-| History | `GET /api/latency/:dependencyId`, `GET /api/errors/:dependencyId` |
+| History | `GET /api/latency/:dependencyId`, `GET /api/latency/:dependencyId/buckets`, `GET /api/errors/:dependencyId`, `GET /api/dependencies/:id/timeline` |
 | Admin | `GET /api/admin/audit-log` (filterable by date, user, action, resource type), `GET/PUT /api/admin/settings` |
 | Alerts | `GET/POST /api/teams/:id/alert-channels`, `PUT/DELETE /:channelId`, `POST /:channelId/test`; `GET/PUT /api/teams/:id/alert-rules`; `GET /api/teams/:id/alert-history` |
 

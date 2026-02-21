@@ -735,11 +735,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Enhanced `GET /api/latency/:dependencyId` with `range` parameter for time-bucketed data. New `GET /api/dependencies/:id/timeline` for health state transitions.
 
 **Acceptance criteria:**
-- [ ] `GET /api/latency/:dependencyId?range=1h|6h|24h|7d|30d` returns `{ timestamp, min, avg, max, count }` buckets
-- [ ] Bucket sizes: 1h/6h -> 1min, 24h -> 15min, 7d -> 1hr, 30d -> 6hr
-- [ ] `GET /api/dependencies/:id/timeline?range=24h|7d|30d` returns health state transitions
-- [ ] Efficient SQLite aggregation queries (not fetching all rows into app)
-- [ ] Tests for each range, edge cases (no data, single point)
+- [x] `GET /api/latency/:dependencyId?range=1h|6h|24h|7d|30d` returns `{ timestamp, min, avg, max, count }` buckets
+- [x] Bucket sizes: 1h/6h -> 1min, 24h -> 15min, 7d -> 1hr, 30d -> 6hr
+- [x] `GET /api/dependencies/:id/timeline?range=24h|7d|30d` returns health state transitions
+- [x] Efficient SQLite aggregation queries (not fetching all rows into app)
+- [x] Tests for each range, edge cases (no data, single point)
 
 **Files likely touched:**
 - `server/src/routes/latency.ts`
