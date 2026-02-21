@@ -17,8 +17,8 @@ export function initializeDatabase(): void {
   // Run migrations
   runMigrations(db);
 
-  // Seed database in development
-  if (process.env.NODE_ENV !== 'production') {
+  // Seed database in development (skip in local auth mode — admin is bootstrapped separately)
+  if (process.env.NODE_ENV !== 'production' && process.env.LOCAL_AUTH !== 'true') {
     seedDatabase(db);
   }
 

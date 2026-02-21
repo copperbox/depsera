@@ -342,6 +342,31 @@ describe('Services API', () => {
       expect(serviceB.dependencies).toHaveLength(0);
       expect(serviceB.health.status).toBe('unknown');
     });
+
+    it('should reject SQL injection via orderBy', async () => {
+      const response = await request(app)
+        .get('/api/services')
+        .query({ orderBy: 'name;DROP TABLE services' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBeDefined();
+    });
+
+    it('should reject invalid orderBy column', async () => {
+      const response = await request(app)
+        .get('/api/services')
+        .query({ orderBy: 'nonexistent_column' });
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should accept valid orderBy column', async () => {
+      const response = await request(app)
+        .get('/api/services')
+        .query({ orderBy: 'name' });
+
+      expect(response.status).toBe(200);
+    });
   });
 
   describe('GET /api/services/:id', () => {

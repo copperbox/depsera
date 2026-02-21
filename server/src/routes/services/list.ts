@@ -7,11 +7,19 @@ import { ServiceListOptions } from '../../stores/types';
 
 export function listServices(req: Request, res: Response): void {
   try {
-    const { team_id } = req.query;
+    const { team_id, orderBy, orderDirection } = req.query;
     const stores = getStores();
     const user = req.user!;
 
     const options: ServiceListOptions = {};
+
+    if (orderBy && typeof orderBy === 'string') {
+      // findAllWithTeam uses aliased columns (s.name, s.created_at, etc.)
+      options.orderBy = orderBy.startsWith('s.') ? orderBy : `s.${orderBy}`;
+    }
+    if (orderDirection && typeof orderDirection === 'string') {
+      options.orderDirection = orderDirection as 'ASC' | 'DESC';
+    }
 
     if (team_id && typeof team_id === 'string') {
       // Explicit team filter: non-admin users must be a member of that team

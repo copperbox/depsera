@@ -23,6 +23,7 @@ import { AlertService } from './services/alerts';
 import { SlackSender } from './services/alerts/senders/SlackSender';
 import { WebhookSender } from './services/alerts/senders/WebhookSender';
 import { getStores } from './stores';
+import { errorHandler } from './utils/errors';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
 import { createSecurityHeaders } from './middleware/securityHeaders';
@@ -80,6 +81,10 @@ app.use('/api/dependencies', requireAuth, dependenciesRouter);
 app.use('/api', requireAuth, associationsRouter);
 app.use('/api/admin', requireAuth, adminRouter);
 app.use('/api/teams', requireAuth, alertsRouter);
+
+// Global error handler — catches body-parser errors, unhandled route errors, etc.
+// Must be registered after all routes (Express identifies error handlers by 4-param signature).
+app.use(errorHandler);
 
 // Serve built client in production (auto-detected by presence of client/dist/index.html)
 if (clientBuildExists()) {

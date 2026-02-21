@@ -187,6 +187,14 @@ describe('errorHandler middleware', () => {
     expect(mockRes.status).toHaveBeenCalledWith(500);
     expect(consoleError).toHaveBeenCalled();
   });
+
+  it('should sanitize body-parser SyntaxError (no stack trace leak)', () => {
+    const error = new SyntaxError('Unexpected token i in JSON at position 0');
+    errorHandler(error, mockReq as Request, mockRes as Response, mockNext);
+
+    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+  });
 });
 
 describe('asyncHandler', () => {
