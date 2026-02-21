@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { getStores } from '../stores';
 import { User, TeamMember } from '../db/types';
 import { AuthorizationService } from './authorizationService';
+import { getAuthMode } from './localAuth';
 
 // Extend Express Request type
 declare global {
@@ -173,4 +174,16 @@ export function requireBodyTeamLead(req: Request, res: Response, next: NextFunct
     }
     next();
   });
+}
+
+/**
+ * Middleware: require local auth mode.
+ * Returns 404 if not in local auth mode. Must be used after requireAdmin.
+ */
+export function requireLocalAuth(_req: Request, res: Response, next: NextFunction): void {
+  if (getAuthMode() !== 'local') {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  next();
 }

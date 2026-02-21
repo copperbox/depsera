@@ -199,7 +199,7 @@ Manage dependency-to-service associations. Four tabs: **Suggestions Inbox** for 
 Status board showing service health cards with latency stats, impact info, and poll failure indicators. Supports team filtering and unhealthy-only view. Filter preferences persist in localStorage.
 
 ### User Management (`/admin/users`)
-Admin-only page for managing user accounts: search, filter by status, toggle admin role, deactivate/reactivate users.
+Admin-only page for managing user accounts: search, filter by status, toggle admin role, deactivate/reactivate users. In local auth mode, admins can also create new users and reset passwords.
 
 ### Admin Settings (`/admin/settings`)
 Admin-only page for configuring runtime application settings. Organized into collapsible sections: **Data Retention** (retention period, cleanup time), **Polling Defaults** (default poll interval), **Security** (SSRF allowlist, rate limits), and **Alerts** (cooldown, rate limits). Changes take effect immediately with client-side validation and save confirmation.
@@ -211,7 +211,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Area | Endpoints |
 |------|-----------|
 | Auth | `GET /api/auth/login`, `/callback`, `/me`; `POST /api/auth/logout` |
-| Users | `GET /api/users`, `GET /api/users/:id`, `PUT /api/users/:id/role`, `POST /api/users/:id/reactivate`, `DELETE /api/users/:id` |
+| Users | `GET /api/users`, `GET /api/users/:id`, `POST /api/users` (local auth), `PUT /api/users/:id/role`, `PUT /api/users/:id/password` (local auth), `POST /api/users/:id/reactivate`, `DELETE /api/users/:id` |
 | Teams | CRUD on `/api/teams`, member management via `/api/teams/:id/members` |
 | Services | CRUD on `/api/services` (team-scoped), `POST /api/services/:id/poll` for manual polling |
 | Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |

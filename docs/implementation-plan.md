@@ -397,11 +397,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Admin can create local users and reset passwords via API + UI (only visible in local auth mode).
 
 **Acceptance criteria:**
-- [ ] `POST /api/users` creates a local user (admin only, local auth mode only)
-- [ ] `POST /api/users/:id/reset-password` resets password (admin only)
-- [ ] Admin user management page shows create user form in local auth mode
-- [ ] Password reset action available per user in local auth mode
-- [ ] Tests for new endpoints and UI
+- [x] `POST /api/users` creates a local user (admin only, local auth mode only)
+- [x] `PUT /api/users/:id/password` resets password (admin only, local auth mode only)
+- [x] Admin user management page shows create user form in local auth mode
+- [x] Password reset action available per user in local auth mode
+- [x] Tests for new endpoints and UI
 
 **Files likely touched:**
 - `server/src/routes/users.ts`

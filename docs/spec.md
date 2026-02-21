@@ -507,7 +507,7 @@ A local authentication mode for zero-external-dependency deployment:
 - `POST /api/auth/login` accepts `{ email, password }`, sets session, returns user info
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }` (public, no auth required)
 - Client login page conditionally renders local auth form or OIDC button based on `GET /api/auth/mode` **[Implemented]** (PRO-100)
-- Admin can create users and reset passwords via API **[Planned — PRO-101]**
+- Admin can create users and reset passwords via API **[Implemented]** (PRO-101). `POST /api/users` creates a local user; `PUT /api/users/:id/password` resets password. Both gated by `requireLocalAuth`.
 
 ---
 
@@ -654,7 +654,9 @@ Rate limited: 10 requests/minute per IP.
 |---|---|---|---|
 | GET | `/api/users` | requireAdmin | List all users. |
 | GET | `/api/users/:id` | requireAdmin | Get user with team memberships. |
+| POST | `/api/users` | requireAdmin + requireLocalAuth | Create local user. Body: `{ email, name, password, role? }`. |
 | PUT | `/api/users/:id/role` | requireAdmin | Update role. Body: `{ role: "admin" | "user" }`. |
+| PUT | `/api/users/:id/password` | requireAdmin + requireLocalAuth | Reset password. Body: `{ password }`. |
 | DELETE | `/api/users/:id` | requireAdmin | Deactivate user (soft delete). |
 | POST | `/api/users/:id/reactivate` | requireAdmin | Reactivate deactivated user. |
 
@@ -662,6 +664,9 @@ Rate limited: 10 requests/minute per IP.
 - Cannot demote the last admin (400)
 - Cannot deactivate the last active admin (400)
 - Deactivating a user removes them from all team memberships
+- Create user and password reset return 404 when not in local auth mode
+- Password must be at least 8 characters (400)
+- Duplicate email returns 409
 
 ### 4.6 Aliases
 
@@ -1506,7 +1511,7 @@ Support for services that don't use the proactive-deps format:
 - `POST /api/auth/login` for credentials-based login
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
 - Client renders login form or OIDC button based on mode **[Implemented]** (PRO-100). Login page calls `GET /api/auth/mode` on mount; shows email/password form in local mode, SSO button in OIDC mode. Auth API client in `client/src/api/auth.ts`.
-- Admin can create users and reset passwords
+- Admin can create users and reset passwords **[Implemented]** (PRO-101). `POST /api/users` creates a local user (admin only, local auth mode only). `PUT /api/users/:id/password` resets a user's password. Both endpoints gated by `requireLocalAuth` middleware (returns 404 in non-local modes). Admin user management page shows "Create User" button and per-user "Reset Password" action when in local auth mode.
 
 ### 12.9 Deployment (Phase 7)
 

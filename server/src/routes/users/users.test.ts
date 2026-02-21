@@ -12,6 +12,7 @@ jest.mock('../../db', () => ({
 jest.mock('../../auth', () => ({
   requireAuth: jest.fn((_req, _res, next) => next()),
   requireAdmin: jest.fn((_req, _res, next) => next()),
+  requireLocalAuth: jest.fn((_req, _res, next) => next()),
 }));
 
 import usersRouter from './index';

@@ -8,6 +8,7 @@ export {
   requireServiceTeamAccess,
   requireServiceTeamLead,
   requireBodyTeamLead,
+  requireLocalAuth,
 } from './middleware';
 export { initializeBypassMode, bypassAuthMiddleware } from './bypass';
 export {

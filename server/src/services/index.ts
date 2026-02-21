@@ -6,3 +6,4 @@
 export * from './graph';
 export * from './matching';
 export * from './polling';
+export * from './retention/DataRetentionService';

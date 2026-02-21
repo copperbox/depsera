@@ -54,3 +54,33 @@ export async function reactivateUser(id: string): Promise<User> {
   });
   return handleResponse<User>(response);
 }
+
+export interface CreateUserInput {
+  email: string;
+  name: string;
+  password: string;
+  role?: UserRole;
+}
+
+export async function createUser(input: CreateUserInput): Promise<User> {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+    credentials: 'include',
+  });
+  return handleResponse<User>(response);
+}
+
+export async function resetUserPassword(id: string, password: string): Promise<void> {
+  const response = await fetch(`/api/users/${id}/password`, {
+    method: 'PUT',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ password }),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Password reset failed' }));
+    throw new Error(error.message || error.error || `HTTP error ${response.status}`);
+  }
+}

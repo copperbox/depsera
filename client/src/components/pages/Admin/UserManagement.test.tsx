@@ -24,6 +24,79 @@ const mockUsers = [
   { id: 'u3', name: 'Inactive User', email: 'inactive@example.com', role: 'user', is_active: false },
 ];
 
+/**
+ * Helper to set up fetch mock that handles URL routing.
+ * The component makes parallel calls to /api/users and /api/auth/mode.
+ */
+function setupFetchMock(options: {
+  users?: unknown;
+  usersStatus?: number;
+  usersError?: Error | string;
+  authMode?: string;
+  // Additional sequential responses after the initial load
+  additionalResponses?: Array<{ data?: unknown; status?: number; error?: Error | string }>;
+} = {}) {
+  const {
+    users = mockUsers,
+    usersStatus = 200,
+    usersError,
+    authMode = 'oidc',
+    additionalResponses = [],
+  } = options;
+
+  let additionalIndex = 0;
+
+  mockFetch.mockImplementation((url: string) => {
+    if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+      return Promise.resolve(jsonResponse({ mode: authMode }));
+    }
+    if (typeof url === 'string' && url.includes('/api/users')) {
+      // First users call or reload
+      if (additionalIndex < additionalResponses.length) {
+        // Check if we already served the initial response
+        // This is for subsequent calls (e.g., after actions)
+      }
+      if (usersError) {
+        return typeof usersError === 'string'
+          ? Promise.reject(usersError)
+          : Promise.reject(usersError);
+      }
+      return Promise.resolve(jsonResponse(users, usersStatus));
+    }
+    return Promise.resolve(jsonResponse({}));
+  });
+
+  // Override for sequential responses after initial load
+  if (additionalResponses.length > 0) {
+    const originalImpl = mockFetch.getMockImplementation()!;
+    let callCount = 0;
+    mockFetch.mockImplementation((url: string, ...args: unknown[]) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: authMode }));
+      }
+      if (typeof url === 'string' && url.includes('/api/users')) {
+        callCount++;
+        if (callCount === 1) {
+          // Initial load
+          return Promise.resolve(jsonResponse(users, usersStatus));
+        }
+        // Subsequent calls
+        if (additionalIndex < additionalResponses.length) {
+          const resp = additionalResponses[additionalIndex++];
+          if (resp.error) {
+            return typeof resp.error === 'string'
+              ? Promise.reject(resp.error)
+              : Promise.reject(resp.error);
+          }
+          return Promise.resolve(jsonResponse(resp.data ?? users, resp.status ?? 200));
+        }
+        return Promise.resolve(jsonResponse(users));
+      }
+      return originalImpl(url, ...args);
+    });
+  }
+}
+
 beforeEach(() => {
   mockFetch.mockReset();
 });
@@ -38,7 +111,7 @@ describe('UserManagement', () => {
   });
 
   it('displays users after loading', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -53,9 +126,17 @@ describe('UserManagement', () => {
   });
 
   it('displays error state and allows retry', async () => {
-    mockFetch
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(jsonResponse(mockUsers));
+    let callCount = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'oidc' }));
+      }
+      callCount++;
+      if (callCount === 1) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve(jsonResponse(mockUsers));
+    });
 
     render(<UserManagement />);
 
@@ -71,7 +152,12 @@ describe('UserManagement', () => {
   });
 
   it('handles non-Error exception', async () => {
-    mockFetch.mockRejectedValueOnce('String error');
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'oidc' }));
+      }
+      return Promise.reject('String error');
+    });
 
     render(<UserManagement />);
 
@@ -81,7 +167,7 @@ describe('UserManagement', () => {
   });
 
   it('filters users by search query', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -98,7 +184,7 @@ describe('UserManagement', () => {
   });
 
   it('filters users by email', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -115,7 +201,7 @@ describe('UserManagement', () => {
   });
 
   it('filters users by status - active only', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -133,7 +219,7 @@ describe('UserManagement', () => {
   });
 
   it('filters users by status - inactive only', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -151,7 +237,7 @@ describe('UserManagement', () => {
   });
 
   it('shows empty state when no users match search', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -167,7 +253,7 @@ describe('UserManagement', () => {
   });
 
   it('shows empty state when no users exist', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse([]));
+    setupFetchMock({ users: [] });
 
     render(<UserManagement />);
 
@@ -177,7 +263,7 @@ describe('UserManagement', () => {
   });
 
   it('prevents demoting last admin', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -191,7 +277,7 @@ describe('UserManagement', () => {
   });
 
   it('opens reactivate confirmation dialog', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -206,9 +292,20 @@ describe('UserManagement', () => {
   });
 
   it('handles role update error', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockUsers))
-      .mockRejectedValueOnce(new Error('Failed to update role'));
+    let userCallCount = 0;
+    mockFetch.mockImplementation((url: string, options?: { method?: string }) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'oidc' }));
+      }
+      if (typeof url === 'string' && url.includes('/role')) {
+        return Promise.reject(new Error('Failed to update role'));
+      }
+      if (typeof url === 'string' && url.includes('/api/users')) {
+        userCallCount++;
+        return Promise.resolve(jsonResponse(mockUsers));
+      }
+      return Promise.resolve(jsonResponse({}));
+    });
 
     render(<UserManagement />);
 
@@ -229,7 +326,7 @@ describe('UserManagement', () => {
   });
 
   it('closes reactivate dialog on cancel', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -249,7 +346,7 @@ describe('UserManagement', () => {
   });
 
   it('displays role badges correctly', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -262,7 +359,7 @@ describe('UserManagement', () => {
   });
 
   it('displays status badges correctly', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -275,7 +372,7 @@ describe('UserManagement', () => {
   });
 
   it('prevents deactivating last admin', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(mockUsers));
+    setupFetchMock();
 
     render(<UserManagement />);
 
@@ -292,9 +389,15 @@ describe('UserManagement', () => {
   });
 
   it('handles non-Error exception in role update', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockUsers))
-      .mockRejectedValueOnce('String error');
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'oidc' }));
+      }
+      if (typeof url === 'string' && url.includes('/role')) {
+        return Promise.reject('String error');
+      }
+      return Promise.resolve(jsonResponse(mockUsers));
+    });
 
     render(<UserManagement />);
 
@@ -308,5 +411,271 @@ describe('UserManagement', () => {
     await waitFor(() => {
       expect(screen.getByText('Failed to update role')).toBeInTheDocument();
     });
+  });
+});
+
+describe('UserManagement - Local Auth Mode', () => {
+  it('shows Create User button in local auth mode', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Create User')).toBeInTheDocument();
+  });
+
+  it('does not show Create User button in OIDC mode', async () => {
+    setupFetchMock({ authMode: 'oidc' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Create User')).not.toBeInTheDocument();
+  });
+
+  it('shows Reset Password button for active users in local mode', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    const resetButtons = screen.getAllByText('Reset Password');
+    // Should have buttons for active users (u1 and u2)
+    expect(resetButtons.length).toBe(2);
+  });
+
+  it('does not show Reset Password button in OIDC mode', async () => {
+    setupFetchMock({ authMode: 'oidc' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Reset Password')).not.toBeInTheDocument();
+  });
+
+  it('opens and closes create user form', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    // Open form
+    fireEvent.click(screen.getByText('Create User'));
+    expect(screen.getByText('Create New User')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
+    expect(screen.getByLabelText('Display Name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Role')).toBeInTheDocument();
+
+    // Close form via Cancel
+    const cancelButtons = screen.getAllByText('Cancel');
+    fireEvent.click(cancelButtons[0]);
+    expect(screen.queryByText('Create New User')).not.toBeInTheDocument();
+  });
+
+  it('validates password match on create user form', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Create User'));
+
+    // Fill form with mismatched passwords
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.com' } });
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'New User' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'different' } });
+
+    // Submit
+    const submitButtons = screen.getAllByText('Create User');
+    const formSubmit = submitButtons.find(btn => btn.getAttribute('type') === 'submit');
+    fireEvent.click(formSubmit!);
+
+    expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
+  });
+
+  it('validates password length on create user form', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Create User'));
+
+    // Fill form with short password
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.com' } });
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'New User' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'short' } });
+
+    // Submit
+    const submitButtons = screen.getAllByText('Create User');
+    const formSubmit = submitButtons.find(btn => btn.getAttribute('type') === 'submit');
+    fireEvent.click(formSubmit!);
+
+    expect(screen.getByText('Password must be at least 8 characters')).toBeInTheDocument();
+  });
+
+  it('submits create user form successfully', async () => {
+    const newUser = {
+      id: 'u4',
+      name: 'New User',
+      email: 'new@example.com',
+      role: 'user',
+      is_active: true,
+    };
+
+    mockFetch.mockImplementation((url: string, options?: { method?: string }) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'local' }));
+      }
+      if (typeof url === 'string' && url === '/api/users' && options?.method === 'POST') {
+        return Promise.resolve(jsonResponse(newUser, 201));
+      }
+      return Promise.resolve(jsonResponse(mockUsers));
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Create User'));
+
+    // Fill valid form
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.com' } });
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'New User' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password123' } });
+
+    // Submit
+    const submitButtons = screen.getAllByText('Create User');
+    const formSubmit = submitButtons.find(btn => btn.getAttribute('type') === 'submit');
+    fireEvent.click(formSubmit!);
+
+    await waitFor(() => {
+      expect(screen.getByText('User created successfully')).toBeInTheDocument();
+    });
+
+    // Form should be closed
+    expect(screen.queryByText('Create New User')).not.toBeInTheDocument();
+  });
+
+  it('handles create user API error', async () => {
+    mockFetch.mockImplementation((url: string, options?: { method?: string }) => {
+      if (typeof url === 'string' && url.includes('/api/auth/mode')) {
+        return Promise.resolve(jsonResponse({ mode: 'local' }));
+      }
+      if (typeof url === 'string' && url === '/api/users' && options?.method === 'POST') {
+        return Promise.resolve(jsonResponse({ error: 'A user with this email already exists' }, 409));
+      }
+      return Promise.resolve(jsonResponse(mockUsers));
+    });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Create User'));
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'existing@example.com' } });
+    fireEvent.change(screen.getByLabelText('Display Name'), { target: { value: 'Existing' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password123' } });
+
+    const submitButtons = screen.getAllByText('Create User');
+    const formSubmit = submitButtons.find(btn => btn.getAttribute('type') === 'submit');
+    fireEvent.click(formSubmit!);
+
+    await waitFor(() => {
+      expect(screen.getByText('A user with this email already exists')).toBeInTheDocument();
+    });
+  });
+
+  it('opens reset password modal', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    const resetButtons = screen.getAllByText('Reset Password');
+    fireEvent.click(resetButtons[0]);
+
+    expect(screen.getByText(/Reset Password for/)).toBeInTheDocument();
+    expect(screen.getByLabelText('New Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
+  });
+
+  it('closes reset password modal on cancel', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    const resetButtons = screen.getAllByText('Reset Password');
+    fireEvent.click(resetButtons[0]);
+
+    expect(screen.getByText(/Reset Password for/)).toBeInTheDocument();
+
+    // Click cancel in modal
+    const cancelButtons = screen.getAllByText('Cancel');
+    fireEvent.click(cancelButtons[cancelButtons.length - 1]);
+
+    expect(screen.queryByText(/Reset Password for/)).not.toBeInTheDocument();
+  });
+
+  it('closes reset password modal on overlay click', async () => {
+    setupFetchMock({ authMode: 'local' });
+
+    render(<UserManagement />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin User')).toBeInTheDocument();
+    });
+
+    const resetButtons = screen.getAllByText('Reset Password');
+    fireEvent.click(resetButtons[0]);
+
+    expect(screen.getByText(/Reset Password for/)).toBeInTheDocument();
+
+    // Click overlay (the modal overlay div)
+    const overlay = screen.getByText(/Reset Password for/).closest('[class*=modalContent]')?.parentElement;
+    if (overlay) {
+      fireEvent.click(overlay);
+    }
+
+    expect(screen.queryByText(/Reset Password for/)).not.toBeInTheDocument();
   });
 });

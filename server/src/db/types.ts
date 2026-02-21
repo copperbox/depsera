@@ -289,9 +289,11 @@ export interface ErrorHistoryResponse {
 
 // Audit log types
 export type AuditAction =
+  | 'user.created'
   | 'user.role_changed'
   | 'user.deactivated'
   | 'user.reactivated'
+  | 'user.password_reset'
   | 'team.created'
   | 'team.updated'
   | 'team.deleted'

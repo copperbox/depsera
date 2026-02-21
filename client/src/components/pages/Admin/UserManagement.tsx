@@ -1,5 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
-import { fetchUsers, updateUserRole, deactivateUser, reactivateUser } from '../../../api/users';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  fetchUsers,
+  updateUserRole,
+  deactivateUser,
+  reactivateUser,
+  createUser,
+  resetUserPassword,
+} from '../../../api/users';
+import { fetchAuthMode, type AuthMode } from '../../../api/auth';
 import type { User, UserRole } from '../../../types/user';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import styles from './Admin.module.css';
@@ -10,10 +18,12 @@ function UserManagement() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
 
   // Action state
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Deactivate confirmation
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
@@ -23,7 +33,28 @@ function UserManagement() {
   const [userToReactivate, setUserToReactivate] = useState<User | null>(null);
   const [isReactivating, setIsReactivating] = useState(false);
 
-  const loadUsers = async () => {
+  // Create user form
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    name: '',
+    password: '',
+    confirmPassword: '',
+    role: 'user' as UserRole,
+  });
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // Reset password
+  const [userToResetPassword, setUserToResetPassword] = useState<User | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+
+  const isLocalAuth = authMode === 'local';
+
+  const loadUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -34,11 +65,14 @@ function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+    fetchAuthMode()
+      .then((res) => setAuthMode(res.mode))
+      .catch(() => setAuthMode(null));
+  }, [loadUsers]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
@@ -107,6 +141,71 @@ function UserManagement() {
     }
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateError(null);
+
+    if (createForm.password !== createForm.confirmPassword) {
+      setCreateError('Passwords do not match');
+      return;
+    }
+
+    if (createForm.password.length < 8) {
+      setCreateError('Password must be at least 8 characters');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await createUser({
+        email: createForm.email,
+        name: createForm.name,
+        password: createForm.password,
+        role: createForm.role,
+      });
+      setShowCreateForm(false);
+      setCreateForm({ email: '', name: '', password: '', confirmPassword: '', role: 'user' });
+      setSuccessMessage('User created successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+      loadUsers();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  /* istanbul ignore next -- @preserve
+     handleResetPassword is triggered by ConfirmDialog onConfirm callback. */
+  const handleResetPassword = async () => {
+    if (!userToResetPassword) return;
+    setResetPasswordError(null);
+
+    if (resetPasswordValue !== resetPasswordConfirm) {
+      setResetPasswordError('Passwords do not match');
+      return;
+    }
+
+    if (resetPasswordValue.length < 8) {
+      setResetPasswordError('Password must be at least 8 characters');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    try {
+      await resetUserPassword(userToResetPassword.id, resetPasswordValue);
+      setUserToResetPassword(null);
+      setResetPasswordValue('');
+      setResetPasswordConfirm('');
+      setSuccessMessage('Password reset successfully');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setResetPasswordError(err instanceof Error ? err.message : 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
   const activeAdminCount = users.filter((u) => u.role === 'admin' && u.is_active).length;
 
   if (isLoading) {
@@ -137,7 +236,24 @@ function UserManagement() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>User Management</h1>
+        {isLocalAuth && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className={`${styles.actionButton} ${styles.createButton}`}
+          >
+            Create User
+          </button>
+        )}
       </div>
+
+      {successMessage && (
+        <div className={styles.successMessage}>
+          {successMessage}
+          <button onClick={() => setSuccessMessage(null)} className={styles.dismissButton}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {actionError && (
         <div className={styles.actionError}>
@@ -145,6 +261,93 @@ function UserManagement() {
           <button onClick={() => setActionError(null)} className={styles.dismissButton}>
             Dismiss
           </button>
+        </div>
+      )}
+
+      {showCreateForm && (
+        <div className={styles.formCard}>
+          <h2 className={styles.formTitle}>Create New User</h2>
+          <form onSubmit={handleCreateUser} className={styles.form}>
+            {createError && <div className={styles.formError}>{createError}</div>}
+            <div className={styles.formField}>
+              <label htmlFor="create-email" className={styles.formLabel}>Email</label>
+              <input
+                id="create-email"
+                type="email"
+                required
+                value={createForm.email}
+                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                className={styles.formInput}
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label htmlFor="create-name" className={styles.formLabel}>Display Name</label>
+              <input
+                id="create-name"
+                type="text"
+                required
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                className={styles.formInput}
+                placeholder="Jane Doe"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label htmlFor="create-password" className={styles.formLabel}>Password</label>
+              <input
+                id="create-password"
+                type="password"
+                required
+                minLength={8}
+                value={createForm.password}
+                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                className={styles.formInput}
+                placeholder="Minimum 8 characters"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label htmlFor="create-confirm-password" className={styles.formLabel}>Confirm Password</label>
+              <input
+                id="create-confirm-password"
+                type="password"
+                required
+                minLength={8}
+                value={createForm.confirmPassword}
+                onChange={(e) => setCreateForm({ ...createForm, confirmPassword: e.target.value })}
+                className={styles.formInput}
+                placeholder="Re-enter password"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label htmlFor="create-role" className={styles.formLabel}>Role</label>
+              <select
+                id="create-role"
+                value={createForm.role}
+                onChange={(e) => setCreateForm({ ...createForm, role: e.target.value as UserRole })}
+                className={styles.statusSelect}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div className={styles.formActions}>
+              <button type="submit" disabled={isCreating} className={`${styles.actionButton} ${styles.createButton}`}>
+                {isCreating ? 'Creating...' : 'Create User'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setCreateError(null);
+                  setCreateForm({ email: '', name: '', password: '', confirmPassword: '', role: 'user' });
+                }}
+                className={`${styles.actionButton} ${styles.roleButton}`}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -245,6 +448,21 @@ function UserManagement() {
                         >
                           {isProcessing ? '...' : user.role === 'admin' ? 'Demote' : 'Promote'}
                         </button>
+                        {isLocalAuth && user.is_active && (
+                          <button
+                            onClick={() => {
+                              setUserToResetPassword(user);
+                              setResetPasswordValue('');
+                              setResetPasswordConfirm('');
+                              setResetPasswordError(null);
+                            }}
+                            disabled={isProcessing}
+                            className={`${styles.actionButton} ${styles.roleButton}`}
+                            title="Reset password"
+                          >
+                            Reset Password
+                          </button>
+                        )}
                         {user.is_active ? (
                           <button
                             onClick={() => setUserToDeactivate(user)}
@@ -298,6 +516,66 @@ function UserManagement() {
         confirmLabel="Reactivate"
         isLoading={isReactivating}
       />
+
+      {userToResetPassword && (
+        <div className={styles.modalOverlay} onClick={() => setUserToResetPassword(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.formTitle}>Reset Password for {userToResetPassword.name}</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleResetPassword();
+              }}
+              className={styles.form}
+            >
+              {resetPasswordError && <div className={styles.formError}>{resetPasswordError}</div>}
+              <div className={styles.formField}>
+                <label htmlFor="reset-password" className={styles.formLabel}>New Password</label>
+                <input
+                  id="reset-password"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={resetPasswordValue}
+                  onChange={(e) => setResetPasswordValue(e.target.value)}
+                  className={styles.formInput}
+                  placeholder="Minimum 8 characters"
+                  autoFocus
+                />
+              </div>
+              <div className={styles.formField}>
+                <label htmlFor="reset-password-confirm" className={styles.formLabel}>Confirm Password</label>
+                <input
+                  id="reset-password-confirm"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  className={styles.formInput}
+                  placeholder="Re-enter password"
+                />
+              </div>
+              <div className={styles.formActions}>
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className={`${styles.actionButton} ${styles.createButton}`}
+                >
+                  {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserToResetPassword(null)}
+                  className={`${styles.actionButton} ${styles.roleButton}`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
