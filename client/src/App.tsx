@@ -9,6 +9,7 @@ import ServiceDetail from './components/pages/Services/ServiceDetail';
 import TeamsList from './components/pages/Teams/TeamsList';
 import TeamDetail from './components/pages/Teams/TeamDetail';
 import UserManagement from './components/pages/Admin/UserManagement';
+import AdminSettings from './components/pages/Admin/AdminSettings';
 import { DependencyGraph } from './components/pages/DependencyGraph/DependencyGraph';
 import AssociationsPage from './components/pages/Associations/AssociationsPage';
 import Wallboard from './components/pages/Wallboard/Wallboard';
@@ -38,6 +39,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/settings"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminSettings />
             </ProtectedRoute>
           }
         />

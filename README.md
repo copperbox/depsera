@@ -21,7 +21,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 - **Structured Logging** — HTTP request logging via pino with method, path, status, response time, and user ID; JSON output in production, pretty-printed in development; sensitive headers redacted; configurable log level via `LOG_LEVEL`
 - **Audit Trail** — All admin actions (user role changes, team/service mutations, member management) are recorded with actor, action, resource, details, and IP address; queryable via admin API with filtering by date range, user, action, and resource type
-- **Admin Settings** — Server-side settings management with in-memory cache over SQLite persistence; 10 configurable keys (data retention, poll intervals, rate limits, alert thresholds) with env-var defaults overridable via admin API; all changes audited
+- **Admin Settings** — Runtime-configurable application settings with admin UI page and API; 10 keys (data retention, poll intervals, rate limits, alert thresholds) with in-memory cache over SQLite persistence; env-var defaults overridable at runtime; all changes audited
 
 ## Tech Stack
 
@@ -154,7 +154,7 @@ npm run lint
 │       │       ├── DependencyGraph/ # Interactive graph visualization
 │       │       ├── Associations/     # Association management
 │       │       ├── Wallboard/       # Real-time status board
-│       │       └── Admin/           # User management
+│       │       └── Admin/           # User management, admin settings
 │       ├── contexts/        # Auth and Theme contexts
 │       └── hooks/           # usePolling and other custom hooks
 ├── server/              # Express REST API
@@ -197,6 +197,9 @@ Status board showing service health cards with latency stats, impact info, and p
 
 ### User Management (`/admin/users`)
 Admin-only page for managing user accounts: search, filter by status, toggle admin role, deactivate/reactivate users.
+
+### Admin Settings (`/admin/settings`)
+Admin-only page for configuring runtime application settings. Organized into collapsible sections: **Data Retention** (retention period, cleanup time), **Polling Defaults** (default poll interval), **Security** (SSRF allowlist, rate limits), and **Alerts** (cooldown, rate limits). Changes take effect immediately with client-side validation and save confirmation.
 
 ## API Overview
 

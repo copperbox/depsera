@@ -271,17 +271,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Background job scheduler for cleaning up old latency and error history. Default 365 days, configurable via `DATA_RETENTION_DAYS` env var.
 
 **Acceptance criteria:**
-- [ ] Scheduled cleanup runs daily at configurable time (default 02:00 local)
-- [ ] Deletes rows from `dependency_latency_history` and `dependency_error_history` older than retention period
-- [ ] Configurable via `DATA_RETENTION_DAYS` env var (default: 365)
-- [ ] Logs number of rows deleted per table
-- [ ] Cleanup runs on startup if overdue
-- [ ] Graceful shutdown stops the scheduler
-- [ ] Tests for cleanup logic and scheduling
+- [x] Scheduled cleanup runs daily at configurable time (default 02:00 local)
+- [x] Deletes rows from `dependency_latency_history` and `dependency_error_history` older than retention period
+- [x] Configurable via `DATA_RETENTION_DAYS` env var (default: 365)
+- [x] Logs number of rows deleted per table
+- [x] Cleanup runs on startup if overdue
+- [x] Graceful shutdown stops the scheduler
+- [x] Tests for cleanup logic and scheduling
 
 **Files likely touched:**
 - `server/src/services/retention/DataRetentionService.ts` (new)
-- `server/src/app.ts` — startup/shutdown
+- `server/src/index.ts` — startup/shutdown
 - `server/.env.example` — new env vars
 - Tests
 
@@ -323,19 +323,19 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Admin-only UI at `/admin/settings` with sections: Data Retention, Polling Defaults, Security (SSRF allowlist, rate limits). Form validation with save confirmation. Settings take effect immediately.
 
 **Acceptance criteria:**
-- [ ] New route `/admin/settings` accessible to admin users only
-- [ ] Sections: Data Retention, Polling Defaults, Security
-- [ ] Form loads current values from `GET /api/settings`
-- [ ] Saves via `PUT /api/settings` with validation
-- [ ] Success/error feedback shown to user
-- [ ] Admin nav link added (alongside Users)
-- [ ] Tests for the settings page component
+- [x] New route `/admin/settings` accessible to admin users only
+- [x] Sections: Data Retention, Polling Defaults, Security
+- [x] Form loads current values from `GET /api/settings`
+- [x] Saves via `PUT /api/settings` with validation
+- [x] Success/error feedback shown to user
+- [x] Admin nav link added (alongside Users)
+- [x] Tests for the settings page component
 
 **Files likely touched:**
-- `client/src/pages/AdminSettings.tsx` (new)
+- `client/src/components/pages/Admin/AdminSettings.tsx` (new)
 - `client/src/api/settings.ts` (new)
 - `client/src/App.tsx` — route registration
-- `client/src/components/Navigation.tsx` — admin link
+- `client/src/components/Layout/Layout.tsx` — admin nav links
 
 ---
 

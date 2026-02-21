@@ -1240,6 +1240,7 @@ The order matters — each layer builds on previous:
 | `/associations` | Associations | Protected | Suggestions inbox, manual creation, aliases |
 | `/wallboard` | Wallboard | Protected | Full-screen status board |
 | `/admin/users` | UserManagement | Admin only | User accounts, roles, activation |
+| `/admin/settings` | AdminSettings | Admin only | Application-wide settings management |
 
 `ProtectedRoute` component checks `isAuthenticated` (redirects to `/login`) and optionally `isAdmin` (redirects to `/`).
 
@@ -1413,14 +1414,18 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 | `auth_rate_limit` | 10 | Auth rate limit |
 | `auth_rate_limit_window_minutes` | 1 | Auth rate limit window |
 
-**Frontend:** Admin-only `/admin/settings` page with sections for data retention, polling defaults, security, and alerts.
+**Frontend:** **[Implemented]** (PRO-76). Admin-only `/admin/settings` page with collapsible sections for data retention, polling defaults, security (SSRF allowlist + rate limits), and alerts. Form validation, save confirmation toast, and immediate effect. Admin nav updated with section divider and separate "Users" and "Settings" links. See `/client/src/components/pages/Admin/AdminSettings.tsx`.
 
-### 12.4 Data Retention (Phase 2)
+### 12.4 Data Retention (Phase 2) **[Implemented]**
 
-- Default retention: 365 days, configurable via `DATA_RETENTION_DAYS` env var and admin settings
-- Scheduled cleanup job runs daily (default 02:00 local time)
-- Deletes rows from `dependency_latency_history`, `dependency_error_history`, and `alert_history` older than retention period
-- Logs number of deleted rows
+- Default retention: 365 days, configurable via `DATA_RETENTION_DAYS` env var and admin settings (`data_retention_days`)
+- Scheduled cleanup job runs daily at configurable time (default 02:00 local time, admin setting `retention_cleanup_time`)
+- Deletes rows from `dependency_latency_history`, `dependency_error_history`, and `audit_log` older than retention period
+- `alert_history` cleanup will be added when alerting is implemented
+- Logs number of deleted rows per table
+- Runs overdue check on startup (catches up if server was down during scheduled time)
+- Graceful shutdown stops the scheduler
+- See `DataRetentionService` in `/server/src/services/retention/DataRetentionService.ts`
 
 ### 12.5 Custom Health Endpoint Schema (Phase 4)
 

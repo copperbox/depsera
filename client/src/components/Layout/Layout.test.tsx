@@ -201,7 +201,8 @@ describe('Layout', () => {
 
     await screen.findByText('Admin User');
 
-    expect(screen.getByTitle('Admin')).toBeInTheDocument();
+    expect(screen.getByTitle('Users')).toBeInTheDocument();
+    expect(screen.getByTitle('Settings')).toBeInTheDocument();
   });
 
   it('hides admin link for non-admin users', async () => {
@@ -214,7 +215,8 @@ describe('Layout', () => {
 
     await screen.findByText('Regular User');
 
-    expect(screen.queryByTitle('Admin')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Users')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Settings')).not.toBeInTheDocument();
   });
 
   it('closes sidebar when nav link is clicked', async () => {

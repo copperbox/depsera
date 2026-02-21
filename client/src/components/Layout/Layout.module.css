@@ -232,6 +232,28 @@
   flex-shrink: 0;
 }
 
+.navDivider {
+  padding: 0.75rem 1.5rem 0.25rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebarCollapsed .navDivider {
+  padding: 0.75rem 0.5rem 0.25rem;
+}
+
+.navDividerText {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.sidebarCollapsed .navDividerText {
+  display: none;
+}
+
 /* Main content */
 .main {
   flex: 1;

@@ -94,6 +94,18 @@ Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/
 
 `SettingsService` (`/server/src/services/settings/SettingsService.ts`) provides in-memory cached access to admin-configurable settings. Singleton pattern with auto-loading from DB on first access. Settings keys: `data_retention_days`, `retention_cleanup_time`, `default_poll_interval_ms`, `ssrf_allowlist`, `global_rate_limit`, `global_rate_limit_window_minutes`, `auth_rate_limit`, `auth_rate_limit_window_minutes`, `alert_cooldown_minutes`, `alert_rate_limit_per_hour`. Env vars serve as initial defaults; DB values override at runtime.
 
+**Admin Settings UI:** `/admin/settings` page (`/client/src/components/pages/Admin/AdminSettings.tsx`) with collapsible sections for Data Retention, Polling Defaults, Security (SSRF allowlist + rate limits), and Alerts. API client in `/client/src/api/settings.ts`. Admin sidebar has separate "Users" and "Settings" links under an "Admin" section divider.
+
+## Data Retention
+
+`DataRetentionService` (`/server/src/services/retention/DataRetentionService.ts`) runs scheduled cleanup of old history data. Singleton pattern with start/stop lifecycle wired into `index.ts`.
+
+- **Retention period:** Configurable via `DATA_RETENTION_DAYS` env var or admin setting `data_retention_days` (default: 365 days)
+- **Cleanup schedule:** Daily at configurable time via `RETENTION_CLEANUP_TIME` env var or admin setting `retention_cleanup_time` (default: `02:00` local time)
+- **Tables cleaned:** `dependency_latency_history`, `dependency_error_history`, `audit_log` (+ `alert_history` when alerting is added)
+- **Scheduling:** Checks once per minute if cleanup time has passed; runs at most once per day; catches up on startup if overdue
+- **Graceful shutdown:** `stop()` clears the scheduler interval
+
 ## Polling Architecture
 
 The health polling system uses cache-TTL-driven per-service scheduling with resilience patterns:
