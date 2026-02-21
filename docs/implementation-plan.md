@@ -515,16 +515,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** `POST /api/services/test-schema` endpoint for testing a schema mapping against a live URL. SSRF protected. Returns parsed results + warnings.
 
 **Acceptance criteria:**
-- [ ] `POST /api/services/test-schema` accepts `{ url, schema_mapping }`
-- [ ] Authenticated, team lead+ required
-- [ ] Fetches URL, applies schema mapping, returns `{ dependencies, warnings }`
-- [ ] SSRF validation on URL
-- [ ] Does NOT store anything
-- [ ] Tests for valid mapping, invalid URL, SSRF rejection
+- [x] `POST /api/services/test-schema` accepts `{ url, schema_config }`
+- [x] Authenticated, team lead+ required
+- [x] Fetches URL, applies schema mapping, returns `{ success, dependencies, warnings }`
+- [x] SSRF validation on URL
+- [x] Does NOT store anything
+- [x] Tests for valid mapping, invalid URL, SSRF rejection
 
-**Files likely touched:**
-- `server/src/routes/services.ts` — new endpoint
-- Tests
+**Files touched:**
+- `server/src/routes/services/testSchema.ts` (new) — endpoint handler with authorization, SSRF validation, fetch, and schema parsing
+- `server/src/routes/services/testSchema.test.ts` (new) — 19 tests covering authorization, validation, SSRF, parsing, error handling
+- `server/src/routes/services/index.ts` — route registration
 
 ---
 

@@ -6,6 +6,7 @@ import { createService } from './create';
 import { updateService } from './update';
 import { deleteService } from './delete';
 import { pollServiceNow } from './poll';
+import { testSchema } from './testSchema';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/', requireAuth, listServices);
 router.get('/:id', requireAuth, getService);
 
 // Write requires team lead (of the service's team) or admin
+router.post('/test-schema', requireAuth, testSchema);
 router.post('/', requireBodyTeamLead, createService);
 router.put('/:id', requireServiceTeamLead, updateService);
 router.delete('/:id', requireServiceTeamLead, deleteService);

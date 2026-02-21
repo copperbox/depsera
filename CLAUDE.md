@@ -193,7 +193,7 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.
-- `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership)
+- `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership). `POST /api/services/test-schema` tests a schema mapping against a live URL (team lead+ or admin, SSRF-protected, does not store anything).
 - `/api/teams` - CRUD + member management
 - `/api/users` - Admin user management. `POST /api/users` creates a local user and `PUT /api/users/:id/password` resets password (both require `requireAdmin` + `requireLocalAuth`)
 - `/api/aliases` - Dependency alias CRUD (admin only for mutations) + canonical name lookup

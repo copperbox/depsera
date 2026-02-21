@@ -570,6 +570,30 @@ Rate limited: 10 requests/minute per IP.
 | PUT | `/api/services/:id` | requireServiceTeamLead | Update service. |
 | DELETE | `/api/services/:id` | requireServiceTeamLead | Delete service. Returns 204. |
 | POST | `/api/services/:id/poll` | requireServiceTeamAccess | Trigger manual poll. Requires team membership (any role). |
+| POST | `/api/services/test-schema` | requireAuth (team lead+ or admin) | Test a schema mapping against a live URL. **[Implemented]** (PRO-104). |
+
+**POST /api/services/test-schema request:** **[Implemented]** (PRO-104)
+
+```json
+{
+  "url": "https://example.com/health (required, SSRF-validated)",
+  "schema_config": "SchemaMapping object or JSON string (required)"
+}
+```
+
+**POST /api/services/test-schema response:**
+
+```json
+{
+  "success": true,
+  "dependencies": [
+    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "type": "other" }
+  ],
+  "warnings": ["No impact field mapping configured — impact data will not be captured"]
+}
+```
+
+On parse failure: `{ success: false, dependencies: [], warnings: ["error message"] }`. 10-second fetch timeout. Does NOT store anything.
 
 **POST /api/services request:**
 
@@ -1558,7 +1582,7 @@ Support for services that don't use the proactive-deps format:
 - Nested paths supported: `"metrics.responseTime"`
 - Services without a mapping default to proactive-deps
 - **Schema-aware parser:** **[Implemented]** (PRO-79). `DependencyParser.parse()` accepts an optional `SchemaMapping` parameter. When provided, delegates to `SchemaMapper` which resolves the `root` path, maps fields via dot-notation path resolution, and handles `BooleanComparison` for the `healthy` field (case-insensitive string comparison). String healthy values are coerced: `ok`, `healthy`, `up`, `true` → healthy; `error`, `unhealthy`, `down`, `critical`, `false` → unhealthy. Malformed items (missing name, unresolvable healthy) are skipped with logged warnings. `ServicePoller` parses the service's `schema_config` JSON and passes it to the parser. See `/server/src/services/polling/SchemaMapper.ts` and `/server/src/services/polling/DependencyParser.ts`.
-- Test endpoint: **[Planned]** `POST /api/services/test-schema` — fetches URL, applies mapping, returns preview
+- Test endpoint: **[Implemented]** (PRO-104). `POST /api/services/test-schema` — authenticated (team lead+ or admin), accepts `{ url, schema_config }`, validates SSRF, fetches URL, applies schema mapping via `DependencyParser`, returns `{ success, dependencies[], warnings[] }`. Does NOT store anything. 10-second timeout. Warnings include missing optional field mappings, empty results, and zero-latency entries. See `/server/src/routes/services/testSchema.ts`.
 - UI: **[Planned]** Toggle between "proactive-deps" and "Custom schema" on service form, with test button
 
 ### 12.6 Alerting (Phase 5)
