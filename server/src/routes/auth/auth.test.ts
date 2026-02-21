@@ -128,36 +128,6 @@ describe('Auth API', () => {
       expect(response.headers.location).toBe('https://auth.example.com/authorize');
     });
 
-    it('should redirect to frontend in bypass mode', async () => {
-      process.env.AUTH_BYPASS = 'true';
-      process.env.CORS_ORIGIN = 'http://localhost:3000';
-
-      const response = await request(app).get('/api/auth/login');
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe('http://localhost:3000/');
-    });
-
-    it('should handle returnTo parameter in bypass mode', async () => {
-      process.env.AUTH_BYPASS = 'true';
-      process.env.CORS_ORIGIN = 'http://localhost:3000';
-
-      const response = await request(app).get('/api/auth/login?returnTo=/dashboard');
-
-      expect(response.status).toBe(302);
-      expect(response.headers.location).toBe('http://localhost:3000/dashboard');
-    });
-
-    it('should return 403 when bypass is enabled in production', async () => {
-      process.env.AUTH_BYPASS = 'true';
-      process.env.NODE_ENV = 'production';
-
-      const response = await request(app).get('/api/auth/login');
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Auth bypass is not allowed in production');
-    });
-
     it('should handle errors', async () => {
       mockBuildAuthorizationUrl.mockImplementationOnce(() => {
         throw new Error('OIDC error');
@@ -326,29 +296,6 @@ describe('Auth API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.redirectUrl).toBe('https://auth.example.com/logout');
-    });
-
-    it('should return login URL in bypass mode', async () => {
-      process.env.AUTH_BYPASS = 'true';
-
-      const testUser = {
-        id: 'user-1',
-        email: 'admin@example.com',
-        name: 'Admin User',
-        role: 'admin' as const,
-        is_active: 1,
-        oidc_subject: 'oidc-1',
-        picture: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const response = await request(app)
-        .post('/api/auth/logout')
-        .set('x-test-user', JSON.stringify(testUser));
-
-      expect(response.status).toBe(200);
-      expect(response.body.redirectUrl).toBe('/login');
     });
 
     it('should fallback to /login when end session fails', async () => {

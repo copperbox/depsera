@@ -4,18 +4,16 @@ import logger from '../utils/logger';
 
 const BCRYPT_ROUNDS = 12;
 
-export type AuthMode = 'oidc' | 'local' | 'bypass';
+export type AuthMode = 'oidc' | 'local';
 
 /**
  * Determine the current authentication mode based on environment variables.
  *
  * Priority:
- * 1. AUTH_BYPASS=true → 'bypass'
- * 2. LOCAL_AUTH=true → 'local'
- * 3. Otherwise → 'oidc'
+ * 1. LOCAL_AUTH=true → 'local'
+ * 2. Otherwise → 'oidc'
  */
 export function getAuthMode(): AuthMode {
-  if (process.env.AUTH_BYPASS === 'true') return 'bypass';
   if (process.env.LOCAL_AUTH === 'true') return 'local';
   return 'oidc';
 }
@@ -36,14 +34,10 @@ export function verifyPassword(password: string, hash: string): boolean {
 
 /**
  * Validate local auth configuration on startup.
- * Throws if LOCAL_AUTH conflicts with AUTH_BYPASS or OIDC vars.
+ * Warns if OIDC vars are also configured.
  */
 export function validateLocalAuthConfig(): void {
   if (process.env.LOCAL_AUTH !== 'true') return;
-
-  if (process.env.AUTH_BYPASS === 'true') {
-    throw new Error('LOCAL_AUTH and AUTH_BYPASS are mutually exclusive — disable one of them');
-  }
 
   // If OIDC is fully configured, warn that it will be ignored
   if (process.env.OIDC_ISSUER_URL && process.env.OIDC_CLIENT_ID) {

@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, closeDatabase } from './db';
-import { sessionMiddleware, warnInsecureCookies, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
+import { sessionMiddleware, warnInsecureCookies, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
@@ -36,7 +36,6 @@ import logger from './utils/logger';
 dotenv.config();
 
 // Validate auth mode configuration early
-initializeBypassMode();
 validateLocalAuthConfig();
 
 const app = express();
@@ -55,9 +54,6 @@ app.use(cors({
 app.use(express.json());
 app.use(createGlobalRateLimit());
 app.use(sessionMiddleware);
-
-// Dev bypass middleware (auto-authenticates in dev mode when AUTH_BYPASS=true)
-app.use(bypassAuthMiddleware);
 
 // HTTP request logging (after session so userId is available in log entries)
 app.use(createRequestLogger({ logger }));
@@ -104,7 +100,7 @@ async function start() {
     try {
       await initializeOIDC();
     } catch (error) {
-      logger.fatal({ err: error }, 'failed to initialize OIDC — set AUTH_BYPASS=true or LOCAL_AUTH=true for development without OIDC');
+      logger.fatal({ err: error }, 'failed to initialize OIDC — set LOCAL_AUTH=true for development without OIDC');
       process.exit(1);
     }
   }

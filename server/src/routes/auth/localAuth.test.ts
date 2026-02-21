@@ -108,7 +108,6 @@ describe('Local Auth Routes', () => {
 
   describe('GET /api/auth/mode', () => {
     it('should return "oidc" by default', async () => {
-      delete process.env.AUTH_BYPASS;
       delete process.env.LOCAL_AUTH;
 
       const res = await request(app).get('/api/auth/mode');
@@ -118,20 +117,12 @@ describe('Local Auth Routes', () => {
 
     it('should return "local" when LOCAL_AUTH=true', async () => {
       process.env.LOCAL_AUTH = 'true';
-      delete process.env.AUTH_BYPASS;
 
       const res = await request(app).get('/api/auth/mode');
       expect(res.status).toBe(200);
       expect(res.body.mode).toBe('local');
     });
 
-    it('should return "bypass" when AUTH_BYPASS=true', async () => {
-      process.env.AUTH_BYPASS = 'true';
-
-      const res = await request(app).get('/api/auth/mode');
-      expect(res.status).toBe(200);
-      expect(res.body.mode).toBe('bypass');
-    });
   });
 
   describe('POST /api/auth/login (local)', () => {

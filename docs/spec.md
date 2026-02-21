@@ -417,18 +417,9 @@ interface SessionData {
 }
 ```
 
-### 3.2 Auth Bypass Mode **[Implemented]**
+### 3.2 Auth Bypass Mode **[Removed]**
 
-When `AUTH_BYPASS=true`, the server skips the OIDC flow entirely. A development user is auto-created or loaded:
-
-- **Email:** `AUTH_BYPASS_USER_EMAIL` (default: `dev@localhost`)
-- **Name:** `AUTH_BYPASS_USER_NAME` (default: `Development User`)
-- **OIDC Subject:** `dev-bypass-user`
-- **Role:** Always `admin`
-
-Bypass mode is **blocked in production** (`NODE_ENV=production`). The server throws on startup if both are set.
-
-Login endpoint redirects directly to the frontend origin. The bypass middleware runs on every request and auto-authenticates by setting `req.session.userId`.
+> **Removed.** Auth bypass mode was removed in favor of `LOCAL_AUTH=true` for local development. Use local auth with `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars instead. See section 3.7.
 
 ### 3.3 Session Configuration **[Implemented]**
 
@@ -511,11 +502,11 @@ Safe methods (GET, HEAD, OPTIONS) are exempt from validation.
 
 A local authentication mode for zero-external-dependency deployment:
 
-- Enabled via `LOCAL_AUTH=true` env var (mutually exclusive with `AUTH_BYPASS`)
+- Enabled via `LOCAL_AUTH=true` env var
 - Passwords stored with bcryptjs (12 rounds)
 - Initial admin created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars on first startup (when no users exist)
 - `POST /api/auth/login` accepts `{ email, password }`, sets session, returns user info
-- `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }` (public, no auth required)
+- `GET /api/auth/mode` returns `{ mode: "oidc" | "local" }` (public, no auth required)
 - Client login page conditionally renders local auth form or OIDC button based on `GET /api/auth/mode` **[Implemented]** (PRO-100)
 - Admin can create users and reset passwords via API **[Implemented]** (PRO-101). `POST /api/users` creates a local user; `PUT /api/users/:id/password` resets password. Both gated by `requireLocalAuth`.
 
@@ -1441,10 +1432,7 @@ All configuration is via environment variables on the server (set in `server/.en
 | `OIDC_CLIENT_SECRET` | — | OAuth2 client secret |
 | `OIDC_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` | OAuth2 callback URL |
 | `SESSION_SECRET` | weak default in dev | Session signing secret (≥32 chars required in production) |
-| `AUTH_BYPASS` | `false` | `'true'` enables dev bypass (blocked in production, requires `AUTH_BYPASS_CONFIRM`) |
-| `AUTH_BYPASS_CONFIRM` | — | Must be set to `yes-i-know-what-im-doing` when `AUTH_BYPASS=true` to prevent accidental activation |
-| `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email in bypass mode |
-| `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name in bypass mode |
+| ~~`AUTH_BYPASS`~~ | — | **Removed.** Use `LOCAL_AUTH=true` for development instead. |
 
 ### 11.3 Security
 
@@ -1494,7 +1482,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - **SQL injection prevention:** ~~Whitelist allowed `ORDER BY` columns per store query to eliminate string-interpolation vectors.~~ **[Implemented]** (PRO-67).
 - **IDOR fixes:** ~~Association routes need team ownership verification (not just `requireAuth`).~~ **[Implemented]** (PRO-91). Alias mutations need `requireAdmin`. **[Implemented]** (PRO-92).
 - **Error sanitization:** ~~Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.~~ **[Implemented]** (PRO-68). All route handlers use `sendErrorResponse()`. Non-operational errors return generic `{ error: "Internal server error" }`. Poll errors sanitized via `sanitizePollError()` before DB storage.
-- **Auth bypass hardening:** ~~Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).~~ **[Implemented]** (PRO-69). `.env.example` defaults to `AUTH_BYPASS=false`. `.env` is git-ignored (not committed). Secondary safety check requires `AUTH_BYPASS_CONFIRM=yes-i-know-what-im-doing` to prevent accidental activation. Startup throws on production + bypass. Login route also returns 403 for bypass in production (defense-in-depth). See `/server/src/auth/bypass.ts`.
+- **Auth bypass hardening:** ~~Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production.~~ **[Implemented then Removed]** (PRO-69). Auth bypass mode was fully removed — `LOCAL_AUTH=true` replaces it for development use.
 - **Session cookie improvements:** ~~Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.~~ **[Implemented]** (PRO-70). `sameSite` remains `'lax'` — `'strict'` breaks the OIDC callback flow because the browser won't send the session cookie on the cross-origin redirect from the identity provider, causing PKCE code verifier and state to be unavailable. This is documented in a code comment. CSRF protection (double-submit cookie) mitigates the reduced protection. Cookie path explicitly set to `/`. `warnInsecureCookies()` runs at startup and logs a warning if `secure` will be false outside development (when neither `REQUIRE_HTTPS` nor `TRUST_PROXY` is configured). See `/server/src/auth/session.ts`.
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.
 - **Client-side hardening:** `URLSearchParams` for query encoding, validate localStorage JSON parsing, `eslint-plugin-security`.
@@ -1634,11 +1622,10 @@ Support for services that don't use the proactive-deps format:
 ### 12.8 Local Auth (Phase 3)
 
 - `LOCAL_AUTH=true` env var enables local auth mode
-- Mutually exclusive with `AUTH_BYPASS`
 - Passwords: bcrypt, minimum 12 rounds
 - Initial admin: `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars
 - `POST /api/auth/login` for credentials-based login
-- `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
+- `GET /api/auth/mode` returns `{ mode: "oidc" | "local" }`
 - Client renders login form or OIDC button based on mode **[Implemented]** (PRO-100). Login page calls `GET /api/auth/mode` on mount; shows email/password form in local mode, SSO button in OIDC mode. Auth API client in `client/src/api/auth.ts`.
 - Admin can create users and reset passwords **[Implemented]** (PRO-101). `POST /api/users` creates a local user (admin only, local auth mode only). `PUT /api/users/:id/password` resets a user's password. Both endpoints gated by `requireLocalAuth` middleware (returns 404 in non-local modes). Admin user management page shows "Create User" button and per-user "Reset Password" action when in local auth mode.
 

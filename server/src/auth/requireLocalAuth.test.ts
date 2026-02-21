@@ -53,13 +53,4 @@ describe('requireLocalAuth middleware', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'Not found' });
   });
 
-  it('should return 404 when auth mode is bypass', () => {
-    mockedGetAuthMode.mockReturnValue('bypass');
-
-    requireLocalAuth(req as Request, res as Response, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Not found' });
-  });
 });

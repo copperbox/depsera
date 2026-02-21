@@ -16,7 +16,7 @@ Depsera is a self-hosted, open-source dependency monitoring and service health d
 
 The following features are complete and functional today:
 
-- **Authentication**: OIDC with PKCE, auth bypass for development, first-user admin bootstrap
+- **Authentication**: OIDC with PKCE, local auth for development, first-user admin bootstrap
 - **RBAC**: Admin, team lead, and member roles with middleware enforcement
 - **Team Management**: CRUD, member management, role assignment
 - **Service Management**: CRUD, per-service poll intervals, manual polling
@@ -68,12 +68,10 @@ Route handlers return raw `error.message` in 500 responses. Poll error messages 
 
 **Scope:** Create a sanitized error response utility. Replace all raw `error.message` usage in route handlers. Sanitize stored poll error messages.
 
-#### 1.4 — Harden auth bypass configuration
+#### 1.4 — ~~Harden auth bypass configuration~~ **[Removed]**
 > Existing story: PRO-69
 
-`AUTH_BYPASS=true` is enabled by default in the committed `.env` file. If `NODE_ENV` is not set correctly, auth is fully disabled.
-
-**Scope:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Add startup warning when bypass is active. Block bypass in production.
+> **Removed.** Auth bypass mode was fully removed from the codebase. `LOCAL_AUTH=true` replaces it for local development.
 
 #### 1.5 — Improve session cookie security
 > Existing story: PRO-70
@@ -207,7 +205,6 @@ Server-side local auth mode for zero-external-dependency deployment.
 - `POST /api/auth/login` for credentials-based login
 - `GET /api/auth/mode` — new endpoint returning current auth mode
 - Passwords stored with bcrypt (minimum 12 rounds)
-- `LOCAL_AUTH` and `AUTH_BYPASS` mutually exclusive
 
 **Scope:** Migration, auth routes, mode detection endpoint.
 
@@ -526,7 +523,7 @@ Phase 1: Security Hardening (10 stories)
   1.2a  PRO-91   Fix IDOR on association routes
   1.2b  PRO-92   Fix IDOR on alias routes — restrict to admin
   1.3   PRO-68   Sanitize error messages
-  1.4   PRO-69   Harden auth bypass config
+  1.4   PRO-69   ~~Harden auth bypass config~~ [Removed]
   1.5   PRO-70   Session cookie security
   1.6a  PRO-95   Minor server-side hardening
   1.6b  PRO-96   Minor client-side hardening

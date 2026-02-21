@@ -97,26 +97,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 
 ---
 
-### 1.4 — Harden auth bypass configuration
+### 1.4 — Harden auth bypass configuration **[Removed]**
 **Linear:** [PRO-69](https://linear.app/team/PRO-69)
 **Blocked by:** None
-**Scope:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo (add to `.gitignore`). Add startup warning when bypass is active. Block bypass in production.
 
-**Acceptance criteria:**
-- [x] `.env.example` has `AUTH_BYPASS=false` as default
-- [x] `server/.env` removed from git tracking (added to `.gitignore`)
-- [x] Server logs a visible warning at startup when `AUTH_BYPASS=true`
-- [x] `AUTH_BYPASS=true` + `NODE_ENV=production` throws on startup (verify existing guard)
-- [x] Login route also guards against bypass in production
-- [x] Tests cover all modes
-
-**Files touched:**
-- `server/.env.example` — added `AUTH_BYPASS_CONFIRM` documentation
-- `server/src/auth/bypass.ts` — added `isBypassEnabled()` helper, `AUTH_BYPASS_CONFIRM` secondary safety check
-- `server/src/auth/index.ts` — exported `isBypassEnabled`
-- `server/src/routes/auth/login.ts` — added production guard for bypass mode
-- `server/src/auth/bypass.test.ts` — added tests for `isBypassEnabled`, confirmation requirement
-- `server/src/routes/auth/auth.test.ts` — added test for login route production guard
+> **Removed.** Auth bypass mode was fully removed from the codebase. `LOCAL_AUTH=true` replaces it for local development. The original hardening work (PRO-69) was implemented and later superseded by complete removal.
 
 ---
 
@@ -242,7 +227,7 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 - [x] Admin users see all services
 - [x] Service create/edit/delete restricted to owning team's lead or admin
 - [x] `GET /api/graph`, wallboard, and dashboard data remain org-wide
-- [x] Tests cover admin bypass, team lead access, member access, non-member rejection
+- [x] Tests cover admin access, team lead access, member access, non-member rejection
 
 **Files likely touched:**
 - `server/src/routes/services.ts`
@@ -351,10 +336,10 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 
 **Acceptance criteria:**
 - [x] Migration adds nullable `password_hash TEXT` column to `users`
-- [x] `LOCAL_AUTH=true` enables local auth; mutually exclusive with `AUTH_BYPASS`
+- [x] `LOCAL_AUTH=true` enables local auth
 - [x] On first startup with `LOCAL_AUTH=true`: creates admin from env vars
 - [x] `POST /api/auth/login` accepts `{ email, password }`, returns session
-- [x] `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
+- [x] `GET /api/auth/mode` returns `{ mode: "oidc" | "local" }`
 - [x] Passwords stored with bcrypt (minimum 12 rounds)
 - [x] Tests for login, mode endpoint, mutual exclusion
 

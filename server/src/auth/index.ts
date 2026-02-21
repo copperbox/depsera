@@ -10,7 +10,6 @@ export {
   requireBodyTeamLead,
   requireLocalAuth,
 } from './middleware';
-export { initializeBypassMode, bypassAuthMiddleware, isBypassEnabled } from './bypass';
 export {
   initializeOIDC,
   getOIDCConfig,

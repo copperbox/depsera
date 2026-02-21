@@ -61,26 +61,14 @@ describe('localAuth', () => {
   });
 
   describe('getAuthMode', () => {
-    it('should return "bypass" when AUTH_BYPASS=true', () => {
-      process.env.AUTH_BYPASS = 'true';
-      expect(getAuthMode()).toBe('bypass');
-    });
-
     it('should return "local" when LOCAL_AUTH=true', () => {
       process.env.LOCAL_AUTH = 'true';
       expect(getAuthMode()).toBe('local');
     });
 
     it('should return "oidc" by default', () => {
-      delete process.env.AUTH_BYPASS;
       delete process.env.LOCAL_AUTH;
       expect(getAuthMode()).toBe('oidc');
-    });
-
-    it('should prioritize bypass over local', () => {
-      process.env.AUTH_BYPASS = 'true';
-      process.env.LOCAL_AUTH = 'true';
-      expect(getAuthMode()).toBe('bypass');
     });
   });
 
@@ -113,19 +101,10 @@ describe('localAuth', () => {
       expect(() => validateLocalAuthConfig()).not.toThrow();
     });
 
-    it('should throw when LOCAL_AUTH and AUTH_BYPASS are both true', () => {
-      process.env.LOCAL_AUTH = 'true';
-      process.env.AUTH_BYPASS = 'true';
-      expect(() => validateLocalAuthConfig()).toThrow(
-        'LOCAL_AUTH and AUTH_BYPASS are mutually exclusive',
-      );
-    });
-
     it('should warn when OIDC vars are present with LOCAL_AUTH', () => {
       process.env.LOCAL_AUTH = 'true';
       process.env.OIDC_ISSUER_URL = 'https://idp.example.com';
       process.env.OIDC_CLIENT_ID = 'my-client';
-      delete process.env.AUTH_BYPASS;
 
       validateLocalAuthConfig();
 
@@ -136,7 +115,6 @@ describe('localAuth', () => {
 
     it('should not warn when no OIDC vars present', () => {
       process.env.LOCAL_AUTH = 'true';
-      delete process.env.AUTH_BYPASS;
       delete process.env.OIDC_ISSUER_URL;
       delete process.env.OIDC_CLIENT_ID;
 

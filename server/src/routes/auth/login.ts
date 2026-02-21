@@ -6,23 +6,10 @@ import {
   generateState,
   client,
 } from '../../auth/config';
-import { isBypassEnabled } from '../../auth/bypass';
 
 export async function login(req: Request, res: Response): Promise<void> {
   try {
     const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
-
-    // In bypass mode, just redirect to home (user is auto-authenticated)
-    // Defense-in-depth: also block bypass in production at the route level
-    if (isBypassEnabled()) {
-      if (process.env.NODE_ENV === 'production') {
-        res.status(403).json({ error: 'Auth bypass is not allowed in production' });
-        return;
-      }
-      const returnTo = (req.query.returnTo as string) || '/';
-      res.redirect(`${frontendOrigin}${returnTo}`);
-      return;
-    }
 
     // In local auth mode, redirect to the login page (client handles the form)
     if (process.env.LOCAL_AUTH === 'true') {

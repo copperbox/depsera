@@ -1,7 +1,7 @@
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
 
-export type AuthMode = 'oidc' | 'local' | 'bypass';
+export type AuthMode = 'oidc' | 'local';
 
 export interface AuthModeResponse {
   mode: AuthMode;

@@ -16,7 +16,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
 - **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis; time-bucketed latency API for chart rendering (configurable ranges: 1h, 6h, 24h, 7d, 30d) and health state timeline API showing dependency health transitions over time; reusable Recharts-based chart components (`LatencyChart` with min/avg/max lines, `HealthTimeline` swimlane, `TimeRangeSelector`) with dark mode support
-- **Authentication** — OpenID Connect integration or local username/password auth (`LOCAL_AUTH=true`) for zero-external-dependency deployment; optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
+- **Authentication** — OpenID Connect integration or local username/password auth (`LOCAL_AUTH=true`) for zero-external-dependency deployment; sessions persisted in SQLite (survive server restarts)
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions. Service list and detail views are team-scoped for non-admin users; admin users see all services org-wide
 - **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 - **Structured Logging** — HTTP request logging via pino with method, path, status, response time, and user ID; JSON output in production, pretty-printed in development; sensitive headers redacted; configurable log level via `LOG_LEVEL`
@@ -77,14 +77,10 @@ cp server/.env.example server/.env
 | `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per window |
 | `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls to the same target hostname |
 | `LOG_LEVEL` | `info` | Log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| `LOCAL_AUTH` | `false` | Set `true` to enable local username/password auth (mutually exclusive with `AUTH_BYPASS`) |
+| `LOCAL_AUTH` | `false` | Set `true` to enable local username/password auth for development or standalone deployment |
 | `ADMIN_EMAIL` | — | Initial admin email (required on first startup with `LOCAL_AUTH=true`) |
 | `ADMIN_PASSWORD` | — | Initial admin password, min 8 chars (required on first startup with `LOCAL_AUTH=true`) |
 | `APP_BASE_URL` | — | Base URL for deep links in alert messages (e.g., `https://depsera.internal.com`) |
-| `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development (requires `AUTH_BYPASS_CONFIRM`, blocked in production) |
-| `AUTH_BYPASS_CONFIRM` | — | Must be `yes-i-know-what-im-doing` when `AUTH_BYPASS=true` to prevent accidental activation |
-| `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
-| `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |
 
 ### Development
 
@@ -169,7 +165,7 @@ npm run lint
 │       └── hooks/           # usePolling and other custom hooks
 ├── server/              # Express REST API
 │   └── src/
-│       ├── auth/            # OIDC, session, bypass middleware
+│       ├── auth/            # OIDC, local auth, session middleware
 │       ├── db/              # SQLite schema, migrations, types
 │       ├── routes/          # API route handlers
 │       ├── services/        # Polling, graph building, matching

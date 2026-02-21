@@ -37,7 +37,7 @@ describe('Auth Config', () => {
       const { initializeOIDC } = await import('./config');
 
       await expect(initializeOIDC()).rejects.toThrow(
-        'OIDC_ISSUER_URL is required when AUTH_BYPASS is not enabled'
+        'OIDC_ISSUER_URL is required when OIDC mode is active'
       );
     });
 
