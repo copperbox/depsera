@@ -22,6 +22,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Structured Logging** — HTTP request logging via pino with method, path, status, response time, and user ID; JSON output in production, pretty-printed in development; sensitive headers redacted; configurable log level via `LOG_LEVEL`
 - **Audit Trail** — All admin actions (user role changes, team/service mutations, member management) are recorded with actor, action, resource, details, and IP address; queryable via admin API with filtering by date range, user, action, and resource type
 - **Admin Settings** — Runtime-configurable application settings with admin UI page and API; 10 keys (data retention, poll intervals, rate limits, alert thresholds) with in-memory cache over SQLite persistence; env-var defaults overridable at runtime; all changes audited
+- **Alert Dispatch Engine** — Event-driven alert dispatch that listens to polling status changes and errors; team-scoped alert rules with severity filtering (critical, warning, all); flap protection with configurable cooldown; per-team hourly rate limiting; pluggable sender interface for Slack and webhook channels; automatic retry on failure; all attempts recorded in alert history
 
 ## Tech Stack
 

@@ -590,21 +590,24 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Listens to polling events (`STATUS_CHANGE`, `POLL_ERROR`). Evaluates alert rules, applies flap protection and rate limiting, dispatches to channels, records in history.
 
 **Acceptance criteria:**
-- [ ] Subscribes to `status:change` and `poll:error` events
-- [ ] Evaluates alert rules for the owning team
-- [ ] Severity matching: only fires for configured severity levels
-- [ ] Flap protection: suppresses within cooldown window (default 5 min, configurable via admin settings)
-- [ ] Rate limiting: max N alerts/team/hour (default 30, configurable)
-- [ ] Dispatches to configured channels (Slack, webhook)
-- [ ] Records all attempts in `alert_history` (including suppressed)
-- [ ] Retries failed dispatches once after 30 seconds
-- [ ] Tests for filtering, flap protection, rate limiting, dispatch, retry
+- [x] Subscribes to `status:change` and `poll:error` events
+- [x] Evaluates alert rules for the owning team
+- [x] Severity matching: only fires for configured severity levels
+- [x] Flap protection: suppresses within cooldown window (default 5 min, configurable via admin settings)
+- [x] Rate limiting: max N alerts/team/hour (default 30, configurable)
+- [x] Dispatches to configured channels (Slack, webhook)
+- [x] Records all attempts in `alert_history` (including suppressed)
+- [x] Retries failed dispatches once after 30 seconds
+- [x] Tests for filtering, flap protection, rate limiting, dispatch, retry
 
-**Files likely touched:**
-- `server/src/services/alerts/AlertDispatchService.ts` (new)
+**Files touched:**
+- `server/src/services/alerts/AlertService.ts` (new)
 - `server/src/services/alerts/FlapProtector.ts` (new)
 - `server/src/services/alerts/AlertRateLimiter.ts` (new)
-- `server/src/app.ts` — startup wiring
+- `server/src/services/alerts/types.ts` (new)
+- `server/src/services/alerts/index.ts` (new)
+- `server/src/services/index.ts` — barrel export
+- `server/src/index.ts` — startup/shutdown wiring
 
 ---
 

@@ -146,6 +146,24 @@ Key files in `/server/src/services/polling/`:
 - `HostRateLimiter.ts` — Per-hostname concurrency semaphore for poll DDoS protection
 - `PollDeduplicator.ts` — Promise coalescing for concurrent polls to the same URL
 
+## Alert Dispatch Engine
+
+`AlertService` (`/server/src/services/alerts/AlertService.ts`) is a singleton that subscribes to `HealthPollingService` events and dispatches alerts to team-configured channels. Started alongside `HealthPollingService` in `index.ts`.
+
+- **Event listeners:** `status:change` (dependency health transitions) and `poll:error` (service poll failures)
+- **Dispatch flow:** Look up owning team → evaluate active alert rules (severity filter) → check flap protection → check rate limit → dispatch to active channels → record in `alert_history`
+- **Flap protection:** `FlapProtector` suppresses repeated alerts for the same dependency within a configurable cooldown (default 5 min, admin setting `alert_cooldown_minutes`)
+- **Rate limiting:** `AlertRateLimiter` enforces per-team hourly alert limits (default 30/hr, admin setting `alert_rate_limit_per_hour`), window resets automatically
+- **Sender interface:** Pluggable `IAlertSender` per channel type (Slack, webhook). Senders registered via `registerSender()` before `start()`
+- **Retry:** Failed dispatches retry once after 30 seconds. Pending retries flushed on graceful shutdown
+- **History recording:** Fire-and-forget — all attempts (sent, failed, suppressed) recorded in `alert_history`
+
+Key files in `/server/src/services/alerts/`:
+- `AlertService.ts` — Main dispatch engine (singleton)
+- `FlapProtector.ts` — Cooldown-based duplicate suppression
+- `AlertRateLimiter.ts` — Per-team hourly rate limiter
+- `types.ts` — `AlertEvent`, `IAlertSender`, `SendResult` interfaces
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.

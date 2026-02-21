@@ -1472,13 +1472,13 @@ Support for services that don't use the proactive-deps format:
 
 **Alert channels:** Slack (incoming webhook) and generic HTTP webhook, configured per team.
 
-**Alert dispatch:** Listens to `STATUS_CHANGE` and `POLL_ERROR` events from the polling system.
+**Alert dispatch:** **[Implemented]** (PRO-82). `AlertService` singleton listens to `STATUS_CHANGE` and `POLL_ERROR` events from the polling system. Evaluates team alert rules with severity filtering (critical only, warning+, or all). Pluggable `IAlertSender` interface for channel type implementations. See `/server/src/services/alerts/AlertService.ts`.
 
-**Flap protection:** Suppress repeated alerts for the same dependency within a configurable cooldown (default 5 minutes, admin setting `alert_cooldown_minutes`).
+**Flap protection:** **[Implemented]** (PRO-82). `FlapProtector` suppresses repeated alerts for the same dependency within a configurable cooldown (default 5 minutes, admin setting `alert_cooldown_minutes`). In-memory Map keyed by dependencyId (or serviceId for service-level events). See `/server/src/services/alerts/FlapProtector.ts`.
 
-**Rate limiting:** Max alerts per team per hour (default 30, admin setting `alert_rate_limit_per_hour`).
+**Rate limiting:** **[Implemented]** (PRO-82). `AlertRateLimiter` enforces per-team hourly alert limits (default 30, admin setting `alert_rate_limit_per_hour`). Windows reset automatically after 1 hour. See `/server/src/services/alerts/AlertRateLimiter.ts`.
 
-**Alert lifecycle:** dispatch → record in `alert_history` (including suppressed) → retry once after 30s on failure.
+**Alert lifecycle:** **[Implemented]** (PRO-82). dispatch → record in `alert_history` (including suppressed) → retry once after 30s on failure. Graceful shutdown flushes pending retries.
 
 **Slack message format:** Service name, dependency name, old → new status, timestamp, deep link back to Depsera. Uses Slack Block Kit. Requires `APP_BASE_URL` env var for links.
 

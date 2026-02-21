@@ -17,6 +17,7 @@ import adminRouter from './routes/admin';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { SettingsService } from './services/settings/SettingsService';
 import { DataRetentionService } from './services/retention/DataRetentionService';
+import { AlertService } from './services/alerts';
 import { getStores } from './stores';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
@@ -127,6 +128,10 @@ async function start() {
     logger.info({ allowlist: process.env.SSRF_ALLOWLIST }, 'SSRF allowlist configured');
   }
 
+  // Initialize alert service (subscribe to polling events)
+  const alertService = AlertService.getInstance();
+  alertService.start(pollingService);
+
   // Start data retention scheduler
   const retentionService = DataRetentionService.getInstance();
   retentionService.start();
@@ -142,11 +147,11 @@ async function start() {
   const shutdown = async () => {
     logger.info('shutting down');
 
+    // Stop alert service (removes event listeners, flushes retries)
+    alertService.shutdown();
+
     // Stop data retention scheduler
     retentionService.stop();
-
-    // Remove event listeners to allow garbage collection
-    pollingService.removeAllListeners();
 
     await pollingService.shutdown();
 
