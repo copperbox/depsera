@@ -7,7 +7,7 @@
 
 const { execSync } = require('child_process');
 
-const PORTS = [3000, 3001, 3010, 4000];
+const PORTS = [3000, 3001];
 
 function getProcessOnPort(port) {
   try {

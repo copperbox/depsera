@@ -3,13 +3,11 @@
   "version": "1.11.0",
   "description": "Dependency monitoring and service health dashboard",
   "scripts": {
-    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:mock\" \"npm run dev:mock-ui\"",
-    "dev:mock-ui": "cd mock-services && npm run dev:ui",
+    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\"",
     "dev:clean": "node scripts/kill-dev-ports.js && npm run dev",
     "cleanup": "node scripts/kill-dev-ports.js",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
-    "dev:mock": "cd mock-services && npm run dev",
     "build": "npm run build:server && npm run build:client",
     "build:server": "cd server && npm run build",
     "build:client": "cd client && npm run build",
@@ -19,14 +17,7 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "cd server && npm run lint",
     "lint:client": "cd client && npm run lint",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install && cd ../mock-services && npm install && cd ui && npm install",
-    "mock:start": "cd mock-services && npm run dev",
-    "mock:build": "cd mock-services && npm run build",
-    "mock:build-ui": "cd mock-services && npm run build:ui",
-    "mock:seed": "cd mock-services && npm run build && npm run start:seed",
-    "mock:new": "cd mock-services && npm run build && npm run start:new",
-    "mock:reset": "cd mock-services && npm run build && npm run reset",
-    "db:reseed": "cd server && npm run db:reseed -- && cd ../mock-services && npm run build && node dist/index.js --seed-only --new-topology"
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "keywords": [
     "dashboard",

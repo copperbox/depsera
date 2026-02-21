@@ -33,7 +33,6 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Frontend:** React 18, TypeScript, Vite, CSS Modules, React Flow
 - **Backend:** Express.js, TypeScript, SQLite (better-sqlite3)
 - **Authentication:** OpenID Connect (openid-client) or local auth (bcryptjs), express-session
-- **Mock Services:** Node.js, TypeScript, proactive-deps
 - **Testing:** Jest, React Testing Library
 
 ## Getting Started
@@ -46,7 +45,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 ### Installation
 
 ```bash
-# Install all dependencies (root, server, client, and mock-services)
+# Install all dependencies (root, server, and client)
 npm run install:all
 ```
 
@@ -85,13 +84,12 @@ cp server/.env.example server/.env
 ### Development
 
 ```bash
-# Run server, client, and mock services in development mode
+# Run server and client in development mode
 npm run dev
 
 # Or run them separately:
 npm run dev:server  # Starts backend on http://localhost:3001
 npm run dev:client  # Starts frontend on http://localhost:3000
-npm run dev:mock    # Starts mock services on http://localhost:4000
 ```
 
 ### Database Commands
@@ -103,7 +101,6 @@ npm run db:rollback   # Rollback last migration
 npm run db:status     # Show migration status
 npm run db:seed       # Seed with development data
 npm run db:clear      # Clear all data (dangerous!)
-npm run db:reseed     # Full reseed (from root directory)
 ```
 
 ### Testing
@@ -170,14 +167,6 @@ npm run lint
 │       ├── routes/          # API route handlers
 │       ├── services/        # Polling, graph building, matching
 │       └── stores/          # Data access layer
-├── mock-services/       # Mock service topology simulator
-│   └── src/
-│       ├── topology/        # Service topology generator
-│       ├── services/        # Mock service implementations
-│       ├── failures/        # Failure injection engine
-│       ├── control/         # Control API
-│       ├── ui/              # Control panel UI
-│       └── seed/            # Dashboard DB seeding
 └── package.json         # Root scripts
 ```
 
@@ -223,77 +212,6 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | History | `GET /api/latency/:dependencyId`, `GET /api/latency/:dependencyId/buckets`, `GET /api/errors/:dependencyId`, `GET /api/dependencies/:id/timeline` |
 | Admin | `GET /api/admin/audit-log` (filterable by date, user, action, resource type), `GET/PUT /api/admin/settings` |
 | Alerts | `GET/POST /api/teams/:id/alert-channels`, `PUT/DELETE /:channelId`, `POST /:channelId/test`; `GET/PUT /api/teams/:id/alert-rules`; `GET /api/teams/:id/alert-history` |
-
-## Mock Services
-
-The mock services package generates a realistic tiered service topology for demonstrating and testing the dashboard's dependency monitoring capabilities.
-
-### Running Mock Services
-
-```bash
-# Start with default 20 services
-npm run mock:start
-
-# Start with custom service count
-npm run mock:start -- --count=50
-
-# Start and seed services to dashboard database
-npm run mock:seed -- --count=50
-
-# Reset database and regenerate topology
-npm run mock:reset
-```
-
-### Control Panel
-
-Access the control panel at http://localhost:3010 to:
-- View the service topology organized by tier (Frontend, API, Backend, Database)
-- Click services to view details and dependencies
-- Inject failures into individual services
-- Apply predefined failure scenarios
-- Clear failures and reset topology
-
-### Service Endpoints
-
-Each mock service exposes:
-- `GET /{service-name}/health` - Health check (200 OK or 503 Service Unavailable)
-- `GET /{service-name}/dependencies` - Dependency status JSON (proactive-deps format)
-- `GET /{service-name}/metrics` - Prometheus metrics
-
-### Failure Modes
-
-| Mode | Description |
-|------|-------------|
-| `outage` | Service returns 503 for all requests |
-| `high_latency` | Adds configurable delay (default 3000ms) |
-| `error` | Service returns 500 errors |
-| `intermittent` | Random failures (~50% error rate) |
-
-### Cascading Failures
-
-When a failure is injected with cascade enabled, all services that depend on the failed service will also become unhealthy. The UI distinguishes between:
-- **Injected** - Failure was directly applied to this service
-- **Cascaded** - Failure propagated from an upstream dependency
-
-### Predefined Scenarios
-
-- **Database Outage** - All database tier services fail
-- **API Degradation** - API tier experiences high latency
-- **Partial Outage** - Random 30% of services fail
-
-### CLI Options
-
-```bash
-cd mock-services
-npm run dev -- [options]
-
-Options:
-  --count, -c     Number of services to generate (default: 20)
-  --port, -p      Server port (default: 4000)
-  --seed, -s      Seed services to dashboard database
-  --reset, -r     Clear existing mock services and regenerate
-  --db-path       Path to dashboard database (default: ../server/data/database.sqlite)
-```
 
 ## Security
 

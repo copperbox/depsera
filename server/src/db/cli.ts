@@ -11,7 +11,6 @@
  *   npx ts-node src/db/cli.ts clear            - Clear all data (dangerous!)
  *   npx ts-node src/db/cli.ts clear-services   - Clear all services
  *   npx ts-node src/db/cli.ts reseed           - Clear and reseed services/teams
- *   npx ts-node src/db/cli.ts reseed --count=50 - Reseed with N mock services
  */
 
 import { db } from './index';
@@ -44,8 +43,7 @@ Commands:
   seed                 Seed the database with development data
   clear                Clear all data from the database (dangerous!)
   clear-services       Clear all services (and their dependencies)
-  reseed [--count=N]   Clear services/teams and reseed with N mock services (default: 20)
-                       Uses mock-services topology generator for service creation
+  reseed               Clear services/teams and reseed
   `);
 }
 
@@ -95,14 +93,7 @@ async function main(): Promise<void> {
       break;
 
     case 'reseed': {
-      const count = parseInt(parsedArgs.count || '20', 10);
-      if (isNaN(count) || count < 1) {
-        console.error('Invalid count. Please provide a positive number.');
-        process.exit(1);
-      }
-
       console.log(`\nReseed operation:`);
-      console.log(`  Service count: ${count}`);
       console.log('');
 
       // Step 1: Clear existing services and teams
@@ -113,17 +104,10 @@ async function main(): Promise<void> {
       const teamIds = ensureTeams(db);
       console.log(`Created ${Object.keys(teamIds).length} teams`);
 
-      // Step 3: Provide instructions for generating mock services
-      console.log(`
-To complete the reseed, run the following command from the project root:
-
-  cd mock-services && npm run dev -- --count=${count} --seed --new-topology
-
-This will:
-  1. Generate ${count} mock services with random topology
-  2. Seed them into the dashboard database with team assignments
-  3. Start the mock services for health polling
-`);
+      // Step 3: Seed with development data
+      console.log('\nSeeding development data...');
+      seedDatabase(db);
+      console.log('Reseed complete.');
       break;
     }
 

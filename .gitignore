@@ -8,9 +8,6 @@
 server/data/*
 !server/data/.gitkeep
 
-# Mock services topology (generated, machine-specific)
-mock-services/topology.json
-
 # Logs
 logs
 *.log

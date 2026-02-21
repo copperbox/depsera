@@ -89,7 +89,7 @@ export class DependencyParser {
       latency = typeof health.latency === 'number' ? health.latency : 0;
     /* istanbul ignore else -- Flat format fallback; nested format is primary path */
     } else {
-      // Flat format from mock-services: { healthCode, latencyMs }
+      // Flat format: { healthCode, latencyMs }
       healthCode = typeof dep.healthCode === 'number' ? dep.healthCode : 200;
       latency = typeof dep.latencyMs === 'number' ? dep.latencyMs : 0;
       // Derive state from healthy status
