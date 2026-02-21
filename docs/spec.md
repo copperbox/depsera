@@ -1438,7 +1438,8 @@ All configuration is via environment variables on the server (set in `server/.en
 | `OIDC_CLIENT_SECRET` | — | OAuth2 client secret |
 | `OIDC_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` | OAuth2 callback URL |
 | `SESSION_SECRET` | weak default in dev | Session signing secret (≥32 chars required in production) |
-| `AUTH_BYPASS` | `false` | `'true'` enables dev bypass (blocked in production) |
+| `AUTH_BYPASS` | `false` | `'true'` enables dev bypass (blocked in production, requires `AUTH_BYPASS_CONFIRM`) |
+| `AUTH_BYPASS_CONFIRM` | — | Must be set to `yes-i-know-what-im-doing` when `AUTH_BYPASS=true` to prevent accidental activation |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email in bypass mode |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name in bypass mode |
 
@@ -1490,7 +1491,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - **SQL injection prevention:** ~~Whitelist allowed `ORDER BY` columns per store query to eliminate string-interpolation vectors.~~ **[Implemented]** (PRO-67).
 - **IDOR fixes:** ~~Association routes need team ownership verification (not just `requireAuth`).~~ **[Implemented]** (PRO-91). Alias mutations need `requireAdmin`. **[Implemented]** (PRO-92).
 - **Error sanitization:** ~~Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.~~ **[Implemented]** (PRO-68). All route handlers use `sendErrorResponse()`. Non-operational errors return generic `{ error: "Internal server error" }`. Poll errors sanitized via `sanitizePollError()` before DB storage.
-- **Auth bypass hardening:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).
+- **Auth bypass hardening:** ~~Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).~~ **[Implemented]** (PRO-69). `.env.example` defaults to `AUTH_BYPASS=false`. `.env` is git-ignored (not committed). Secondary safety check requires `AUTH_BYPASS_CONFIRM=yes-i-know-what-im-doing` to prevent accidental activation. Startup throws on production + bypass. Login route also returns 403 for bypass in production (defense-in-depth). See `/server/src/auth/bypass.ts`.
 - **Session cookie improvements:** Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.
 - **Client-side hardening:** `URLSearchParams` for query encoding, validate localStorage JSON parsing, `eslint-plugin-security`.

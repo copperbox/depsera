@@ -103,18 +103,20 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo (add to `.gitignore`). Add startup warning when bypass is active. Block bypass in production.
 
 **Acceptance criteria:**
-- [ ] `.env.example` has `AUTH_BYPASS=false` as default
-- [ ] `server/.env` removed from git tracking (added to `.gitignore`)
-- [ ] Server logs a visible warning at startup when `AUTH_BYPASS=true`
-- [ ] `AUTH_BYPASS=true` + `NODE_ENV=production` throws on startup (verify existing guard)
-- [ ] Login route also guards against bypass in production
-- [ ] Tests cover all modes
+- [x] `.env.example` has `AUTH_BYPASS=false` as default
+- [x] `server/.env` removed from git tracking (added to `.gitignore`)
+- [x] Server logs a visible warning at startup when `AUTH_BYPASS=true`
+- [x] `AUTH_BYPASS=true` + `NODE_ENV=production` throws on startup (verify existing guard)
+- [x] Login route also guards against bypass in production
+- [x] Tests cover all modes
 
-**Files likely touched:**
-- `server/.env.example`
-- `server/.gitignore`
-- `server/src/auth/` — bypass setup
-- `server/src/routes/auth.ts`
+**Files touched:**
+- `server/.env.example` — added `AUTH_BYPASS_CONFIRM` documentation
+- `server/src/auth/bypass.ts` — added `isBypassEnabled()` helper, `AUTH_BYPASS_CONFIRM` secondary safety check
+- `server/src/auth/index.ts` — exported `isBypassEnabled`
+- `server/src/routes/auth/login.ts` — added production guard for bypass mode
+- `server/src/auth/bypass.test.ts` — added tests for `isBypassEnabled`, confirmation requirement
+- `server/src/routes/auth/auth.test.ts` — added test for login route production guard
 
 ---
 

@@ -14,7 +14,7 @@ jest.mock('../db', () => ({
   default: testDb,
 }));
 
-import { initializeBypassMode, bypassAuthMiddleware } from './bypass';
+import { initializeBypassMode, bypassAuthMiddleware, isBypassEnabled } from './bypass';
 
 describe('Auth Bypass', () => {
   beforeAll(() => {
@@ -52,6 +52,23 @@ describe('Auth Bypass', () => {
     process.env = { ...originalEnv };
   });
 
+  describe('isBypassEnabled', () => {
+    it('should return true when AUTH_BYPASS=true', () => {
+      process.env.AUTH_BYPASS = 'true';
+      expect(isBypassEnabled()).toBe(true);
+    });
+
+    it('should return false when AUTH_BYPASS=false', () => {
+      process.env.AUTH_BYPASS = 'false';
+      expect(isBypassEnabled()).toBe(false);
+    });
+
+    it('should return false when AUTH_BYPASS is not set', () => {
+      delete process.env.AUTH_BYPASS;
+      expect(isBypassEnabled()).toBe(false);
+    });
+  });
+
   describe('initializeBypassMode', () => {
     it('should throw error when AUTH_BYPASS=true in production', () => {
       process.env.NODE_ENV = 'production';
@@ -62,15 +79,37 @@ describe('Auth Bypass', () => {
       );
     });
 
-    it('should log warning when AUTH_BYPASS=true in non-production', () => {
+    it('should throw error when AUTH_BYPASS=true without AUTH_BYPASS_CONFIRM', () => {
       process.env.NODE_ENV = 'development';
       process.env.AUTH_BYPASS = 'true';
+      delete process.env.AUTH_BYPASS_CONFIRM;
+
+      expect(() => initializeBypassMode()).toThrow(
+        'AUTH_BYPASS=true requires AUTH_BYPASS_CONFIRM='
+      );
+    });
+
+    it('should throw error when AUTH_BYPASS_CONFIRM has wrong value', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.AUTH_BYPASS = 'true';
+      process.env.AUTH_BYPASS_CONFIRM = 'wrong-value';
+
+      expect(() => initializeBypassMode()).toThrow(
+        'AUTH_BYPASS=true requires AUTH_BYPASS_CONFIRM='
+      );
+    });
+
+    it('should log warning when AUTH_BYPASS=true with correct confirmation', () => {
+      process.env.NODE_ENV = 'development';
+      process.env.AUTH_BYPASS = 'true';
+      process.env.AUTH_BYPASS_CONFIRM = 'yes-i-know-what-im-doing';
 
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       initializeBypassMode();
 
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('WARNING'));
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('auto-authenticated'));
       warnSpy.mockRestore();
     });
 

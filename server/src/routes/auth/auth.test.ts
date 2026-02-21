@@ -148,6 +148,16 @@ describe('Auth API', () => {
       expect(response.headers.location).toBe('http://localhost:3000/dashboard');
     });
 
+    it('should return 403 when bypass is enabled in production', async () => {
+      process.env.AUTH_BYPASS = 'true';
+      process.env.NODE_ENV = 'production';
+
+      const response = await request(app).get('/api/auth/login');
+
+      expect(response.status).toBe(403);
+      expect(response.body.error).toBe('Auth bypass is not allowed in production');
+    });
+
     it('should handle errors', async () => {
       mockBuildAuthorizationUrl.mockImplementationOnce(() => {
         throw new Error('OIDC error');

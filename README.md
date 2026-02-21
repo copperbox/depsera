@@ -81,7 +81,8 @@ cp server/.env.example server/.env
 | `ADMIN_EMAIL` | — | Initial admin email (required on first startup with `LOCAL_AUTH=true`) |
 | `ADMIN_PASSWORD` | — | Initial admin password, min 8 chars (required on first startup with `LOCAL_AUTH=true`) |
 | `APP_BASE_URL` | — | Base URL for deep links in alert messages (e.g., `https://depsera.internal.com`) |
-| `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development |
+| `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development (requires `AUTH_BYPASS_CONFIRM`, blocked in production) |
+| `AUTH_BYPASS_CONFIRM` | — | Must be `yes-i-know-what-im-doing` when `AUTH_BYPASS=true` to prevent accidental activation |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |
 

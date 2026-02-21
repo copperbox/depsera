@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { getStores } from '../stores';
 import { User } from '../db/types';
 
+const BYPASS_CONFIRM_VALUE = 'yes-i-know-what-im-doing';
+
 const DEV_USER = {
   email: process.env.AUTH_BYPASS_USER_EMAIL || 'dev@localhost',
   name: process.env.AUTH_BYPASS_USER_NAME || 'Development User',
@@ -10,21 +12,32 @@ const DEV_USER = {
   is_active: 1,
 };
 
+export function isBypassEnabled(): boolean {
+  return process.env.AUTH_BYPASS === 'true';
+}
+
 export function initializeBypassMode(): void {
-  if (process.env.NODE_ENV === 'production' && process.env.AUTH_BYPASS === 'true') {
+  if (process.env.NODE_ENV === 'production' && isBypassEnabled()) {
     throw new Error('AUTH_BYPASS=true is not allowed in production');
   }
 
-  if (process.env.AUTH_BYPASS === 'true') {
+  if (isBypassEnabled()) {
+    if (process.env.AUTH_BYPASS_CONFIRM !== BYPASS_CONFIRM_VALUE) {
+      throw new Error(
+        `AUTH_BYPASS=true requires AUTH_BYPASS_CONFIRM="${BYPASS_CONFIRM_VALUE}" to prevent accidental activation`
+      );
+    }
+
     console.warn('\n========================================');
     console.warn('WARNING: Auth bypass mode is enabled');
+    console.warn('All requests will be auto-authenticated as an admin user.');
     console.warn('DO NOT USE IN PRODUCTION');
     console.warn('========================================\n');
   }
 }
 
 export function bypassAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (process.env.AUTH_BYPASS !== 'true') {
+  if (!isBypassEnabled()) {
     next();
     return;
   }
