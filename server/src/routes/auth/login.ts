@@ -9,12 +9,19 @@ import {
 
 export async function login(req: Request, res: Response): Promise<void> {
   try {
+    const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+
     // In bypass mode, just redirect to home (user is auto-authenticated)
     /* istanbul ignore if -- AUTH_BYPASS mode tested separately */
     if (process.env.AUTH_BYPASS === 'true') {
-      const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
       const returnTo = (req.query.returnTo as string) || '/';
       res.redirect(`${frontendOrigin}${returnTo}`);
+      return;
+    }
+
+    // In local auth mode, redirect to the login page (client handles the form)
+    if (process.env.LOCAL_AUTH === 'true') {
+      res.redirect(`${frontendOrigin}/login`);
       return;
     }
 

@@ -18,3 +18,11 @@ export {
   generateState,
   client,
 } from './config';
+export {
+  getAuthMode,
+  hashPassword,
+  verifyPassword,
+  validateLocalAuthConfig,
+  bootstrapLocalAdmin,
+} from './localAuth';
+export type { AuthMode } from './localAuth';

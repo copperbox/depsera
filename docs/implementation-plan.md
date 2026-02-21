@@ -345,21 +345,27 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** `LOCAL_AUTH=true` enables local auth. Migration adds `password_hash` column to `users`. Initial admin from `ADMIN_USERNAME`/`ADMIN_PASSWORD` env vars. `POST /api/auth/login` for credentials. `GET /api/auth/mode` returns auth mode.
 
 **Acceptance criteria:**
-- [ ] Migration adds nullable `password_hash TEXT` column to `users`
-- [ ] `LOCAL_AUTH=true` enables local auth; mutually exclusive with `AUTH_BYPASS`
-- [ ] On first startup with `LOCAL_AUTH=true`: creates admin from env vars
-- [ ] `POST /api/auth/login` accepts `{ username, password }`, returns session
-- [ ] `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
-- [ ] Passwords stored with bcrypt (minimum 12 rounds)
-- [ ] Tests for login, mode endpoint, mutual exclusion
+- [x] Migration adds nullable `password_hash TEXT` column to `users`
+- [x] `LOCAL_AUTH=true` enables local auth; mutually exclusive with `AUTH_BYPASS`
+- [x] On first startup with `LOCAL_AUTH=true`: creates admin from env vars
+- [x] `POST /api/auth/login` accepts `{ email, password }`, returns session
+- [x] `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
+- [x] Passwords stored with bcrypt (minimum 12 rounds)
+- [x] Tests for login, mode endpoint, mutual exclusion
 
-**Files likely touched:**
-- `server/src/db/migrations/009_add_password_hash.ts` (new)
+**Files touched:**
+- `server/src/db/migrations/010_add_password_hash.ts` (new)
 - `server/src/auth/localAuth.ts` (new)
-- `server/src/routes/auth.ts` — new endpoints
-- `server/src/stores/interfaces/IUserStore.ts` — password methods
-- `server/src/stores/impl/SQLiteUserStore.ts`
-- `server/package.json` — `bcrypt`
+- `server/src/routes/auth/localLogin.ts` (new)
+- `server/src/routes/auth/mode.ts` (new)
+- `server/src/routes/auth/index.ts` — new endpoints
+- `server/src/routes/auth/login.ts` — local mode redirect
+- `server/src/routes/auth/logout.ts` — local mode handling
+- `server/src/stores/interfaces/IUserStore.ts` — `updatePasswordHash` method
+- `server/src/stores/impl/UserStore.ts` — password_hash in create + updatePasswordHash
+- `server/src/db/types.ts` — password_hash on User type
+- `server/src/index.ts` — local auth validation and bootstrap
+- `server/package.json` — `bcryptjs`
 
 ---
 

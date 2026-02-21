@@ -17,8 +17,8 @@ export async function logout(req: Request, res: Response): Promise<void> {
     // Clear session cookie
     res.clearCookie('deps-dashboard.sid');
 
-    // In bypass mode, just return the login URL
-    if (process.env.AUTH_BYPASS === 'true') {
+    // In bypass or local auth mode, just return the login URL
+    if (process.env.AUTH_BYPASS === 'true' || process.env.LOCAL_AUTH === 'true') {
       res.json({ redirectUrl: '/login' });
       return;
     }

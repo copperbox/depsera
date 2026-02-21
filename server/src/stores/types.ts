@@ -159,6 +159,7 @@ export interface UserCreateInput {
   email: string;
   name: string;
   oidc_subject?: string | null;
+  password_hash?: string | null;
   role?: 'admin' | 'user';
 }
 

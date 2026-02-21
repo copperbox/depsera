@@ -75,20 +75,28 @@ export class UserStore implements IUserStore {
 
     this.db
       .prepare(`
-        INSERT INTO users (id, email, name, oidc_subject, role, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO users (id, email, name, oidc_subject, password_hash, role, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
       `)
       .run(
         id,
         input.email,
         input.name,
         input.oidc_subject ?? null,
+        input.password_hash ?? null,
         input.role ?? 'user',
         now,
         now
       );
 
     return this.findById(id)!;
+  }
+
+  updatePasswordHash(id: string, passwordHash: string): boolean {
+    const result = this.db
+      .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .run(passwordHash, new Date().toISOString(), id);
+    return result.changes > 0;
   }
 
   update(id: string, input: UserUpdateInput): User | undefined {

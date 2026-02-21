@@ -12,6 +12,7 @@ describe('AuditLogStore', () => {
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
+        password_hash TEXT,
         role TEXT NOT NULL DEFAULT 'user',
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),

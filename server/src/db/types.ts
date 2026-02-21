@@ -6,6 +6,7 @@ export interface User {
   email: string;
   name: string;
   oidc_subject: string | null;
+  password_hash: string | null;
   role: UserRole;
   is_active: number; // SQLite boolean
   created_at: string;
@@ -16,6 +17,7 @@ export interface CreateUserInput {
   email: string;
   name: string;
   oidc_subject?: string;
+  password_hash?: string;
   role?: UserRole;
 }
 

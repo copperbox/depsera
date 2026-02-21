@@ -66,6 +66,7 @@ describe('Services API - Team-scoped Authorization', () => {
         email TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         oidc_subject TEXT UNIQUE,
+        password_hash TEXT,
         role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -184,22 +185,22 @@ describe('Services API - Team-scoped Authorization', () => {
 
     adminUser = {
       id: adminId, email: 'admin@test.com', name: 'Admin',
-      oidc_subject: null, role: 'admin', is_active: 1,
+      oidc_subject: null, password_hash: null, role: 'admin', is_active: 1,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     teamALeadUser = {
       id: leadId, email: 'lead@test.com', name: 'Team A Lead',
-      oidc_subject: null, role: 'user', is_active: 1,
+      oidc_subject: null, password_hash: null, role: 'user', is_active: 1,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     teamAMemberUser = {
       id: memberId, email: 'member@test.com', name: 'Team A Member',
-      oidc_subject: null, role: 'user', is_active: 1,
+      oidc_subject: null, password_hash: null, role: 'user', is_active: 1,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
     nonMemberUser = {
       id: nonMemberId, email: 'outsider@test.com', name: 'No Teams',
-      oidc_subject: null, role: 'user', is_active: 1,
+      oidc_subject: null, password_hash: null, role: 'user', is_active: 1,
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
 

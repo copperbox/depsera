@@ -60,7 +60,7 @@ npm run db:clear      # Clear all data (dangerous!)
 ## Database Schema
 
 Core tables:
-- `users` - User accounts (OIDC authenticated)
+- `users` - User accounts (OIDC or local auth, has `password_hash` for local mode)
 - `teams` - Organizational units that own services
 - `team_members` - Junction table for user-team membership
 - `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling)
@@ -72,7 +72,7 @@ Core tables:
 - `audit_log` - Admin action audit trail (user/team/service mutations) with user FK, IP address, and JSON details
 - `settings` - Key-value store for runtime-configurable admin settings (key TEXT PK, value TEXT, updated_at, updated_by FK → users)
 
-Migrations are in `/server/src/db/migrations/` (001-009). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-010). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 
@@ -125,6 +125,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Trust Proxy:** Configurable `TRUST_PROXY` env var parsed into Express's `trust proxy` setting (boolean, hop count, IP/subnet, or "loopback"). Enables correct `req.secure`, `req.ip` behind reverse proxies. See `/server/src/middleware/trustProxy.ts`.
 - **SSRF Protection:** Health endpoint URLs are validated against private/reserved IP ranges (RFC 1918, link-local, loopback, etc.) at service creation/update time. At poll time, DNS is resolved and the resolved IP is checked to prevent DNS rebinding attacks. A configurable `SSRF_ALLOWLIST` env var supports exact hostnames (`localhost`), wildcard patterns (`*.internal`), and CIDR ranges (`10.0.0.0/8`) to allow internal network monitoring while keeping the full block list as a safety default. See `/server/src/utils/ssrf.ts` and `/server/src/utils/ssrf-allowlist.ts`.
 - **CSRF Protection:** Double-submit cookie pattern. Server sets a `csrf-token` cookie (readable by JS); client reads it and sends `X-CSRF-Token` header on all mutating requests. CSRF cookie `Secure` flag is set dynamically based on `req.secure`. Middleware in `/server/src/middleware/csrf.ts` validates the match. Client utility in `/client/src/api/csrf.ts`.
+- **Local Auth:** Optional `LOCAL_AUTH=true` mode for zero-external-dependency deployment. Passwords hashed with bcryptjs (12 rounds). Initial admin bootstrapped from `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars on first startup. Mutually exclusive with `AUTH_BYPASS`. `GET /api/auth/mode` returns current mode. `POST /api/auth/login` for credential-based login (local mode only). See `/server/src/auth/localAuth.ts`.
 - **Session Security:** Session cookie uses `secure: 'auto'` to derive the `Secure` flag from `req.secure` (works with `trust proxy`). In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. See `/server/src/auth/session.ts` and `/server/src/auth/validateSessionSecret.ts`.
 - **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed. See `/client/src/utils/redirect.ts`.
 - **Rate Limiting:** In-memory rate limiting via `express-rate-limit`. Global limit (100 req/15min per IP) applied before session middleware to reject abusive requests early. Stricter auth limit (10 req/1min per IP) on `/api/auth` to prevent brute-force attacks. All limits configurable via env vars. See `/server/src/middleware/rateLimit.ts`.
@@ -144,7 +145,7 @@ Key files in `/server/src/services/polling/`:
 
 ## API Routes
 
-- `/api/auth` - OIDC authentication
+- `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.
 - `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership)
 - `/api/teams` - CRUD + member management
 - `/api/users` - Admin user management

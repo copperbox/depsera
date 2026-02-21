@@ -26,6 +26,7 @@ describe('Users API', () => {
       CREATE TABLE users (
         id TEXT PRIMARY KEY,
         oidc_subject TEXT UNIQUE NOT NULL,
+        password_hash TEXT,
         email TEXT UNIQUE NOT NULL,
         name TEXT,
         picture TEXT,

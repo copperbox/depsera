@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, closeDatabase } from './db';
-import { sessionMiddleware, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth } from './auth';
+import { sessionMiddleware, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
@@ -16,6 +16,7 @@ import aliasesRouter from './routes/aliases';
 import adminRouter from './routes/admin';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { SettingsService } from './services/settings/SettingsService';
+import { DataRetentionService } from './services/retention/DataRetentionService';
 import { getStores } from './stores';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
@@ -28,8 +29,9 @@ import logger from './utils/logger';
 
 dotenv.config();
 
-// Validate bypass mode configuration early
+// Validate auth mode configuration early
 initializeBypassMode();
+validateLocalAuthConfig();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -82,14 +84,22 @@ if (clientBuildExists()) {
 async function start() {
   initializeDatabase();
 
-  // Initialize OIDC client unless in bypass mode
-  if (process.env.AUTH_BYPASS !== 'true') {
+  const authMode = getAuthMode();
+  logger.info({ authMode }, 'auth mode');
+
+  // Initialize OIDC client only in OIDC mode
+  if (authMode === 'oidc') {
     try {
       await initializeOIDC();
     } catch (error) {
-      logger.fatal({ err: error }, 'failed to initialize OIDC — set AUTH_BYPASS=true for local development without OIDC');
+      logger.fatal({ err: error }, 'failed to initialize OIDC — set AUTH_BYPASS=true or LOCAL_AUTH=true for development without OIDC');
       process.exit(1);
     }
+  }
+
+  // Bootstrap local admin if needed
+  if (authMode === 'local') {
+    bootstrapLocalAdmin();
   }
 
   // Initialize settings service (auto-loads DB values into cache on first access)
@@ -117,6 +127,10 @@ async function start() {
     logger.info({ allowlist: process.env.SSRF_ALLOWLIST }, 'SSRF allowlist configured');
   }
 
+  // Start data retention scheduler
+  const retentionService = DataRetentionService.getInstance();
+  retentionService.start();
+
   // Start polling all active services
   pollingService.startAll();
 
@@ -127,6 +141,9 @@ async function start() {
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('shutting down');
+
+    // Stop data retention scheduler
+    retentionService.stop();
 
     // Remove event listeners to allow garbage collection
     pollingService.removeAllListeners();

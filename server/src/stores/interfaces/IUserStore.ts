@@ -15,6 +15,7 @@ export interface IUserStore {
   // Write operations
   create(input: UserCreateInput): User;
   update(id: string, input: UserUpdateInput): User | undefined;
+  updatePasswordHash(id: string, passwordHash: string): boolean;
   delete(id: string): boolean;
 
   // Utility

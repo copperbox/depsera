@@ -107,6 +107,7 @@ erDiagram
 | email | TEXT | NOT NULL, UNIQUE | |
 | name | TEXT | NOT NULL | |
 | oidc_subject | TEXT | UNIQUE | NULL |
+| password_hash | TEXT | | NULL |
 | role | TEXT | NOT NULL, CHECK (`admin`, `user`) | `'user'` |
 | is_active | INTEGER | NOT NULL | 1 |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
@@ -319,9 +320,9 @@ Custom health endpoint schema configuration per service. Either a separate table
 | sent_at | TEXT | NOT NULL | |
 | status | TEXT | CHECK (`sent`, `failed`, `suppressed`) | |
 
-#### users.password_hash **[Planned]**
+#### users.password_hash **[Implemented]**
 
-Nullable `TEXT` column added to `users` table for local auth mode.
+Nullable `TEXT` column added to `users` table for local auth mode. Stores bcryptjs hashes (12 rounds). Only populated when `LOCAL_AUTH=true`.
 
 ### Migration History
 
@@ -336,6 +337,7 @@ Nullable `TEXT` column added to `users` table for local auth mode.
 | 007 | poll_interval_ms | Rebuilds services table: polling_interval (seconds) → poll_interval_ms (milliseconds) |
 | 008 | add_audit_log | Creates audit_log table with indexes |
 | 009 | add_settings | Creates settings key-value table |
+| 010 | add_password_hash | Adds nullable `password_hash TEXT` column to users |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
 
@@ -495,16 +497,16 @@ Safe methods (GET, HEAD, OPTIONS) are exempt from validation.
 }
 ```
 
-### 3.7 Local Auth **[Planned]**
+### 3.7 Local Auth **[Implemented]**
 
 A local authentication mode for zero-external-dependency deployment:
 
 - Enabled via `LOCAL_AUTH=true` env var (mutually exclusive with `AUTH_BYPASS`)
-- Passwords stored with bcrypt (minimum 12 rounds)
-- Initial admin created from `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars on first startup
-- `POST /api/auth/login` for credentials-based login
-- `GET /api/auth/mode` returns current auth mode so the client can render the appropriate login form
-- Admin can create users and reset passwords via API
+- Passwords stored with bcryptjs (12 rounds)
+- Initial admin created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars on first startup (when no users exist)
+- `POST /api/auth/login` accepts `{ email, password }`, sets session, returns user info
+- `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }` (public, no auth required)
+- Admin can create users and reset passwords via API **[Planned — PRO-101]**
 
 ---
 
