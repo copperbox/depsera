@@ -1327,7 +1327,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 
 ### 12.1 Security Hardening (Phase 1)
 
-- **SQL injection prevention:** Whitelist allowed `ORDER BY` columns per store query to eliminate string-interpolation vectors.
+- **SQL injection prevention:** ~~Whitelist allowed `ORDER BY` columns per store query to eliminate string-interpolation vectors.~~ **[Implemented]** (PRO-67).
 - **IDOR fixes:** ~~Association routes need team ownership verification (not just `requireAuth`).~~ **[Implemented]** (PRO-91). Alias mutations need `requireAdmin`. **[Implemented]** (PRO-92).
 - **Error sanitization:** Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.
 - **Auth bypass hardening:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).

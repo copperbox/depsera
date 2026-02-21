@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { DependencyStore } from './DependencyStore';
+import { InvalidOrderByError } from '../orderByValidator';
 
 describe('DependencyStore', () => {
   let db: Database.Database;
@@ -274,6 +275,27 @@ describe('DependencyStore', () => {
     it('should respect orderBy and orderDirection', () => {
       const deps = store.findAll({ orderBy: 'name', orderDirection: 'DESC' });
       expect(deps[0].name).toBe('DepB');
+    });
+
+    it('should accept other valid orderBy columns', () => {
+      const deps = store.findAll({ orderBy: 'latency_ms', orderDirection: 'ASC' });
+      expect(deps).toHaveLength(2);
+      expect(deps[0].name).toBe('DepA'); // 50ms < 100ms
+    });
+
+    it('should throw InvalidOrderByError for non-whitelisted column', () => {
+      expect(() => store.findAll({ orderBy: 'invalid_column' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for SQL injection via orderBy', () => {
+      expect(() => store.findAll({ orderBy: 'name; DROP TABLE dependencies; --' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for invalid orderDirection', () => {
+      expect(() => store.findAll({ orderBy: 'name', orderDirection: 'INVALID' as 'ASC' }))
+        .toThrow(InvalidOrderByError);
     });
   });
 

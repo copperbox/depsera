@@ -86,6 +86,8 @@ All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). St
 
 Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
 
+**ORDER BY validation:** All stores that accept `orderBy`/`orderDirection` parameters use `validateOrderBy()` from `/server/src/stores/orderByValidator.ts` to whitelist allowed columns and prevent SQL injection. Each store defines its own `ALLOWED_COLUMNS` set. Invalid columns throw `InvalidOrderByError`.
+
 ## Polling Architecture
 
 The health polling system uses cache-TTL-driven per-service scheduling with resilience patterns:

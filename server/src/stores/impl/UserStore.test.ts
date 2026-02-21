@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { UserStore } from './UserStore';
+import { InvalidOrderByError } from '../orderByValidator';
 
 describe('UserStore', () => {
   let db: Database.Database;
@@ -137,6 +138,32 @@ describe('UserStore', () => {
       const users = store.findAll({ orderBy: 'name', orderDirection: 'ASC' });
 
       expect(users[0].name).toBe('Alice');
+    });
+
+    it('should accept other valid orderBy columns', () => {
+      store.create({ email: 'a@example.com', name: 'Alice' });
+      const users = store.findAll({ orderBy: 'email', orderDirection: 'DESC' });
+      expect(users).toHaveLength(1);
+    });
+
+    it('should throw InvalidOrderByError for non-whitelisted column', () => {
+      expect(() => store.findAll({ orderBy: 'password_hash' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for SQL injection via orderBy', () => {
+      expect(() => store.findAll({ orderBy: 'name; DROP TABLE users; --' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for invalid orderDirection', () => {
+      expect(() => store.findAll({ orderBy: 'name', orderDirection: 'INVALID' as 'ASC' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError in findActive for non-whitelisted column', () => {
+      expect(() => store.findActive({ orderBy: 'oidc_subject' }))
+        .toThrow(InvalidOrderByError);
     });
   });
 

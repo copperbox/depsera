@@ -12,6 +12,13 @@ import {
   DependencyUpsertInput,
   DependentReport,
 } from '../types';
+import { validateOrderBy } from '../orderByValidator';
+
+/** Allowed ORDER BY columns for dependencies table queries */
+const ALLOWED_COLUMNS = new Set([
+  'name', 'service_id', 'type', 'healthy', 'health_state',
+  'latency_ms', 'last_checked', 'created_at', 'updated_at',
+]);
 
 /**
  * Store implementation for Dependency entity operations
@@ -58,8 +65,9 @@ export class DependencyStore implements IDependencyStore {
 
   findAll(options?: DependencyListOptions): Dependency[] {
     const { where, params } = this.buildWhereClause(options);
-    const orderBy = options?.orderBy || 'name';
-    const orderDir = options?.orderDirection || 'ASC';
+    const { column: orderBy, direction: orderDir } = validateOrderBy(
+      ALLOWED_COLUMNS, options?.orderBy, options?.orderDirection, 'name',
+    );
 
     let query = `SELECT * FROM dependencies ${where} ORDER BY ${orderBy} ${orderDir}`;
 

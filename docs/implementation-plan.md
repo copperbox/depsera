@@ -30,10 +30,10 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Add a whitelist of allowed column names per store. Reject anything not on the list in `orderBy`/`orderDirection` parameters. Covers: ServiceStore, UserStore, DependencyStore, TeamStore, AssociationStore, LatencyHistoryStore, ErrorHistoryStore.
 
 **Acceptance criteria:**
-- [ ] Each store defines an explicit set of allowed ORDER BY columns
-- [ ] Passing a non-whitelisted column throws/returns 400
-- [ ] Existing sort functionality continues to work
-- [ ] Tests cover valid and invalid column names
+- [x] Each store defines an explicit set of allowed ORDER BY columns
+- [x] Passing a non-whitelisted column throws/returns 400
+- [x] Existing sort functionality continues to work
+- [x] Tests cover valid and invalid column names
 
 **Files likely touched:**
 - `server/src/stores/impl/*.ts` — all store implementations

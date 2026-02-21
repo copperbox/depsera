@@ -8,6 +8,19 @@ import {
   ServiceCreateInput,
   ServiceUpdateInput,
 } from '../types';
+import { validateOrderBy } from '../orderByValidator';
+
+/** Allowed ORDER BY columns for services table queries */
+const ALLOWED_COLUMNS = new Set([
+  'name', 'team_id', 'health_endpoint', 'poll_interval_ms',
+  'is_active', 'last_poll_success', 'created_at', 'updated_at',
+]);
+
+/** Allowed ORDER BY columns for services table queries with table alias */
+const ALLOWED_COLUMNS_ALIASED = new Set([
+  's.name', 's.team_id', 's.health_endpoint', 's.poll_interval_ms',
+  's.is_active', 's.last_poll_success', 's.created_at', 's.updated_at',
+]);
 
 /**
  * Store implementation for Service entity operations
@@ -39,8 +52,9 @@ export class ServiceStore implements IServiceStore {
 
   findAll(options?: ServiceListOptions): Service[] {
     const { where, params } = this.buildWhereClause(options);
-    const orderBy = options?.orderBy || 'name';
-    const orderDir = options?.orderDirection || 'ASC';
+    const { column: orderBy, direction: orderDir } = validateOrderBy(
+      ALLOWED_COLUMNS, options?.orderBy, options?.orderDirection, 'name',
+    );
 
     let query = `SELECT * FROM services ${where} ORDER BY ${orderBy} ${orderDir}`;
 
@@ -56,8 +70,9 @@ export class ServiceStore implements IServiceStore {
 
   findAllWithTeam(options?: ServiceListOptions): ServiceWithTeam[] {
     const { where, params } = this.buildWhereClause(options, 's');
-    const orderBy = options?.orderBy || 's.name';
-    const orderDir = options?.orderDirection || 'ASC';
+    const { column: orderBy, direction: orderDir } = validateOrderBy(
+      ALLOWED_COLUMNS_ALIASED, options?.orderBy, options?.orderDirection, 's.name',
+    );
 
     let query = `
       SELECT

@@ -3,6 +3,12 @@ import { Database } from 'better-sqlite3';
 import { User } from '../../db/types';
 import { IUserStore } from '../interfaces/IUserStore';
 import { UserCreateInput, UserUpdateInput, ListOptions } from '../types';
+import { validateOrderBy } from '../orderByValidator';
+
+/** Allowed ORDER BY columns for users table queries */
+const ALLOWED_COLUMNS = new Set([
+  'name', 'email', 'role', 'is_active', 'created_at', 'updated_at',
+]);
 
 /**
  * Store implementation for User entity operations
@@ -29,8 +35,9 @@ export class UserStore implements IUserStore {
   }
 
   findAll(options?: ListOptions): User[] {
-    const orderBy = options?.orderBy || 'name';
-    const orderDir = options?.orderDirection || 'ASC';
+    const { column: orderBy, direction: orderDir } = validateOrderBy(
+      ALLOWED_COLUMNS, options?.orderBy, options?.orderDirection, 'name',
+    );
 
     let query = `SELECT * FROM users ORDER BY ${orderBy} ${orderDir}`;
 
@@ -45,8 +52,9 @@ export class UserStore implements IUserStore {
   }
 
   findActive(options?: ListOptions): User[] {
-    const orderBy = options?.orderBy || 'name';
-    const orderDir = options?.orderDirection || 'ASC';
+    const { column: orderBy, direction: orderDir } = validateOrderBy(
+      ALLOWED_COLUMNS, options?.orderBy, options?.orderDirection, 'name',
+    );
 
     let query = `SELECT * FROM users WHERE is_active = 1 ORDER BY ${orderBy} ${orderDir}`;
 

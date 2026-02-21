@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { ServiceStore } from './ServiceStore';
+import { InvalidOrderByError } from '../orderByValidator';
 
 describe('ServiceStore', () => {
   let db: Database.Database;
@@ -190,6 +191,36 @@ describe('ServiceStore', () => {
 
       const servicesDesc = store.findAll({ orderBy: 'name', orderDirection: 'DESC' });
       expect(servicesDesc[0].name).toBe('Service C');
+    });
+
+    it('should accept other valid orderBy columns', () => {
+      const services = store.findAll({ orderBy: 'created_at', orderDirection: 'DESC' });
+      expect(services).toHaveLength(3);
+    });
+
+    it('should throw InvalidOrderByError for non-whitelisted column in findAll', () => {
+      expect(() => store.findAll({ orderBy: 'invalid_column' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for SQL injection via orderBy in findAll', () => {
+      expect(() => store.findAll({ orderBy: 'name; DROP TABLE services; --' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for invalid orderDirection in findAll', () => {
+      expect(() => store.findAll({ orderBy: 'name', orderDirection: 'INVALID' as 'ASC' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should throw InvalidOrderByError for non-whitelisted column in findAllWithTeam', () => {
+      expect(() => store.findAllWithTeam({ orderBy: 'invalid_column' }))
+        .toThrow(InvalidOrderByError);
+    });
+
+    it('should accept aliased column in findAllWithTeam', () => {
+      const services = store.findAllWithTeam({ orderBy: 's.created_at', orderDirection: 'DESC' });
+      expect(services).toHaveLength(3);
     });
 
     it('should return services with team info', () => {
