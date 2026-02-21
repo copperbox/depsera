@@ -1,4 +1,16 @@
 import { DependencyParser } from './DependencyParser';
+import { SchemaMapping } from '../../db/types';
+
+// Suppress logger output during tests (used by SchemaMapper)
+jest.mock('../../utils/logger', () => ({
+  default: {
+    warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+  __esModule: true,
+}));
 
 describe('DependencyParser', () => {
   const parser = new DependencyParser();
@@ -134,6 +146,74 @@ describe('DependencyParser', () => {
     it('should handle empty array', () => {
       const result = parser.parse([]);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('parse with SchemaMapping', () => {
+    const schema: SchemaMapping = {
+      root: 'data.healthChecks',
+      fields: {
+        name: 'checkName',
+        healthy: { field: 'status', equals: 'ok' },
+        latency: 'responseTimeMs',
+        impact: 'severity',
+        description: 'displayName',
+      },
+    };
+
+    it('should delegate to SchemaMapper when schema is provided', () => {
+      const data = {
+        data: {
+          healthChecks: [
+            {
+              checkName: 'postgres',
+              status: 'ok',
+              responseTimeMs: 12,
+              severity: 'critical',
+              displayName: 'Primary DB',
+            },
+          ],
+        },
+      };
+
+      const result = parser.parse(data, schema);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('postgres');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.latency).toBe(12);
+      expect(result[0].impact).toBe('critical');
+      expect(result[0].description).toBe('Primary DB');
+    });
+
+    it('should use proactive-deps parser when schema is null', () => {
+      const result = parser.parse([{ name: 'test', healthy: true }], null);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('test');
+    });
+
+    it('should use proactive-deps parser when schema is undefined', () => {
+      const result = parser.parse([{ name: 'test', healthy: true }], undefined);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('test');
+    });
+
+    it('should accept non-array data when schema is provided', () => {
+      const data = {
+        data: {
+          healthChecks: [
+            { checkName: 'dep1', status: 'ok' },
+          ],
+        },
+      };
+
+      // With schema, non-array top-level data is fine (root path resolves to array)
+      const result = parser.parse(data, schema);
+      expect(result).toHaveLength(1);
+    });
+
+    it('should throw for non-array data without schema', () => {
+      expect(() => parser.parse({ not: 'array' })).toThrow('expected array');
     });
   });
 });

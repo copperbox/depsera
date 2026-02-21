@@ -1,4 +1,4 @@
-import { Service, ProactiveDepsStatus } from '../../db/types';
+import { Service, ProactiveDepsStatus, SchemaMapping } from '../../db/types';
 import { ExponentialBackoff } from './backoff';
 import { PollResult } from './types';
 import { DependencyParser, getDependencyParser } from './DependencyParser';
@@ -71,6 +71,21 @@ export class ServicePoller {
     this.service = service;
   }
 
+  /**
+   * Parse the service's schema_config JSON string into a SchemaMapping object.
+   * Returns null if no schema config is set or if parsing fails.
+   */
+  private getSchemaConfig(): SchemaMapping | null {
+    if (!this.service.schema_config) {
+      return null;
+    }
+    try {
+      return JSON.parse(this.service.schema_config) as SchemaMapping;
+    } catch {
+      return null;
+    }
+  }
+
   private async fetchHealthEndpoint(): Promise<ProactiveDepsStatus[]> {
     // Validate URL against private/internal IPs (DNS rebinding protection)
     await validateUrlNotPrivate(this.service.health_endpoint);
@@ -93,7 +108,8 @@ export class ServicePoller {
       }
 
       const data = await response.json();
-      return this.parser.parse(data);
+      const schemaConfig = this.getSchemaConfig();
+      return this.parser.parse(data, schemaConfig);
     } finally {
       clearTimeout(timeout);
     }

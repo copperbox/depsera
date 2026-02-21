@@ -1557,6 +1557,7 @@ Support for services that don't use the proactive-deps format:
 - `fields.latency`, `fields.impact`, `fields.description`: Optional field mappings
 - Nested paths supported: `"metrics.responseTime"`
 - Services without a mapping default to proactive-deps
+- **Schema-aware parser:** **[Implemented]** (PRO-79). `DependencyParser.parse()` accepts an optional `SchemaMapping` parameter. When provided, delegates to `SchemaMapper` which resolves the `root` path, maps fields via dot-notation path resolution, and handles `BooleanComparison` for the `healthy` field (case-insensitive string comparison). String healthy values are coerced: `ok`, `healthy`, `up`, `true` → healthy; `error`, `unhealthy`, `down`, `critical`, `false` → unhealthy. Malformed items (missing name, unresolvable healthy) are skipped with logged warnings. `ServicePoller` parses the service's `schema_config` JSON and passes it to the parser. See `/server/src/services/polling/SchemaMapper.ts` and `/server/src/services/polling/DependencyParser.ts`.
 - Test endpoint: **[Planned]** `POST /api/services/test-schema` — fetches URL, applies mapping, returns preview
 - UI: **[Planned]** Toggle between "proactive-deps" and "Custom schema" on service form, with test button
 

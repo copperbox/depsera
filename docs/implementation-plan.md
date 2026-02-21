@@ -493,17 +493,19 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Refactor `DependencyParser` to accept optional schema mapping. When present, extract fields using the mapping. Otherwise, use existing proactive-deps parser.
 
 **Acceptance criteria:**
-- [ ] Parser accepts optional `SchemaMapping` parameter
-- [ ] With mapping: extracts fields per mapping config (root path, field mappings, boolean comparisons)
-- [ ] Without mapping: existing behavior unchanged (backwards compatible)
-- [ ] Validates parsed data has required fields (name, healthy minimum)
-- [ ] Malformed responses handled gracefully (log warning, skip dependency)
-- [ ] Tests for: proactive-deps, custom schema, missing fields, nested paths, boolean comparisons
+- [x] Parser accepts optional `SchemaMapping` parameter
+- [x] With mapping: extracts fields per mapping config (root path, field mappings, boolean comparisons)
+- [x] Without mapping: existing behavior unchanged (backwards compatible)
+- [x] Validates parsed data has required fields (name, healthy minimum)
+- [x] Malformed responses handled gracefully (log warning, skip dependency)
+- [x] Tests for: proactive-deps, custom schema, missing fields, nested paths, boolean comparisons
 
-**Files likely touched:**
-- `server/src/services/polling/DependencyParser.ts` (or new `SchemaMapper.ts`)
-- `server/src/services/polling/ServicePoller.ts` — pass schema config
-- Tests
+**Files touched:**
+- `server/src/services/polling/SchemaMapper.ts` (new) — schema-aware parsing with dot-notation path resolution and BooleanComparison support
+- `server/src/services/polling/SchemaMapper.test.ts` (new) — 31 tests
+- `server/src/services/polling/DependencyParser.ts` — accepts optional `SchemaMapping`, delegates to `SchemaMapper`
+- `server/src/services/polling/DependencyParser.test.ts` — 5 new tests for schema delegation
+- `server/src/services/polling/ServicePoller.ts` — parses `schema_config` JSON and passes to parser
 
 ---
 

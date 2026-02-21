@@ -145,6 +145,8 @@ Key files in `/server/src/services/polling/`:
 - `ServicePoller.ts` — Executes individual service polls
 - `HostRateLimiter.ts` — Per-hostname concurrency semaphore for poll DDoS protection
 - `PollDeduplicator.ts` — Promise coalescing for concurrent polls to the same URL
+- `SchemaMapper.ts` — Maps custom health endpoint responses using `SchemaMapping` config (dot-notation path resolution, `BooleanComparison` healthy field)
+- `DependencyParser.ts` — Parses health responses; delegates to `SchemaMapper` when a `SchemaMapping` is provided, otherwise uses default proactive-deps format
 
 ## Alert Dispatch Engine
 

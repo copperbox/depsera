@@ -1,17 +1,25 @@
-import { ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES } from '../../db/types';
+import { ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES, SchemaMapping } from '../../db/types';
+import { SchemaMapper } from './SchemaMapper';
 
 /**
  * Parses health endpoint responses into ProactiveDepsStatus objects.
  * Handles both nested and flat response formats.
+ * When a SchemaMapping is provided, delegates to SchemaMapper for custom schemas.
  */
 export class DependencyParser {
   /**
    * Parse a health endpoint response into an array of dependency statuses.
-   * @param data - The raw response data (expected to be an array)
+   * @param data - The raw response data (expected to be an array, or object for custom schema)
+   * @param schemaConfig - Optional schema mapping for custom health endpoint formats
    * @returns Array of parsed ProactiveDepsStatus objects
    * @throws Error if the data format is invalid
    */
-  parse(data: unknown): ProactiveDepsStatus[] {
+  parse(data: unknown, schemaConfig?: SchemaMapping | null): ProactiveDepsStatus[] {
+    if (schemaConfig) {
+      const mapper = new SchemaMapper(schemaConfig);
+      return mapper.parse(data);
+    }
+
     if (!Array.isArray(data)) {
       throw new Error('Invalid response: expected array');
     }
