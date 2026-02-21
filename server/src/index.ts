@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, closeDatabase } from './db';
-import { sessionMiddleware, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
+import { sessionMiddleware, warnInsecureCookies, initializeBypassMode, bypassAuthMiddleware, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
@@ -123,6 +123,9 @@ async function start() {
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
     logger.error({ service: event.serviceName, error: event.error }, 'poll failed');
   });
+
+  // Warn about insecure session cookie settings
+  warnInsecureCookies();
 
   // Warn about HTTPS redirect without proxy trust
   if (process.env.REQUIRE_HTTPS === 'true' && !process.env.TRUST_PROXY) {

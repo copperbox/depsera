@@ -1,4 +1,4 @@
-export { sessionMiddleware } from './session';
+export { sessionMiddleware, warnInsecureCookies } from './session';
 export { validateSessionSecret } from './validateSessionSecret';
 export {
   requireAuth,

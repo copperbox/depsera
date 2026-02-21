@@ -126,13 +126,16 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Evaluate `sameSite: 'strict'` against OIDC callback flow (OIDC callback is a cross-origin redirect, so `strict` may break it — document finding). Add startup warning if `secure` is false outside dev. Explicit cookie path scoping.
 
 **Acceptance criteria:**
-- [ ] `sameSite` setting documented with rationale (strict vs lax for OIDC)
-- [ ] Startup warning logged if `secure` is false and `NODE_ENV !== 'development'`
-- [ ] Cookie path explicitly set to `/`
-- [ ] Tests cover session configuration
+- [x] `sameSite` setting documented with rationale (strict vs lax for OIDC)
+- [x] Startup warning logged if `secure` is false and `NODE_ENV !== 'development'`
+- [x] Cookie path explicitly set to `/`
+- [x] Tests cover session configuration
 
-**Files likely touched:**
-- `server/src/auth/session.ts`
+**Files touched:**
+- `server/src/auth/session.ts` — added `path: '/'`, `sameSite: 'lax'` rationale comment, `warnInsecureCookies()` function
+- `server/src/auth/index.ts` — exported `warnInsecureCookies`
+- `server/src/index.ts` — calls `warnInsecureCookies()` at startup
+- `server/src/auth/warnInsecureCookies.test.ts` (new) — 7 tests for startup warning logic
 
 ---
 

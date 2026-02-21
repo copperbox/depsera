@@ -437,12 +437,15 @@ Login endpoint redirects directly to the frontend origin. The bypass middleware 
 | Cookie name | `deps-dashboard.sid` |
 | Secure | `'auto'` (derives from `req.secure` with trust proxy) |
 | HttpOnly | `true` |
-| SameSite | `'lax'` |
+| SameSite | `'lax'` (required for OIDC — `'strict'` blocks callback redirect) |
+| Path | `/` |
 | MaxAge | 24 hours (86,400,000 ms) |
 | Store | SQLite via `better-sqlite3-session-store` |
 | Expired session cleanup | Every 15 minutes |
 | resave | `false` |
 | saveUninitialized | `false` |
+
+**Startup warning:** `warnInsecureCookies()` logs a warning if `NODE_ENV` is not `development` and neither `REQUIRE_HTTPS` nor `TRUST_PROXY` is configured, since the `'auto'` secure flag will resolve to `false`, sending cookies over HTTP.
 
 ### 3.4 Session Secret Validation **[Implemented]**
 
@@ -1492,7 +1495,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - **IDOR fixes:** ~~Association routes need team ownership verification (not just `requireAuth`).~~ **[Implemented]** (PRO-91). Alias mutations need `requireAdmin`. **[Implemented]** (PRO-92).
 - **Error sanitization:** ~~Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.~~ **[Implemented]** (PRO-68). All route handlers use `sendErrorResponse()`. Non-operational errors return generic `{ error: "Internal server error" }`. Poll errors sanitized via `sanitizePollError()` before DB storage.
 - **Auth bypass hardening:** ~~Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).~~ **[Implemented]** (PRO-69). `.env.example` defaults to `AUTH_BYPASS=false`. `.env` is git-ignored (not committed). Secondary safety check requires `AUTH_BYPASS_CONFIRM=yes-i-know-what-im-doing` to prevent accidental activation. Startup throws on production + bypass. Login route also returns 403 for bypass in production (defense-in-depth). See `/server/src/auth/bypass.ts`.
-- **Session cookie improvements:** Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.
+- **Session cookie improvements:** ~~Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.~~ **[Implemented]** (PRO-70). `sameSite` remains `'lax'` — `'strict'` breaks the OIDC callback flow because the browser won't send the session cookie on the cross-origin redirect from the identity provider, causing PKCE code verifier and state to be unavailable. This is documented in a code comment. CSRF protection (double-submit cookie) mitigates the reduced protection. Cookie path explicitly set to `/`. `warnInsecureCookies()` runs at startup and logs a warning if `secure` will be false outside development (when neither `REQUIRE_HTTPS` nor `TRUST_PROXY` is configured). See `/server/src/auth/session.ts`.
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.
 - **Client-side hardening:** `URLSearchParams` for query encoding, validate localStorage JSON parsing, `eslint-plugin-security`.
 - **HTTP request logging:** ~~Structured logging via `pino` + `pino-http` (method, path, status, response time, user ID). JSON in production, readable in dev. Configurable via `LOG_LEVEL`.~~ **[Implemented]** (PRO-93). All HTTP requests logged via `pino-http` middleware with method, path, status, response time, user ID. Sensitive headers (Authorization, Cookie, X-CSRF-Token) redacted. Health check endpoint optionally excluded from logs. See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
