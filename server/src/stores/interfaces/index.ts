@@ -8,3 +8,6 @@ export type { IErrorHistoryStore } from './IErrorHistoryStore';
 export type { IDependencyAliasStore } from './IDependencyAliasStore';
 export type { IAuditLogStore, AuditLogListOptions } from './IAuditLogStore';
 export type { ISettingsStore } from './ISettingsStore';
+export type { IAlertChannelStore } from './IAlertChannelStore';
+export type { IAlertRuleStore } from './IAlertRuleStore';
+export type { IAlertHistoryStore, AlertHistoryListOptions } from './IAlertHistoryStore';

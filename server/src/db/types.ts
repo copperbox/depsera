@@ -323,6 +323,63 @@ export interface AuditLogEntryWithUser extends AuditLogEntry {
   user_name: string;
 }
 
+// Alert types
+export type AlertChannelType = 'slack' | 'webhook';
+export type AlertSeverityFilter = 'critical' | 'warning' | 'all';
+export type AlertStatus = 'sent' | 'failed' | 'suppressed';
+
+export interface AlertChannel {
+  id: string;
+  team_id: string;
+  channel_type: AlertChannelType;
+  config: string; // JSON string
+  is_active: number; // SQLite boolean
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAlertChannelInput {
+  team_id: string;
+  channel_type: AlertChannelType;
+  config: string; // JSON string
+}
+
+export interface UpdateAlertChannelInput {
+  channel_type?: AlertChannelType;
+  config?: string;
+  is_active?: boolean;
+}
+
+export interface AlertRule {
+  id: string;
+  team_id: string;
+  severity_filter: AlertSeverityFilter;
+  is_active: number; // SQLite boolean
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAlertRuleInput {
+  team_id: string;
+  severity_filter: AlertSeverityFilter;
+}
+
+export interface UpdateAlertRuleInput {
+  severity_filter?: AlertSeverityFilter;
+  is_active?: boolean;
+}
+
+export interface AlertHistoryEntry {
+  id: string;
+  alert_channel_id: string;
+  service_id: string;
+  dependency_id: string | null;
+  event_type: string;
+  payload: string | null; // JSON string
+  sent_at: string;
+  status: AlertStatus;
+}
+
 // Settings types
 export interface Setting {
   key: string;

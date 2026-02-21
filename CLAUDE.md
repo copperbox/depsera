@@ -71,8 +71,11 @@ Core tables:
 - `dependency_error_history` - Historical error records per dependency
 - `audit_log` - Admin action audit trail (user/team/service mutations) with user FK, IP address, and JSON details
 - `settings` - Key-value store for runtime-configurable admin settings (key TEXT PK, value TEXT, updated_at, updated_by FK → users)
+- `alert_channels` - Team-level alert channel configurations (Slack webhooks, generic webhooks) with JSON config
+- `alert_rules` - Team-level alert rules with severity filters (critical, warning, all)
+- `alert_history` - Record of sent/failed/suppressed alerts with payload and status
 
-Migrations are in `/server/src/db/migrations/` (001-010). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-011). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 
@@ -84,7 +87,7 @@ Migrations are in `/server/src/db/migrations/` (001-010). Types are in `/server/
 ## Store Registry
 
 All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). Stores:
-- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`, `auditLog`, `settings`
+- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`, `auditLog`, `settings`, `alertChannels`, `alertRules`, `alertHistory`
 
 Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
 
@@ -102,7 +105,7 @@ Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/
 
 - **Retention period:** Configurable via `DATA_RETENTION_DAYS` env var or admin setting `data_retention_days` (default: 365 days)
 - **Cleanup schedule:** Daily at configurable time via `RETENTION_CLEANUP_TIME` env var or admin setting `retention_cleanup_time` (default: `02:00` local time)
-- **Tables cleaned:** `dependency_latency_history`, `dependency_error_history`, `audit_log` (+ `alert_history` when alerting is added)
+- **Tables cleaned:** `dependency_latency_history`, `dependency_error_history`, `audit_log`, `alert_history`
 - **Scheduling:** Checks once per minute if cleanup time has passed; runs at most once per day; catches up on startup if overdue
 - **Graceful shutdown:** `stop()` clears the scheduler interval
 

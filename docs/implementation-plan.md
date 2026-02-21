@@ -563,23 +563,24 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Migrations for `alert_channels`, `alert_rules`, `alert_history` tables. Store interfaces and implementations.
 
 **Acceptance criteria:**
-- [ ] Migration creates all three tables with correct schemas and foreign keys
-- [ ] `IAlertChannelStore`, `IAlertRuleStore`, `IAlertHistoryStore` interfaces
-- [ ] SQLite implementations
-- [ ] Stores registered in `StoreRegistry`
-- [ ] Alert history subject to data retention cleanup (wire into existing retention service)
-- [ ] Tests for all store operations
+- [x] Migration creates all three tables with correct schemas and foreign keys
+- [x] `IAlertChannelStore`, `IAlertRuleStore`, `IAlertHistoryStore` interfaces
+- [x] SQLite implementations
+- [x] Stores registered in `StoreRegistry`
+- [x] Alert history subject to data retention cleanup (wire into existing retention service)
+- [x] Tests for all store operations
 
-**Files likely touched:**
+**Files touched:**
 - `server/src/db/migrations/011_add_alerts.ts` (new)
 - `server/src/stores/interfaces/IAlertChannelStore.ts` (new)
 - `server/src/stores/interfaces/IAlertRuleStore.ts` (new)
 - `server/src/stores/interfaces/IAlertHistoryStore.ts` (new)
-- `server/src/stores/impl/SQLiteAlertChannelStore.ts` (new)
-- `server/src/stores/impl/SQLiteAlertRuleStore.ts` (new)
-- `server/src/stores/impl/SQLiteAlertHistoryStore.ts` (new)
+- `server/src/stores/impl/AlertChannelStore.ts` (new)
+- `server/src/stores/impl/AlertRuleStore.ts` (new)
+- `server/src/stores/impl/AlertHistoryStore.ts` (new)
 - `server/src/stores/index.ts`
 - `server/src/db/types.ts`
+- `server/src/services/retention/DataRetentionService.ts`
 
 ---
 

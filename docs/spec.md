@@ -284,41 +284,47 @@ Records admin actions (role changes, user deactivation/reactivation, team CRUD, 
 
 Custom health endpoint schema configuration per service. Either a separate table or a `schema_config` JSON column on `services`. See [Section 12.5](#125-custom-health-endpoint-schema).
 
-#### alert_channels **[Planned]**
+#### alert_channels **[Implemented]**
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
-| team_id | TEXT | FK → teams.id | |
-| channel_type | TEXT | CHECK (`slack`, `webhook`) | |
-| config | TEXT | JSON | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| channel_type | TEXT | NOT NULL, CHECK (`slack`, `webhook`) | |
+| config | TEXT | NOT NULL, JSON | |
 | is_active | INTEGER | NOT NULL | 1 |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
-#### alert_rules **[Planned]**
+**Indexes:** `idx_alert_channels_team_id` on (team_id)
+
+#### alert_rules **[Implemented]**
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
-| team_id | TEXT | FK → teams.id | |
-| severity_filter | TEXT | CHECK (`critical`, `warning`, `all`) | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| severity_filter | TEXT | NOT NULL, CHECK (`critical`, `warning`, `all`) | |
 | is_active | INTEGER | NOT NULL | 1 |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
-#### alert_history **[Planned]**
+**Indexes:** `idx_alert_rules_team_id` on (team_id)
+
+#### alert_history **[Implemented]**
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
-| alert_channel_id | TEXT | FK → alert_channels.id | |
-| service_id | TEXT | FK → services.id | |
-| dependency_id | TEXT | FK → dependencies.id | |
+| alert_channel_id | TEXT | NOT NULL, FK → alert_channels.id CASCADE | |
+| service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| dependency_id | TEXT | FK → dependencies.id SET NULL | |
 | event_type | TEXT | NOT NULL | |
 | payload | TEXT | JSON | |
 | sent_at | TEXT | NOT NULL | |
-| status | TEXT | CHECK (`sent`, `failed`, `suppressed`) | |
+| status | TEXT | NOT NULL, CHECK (`sent`, `failed`, `suppressed`) | |
+
+**Indexes:** `idx_alert_history_channel_id` on (alert_channel_id), `idx_alert_history_sent_at` on (sent_at)
 
 #### users.password_hash **[Implemented]**
 
@@ -338,6 +344,7 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 008 | add_audit_log | Creates audit_log table with indexes |
 | 009 | add_settings | Creates settings key-value table |
 | 010 | add_password_hash | Adds nullable `password_hash TEXT` column to users |
+| 011 | add_alerts | Creates alert_channels, alert_rules, alert_history tables with indexes |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
 

@@ -12,6 +12,9 @@ import type { IErrorHistoryStore } from './interfaces/IErrorHistoryStore';
 import type { IDependencyAliasStore } from './interfaces/IDependencyAliasStore';
 import type { IAuditLogStore } from './interfaces/IAuditLogStore';
 import type { ISettingsStore } from './interfaces/ISettingsStore';
+import type { IAlertChannelStore } from './interfaces/IAlertChannelStore';
+import type { IAlertRuleStore } from './interfaces/IAlertRuleStore';
+import type { IAlertHistoryStore } from './interfaces/IAlertHistoryStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -24,6 +27,9 @@ import { ErrorHistoryStore } from './impl/ErrorHistoryStore';
 import { DependencyAliasStore } from './impl/DependencyAliasStore';
 import { AuditLogStore } from './impl/AuditLogStore';
 import { SettingsStore } from './impl/SettingsStore';
+import { AlertChannelStore } from './impl/AlertChannelStore';
+import { AlertRuleStore } from './impl/AlertRuleStore';
+import { AlertHistoryStore } from './impl/AlertHistoryStore';
 
 /**
  * Central registry providing access to all stores.
@@ -42,6 +48,9 @@ export class StoreRegistry {
   public readonly aliases: IDependencyAliasStore;
   public readonly auditLog: IAuditLogStore;
   public readonly settings: ISettingsStore;
+  public readonly alertChannels: IAlertChannelStore;
+  public readonly alertRules: IAlertRuleStore;
+  public readonly alertHistory: IAlertHistoryStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -54,6 +63,9 @@ export class StoreRegistry {
     this.aliases = new DependencyAliasStore(database);
     this.auditLog = new AuditLogStore(database);
     this.settings = new SettingsStore(database);
+    this.alertChannels = new AlertChannelStore(database);
+    this.alertRules = new AlertRuleStore(database);
+    this.alertHistory = new AlertHistoryStore(database);
   }
 
   /**
