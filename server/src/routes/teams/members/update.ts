@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { TeamMemberRole } from '../../../db/types';
+import { sendErrorResponse } from '../../../utils/errors';
 
 export function updateMember(req: Request, res: Response): void {
   try {
@@ -55,10 +56,6 @@ export function updateMember(req: Request, res: Response): void {
       },
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error updating team member:', error);
-    res.status(500).json({
-      error: 'Failed to update team member',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'updating team member');
   }
 }

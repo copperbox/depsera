@@ -11,7 +11,10 @@ import {
   errorHandler,
   asyncHandler,
   wrapHandler,
+  sendErrorResponse,
+  sanitizePollError,
 } from './errors';
+import { InvalidOrderByError } from '../stores/orderByValidator';
 
 describe('Error classes', () => {
   describe('AppError', () => {
@@ -108,19 +111,26 @@ describe('formatError', () => {
     expect(formatted.error).toBe('User not found');
   });
 
-  it('should format regular Error', () => {
-    const error = new Error('Something went wrong');
+  it('should not leak raw error message for non-operational errors', () => {
+    const error = new Error('ECONNREFUSED 192.168.1.1:5432 - password auth failed');
     const formatted = formatError(error);
 
     expect(formatted.error).toBe('Internal server error');
-    expect(formatted.message).toBe('Something went wrong');
+    expect(formatted.message).toBeUndefined();
   });
 
-  it('should format unknown error', () => {
-    const formatted = formatError('string error');
+  it('should not leak unknown error details', () => {
+    const formatted = formatError('string error with internal details');
 
     expect(formatted.error).toBe('Internal server error');
-    expect(formatted.message).toBe('Unknown error');
+    expect(formatted.message).toBeUndefined();
+  });
+
+  it('should format InvalidOrderByError as client-safe', () => {
+    const error = new InvalidOrderByError('Invalid order_by column: foo');
+    const formatted = formatError(error);
+
+    expect(formatted.error).toBe('Invalid order_by column: foo');
   });
 });
 
@@ -129,6 +139,10 @@ describe('getErrorStatusCode', () => {
     expect(getErrorStatusCode(new NotFoundError('User'))).toBe(404);
     expect(getErrorStatusCode(new ValidationError('Invalid'))).toBe(400);
     expect(getErrorStatusCode(new ConflictError('Exists'))).toBe(409);
+  });
+
+  it('should return 400 for InvalidOrderByError', () => {
+    expect(getErrorStatusCode(new InvalidOrderByError('Invalid order_by'))).toBe(400);
   });
 
   it('should return 500 for non-AppError', () => {
@@ -254,5 +268,167 @@ describe('wrapHandler', () => {
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid', field: 'field' });
     expect(consoleError).toHaveBeenCalled();
+  });
+});
+
+describe('sendErrorResponse', () => {
+  let mockRes: Partial<Response>;
+  let consoleError: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    };
+    consoleError = jest.spyOn(console, 'error').mockImplementation();
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
+
+  it('should send sanitized error for non-operational errors', () => {
+    const error = new Error('ECONNREFUSED 10.0.0.1:5432');
+    sendErrorResponse(mockRes as Response, error, 'test');
+
+    expect(mockRes.status).toHaveBeenCalledWith(500);
+    expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+    expect(consoleError).toHaveBeenCalledWith('Error test:', error);
+  });
+
+  it('should pass through AppError messages', () => {
+    const error = new NotFoundError('Service');
+    sendErrorResponse(mockRes as Response, error, 'test');
+
+    expect(mockRes.status).toHaveBeenCalledWith(404);
+    expect(mockRes.json).toHaveBeenCalledWith({ error: 'Service not found' });
+  });
+
+  it('should handle InvalidOrderByError', () => {
+    const error = new InvalidOrderByError('Invalid order_by column: bad_col');
+    sendErrorResponse(mockRes as Response, error, 'test');
+
+    expect(mockRes.status).toHaveBeenCalledWith(400);
+    expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid order_by column: bad_col' });
+  });
+});
+
+describe('sanitizePollError', () => {
+  it('should return empty string for empty input', () => {
+    expect(sanitizePollError('')).toBe('');
+  });
+
+  it('should map ECONNREFUSED to safe message', () => {
+    expect(sanitizePollError('connect ECONNREFUSED 10.0.0.1:3000')).toBe('Connection refused');
+  });
+
+  it('should map ECONNRESET to safe message', () => {
+    expect(sanitizePollError('read ECONNRESET')).toBe('Connection reset');
+  });
+
+  it('should map ETIMEDOUT to safe message', () => {
+    expect(sanitizePollError('connect ETIMEDOUT 192.168.1.100:443')).toBe('Connection timed out');
+  });
+
+  it('should map ENOTFOUND to safe message', () => {
+    expect(sanitizePollError('getaddrinfo ENOTFOUND internal.corp.net')).toBe('DNS lookup failed');
+  });
+
+  it('should map EHOSTUNREACH to safe message', () => {
+    expect(sanitizePollError('connect EHOSTUNREACH 172.16.0.1:80')).toBe('Host unreachable');
+  });
+
+  it('should map ENETUNREACH to safe message', () => {
+    expect(sanitizePollError('connect ENETUNREACH 10.10.0.1:8080')).toBe('Network unreachable');
+  });
+
+  it('should map ECONNABORTED to safe message', () => {
+    expect(sanitizePollError('socket hang up ECONNABORTED')).toBe('Connection aborted');
+  });
+
+  it('should map EPIPE to safe message', () => {
+    expect(sanitizePollError('write EPIPE')).toBe('Connection broken');
+  });
+
+  it('should map abort errors to safe message', () => {
+    expect(sanitizePollError('The operation was aborted')).toBe('Request timed out');
+  });
+
+  it('should map certificate errors to safe message', () => {
+    expect(sanitizePollError('unable to verify the first certificate')).toBe('TLS certificate error');
+  });
+
+  it('should map self-signed certificate errors to safe message', () => {
+    expect(sanitizePollError('self signed certificate in certificate chain')).toBe('TLS certificate error');
+    expect(sanitizePollError('self-signed certificate')).toBe('TLS certificate error');
+  });
+
+  it('should strip HTTP status prefix to just the code', () => {
+    expect(sanitizePollError('HTTP 503: Service Unavailable')).toBe('HTTP 503');
+  });
+
+  it('should strip private IPs from unknown error messages', () => {
+    const result = sanitizePollError('Failed to connect to 192.168.1.100 on port 5432');
+    expect(result).not.toContain('192.168.1.100');
+    expect(result).toContain('[redacted-ip]');
+  });
+
+  it('should strip RFC1918 10.x.x.x addresses', () => {
+    const result = sanitizePollError('Connection to 10.0.0.5 refused');
+    expect(result).not.toContain('10.0.0.5');
+    expect(result).toContain('[redacted-ip]');
+  });
+
+  it('should strip 172.16-31.x.x addresses', () => {
+    const result = sanitizePollError('Timeout connecting to 172.20.0.1');
+    expect(result).not.toContain('172.20.0.1');
+    expect(result).toContain('[redacted-ip]');
+  });
+
+  it('should strip loopback addresses', () => {
+    const result = sanitizePollError('Error at 127.0.0.1:3000');
+    expect(result).not.toContain('127.0.0.1');
+    expect(result).toContain('[redacted-ip]');
+  });
+
+  it('should strip link-local addresses', () => {
+    const result = sanitizePollError('Found 169.254.1.1 unreachable');
+    expect(result).not.toContain('169.254.1.1');
+    expect(result).toContain('[redacted-ip]');
+  });
+
+  it('should strip URLs from error messages', () => {
+    const result = sanitizePollError('Failed to fetch https://internal.corp.net/api/health');
+    expect(result).not.toContain('internal.corp.net');
+    expect(result).toContain('[redacted-url]');
+  });
+
+  it('should strip file paths from error messages', () => {
+    const result = sanitizePollError('Error in /app/server/src/services/polling.ts');
+    expect(result).not.toContain('/app/server/src');
+    expect(result).toContain('[redacted-path]');
+  });
+
+  it('should strip Windows file paths', () => {
+    const result = sanitizePollError('Error in C:\\Users\\admin\\project\\server.ts');
+    expect(result).not.toContain('C:\\Users\\admin');
+    expect(result).toContain('[redacted-path]');
+  });
+
+  it('should truncate messages longer than 200 chars', () => {
+    const longMessage = 'A'.repeat(300);
+    const result = sanitizePollError(longMessage);
+    expect(result.length).toBe(203); // 200 + '...'
+    expect(result.endsWith('...')).toBe(true);
+  });
+
+  it('should not truncate messages 200 chars or shorter', () => {
+    const message = 'A'.repeat(200);
+    const result = sanitizePollError(message);
+    expect(result).toBe(message);
+  });
+
+  it('should pass through clean messages unchanged', () => {
+    expect(sanitizePollError('Service returned invalid JSON')).toBe('Service returned invalid JSON');
   });
 });

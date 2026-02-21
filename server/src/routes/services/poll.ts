@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
+import { sendErrorResponse } from '../../utils/errors';
 
 export async function pollServiceNow(req: Request, res: Response): Promise<void> {
   try {
@@ -32,10 +33,6 @@ export async function pollServiceNow(req: Request, res: Response): Promise<void>
       error: result.error,
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected polling errors */ {
-    console.error('Error triggering poll:', error);
-    res.status(500).json({
-      error: 'Failed to poll service',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'triggering poll');
   }
 }

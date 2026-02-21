@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function updateAlias(req: Request, res: Response): void {
   try {
@@ -19,10 +20,6 @@ export function updateAlias(req: Request, res: Response): void {
 
     res.json(updated);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error updating alias:', error);
-    res.status(500).json({
-      error: 'Failed to update alias',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'updating alias');
   }
 }

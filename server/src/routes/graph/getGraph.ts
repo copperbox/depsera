@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { GraphService, getGraphService, GraphResponse } from '../../services/graph';
+import { sendErrorResponse } from '../../utils/errors';
 
 /**
  * HTTP handler for the dependency graph endpoint.
@@ -24,10 +25,6 @@ export function getGraph(req: Request, res: Response): void {
 
     res.json(graph);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error fetching graph:', error);
-    res.status(500).json({
-      error: 'Failed to fetch graph data',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching graph data');
   }
 }

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function getErrorHistory(req: Request, res: Response): void {
   try {
@@ -52,10 +53,6 @@ export function getErrorHistory(req: Request, res: Response): void {
       errors: formattedErrors,
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error fetching error history:', error);
-    res.status(500).json({
-      error: 'Failed to fetch error history',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching error history');
   }
 }

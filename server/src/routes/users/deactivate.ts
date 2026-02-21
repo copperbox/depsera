@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function deactivateUser(req: Request, res: Response): void {
   try {
@@ -31,10 +32,6 @@ export function deactivateUser(req: Request, res: Response): void {
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error deactivating user:', error);
-    res.status(500).json({
-      error: 'Failed to deactivate user',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'deactivating user');
   }
 }

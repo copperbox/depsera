@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
 import { AuthorizationService } from '../../auth/authorizationService';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function generateSuggestionsForDependency(req: Request, res: Response): void {
   try {
@@ -30,11 +31,7 @@ export function generateSuggestionsForDependency(req: Request, res: Response): v
       suggestions,
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
-    console.error('Error generating suggestions:', error);
-    res.status(500).json({
-      error: 'Failed to generate suggestions',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'generating suggestions');
   }
 }
 
@@ -65,10 +62,6 @@ export function generateSuggestionsForService(req: Request, res: Response): void
       suggestions,
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
-    console.error('Error generating suggestions:', error);
-    res.status(500).json({
-      error: 'Failed to generate suggestions',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'generating suggestions for service');
   }
 }

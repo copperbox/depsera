@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { UpdateTeamInput } from '../../db/types';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function updateTeam(req: Request, res: Response): void {
   try {
@@ -50,10 +51,6 @@ export function updateTeam(req: Request, res: Response): void {
       service_count: stores.teams.getServiceCount(id),
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error updating team:', error);
-    res.status(500).json({
-      error: 'Failed to update team',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'updating team');
   }
 }

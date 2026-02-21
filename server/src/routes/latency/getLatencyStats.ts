@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { LatencyStats, LatencyDataPoint } from '../../db/types';
+import { sendErrorResponse } from '../../utils/errors';
 
 interface LatencyStatsResponse extends LatencyStats {
   dependencyId: string;
@@ -45,10 +46,6 @@ export function getLatencyStats(req: Request, res: Response): void {
 
     res.json(response);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error fetching latency stats:', error);
-    res.status(500).json({
-      error: 'Failed to fetch latency stats',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching latency stats');
   }
 }

@@ -1329,7 +1329,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 
 - **SQL injection prevention:** ~~Whitelist allowed `ORDER BY` columns per store query to eliminate string-interpolation vectors.~~ **[Implemented]** (PRO-67).
 - **IDOR fixes:** ~~Association routes need team ownership verification (not just `requireAuth`).~~ **[Implemented]** (PRO-91). Alias mutations need `requireAdmin`. **[Implemented]** (PRO-92).
-- **Error sanitization:** Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.
+- **Error sanitization:** ~~Replace raw `error.message` in 500 responses with a sanitized utility. Scrub internal URLs/IPs from stored poll error messages.~~ **[Implemented]** (PRO-68). All route handlers use `sendErrorResponse()`. Non-operational errors return generic `{ error: "Internal server error" }`. Poll errors sanitized via `sanitizePollError()` before DB storage.
 - **Auth bypass hardening:** Default `AUTH_BYPASS=false` in `.env.example`. Remove committed `.env` from repo. Block bypass in production (already done for startup, but login route also needs guarding).
 - **Session cookie improvements:** Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.

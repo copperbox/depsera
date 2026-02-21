@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { AuthorizationService } from '../../auth/authorizationService';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function deleteAssociation(req: Request, res: Response): void {
   try {
@@ -34,10 +35,6 @@ export function deleteAssociation(req: Request, res: Response): void {
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error deleting association:', error);
-    res.status(500).json({
-      error: 'Failed to delete association',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'deleting association');
   }
 }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { User } from '../../db/types';
+import { sendErrorResponse } from '../../utils/errors';
 
 interface UserWithTeams extends User {
   teams: {
@@ -44,10 +45,6 @@ export function getUser(req: Request, res: Response): void {
 
     res.json(userWithTeams);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error getting user:', error);
-    res.status(500).json({
-      error: 'Failed to get user',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'getting user');
   }
 }

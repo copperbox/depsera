@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function listUsers(_req: Request, res: Response): void {
   try {
@@ -8,10 +9,6 @@ export function listUsers(_req: Request, res: Response): void {
 
     res.json(users);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error listing users:', error);
-    res.status(500).json({
-      error: 'Failed to list users',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'listing users');
   }
 }

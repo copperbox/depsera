@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function createAlias(req: Request, res: Response): void {
   try {
@@ -25,10 +26,6 @@ export function createAlias(req: Request, res: Response): void {
     const created = stores.aliases.create(alias.trim(), canonical_name.trim());
     res.status(201).json(created);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error creating alias:', error);
-    res.status(500).json({
-      error: 'Failed to create alias',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'creating alias');
   }
 }

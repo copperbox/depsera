@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
 import { AuthorizationService } from '../../auth/authorizationService';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function dismissSuggestion(req: Request, res: Response): void {
   try {
@@ -33,10 +34,6 @@ export function dismissSuggestion(req: Request, res: Response): void {
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
-    console.error('Error dismissing suggestion:', error);
-    res.status(500).json({
-      error: 'Failed to dismiss suggestion',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'dismissing suggestion');
   }
 }

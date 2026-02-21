@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { DependencyAssociation, Service } from '../../db/types';
+import { sendErrorResponse } from '../../utils/errors';
 
 interface AssociationWithService extends DependencyAssociation {
   linked_service: Service;
@@ -40,10 +41,6 @@ export function getAssociations(req: Request, res: Response): void {
 
     res.json(result);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error fetching associations:', error);
-    res.status(500).json({
-      error: 'Failed to fetch associations',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching associations');
   }
 }

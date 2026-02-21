@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function reactivateUser(req: Request, res: Response): void {
   try {
@@ -24,10 +25,6 @@ export function reactivateUser(req: Request, res: Response): void {
 
     res.json(updatedUser);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error reactivating user:', error);
-    res.status(500).json({
-      error: 'Failed to reactivate user',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'reactivating user');
   }
 }

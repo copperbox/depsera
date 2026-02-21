@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function deleteService(req: Request, res: Response): void {
   try {
@@ -21,10 +22,6 @@ export function deleteService(req: Request, res: Response): void {
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error deleting service:', error);
-    res.status(500).json({
-      error: 'Failed to delete service',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'deleting service');
   }
 }

@@ -128,8 +128,8 @@ describe('Poll Route', () => {
       const response = await request(app).post('/api/services/svc-1/poll');
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to poll service');
-      expect(response.body.message).toBe('Polling failed');
+      expect(response.body.error).toBe('Internal server error');
+      expect(response.body.message).toBeUndefined();
     });
 
     it('should count status changes', async () => {

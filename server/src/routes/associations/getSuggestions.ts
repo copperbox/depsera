@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AssociationMatcher } from '../../services/matching';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function getSuggestions(req: Request, res: Response): void {
   try {
@@ -8,10 +9,6 @@ export function getSuggestions(req: Request, res: Response): void {
 
     res.json(suggestions);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
-    console.error('Error fetching suggestions:', error);
-    res.status(500).json({
-      error: 'Failed to fetch suggestions',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching suggestions');
   }
 }

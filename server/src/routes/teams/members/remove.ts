@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
+import { sendErrorResponse } from '../../../utils/errors';
 
 export function removeMember(req: Request, res: Response): void {
   try {
@@ -22,10 +23,6 @@ export function removeMember(req: Request, res: Response): void {
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error removing team member:', error);
-    res.status(500).json({
-      error: 'Failed to remove team member',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'removing team member');
   }
 }

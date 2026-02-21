@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function me(req: Request, res: Response): void {
   if (!req.user) {
@@ -37,10 +38,6 @@ export function me(req: Request, res: Response): void {
       },
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error fetching user profile:', error);
-    res.status(500).json({
-      error: 'Failed to fetch user profile',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'fetching user profile');
   }
 }

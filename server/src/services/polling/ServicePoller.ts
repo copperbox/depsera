@@ -4,6 +4,7 @@ import { PollResult } from './types';
 import { DependencyParser, getDependencyParser } from './DependencyParser';
 import { DependencyUpsertService, getDependencyUpsertService } from './DependencyUpsertService';
 import { validateUrlNotPrivate } from '../../utils/ssrf';
+import { sanitizePollError } from '../../utils/errors';
 
 const POLL_TIMEOUT_MS = 10000;
 
@@ -59,7 +60,7 @@ export class ServicePoller {
         success: false,
         dependenciesUpdated: 0,
         statusChanges: [],
-        error: error instanceof Error ? error.message : String(error),
+        error: sanitizePollError(error instanceof Error ? error.message : String(error)),
         latencyMs: Date.now() - startTime,
       };
     }

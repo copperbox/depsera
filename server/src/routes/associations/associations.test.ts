@@ -387,7 +387,7 @@ describe('Associations API', () => {
         .get('/api/associations/suggestions');
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to fetch suggestions');
+      expect(response.body.error).toBe('Internal server error');
 
       errorSpy.mockRestore();
     });
@@ -459,7 +459,8 @@ describe('Associations API', () => {
         .post(`/api/associations/suggestions/${associationId}/accept`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Database error');
+      expect(response.body.error).toBe('Internal server error');
+      expect(response.body.message).toBeUndefined();
 
       errorSpy.mockRestore();
     });
@@ -512,7 +513,8 @@ describe('Associations API', () => {
         .post(`/api/associations/suggestions/${associationId}/dismiss`);
 
       expect(response.status).toBe(500);
-      expect(response.body.message).toBe('Database error');
+      expect(response.body.error).toBe('Internal server error');
+      expect(response.body.message).toBeUndefined();
 
       errorSpy.mockRestore();
     });
@@ -551,7 +553,7 @@ describe('Associations API', () => {
         .post(`/api/dependencies/${dependencyId}/suggestions/generate`);
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to generate suggestions');
+      expect(response.body.error).toBe('Internal server error');
 
       errorSpy.mockRestore();
     });
@@ -590,7 +592,7 @@ describe('Associations API', () => {
         .post(`/api/services/${serviceId}/suggestions/generate`);
 
       expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to generate suggestions');
+      expect(response.body.error).toBe('Internal server error');
 
       errorSpy.mockRestore();
     });

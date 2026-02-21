@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
 import { AuthorizationService } from '../../auth/authorizationService';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function acceptSuggestion(req: Request, res: Response): void {
   try {
@@ -40,10 +41,6 @@ export function acceptSuggestion(req: Request, res: Response): void {
       linked_service: linkedService,
     });
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
-    console.error('Error accepting suggestion:', error);
-    res.status(500).json({
-      error: 'Failed to accept suggestion',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
+    sendErrorResponse(res, error, 'accepting suggestion');
   }
 }

@@ -83,17 +83,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Create a sanitized error response utility. Replace all raw `error.message` usage in route handlers. Sanitize stored poll error messages to strip internal URLs/IPs.
 
 **Acceptance criteria:**
-- [ ] New utility: `sanitizeErrorMessage(error)` strips internal details
-- [ ] All route handler catch blocks use the utility instead of raw `error.message`
-- [ ] Poll error messages stored in `services.last_poll_error` are sanitized before storage
-- [ ] 500 responses never expose stack traces, internal paths, or private IPs
-- [ ] Tests verify sanitization works for various error types
+- [x] New utility: `sanitizeErrorMessage(error)` strips internal details
+- [x] All route handler catch blocks use the utility instead of raw `error.message`
+- [x] Poll error messages stored in `services.last_poll_error` are sanitized before storage
+- [x] 500 responses never expose stack traces, internal paths, or private IPs
+- [x] Tests verify sanitization works for various error types
 
 **Files likely touched:**
-- `server/src/utils/errorSanitizer.ts` (new)
-- `server/src/routes/*.ts` — all route files
+- `server/src/utils/errors.ts` — `sendErrorResponse()`, `sanitizePollError()`, updated `formatError()`
+- `server/src/routes/**/*.ts` — all 27 route handler catch blocks
 - `server/src/services/polling/ServicePoller.ts`
-- Tests for each
+- `server/src/utils/errors.test.ts` — 52 tests
 
 ---
 
