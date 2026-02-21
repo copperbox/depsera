@@ -24,6 +24,16 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+// Mock chart components to avoid recharts SVG rendering issues in jsdom
+jest.mock('../../Charts', () => ({
+  LatencyChart: ({ dependencyId }: { dependencyId: string }) => (
+    <div data-testid={`latency-chart-${dependencyId}`}>LatencyChart</div>
+  ),
+  HealthTimeline: ({ dependencyId }: { dependencyId: string }) => (
+    <div data-testid={`health-timeline-${dependencyId}`}>HealthTimeline</div>
+  ),
+}));
+
 function jsonResponse(data: unknown, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -182,7 +192,7 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('Dependencies')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
+    expect(screen.getAllByText('PostgreSQL').length).toBeGreaterThan(0);
     expect(screen.getAllByText('database').length).toBeGreaterThan(0);
     expect(screen.getByText('Main DB')).toBeInTheDocument();
     expect(screen.getByText('Critical')).toBeInTheDocument();
@@ -412,6 +422,132 @@ describe('ServiceDetail', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Unknown error/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Dependency Metrics', () => {
+    it('shows dependency metrics section when dependencies exist', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Latency and health trends')).toBeInTheDocument();
+    });
+
+    it('does not show dependency metrics section when no dependencies', async () => {
+      const serviceNoDeps = { ...mockService, dependencies: [] };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceNoDeps))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Dependency Metrics')).not.toBeInTheDocument();
+    });
+
+    it('shows collapsible panels for each dependency', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+      });
+
+      // Panels use canonical_name when available, otherwise dep name
+      const panelButtons = screen.getAllByRole('button', { expanded: false });
+      const chartPanels = panelButtons.filter(
+        btn => btn.textContent?.includes('PostgreSQL') || btn.textContent?.includes('cache')
+      );
+      expect(chartPanels.length).toBe(2);
+    });
+
+    it('expands panel to show charts when clicked', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+      });
+
+      // Charts should not be visible initially
+      expect(screen.queryByTestId('latency-chart-d1')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('health-timeline-d1')).not.toBeInTheDocument();
+
+      // Click PostgreSQL panel to expand
+      const panelButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      fireEvent.click(postgresPanel!);
+
+      // Charts should now be visible
+      expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
+      expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
+    });
+
+    it('collapses panel when clicked again', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+      });
+
+      // Expand PostgreSQL panel
+      const panelButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      fireEvent.click(postgresPanel!);
+
+      expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
+
+      // Click again to collapse
+      const expandedButton = screen.getByRole('button', { expanded: true });
+      fireEvent.click(expandedButton);
+
+      expect(screen.queryByTestId('latency-chart-d1')).not.toBeInTheDocument();
+    });
+
+    it('can expand multiple dependency panels independently', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+      });
+
+      // Expand both panels
+      const panelButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      const cachePanel = panelButtons.find(btn => btn.textContent?.includes('cache'));
+
+      fireEvent.click(postgresPanel!);
+      fireEvent.click(cachePanel!);
+
+      // Both charts should be visible
+      expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
+      expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
+      expect(screen.getByTestId('latency-chart-d2')).toBeInTheDocument();
+      expect(screen.getByTestId('health-timeline-d2')).toBeInTheDocument();
     });
   });
 

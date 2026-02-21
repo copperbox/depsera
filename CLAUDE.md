@@ -180,6 +180,8 @@ Reusable chart components in `/client/src/components/Charts/` for visualizing de
 
 Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`, `--color-chart-max`) defined in `client/src/index.css` with dark mode variants. Types in `/client/src/types/chart.ts`. API functions in `/client/src/api/latency.ts` (`fetchLatencyBuckets`) and `/client/src/api/timeline.ts` (`fetchHealthTimeline`).
 
+**Integration:** Charts are integrated into the service detail page (`ServiceDetail.tsx`) as collapsible per-dependency panels showing both `LatencyChart` and `HealthTimeline`. The dashboard (`Dashboard.tsx`) shows a health distribution bar with percentage healthy, stacked color-coded segments, and a legend with counts per category. Charts are self-contained — they handle their own data fetching, loading, error, and empty states internally.
+
 ## Alert Rules & History UI
 
 `AlertRules` component (`/client/src/components/pages/Teams/AlertRules.tsx`) provides alert rule configuration on the team detail page. Team leads and admins see an editable form with severity filter dropdown (Critical only / Warning and above / All status changes) and enable/disable toggle with save button. Team members see a read-only summary. Uses `useAlertRules` hook (`/client/src/hooks/useAlertRules.ts`).

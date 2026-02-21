@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useServiceDetail } from '../../../hooks/useServiceDetail';
@@ -7,6 +7,7 @@ import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
+import { LatencyChart, HealthTimeline } from '../../Charts';
 import ServiceForm from './ServiceForm';
 import ServiceAssociations from './ServiceAssociations';
 import { formatRelativeTime } from '../../../utils/formatting';
@@ -32,6 +33,19 @@ function ServiceDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [errorHistoryDep, setErrorHistoryDep] = useState<Dependency | null>(null);
+  const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set());
+
+  const toggleChart = useCallback((depId: string) => {
+    setExpandedCharts(prev => {
+      const next = new Set(prev);
+      if (next.has(depId)) {
+        next.delete(depId);
+      } else {
+        next.add(depId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     loadService();
@@ -357,6 +371,53 @@ function ServiceDetail() {
       )}
 
       <ServiceAssociations serviceId={service.id} dependencies={service.dependencies} />
+
+      {service.dependencies.length > 0 && (
+        <>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Dependency Metrics</h2>
+            <span className={styles.sectionSubtitle}>
+              Latency and health trends
+            </span>
+          </div>
+          {service.dependencies.map((dep) => (
+            <div key={dep.id} className={styles.chartPanel}>
+              <button
+                className={`${styles.chartPanelHeader} ${expandedCharts.has(dep.id) ? styles.chartPanelHeaderExpanded : ''}`}
+                onClick={() => toggleChart(dep.id)}
+                aria-expanded={expandedCharts.has(dep.id)}
+              >
+                <span className={styles.chartPanelName}>
+                  {dep.canonical_name || dep.name}
+                </span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`${styles.chevron} ${expandedCharts.has(dep.id) ? styles.chevronExpanded : ''}`}
+                >
+                  <path d="M4 6l4 4 4-4" />
+                </svg>
+              </button>
+              {expandedCharts.has(dep.id) && (
+                <div className={styles.chartPanelContent}>
+                  <LatencyChart
+                    dependencyId={dep.id}
+                    storageKey={`latency-range-${service.id}`}
+                  />
+                  <HealthTimeline
+                    dependencyId={dep.id}
+                    storageKey={`timeline-range-${service.id}`}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
 
       <Modal
         isOpen={isEditModalOpen}

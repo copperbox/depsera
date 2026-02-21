@@ -313,4 +313,86 @@ describe('Dashboard', () => {
     expect(screen.getAllByText(/reported critical/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/reported unknown/).length).toBeGreaterThan(0);
   });
+
+  describe('Health Overview', () => {
+    it('displays health overview bar when services exist', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderDashboard();
+
+      await waitFor(() => {
+        expect(screen.getByText('Health Overview')).toBeInTheDocument();
+      });
+
+      // Should show percentage healthy (1 healthy out of 3 = 33%)
+      expect(screen.getByText('33% healthy')).toBeInTheDocument();
+    });
+
+    it('shows health distribution bar with aria label', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderDashboard();
+
+      await waitFor(() => {
+        expect(screen.getByRole('img', { name: 'Health distribution bar' })).toBeInTheDocument();
+      });
+    });
+
+    it('shows legend with counts for non-zero categories', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderDashboard();
+
+      await waitFor(() => {
+        expect(screen.getByText('Health Overview')).toBeInTheDocument();
+      });
+
+      // mockServices: 1 healthy, 1 warning, 1 critical
+      expect(screen.getByText('Healthy (1)')).toBeInTheDocument();
+      expect(screen.getByText('Warning (1)')).toBeInTheDocument();
+      expect(screen.getByText('Critical (1)')).toBeInTheDocument();
+    });
+
+    it('does not show health overview when no services', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse([]))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderDashboard();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('Health Overview')).not.toBeInTheDocument();
+    });
+
+    it('shows 100% healthy when all services are healthy', async () => {
+      const healthyServices = mockServices.map((s) => ({
+        ...s,
+        health: { ...s.health, status: 'healthy' },
+      }));
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(healthyServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderDashboard();
+
+      await waitFor(() => {
+        expect(screen.getByText('100% healthy')).toBeInTheDocument();
+      });
+
+      // Only healthy legend should show, no warning/critical legend items
+      expect(screen.getByText('Healthy (3)')).toBeInTheDocument();
+      expect(screen.queryByText(/Warning \(\d+\)/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Critical \(\d+\)/)).not.toBeInTheDocument();
+    });
+  });
 });

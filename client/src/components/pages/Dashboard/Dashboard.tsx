@@ -126,6 +126,66 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Health Overview Bar */}
+      {stats.total > 0 && (
+        <div className={styles.healthOverview}>
+          <div className={styles.healthOverviewHeader}>
+            <h2 className={styles.healthOverviewTitle}>Health Overview</h2>
+            <span className={styles.healthOverviewSubtitle}>
+              {Math.round((stats.healthy / stats.total) * 100)}% healthy
+            </span>
+          </div>
+          <div className={styles.healthBar} role="img" aria-label="Health distribution bar">
+            {stats.healthy > 0 && (
+              <div
+                className={`${styles.healthSegment} ${styles.segmentHealthy}`}
+                style={{ width: `${(stats.healthy / stats.total) * 100}%` }}
+                title={`${stats.healthy} healthy (${Math.round((stats.healthy / stats.total) * 100)}%)`}
+              />
+            )}
+            {stats.warning > 0 && (
+              <div
+                className={`${styles.healthSegment} ${styles.segmentWarning}`}
+                style={{ width: `${(stats.warning / stats.total) * 100}%` }}
+                title={`${stats.warning} warning (${Math.round((stats.warning / stats.total) * 100)}%)`}
+              />
+            )}
+            {stats.critical > 0 && (
+              <div
+                className={`${styles.healthSegment} ${styles.segmentCritical}`}
+                style={{ width: `${(stats.critical / stats.total) * 100}%` }}
+                title={`${stats.critical} critical (${Math.round((stats.critical / stats.total) * 100)}%)`}
+              />
+            )}
+            {stats.total - stats.healthy - stats.warning - stats.critical > 0 && (
+              <div
+                className={`${styles.healthSegment} ${styles.segmentUnknown}`}
+                style={{ width: `${((stats.total - stats.healthy - stats.warning - stats.critical) / stats.total) * 100}%` }}
+                title={`${stats.total - stats.healthy - stats.warning - stats.critical} unknown`}
+              />
+            )}
+          </div>
+          <div className={styles.healthLegend}>
+            <span className={styles.healthLegendItem}>
+              <span className={`${styles.healthLegendDot} ${styles.segmentHealthy}`} />
+              Healthy ({stats.healthy})
+            </span>
+            {stats.warning > 0 && (
+              <span className={styles.healthLegendItem}>
+                <span className={`${styles.healthLegendDot} ${styles.segmentWarning}`} />
+                Warning ({stats.warning})
+              </span>
+            )}
+            {stats.critical > 0 && (
+              <span className={styles.healthLegendItem}>
+                <span className={`${styles.healthLegendDot} ${styles.segmentCritical}`} />
+                Critical ({stats.critical})
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Content Grid */}
       <div className={styles.sectionsGrid}>
         {/* Services with Issues */}

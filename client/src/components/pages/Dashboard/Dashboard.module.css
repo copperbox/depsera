@@ -193,6 +193,86 @@
   color: var(--color-text-muted);
 }
 
+/* Health Overview */
+.healthOverview {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.healthOverviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.healthOverviewTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+.healthOverviewSubtitle {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.healthBar {
+  display: flex;
+  height: 1.25rem;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background-color: var(--color-bg-hover);
+}
+
+.healthSegment {
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.segmentHealthy {
+  background-color: var(--color-success);
+}
+
+.segmentWarning {
+  background-color: var(--color-warning);
+}
+
+.segmentCritical {
+  background-color: var(--color-error);
+}
+
+.segmentUnknown {
+  background-color: var(--color-text-muted);
+  opacity: 0.3;
+}
+
+.healthLegend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.625rem;
+}
+
+.healthLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.healthLegendDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Section Layout */
 .sectionsGrid {
   display: grid;

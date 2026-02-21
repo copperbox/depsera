@@ -1625,7 +1625,7 @@ Support for services that don't use the proactive-deps format:
 - All components handle loading, error (with retry), and empty states.
 - Chart types in `/client/src/types/chart.ts`. API functions in `/client/src/api/latency.ts` and `/client/src/api/timeline.ts`. Components in `/client/src/components/Charts/`.
 
-**Integration:** Service detail page (per dependency), Dashboard (aggregate health %).
+**Integration:** **[Implemented]** (PRO-88). Service detail page shows per-dependency collapsible panels with latency chart and health timeline. Dashboard shows health distribution bar with percentage healthy, stacked bar visualization, and legend with counts. Charts are self-contained (handle their own data fetching, loading, error, and empty states). Components in `/client/src/components/Charts/` integrated into `ServiceDetail.tsx` and `Dashboard.tsx`.
 
 ### 12.8 Local Auth (Phase 3)
 

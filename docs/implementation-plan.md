@@ -785,11 +785,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Add charts to service detail page (per dependency) and dashboard (aggregate health %). Auto-refresh with existing polling interval.
 
 **Acceptance criteria:**
-- [ ] Service detail page shows latency chart + health timeline per dependency
-- [ ] Dashboard shows aggregate health chart (% healthy over time)
-- [ ] Charts auto-refresh with the page's existing polling interval
-- [ ] Empty state when no historical data
-- [ ] Tests for integration
+- [x] Service detail page shows latency chart + health timeline per dependency
+- [x] Dashboard shows aggregate health chart (% healthy over time)
+- [x] Charts auto-refresh with the page's existing polling interval
+- [x] Empty state when no historical data
+- [x] Tests for integration
 
 **Files likely touched:**
 - `client/src/pages/ServiceDetail.tsx`
