@@ -1,11 +1,13 @@
-import { useState, FormEvent } from 'react';
+import { useState, useCallback, FormEvent } from 'react';
 import { createService, updateService } from '../../../api/services';
 import type {
   ServiceWithDependencies,
   TeamWithCounts,
   CreateServiceInput,
   UpdateServiceInput,
+  SchemaMapping,
 } from '../../../types/service';
+import SchemaConfigEditor from './SchemaConfigEditor';
 import styles from './ServiceForm.module.css';
 
 interface ServiceFormProps {
@@ -20,6 +22,7 @@ interface FormErrors {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
+  schema_config?: string;
 }
 
 function isValidUrl(value: string): boolean {
@@ -28,6 +31,15 @@ function isValidUrl(value: string): boolean {
     return url.protocol === 'http:' || url.protocol === 'https:';
   } catch {
     return false;
+  }
+}
+
+function parseSchemaConfig(raw: string | null): SchemaMapping | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SchemaMapping;
+  } catch {
+    return null;
   }
 }
 
@@ -41,9 +53,17 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     metrics_endpoint: service?.metrics_endpoint ?? '',
     is_active: service?.is_active === 1,
   });
+  const [schemaConfig, setSchemaConfig] = useState<SchemaMapping | null>(
+    parseSchemaConfig(service?.schema_config ?? null)
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSchemaChange = useCallback((value: SchemaMapping | null) => {
+    setSchemaConfig(value);
+    setErrors((prev) => ({ ...prev, schema_config: undefined }));
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -81,6 +101,8 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     setIsSubmitting(true);
 
     try {
+      const schemaConfigJson = schemaConfig ? JSON.stringify(schemaConfig) : null;
+
       if (isEdit && service) {
         const updateData: UpdateServiceInput = {
           name: formData.name,
@@ -88,6 +110,7 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           health_endpoint: formData.health_endpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
           is_active: formData.is_active,
+          schema_config: schemaConfigJson,
         };
         await updateService(service.id, updateData);
       } else {
@@ -96,6 +119,7 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           team_id: formData.team_id,
           health_endpoint: formData.health_endpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
+          schema_config: schemaConfigJson,
         };
         await createService(createData);
       }
@@ -201,6 +225,13 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
         )}
         <span className={styles.hint}>Optional URL for metrics data</span>
       </div>
+
+      <SchemaConfigEditor
+        value={schemaConfig}
+        onChange={handleSchemaChange}
+        healthEndpoint={formData.health_endpoint}
+        disabled={isSubmitting}
+      />
 
       {isEdit && (
         <div className={styles.checkboxField}>

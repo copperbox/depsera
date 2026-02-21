@@ -7,7 +7,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 ## Features
 
 - **Dashboard Overview** — Summary of service health across all teams with quick links to issues and recent activity
-- **Service Management** — Register services with health endpoints, view dependency status, trigger manual polls, and track error/latency history
+- **Service Management** — Register services with health endpoints, view dependency status, trigger manual polls, and track error/latency history. Supports custom health endpoint schema mapping with a guided form editor and live testing for non-proactive-deps services (e.g., Spring Boot Actuator, ASP.NET health checks)
 - **Dependency Graph** — Interactive visualization (React Flow) of service dependencies with team filtering, search/highlight, layout controls, and latency threshold filtering
 - **Wallboard** — Real-time status board with service health cards, team filtering, and unhealthy-only view
 - **Team Management** — Organize services by team, manage members and roles (lead/member)
@@ -204,7 +204,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Auth | `GET /api/auth/login`, `/callback`, `/me`; `POST /api/auth/logout` |
 | Users | `GET /api/users`, `GET /api/users/:id`, `POST /api/users` (local auth), `PUT /api/users/:id/role`, `PUT /api/users/:id/password` (local auth), `POST /api/users/:id/reactivate`, `DELETE /api/users/:id` |
 | Teams | CRUD on `/api/teams`, member management via `/api/teams/:id/members` |
-| Services | CRUD on `/api/services` (team-scoped), `POST /api/services/:id/poll` for manual polling |
+| Services | CRUD on `/api/services` (team-scoped), `POST /api/services/:id/poll` for manual polling, `POST /api/services/test-schema` for schema mapping preview |
 | Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |
 | Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |

@@ -4,6 +4,8 @@ import type {
   CreateServiceInput,
   UpdateServiceInput,
   TeamWithCounts,
+  SchemaMapping,
+  TestSchemaResult,
 } from '../types/service';
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
@@ -53,6 +55,19 @@ export async function deleteService(id: string): Promise<void> {
     const error = await response.json().catch(() => ({ message: 'Delete failed' }));
     throw new Error(error.message || `HTTP error ${response.status}`);
   }
+}
+
+export async function testSchemaMapping(
+  url: string,
+  schemaConfig: SchemaMapping
+): Promise<TestSchemaResult> {
+  const response = await fetch('/api/services/test-schema', {
+    method: 'POST',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ url, schema_config: schemaConfig }),
+    credentials: 'include',
+  });
+  return handleResponse<TestSchemaResult>(response);
 }
 
 export async function fetchTeams(): Promise<TeamWithCounts[]> {

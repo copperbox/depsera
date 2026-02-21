@@ -43,12 +43,32 @@ export interface DependentReport {
   impact: string | null;
 }
 
+// Schema mapping types for custom health endpoint formats
+export interface BooleanComparison {
+  field: string;
+  equals: string;
+}
+
+export type FieldMapping = string | BooleanComparison;
+
+export interface SchemaMapping {
+  root: string;
+  fields: {
+    name: FieldMapping;
+    healthy: FieldMapping;
+    latency?: FieldMapping;
+    impact?: FieldMapping;
+    description?: FieldMapping;
+  };
+}
+
 export interface Service {
   id: string;
   name: string;
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  schema_config: string | null;
   is_active: number;
   last_poll_success: number | null;
   last_poll_error: string | null;
@@ -85,6 +105,7 @@ export interface CreateServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string;
+  schema_config?: string | null;
 }
 
 export interface UpdateServiceInput {
@@ -92,5 +113,22 @@ export interface UpdateServiceInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
+  schema_config?: string | null;
   is_active?: boolean;
+}
+
+// Test schema mapping response types
+export interface TestSchemaResult {
+  success: boolean;
+  dependencies: TestSchemaDependency[];
+  warnings: string[];
+}
+
+export interface TestSchemaDependency {
+  name: string;
+  healthy: boolean;
+  latency_ms: number;
+  impact: string | null;
+  description: string | null;
+  type: string;
 }

@@ -538,18 +538,21 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** "Health Endpoint Format" section on service form. Toggle between "proactive-deps (default)" and "Custom schema". Guided form + raw JSON editor. Test button.
 
 **Acceptance criteria:**
-- [ ] Service form has "Health Endpoint Format" section
-- [ ] Toggle between proactive-deps and custom schema
-- [ ] Custom schema mode shows guided form for field mappings
-- [ ] "Test mapping" button calls test-schema endpoint, shows preview
-- [ ] Advanced toggle for raw JSON editing
-- [ ] Validation: name and healthy fields required when custom schema selected
-- [ ] Tests for form interactions
+- [x] Service form has "Health Endpoint Format" section
+- [x] Toggle between proactive-deps and custom schema
+- [x] Custom schema mode shows guided form for field mappings
+- [x] "Test mapping" button calls test-schema endpoint, shows preview
+- [x] Advanced toggle for raw JSON editing
+- [x] Validation: name and healthy fields required when custom schema selected
+- [x] Tests for form interactions
 
-**Files likely touched:**
-- `client/src/pages/ServiceForm.tsx` (or similar)
-- `client/src/components/SchemaMapping/` (new)
-- `client/src/api/services.ts`
+**Files touched:**
+- `client/src/types/service.ts` — added `SchemaMapping`, `BooleanComparison`, `FieldMapping`, `TestSchemaResult`, `TestSchemaDependency` types; added `schema_config` to `Service`, `CreateServiceInput`, `UpdateServiceInput`
+- `client/src/api/services.ts` — added `testSchemaMapping()` API function
+- `client/src/components/pages/Services/SchemaConfigEditor.tsx` (new) — guided form + raw JSON editor with test preview
+- `client/src/components/pages/Services/SchemaConfigEditor.module.css` (new) — component styles
+- `client/src/components/pages/Services/ServiceForm.tsx` — integrated `SchemaConfigEditor`, includes `schema_config` in create/update payloads
+- `client/src/components/pages/Services/ServiceForm.test.tsx` — 14 new tests for schema config integration
 
 ---
 

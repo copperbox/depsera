@@ -171,6 +171,16 @@ Key files in `/server/src/services/alerts/`:
 - `senders/SlackSender.ts` — Slack incoming webhook sender (Block Kit format, 10s timeout, 429 handling)
 - `senders/WebhookSender.ts` — Generic HTTP webhook sender (JSON payload, custom headers, configurable method, 10s timeout)
 
+## Schema Mapping Form UI
+
+`SchemaConfigEditor` component (`/client/src/components/pages/Services/SchemaConfigEditor.tsx`) provides a "Health Endpoint Format" section on the service create/edit form. Allows toggling between "proactive-deps (default)" and "Custom schema" modes. Custom schema mode provides:
+- **Guided form:** Fields for root path, name, healthy (with optional equals value for `BooleanComparison`), latency, impact, description
+- **Raw JSON editor:** Advanced toggle for power users to edit the `SchemaMapping` JSON directly
+- **Test mapping button:** Calls `POST /api/services/test-schema` to preview parsed results from a live endpoint
+- **Preview table:** Shows parsed dependencies with health status, latency, and impact
+
+Client-side types for schema mapping (`SchemaMapping`, `BooleanComparison`, `FieldMapping`, `TestSchemaResult`) in `/client/src/types/service.ts`. API function `testSchemaMapping()` in `/client/src/api/services.ts`. Both `CreateServiceInput` and `UpdateServiceInput` include optional `schema_config` field.
+
 ## Alert Channel Management UI
 
 `AlertChannels` component (`/client/src/components/pages/Teams/AlertChannels.tsx`) provides CRUD for team alert channels on the team detail page. Team leads and admins can create/edit/delete channels, toggle enable/disable, and send test alerts. Supports Slack webhook and generic HTTP webhook (with custom headers and method selection). Client-side validation for Slack URL format and valid URL. Uses `useAlertChannels` hook (`/client/src/hooks/useAlertChannels.ts`) and API client (`/client/src/api/alerts.ts`). Types in `/client/src/types/alert.ts`.
