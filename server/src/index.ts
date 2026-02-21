@@ -14,6 +14,7 @@ import latencyRouter from './routes/latency';
 import errorsRouter from './routes/errors';
 import aliasesRouter from './routes/aliases';
 import adminRouter from './routes/admin';
+import alertsRouter from './routes/alerts';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { SettingsService } from './services/settings/SettingsService';
 import { DataRetentionService } from './services/retention/DataRetentionService';
@@ -74,6 +75,7 @@ app.use('/api/errors', requireAuth, errorsRouter);
 app.use('/api/aliases', requireAuth, aliasesRouter);
 app.use('/api', requireAuth, associationsRouter);
 app.use('/api/admin', requireAuth, adminRouter);
+app.use('/api/teams', requireAuth, alertsRouter);
 
 // Serve built client in production (auto-detected by presence of client/dist/index.html)
 if (clientBuildExists()) {

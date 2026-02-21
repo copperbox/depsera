@@ -178,6 +178,9 @@ Key files in `/server/src/services/alerts/`:
 - `/api/errors/:id` - Error history
 - `/api/admin/audit-log` - Audit log query (admin only, filterable by date range, user, action, resource type)
 - `/api/admin/settings` - Admin settings CRUD (admin only, GET returns all settings with defaults, PUT updates settings)
+- `/api/teams/:id/alert-channels` - Team alert channel CRUD (GET: team member+, POST/PUT/DELETE: team lead+). `POST /:channelId/test` sends a test alert. Supports Slack webhook and generic HTTP webhook channel types.
+- `/api/teams/:id/alert-rules` - Team alert rule get/upsert (GET: team member+, PUT: team lead+). Severity filter: `critical`, `warning`, `all`.
+- `/api/teams/:id/alert-history` - Team alert history (GET: team member+). Paginated with `limit`, `offset`, and `status` filter (`sent`, `failed`, `suppressed`).
 
 ## General Guidance
 

@@ -220,6 +220,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:dependencyId`, `GET /api/errors/:dependencyId` |
 | Admin | `GET /api/admin/audit-log` (filterable by date, user, action, resource type), `GET/PUT /api/admin/settings` |
+| Alerts | `GET/POST /api/teams/:id/alert-channels`, `PUT/DELETE /:channelId`, `POST /:channelId/test`; `GET/PUT /api/teams/:id/alert-rules`; `GET /api/teams/:id/alert-history` |
 
 ## Mock Services
 

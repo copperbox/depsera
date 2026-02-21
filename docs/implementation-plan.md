@@ -652,16 +652,16 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** CRUD endpoints for alert channels and rules (team-scoped). Alert history listing. Team membership verification.
 
 **Acceptance criteria:**
-- [ ] `POST/GET/PUT/DELETE /api/teams/:teamId/alert-channels` — CRUD (team lead+)
-- [ ] `POST /api/teams/:teamId/alert-channels/:id/test` — send test alert
-- [ ] `POST/GET/PUT/DELETE /api/teams/:teamId/alert-rules` — CRUD (team lead+)
-- [ ] `GET /api/teams/:teamId/alert-history` — paginated history (team member+)
-- [ ] Input validation on all endpoints
-- [ ] Tests for all endpoints
+- [x] `POST/GET/PUT/DELETE /api/teams/:teamId/alert-channels` — CRUD (team lead+)
+- [x] `POST /api/teams/:teamId/alert-channels/:id/test` — send test alert
+- [x] `POST/GET/PUT/DELETE /api/teams/:teamId/alert-rules` — CRUD (team lead+)
+- [x] `GET /api/teams/:teamId/alert-history` — paginated history (team member+)
+- [x] Input validation on all endpoints
+- [x] Tests for all endpoints
 
-**Files likely touched:**
-- `server/src/routes/alerts.ts` (new)
-- `server/src/app.ts` — route registration
+**Files touched:**
+- `server/src/routes/alerts/` (new) — index, channels/, rules/, history/, validation
+- `server/src/index.ts` — route registration
 
 ---
 

@@ -844,6 +844,62 @@ Errors are for the last 24 hours, limited to the last 50 records. `isRecovery: t
 
 **Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`
 
+### 4.11 Alerts
+
+**[Implemented]** (PRO-106)
+
+Team-scoped alert channel, rule, and history management. All endpoints are nested under `/api/teams/:id`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/alert-channels` | requireTeamAccess | List alert channels for team. |
+| POST | `/api/teams/:id/alert-channels` | requireTeamLead | Create alert channel. Body: `{ channel_type, config }`. |
+| PUT | `/api/teams/:id/alert-channels/:channelId` | requireTeamLead | Update alert channel. Body: `{ channel_type?, config?, is_active? }`. |
+| DELETE | `/api/teams/:id/alert-channels/:channelId` | requireTeamLead | Delete alert channel. Returns 204. |
+| POST | `/api/teams/:id/alert-channels/:channelId/test` | requireTeamLead | Send test alert to channel. Returns `{ success, error }`. |
+| GET | `/api/teams/:id/alert-rules` | requireTeamAccess | Get alert rules for team. |
+| PUT | `/api/teams/:id/alert-rules` | requireTeamLead | Upsert alert rule. Body: `{ severity_filter, is_active? }`. |
+| GET | `/api/teams/:id/alert-history` | requireTeamAccess | Paginated alert history. Query: `limit`, `offset`, `status`. |
+
+**POST /api/teams/:id/alert-channels request (Slack):**
+
+```json
+{
+  "channel_type": "slack",
+  "config": {
+    "webhook_url": "https://hooks.slack.com/services/T00/B00/xxx"
+  }
+}
+```
+
+**POST /api/teams/:id/alert-channels request (Webhook):**
+
+```json
+{
+  "channel_type": "webhook",
+  "config": {
+    "url": "https://example.com/webhook",
+    "headers": { "Authorization": "Bearer token" }
+  }
+}
+```
+
+**PUT /api/teams/:id/alert-rules request:**
+
+```json
+{
+  "severity_filter": "critical | warning | all",
+  "is_active": true
+}
+```
+
+**Validation:**
+- Slack webhook URL must match `https://hooks.slack.com/services/...`
+- Webhook URL must be a valid URL
+- Webhook headers must have string values
+- `severity_filter` must be `critical`, `warning`, or `all`
+- Channel updates verify the channel belongs to the specified team (404 otherwise)
+
 ---
 
 ## 5. Health Polling System
@@ -1471,6 +1527,8 @@ Support for services that don't use the proactive-deps format:
 ### 12.6 Alerting (Phase 5)
 
 **Alert channels:** Slack (incoming webhook) and generic HTTP webhook, configured per team.
+
+**Alert API routes:** **[Implemented]** (PRO-106). Team-scoped CRUD for alert channels (`/api/teams/:id/alert-channels`), alert rules (`/api/teams/:id/alert-rules`), and alert history (`/api/teams/:id/alert-history`). Team members can read; team leads+ can create/update/delete. Test endpoint sends a test alert via the configured channel. Input validation for Slack webhook URLs and generic webhook URLs. See `/server/src/routes/alerts/`.
 
 **Alert dispatch:** **[Implemented]** (PRO-82). `AlertService` singleton listens to `STATUS_CHANGE` and `POLL_ERROR` events from the polling system. Evaluates team alert rules with severity filtering (critical only, warning+, or all). Pluggable `IAlertSender` interface for channel type implementations. See `/server/src/services/alerts/AlertService.ts`.
 
