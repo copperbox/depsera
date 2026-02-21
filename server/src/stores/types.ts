@@ -133,6 +133,7 @@ export interface ServiceCreateInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string | null;
+  schema_config?: string | null;
   poll_interval_ms?: number;
 }
 
@@ -141,6 +142,7 @@ export interface ServiceUpdateInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string | null;
+  schema_config?: string | null;
   poll_interval_ms?: number;
   is_active?: boolean;
 }

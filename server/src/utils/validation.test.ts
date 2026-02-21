@@ -13,6 +13,7 @@ import {
   validateTeamMemberAdd,
   validateTeamMemberRoleUpdate,
   validateDependencyType,
+  validateSchemaConfig,
   MIN_POLL_INTERVAL_MS,
   MAX_POLL_INTERVAL_MS,
   VALID_ASSOCIATION_TYPES,
@@ -533,5 +534,210 @@ describe('Constants', () => {
   it('should export valid team member roles', () => {
     expect(VALID_TEAM_MEMBER_ROLES).toContain('lead');
     expect(VALID_TEAM_MEMBER_ROLES).toContain('member');
+  });
+});
+
+describe('Schema Config Validation', () => {
+  describe('validateSchemaConfig', () => {
+    const validConfig = {
+      root: 'data.healthChecks',
+      fields: {
+        name: 'checkName',
+        healthy: { field: 'status', equals: 'ok' },
+      },
+    };
+
+    it('should accept a valid schema config object with required fields', () => {
+      const result = validateSchemaConfig(validConfig);
+      const parsed = JSON.parse(result);
+      expect(parsed.root).toBe('data.healthChecks');
+      expect(parsed.fields.name).toBe('checkName');
+      expect(parsed.fields.healthy).toEqual({ field: 'status', equals: 'ok' });
+    });
+
+    it('should accept a valid JSON string', () => {
+      const result = validateSchemaConfig(JSON.stringify(validConfig));
+      const parsed = JSON.parse(result);
+      expect(parsed.root).toBe('data.healthChecks');
+    });
+
+    it('should accept optional fields (latency, impact, description)', () => {
+      const config = {
+        root: 'checks',
+        fields: {
+          name: 'checkName',
+          healthy: 'isHealthy',
+          latency: 'responseTimeMs',
+          impact: 'severity',
+          description: 'displayName',
+        },
+      };
+      const result = validateSchemaConfig(config);
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.latency).toBe('responseTimeMs');
+      expect(parsed.fields.impact).toBe('severity');
+      expect(parsed.fields.description).toBe('displayName');
+    });
+
+    it('should accept nested dot-path field mappings', () => {
+      const config = {
+        root: 'data.health.checks',
+        fields: {
+          name: 'meta.name',
+          healthy: { field: 'metrics.status', equals: 'UP' },
+          latency: 'metrics.responseTime',
+        },
+      };
+      const result = validateSchemaConfig(config);
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.name).toBe('meta.name');
+      expect(parsed.fields.healthy.field).toBe('metrics.status');
+    });
+
+    it('should reject non-object/non-string input', () => {
+      expect(() => validateSchemaConfig(123)).toThrow(ValidationError);
+      expect(() => validateSchemaConfig(true)).toThrow(ValidationError);
+    });
+
+    it('should reject invalid JSON string', () => {
+      expect(() => validateSchemaConfig('not-json')).toThrow(ValidationError);
+      expect(() => validateSchemaConfig('{invalid}')).toThrow(ValidationError);
+    });
+
+    it('should reject arrays', () => {
+      expect(() => validateSchemaConfig([1, 2, 3])).toThrow(ValidationError);
+      expect(() => validateSchemaConfig('[]')).toThrow(ValidationError);
+    });
+
+    it('should reject missing root', () => {
+      expect(() => validateSchemaConfig({ fields: { name: 'n', healthy: 'h' } }))
+        .toThrow(/schema_config\.root/);
+    });
+
+    it('should reject empty root', () => {
+      expect(() => validateSchemaConfig({ root: '', fields: { name: 'n', healthy: 'h' } }))
+        .toThrow(/schema_config\.root/);
+    });
+
+    it('should reject missing fields object', () => {
+      expect(() => validateSchemaConfig({ root: 'data' }))
+        .toThrow(/schema_config\.fields/);
+    });
+
+    it('should reject fields as non-object', () => {
+      expect(() => validateSchemaConfig({ root: 'data', fields: 'bad' }))
+        .toThrow(/schema_config\.fields/);
+    });
+
+    it('should reject missing required field: name', () => {
+      expect(() => validateSchemaConfig({ root: 'data', fields: { healthy: 'h' } }))
+        .toThrow(/schema_config\.fields\.name is required/);
+    });
+
+    it('should reject missing required field: healthy', () => {
+      expect(() => validateSchemaConfig({ root: 'data', fields: { name: 'n' } }))
+        .toThrow(/schema_config\.fields\.healthy is required/);
+    });
+
+    it('should reject unknown fields', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', unknownField: 'x' },
+      })).toThrow(/unknown field "unknownField"/);
+    });
+
+    it('should reject empty string field mapping', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: '', healthy: 'h' },
+      })).toThrow(/schema_config\.fields\.name/);
+    });
+
+    it('should reject boolean comparison with missing field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: { equals: 'ok' } },
+      })).toThrow(/schema_config\.fields\.healthy\.field/);
+    });
+
+    it('should reject boolean comparison with missing equals', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: { field: 'status' } },
+      })).toThrow(/schema_config\.fields\.healthy\.equals/);
+    });
+
+    it('should reject number as field mapping', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 123, healthy: 'h' },
+      })).toThrow(/schema_config\.fields\.name/);
+    });
+  });
+
+  describe('validateServiceCreate with schema_config', () => {
+    const baseInput = {
+      name: 'Test Service',
+      team_id: 'team-1',
+      health_endpoint: 'https://example.com/health',
+    };
+
+    it('should pass through schema_config when provided as object', () => {
+      const input = {
+        ...baseInput,
+        schema_config: {
+          root: 'checks',
+          fields: { name: 'checkName', healthy: 'isUp' },
+        },
+      };
+      const result = validateServiceCreate(input);
+      expect(result.schema_config).toBeDefined();
+      const parsed = JSON.parse(result.schema_config!);
+      expect(parsed.root).toBe('checks');
+    });
+
+    it('should accept null schema_config', () => {
+      const result = validateServiceCreate({ ...baseInput, schema_config: null });
+      expect(result.schema_config).toBeNull();
+    });
+
+    it('should omit schema_config when not provided', () => {
+      const result = validateServiceCreate(baseInput);
+      expect(result.schema_config).toBeUndefined();
+    });
+
+    it('should reject invalid schema_config', () => {
+      expect(() => validateServiceCreate({
+        ...baseInput,
+        schema_config: { root: 'data' },
+      })).toThrow(ValidationError);
+    });
+  });
+
+  describe('validateServiceUpdate with schema_config', () => {
+    it('should accept schema_config update', () => {
+      const result = validateServiceUpdate({
+        schema_config: {
+          root: 'health',
+          fields: { name: 'n', healthy: 'h' },
+        },
+      });
+      expect(result).not.toBeNull();
+      expect(result!.schema_config).toBeDefined();
+      const parsed = JSON.parse(result!.schema_config!);
+      expect(parsed.root).toBe('health');
+    });
+
+    it('should accept null schema_config (remove mapping)', () => {
+      const result = validateServiceUpdate({ schema_config: null });
+      expect(result).not.toBeNull();
+      expect(result!.schema_config).toBeNull();
+    });
+
+    it('should reject invalid schema_config in update', () => {
+      expect(() => validateServiceUpdate({
+        schema_config: 'not-json',
+      })).toThrow(ValidationError);
+    });
   });
 });

@@ -143,6 +143,7 @@ erDiagram
 | team_id | TEXT | NOT NULL, FK → teams.id RESTRICT | |
 | health_endpoint | TEXT | NOT NULL | |
 | metrics_endpoint | TEXT | | NULL |
+| schema_config | TEXT | | NULL |
 | poll_interval_ms | INTEGER | NOT NULL | 30000 |
 | is_active | INTEGER | NOT NULL | 1 |
 | last_poll_success | INTEGER | | NULL |
@@ -280,9 +281,9 @@ Key-value store for runtime-configurable admin settings. See [Section 12.3](#123
 
 Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD).
 
-#### schema_mappings **[Planned]**
+#### schema_config (on services) **[Implemented]**
 
-Custom health endpoint schema configuration per service. Either a separate table or a `schema_config` JSON column on `services`. See [Section 12.5](#125-custom-health-endpoint-schema).
+Custom health endpoint schema configuration stored as a nullable `schema_config TEXT` column on the `services` table (JSON string of `SchemaMapping`). Services without a mapping default to proactive-deps format. See [Section 12.5](#125-custom-health-endpoint-schema).
 
 #### alert_channels **[Implemented]**
 
@@ -578,6 +579,7 @@ Rate limited: 10 requests/minute per IP.
   "team_id": "uuid (required)",
   "health_endpoint": "url (required, SSRF-validated)",
   "metrics_endpoint": "url (optional)",
+  "schema_config": "SchemaMapping object or null (optional, see Section 12.5)",
   "poll_interval_ms": "number (optional, default 30000, min 5000, max 3600000)"
 }
 ```
@@ -592,6 +594,7 @@ Rate limited: 10 requests/minute per IP.
   "team": { "id": "uuid", "name": "Platform", "description": "..." },
   "health_endpoint": "https://payment-svc/health",
   "metrics_endpoint": null,
+  "schema_config": null,
   "poll_interval_ms": 30000,
   "is_active": 1,
   "last_poll_success": 1,
@@ -1532,6 +1535,8 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 
 Support for services that don't use the proactive-deps format:
 
+**Data model:** **[Implemented]** (PRO-78). `schema_config` nullable TEXT column on `services` table (migration 012). Stores a JSON-serialized `SchemaMapping` object. TypeScript types `SchemaMapping`, `FieldMapping`, `BooleanComparison` in `/server/src/db/types.ts`. Validation via `validateSchemaConfig()` in `/server/src/utils/validation.ts` — validates structure, required fields (`name`, `healthy`), optional fields (`latency`, `impact`, `description`), rejects unknown fields. Accepts both JSON strings and objects, returns validated JSON string. Services without a mapping default to proactive-deps format.
+
 **Schema mapping structure:**
 ```json
 {
@@ -1547,12 +1552,13 @@ Support for services that don't use the proactive-deps format:
 ```
 
 - `root`: JSON path (dot notation) to the array of dependency checks
-- `fields.name`: Direct field mapping
-- `fields.healthy`: Boolean comparison (`field` + `equals` value match)
+- `fields.name`: Direct field mapping (required)
+- `fields.healthy`: Direct mapping or boolean comparison (`field` + `equals` value match) (required)
+- `fields.latency`, `fields.impact`, `fields.description`: Optional field mappings
 - Nested paths supported: `"metrics.responseTime"`
 - Services without a mapping default to proactive-deps
-- Test endpoint: `POST /api/services/test-schema` — fetches URL, applies mapping, returns preview
-- UI: Toggle between "proactive-deps" and "Custom schema" on service form, with test button
+- Test endpoint: **[Planned]** `POST /api/services/test-schema` — fetches URL, applies mapping, returns preview
+- UI: **[Planned]** Toggle between "proactive-deps" and "Custom schema" on service form, with test button
 
 ### 12.6 Alerting (Phase 5)
 

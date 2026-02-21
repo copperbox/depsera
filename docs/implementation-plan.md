@@ -470,16 +470,20 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** New `schema_mappings` table or `schema_config` JSON column on `services`. TypeScript types for the schema mapping structure.
 
 **Acceptance criteria:**
-- [ ] Migration adds schema config storage (table or column)
-- [ ] TypeScript types: `SchemaMapping`, `FieldMapping`, `BooleanComparison`
-- [ ] Schema mapping supports: `root` path, direct field mapping, boolean comparison, nested paths
-- [ ] Services without a mapping default to proactive-deps
-- [ ] Tests for types and migration
+- [x] Migration adds schema config storage (table or column)
+- [x] TypeScript types: `SchemaMapping`, `FieldMapping`, `BooleanComparison`
+- [x] Schema mapping supports: `root` path, direct field mapping, boolean comparison, nested paths
+- [x] Services without a mapping default to proactive-deps
+- [x] Tests for types and migration
 
-**Files likely touched:**
-- `server/src/db/migrations/010_add_schema_mappings.ts` (new)
-- `server/src/db/types.ts` — new types
-- `server/src/stores/` — if separate table, new store
+**Files touched:**
+- `server/src/db/migrations/012_add_schema_config.ts` (new)
+- `server/src/db/types.ts` — `SchemaMapping`, `FieldMapping`, `BooleanComparison` types + `schema_config` on `Service`
+- `server/src/stores/types.ts` — `schema_config` on `ServiceCreateInput`, `ServiceUpdateInput`
+- `server/src/stores/impl/ServiceStore.ts` — create/update with `schema_config`
+- `server/src/utils/validation.ts` — `validateSchemaConfig()` + service validation updates
+- `server/src/routes/services/create.ts`, `update.ts` — pass `schema_config` through
+- `server/src/routes/formatters/serviceFormatter.ts`, `types.ts` — include in responses
 
 ---
 

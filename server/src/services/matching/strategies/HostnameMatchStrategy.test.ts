@@ -31,6 +31,7 @@ describe('HostnameMatchStrategy', () => {
     team_id: 'team-1',
     health_endpoint: healthEndpoint,
     metrics_endpoint: null,
+    schema_config: null,
     poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,

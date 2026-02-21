@@ -63,7 +63,7 @@ Core tables:
 - `users` - User accounts (OIDC or local auth, has `password_hash` for local mode)
 - `teams` - Organizational units that own services
 - `team_members` - Junction table for user-team membership
-- `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling)
+- `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling, `schema_config` nullable JSON column for custom health endpoint schema mappings)
 - `dependencies` - Dependency status data from proactive-deps (has `canonical_name` column for alias resolution)
 - `dependency_associations` - Links between dependencies and services
 - `dependency_aliases` - Maps reported dependency names (alias) to canonical names
@@ -75,7 +75,7 @@ Core tables:
 - `alert_rules` - Team-level alert rules with severity filters (critical, warning, all)
 - `alert_history` - Record of sent/failed/suppressed alerts with payload and status
 
-Migrations are in `/server/src/db/migrations/` (001-011). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-012). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 

@@ -37,6 +37,7 @@ export function updateService(req: Request, res: Response): void {
       team_id: validated.team_id,
       health_endpoint: validated.health_endpoint,
       metrics_endpoint: validated.metrics_endpoint,
+      schema_config: validated.schema_config,
       poll_interval_ms: validated.poll_interval_ms,
       is_active: validated.is_active,
     });

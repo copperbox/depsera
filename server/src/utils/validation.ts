@@ -1,5 +1,5 @@
 import { ValidationError } from './errors';
-import { AssociationType, DependencyType, DEPENDENCY_TYPES, TeamMemberRole } from '../db/types';
+import { AssociationType, DependencyType, DEPENDENCY_TYPES, TeamMemberRole, SchemaMapping, FieldMapping } from '../db/types';
 import { validateUrlHostname } from './ssrf';
 
 // ============================================================================
@@ -111,6 +111,7 @@ export interface ValidatedServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  schema_config?: string | null;
   poll_interval_ms?: number;
 }
 
@@ -119,6 +120,7 @@ export interface ValidatedServiceUpdateInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string | null;
+  schema_config?: string | null;
   poll_interval_ms?: number;
   is_active?: boolean;
 }
@@ -172,11 +174,22 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     pollIntervalMs = input.poll_interval_ms;
   }
 
+  // Optional: schema_config
+  let schemaConfig: string | null | undefined;
+  if (input.schema_config !== undefined) {
+    if (input.schema_config === null) {
+      schemaConfig = null;
+    } else {
+      schemaConfig = validateSchemaConfig(input.schema_config);
+    }
+  }
+
   return {
     name: input.name.trim(),
     team_id: input.team_id,
     health_endpoint: input.health_endpoint,
     metrics_endpoint: metricsEndpoint,
+    schema_config: schemaConfig,
     poll_interval_ms: pollIntervalMs,
   };
 }
@@ -238,6 +251,16 @@ export function validateServiceUpdate(
       );
     }
     result.poll_interval_ms = input.poll_interval_ms;
+    hasUpdates = true;
+  }
+
+  // Optional: schema_config
+  if (input.schema_config !== undefined) {
+    if (input.schema_config === null) {
+      result.schema_config = null;
+    } else {
+      result.schema_config = validateSchemaConfig(input.schema_config);
+    }
     hasUpdates = true;
   }
 
@@ -427,4 +450,122 @@ export function validateDependencyType(type: unknown): DependencyType {
     );
   }
   return type as DependencyType;
+}
+
+// ============================================================================
+// Schema Config Validation
+// ============================================================================
+
+const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description'] as const;
+const REQUIRED_SCHEMA_FIELDS: (keyof SchemaMapping['fields'])[] = ['name', 'healthy'];
+
+/**
+ * Validate a single field mapping value.
+ * Must be a non-empty string (direct mapping or dot-path) or a BooleanComparison object.
+ * @throws ValidationError if invalid
+ */
+function validateFieldMapping(value: unknown, fieldName: string): FieldMapping {
+  if (isNonEmptyString(value)) {
+    return value;
+  }
+
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if (!isNonEmptyString(obj.field)) {
+      throw new ValidationError(
+        `schema_config.fields.${fieldName}.field must be a non-empty string`,
+        'schema_config'
+      );
+    }
+    if (!isNonEmptyString(obj.equals)) {
+      throw new ValidationError(
+        `schema_config.fields.${fieldName}.equals must be a non-empty string`,
+        'schema_config'
+      );
+    }
+    return { field: obj.field, equals: obj.equals };
+  }
+
+  throw new ValidationError(
+    `schema_config.fields.${fieldName} must be a string or { field, equals } object`,
+    'schema_config'
+  );
+}
+
+/**
+ * Validate and serialize a schema_config value.
+ * Accepts either a JSON string or an object. Returns a validated JSON string.
+ * @throws ValidationError if the schema config is invalid
+ */
+export function validateSchemaConfig(value: unknown): string {
+  let parsed: unknown;
+
+  if (isString(value)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      throw new ValidationError('schema_config must be valid JSON', 'schema_config');
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    parsed = value;
+  } else {
+    throw new ValidationError(
+      'schema_config must be a JSON string or object',
+      'schema_config'
+    );
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new ValidationError('schema_config must be a JSON object', 'schema_config');
+  }
+
+  const config = parsed as Record<string, unknown>;
+
+  // Validate root
+  if (!isNonEmptyString(config.root)) {
+    throw new ValidationError('schema_config.root must be a non-empty string', 'schema_config');
+  }
+
+  // Validate fields
+  if (typeof config.fields !== 'object' || config.fields === null || Array.isArray(config.fields)) {
+    throw new ValidationError('schema_config.fields must be an object', 'schema_config');
+  }
+
+  const fields = config.fields as Record<string, unknown>;
+
+  // Check required fields
+  for (const requiredField of REQUIRED_SCHEMA_FIELDS) {
+    if (fields[requiredField] === undefined) {
+      throw new ValidationError(
+        `schema_config.fields.${requiredField} is required`,
+        'schema_config'
+      );
+    }
+  }
+
+  // Validate all field mappings
+  const validatedFields: Record<string, FieldMapping> = {};
+  for (const key of Object.keys(fields)) {
+    if (!VALID_SCHEMA_FIELDS.includes(key as typeof VALID_SCHEMA_FIELDS[number])) {
+      throw new ValidationError(
+        `schema_config.fields contains unknown field "${key}". Valid fields: ${VALID_SCHEMA_FIELDS.join(', ')}`,
+        'schema_config'
+      );
+    }
+    validatedFields[key] = validateFieldMapping(fields[key], key);
+  }
+
+  // Build validated SchemaMapping
+  const validated: SchemaMapping = {
+    root: config.root,
+    fields: {
+      name: validatedFields.name,
+      healthy: validatedFields.healthy,
+      ...(validatedFields.latency !== undefined && { latency: validatedFields.latency }),
+      ...(validatedFields.impact !== undefined && { impact: validatedFields.impact }),
+      ...(validatedFields.description !== undefined && { description: validatedFields.description }),
+    },
+  };
+
+  return JSON.stringify(validated);
 }

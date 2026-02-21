@@ -81,6 +81,7 @@ describe('Teams API', () => {
         team_id TEXT NOT NULL,
         health_endpoint TEXT NOT NULL,
         metrics_endpoint TEXT,
+        schema_config TEXT,
         polling_interval INTEGER NOT NULL DEFAULT 30,
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,

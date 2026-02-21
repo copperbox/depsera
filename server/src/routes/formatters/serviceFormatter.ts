@@ -33,6 +33,7 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     team_id: row.team_id,
     health_endpoint: row.health_endpoint,
     metrics_endpoint: row.metrics_endpoint,
+    schema_config: row.schema_config ?? null,
     poll_interval_ms: row.poll_interval_ms,
     is_active: row.is_active,
     last_poll_success: row.last_poll_success ?? null,

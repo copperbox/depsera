@@ -12,6 +12,7 @@ const createService = (
   team_id: 'team-1',
   health_endpoint: `http://localhost:4000/${name}/dependencies`,
   metrics_endpoint: null,
+  schema_config: null,
   poll_interval_ms: 30000,
   is_active: 1,
   last_poll_success: null,

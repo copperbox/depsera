@@ -23,6 +23,7 @@ describe('AssociationMatcher', () => {
         team_id TEXT NOT NULL,
         health_endpoint TEXT NOT NULL,
         metrics_endpoint TEXT,
+        schema_config TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,

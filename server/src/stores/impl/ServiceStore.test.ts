@@ -23,6 +23,7 @@ describe('ServiceStore', () => {
         team_id TEXT NOT NULL,
         health_endpoint TEXT NOT NULL,
         metrics_endpoint TEXT,
+        schema_config TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,
@@ -80,6 +81,31 @@ describe('ServiceStore', () => {
       });
 
       expect(service.metrics_endpoint).toBe('http://test/metrics');
+    });
+
+    it('should create service with schema_config', () => {
+      const schemaConfig = JSON.stringify({
+        root: 'data.checks',
+        fields: { name: 'checkName', healthy: { field: 'status', equals: 'ok' } },
+      });
+      const service = store.create({
+        name: 'Schema Service',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+        schema_config: schemaConfig,
+      });
+
+      expect(service.schema_config).toBe(schemaConfig);
+    });
+
+    it('should create service with null schema_config by default', () => {
+      const service = store.create({
+        name: 'No Schema Service',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+      });
+
+      expect(service.schema_config).toBeNull();
     });
 
     it('should find service by id', () => {
@@ -311,6 +337,31 @@ describe('ServiceStore', () => {
 
       const updated = store.update(service.id, { metrics_endpoint: 'http://metrics' });
       expect(updated?.metrics_endpoint).toBe('http://metrics');
+    });
+
+    it('should update schema_config', () => {
+      const service = store.create({
+        name: 'Test',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+      });
+
+      const schemaConfig = JSON.stringify({ root: 'checks', fields: { name: 'n', healthy: 'h' } });
+      const updated = store.update(service.id, { schema_config: schemaConfig });
+      expect(updated?.schema_config).toBe(schemaConfig);
+    });
+
+    it('should clear schema_config when set to null', () => {
+      const schemaConfig = JSON.stringify({ root: 'checks', fields: { name: 'n', healthy: 'h' } });
+      const service = store.create({
+        name: 'Test',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+        schema_config: schemaConfig,
+      });
+
+      const updated = store.update(service.id, { schema_config: null });
+      expect(updated?.schema_config).toBeNull();
     });
 
     it('should update poll_interval_ms', () => {

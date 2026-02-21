@@ -115,4 +115,44 @@ describe('Database', () => {
       `).run();
     }).toThrow(/CHECK constraint failed/);
   });
+
+  it('should have schema_config column on services table', () => {
+    const columns = testDb
+      .prepare("PRAGMA table_info('services')")
+      .all() as { name: string; type: string; notnull: number }[];
+
+    const schemaConfigCol = columns.find(c => c.name === 'schema_config');
+    expect(schemaConfigCol).toBeDefined();
+    expect(schemaConfigCol!.type).toBe('TEXT');
+    expect(schemaConfigCol!.notnull).toBe(0); // nullable
+  });
+
+  it('should allow inserting and retrieving schema_config on services', () => {
+    // Ensure team exists
+    testDb.prepare(`
+      INSERT OR IGNORE INTO teams (id, name) VALUES ('team-schema', 'Schema Test Team')
+    `).run();
+
+    const schemaConfig = JSON.stringify({
+      root: 'data.checks',
+      fields: { name: 'checkName', healthy: { field: 'status', equals: 'ok' } },
+    });
+
+    testDb.prepare(`
+      INSERT INTO services (id, name, team_id, health_endpoint, schema_config, poll_interval_ms)
+      VALUES ('svc-schema-test', 'Schema Test Service', 'team-schema', 'http://test/health', ?, 30000)
+    `).run(schemaConfig);
+
+    const service = testDb.prepare('SELECT schema_config FROM services WHERE id = ?')
+      .get('svc-schema-test') as { schema_config: string | null };
+
+    expect(service.schema_config).toBe(schemaConfig);
+    const parsed = JSON.parse(service.schema_config!);
+    expect(parsed.root).toBe('data.checks');
+    expect(parsed.fields.healthy).toEqual({ field: 'status', equals: 'ok' });
+
+    // Cleanup
+    testDb.prepare('DELETE FROM services WHERE id = ?').run('svc-schema-test');
+    testDb.prepare('DELETE FROM teams WHERE id = ?').run('team-schema');
+  });
 });

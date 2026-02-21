@@ -22,6 +22,7 @@ describe('ServicePoller', () => {
     team_id: 'team-1',
     health_endpoint: 'http://test-service/health',
     metrics_endpoint: null,
+    schema_config: null,
     poll_interval_ms: 30000,
     is_active: 1,
     last_poll_success: null,

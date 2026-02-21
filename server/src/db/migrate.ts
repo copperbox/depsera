@@ -10,6 +10,7 @@ import * as migration008 from './migrations/008_add_audit_log';
 import * as migration009 from './migrations/009_add_settings';
 import * as migration010 from './migrations/010_add_password_hash';
 import * as migration011 from './migrations/011_add_alerts';
+import * as migration012 from './migrations/012_add_schema_config';
 
 interface Migration {
   id: string;
@@ -84,6 +85,12 @@ const migrations: Migration[] = [
     name: 'add_alerts',
     up: migration011.up,
     down: migration011.down
+  },
+  {
+    id: '012',
+    name: 'add_schema_config',
+    up: migration012.up,
+    down: migration012.down
   }
 ];
 

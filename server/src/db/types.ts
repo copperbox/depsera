@@ -60,6 +60,25 @@ export interface TeamWithMembers extends Team {
   members: (TeamMember & { user: User })[];
 }
 
+// Schema mapping types (Custom Health Endpoint Schema)
+export interface BooleanComparison {
+  field: string;
+  equals: string;
+}
+
+export type FieldMapping = string | BooleanComparison;
+
+export interface SchemaMapping {
+  root: string;
+  fields: {
+    name: FieldMapping;
+    healthy: FieldMapping;
+    latency?: FieldMapping;
+    impact?: FieldMapping;
+    description?: FieldMapping;
+  };
+}
+
 // Service types
 export interface Service {
   id: string;
@@ -67,6 +86,7 @@ export interface Service {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  schema_config: string | null; // JSON string of SchemaMapping
   poll_interval_ms: number;
   is_active: number; // SQLite boolean
   last_poll_success: number | null; // SQLite boolean (0/1)
@@ -80,6 +100,7 @@ export interface CreateServiceInput {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint?: string;
+  schema_config?: string | null;
   poll_interval_ms?: number;
 }
 
@@ -88,6 +109,7 @@ export interface UpdateServiceInput {
   team_id?: string;
   health_endpoint?: string;
   metrics_endpoint?: string;
+  schema_config?: string | null;
   poll_interval_ms?: number;
   is_active?: boolean;
 }

@@ -16,6 +16,8 @@ describe('AssociationStore', () => {
         name TEXT NOT NULL,
         team_id TEXT NOT NULL,
         health_endpoint TEXT NOT NULL,
+        metrics_endpoint TEXT,
+        schema_config TEXT,
         is_active INTEGER NOT NULL DEFAULT 1
       );
 

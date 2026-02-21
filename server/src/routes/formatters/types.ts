@@ -24,6 +24,7 @@ export interface FormattedServiceListItem {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  schema_config: string | null;
   is_active: number;
   last_poll_success: number | null;
   last_poll_error: string | null;
@@ -46,6 +47,7 @@ export interface FormattedServiceMutation {
   team_id: string;
   health_endpoint: string;
   metrics_endpoint: string | null;
+  schema_config: string | null;
   is_active: number;
   last_poll_success: number | null;
   last_poll_error: string | null;
