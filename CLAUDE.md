@@ -163,6 +163,7 @@ Key files in `/server/src/services/alerts/`:
 - `FlapProtector.ts` — Cooldown-based duplicate suppression
 - `AlertRateLimiter.ts` — Per-team hourly rate limiter
 - `types.ts` — `AlertEvent`, `IAlertSender`, `SendResult` interfaces
+- `senders/SlackSender.ts` — Slack incoming webhook sender (Block Kit format, 10s timeout, 429 handling)
 
 ## API Routes
 

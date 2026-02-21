@@ -617,14 +617,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Slack message formatter using Block Kit. HTTP sender to incoming webhook URL. Requires `APP_BASE_URL` for deep links.
 
 **Acceptance criteria:**
-- [ ] Slack messages include: service name, dependency name, old -> new status, timestamp, link to Depsera
-- [ ] Uses Slack Block Kit for rich formatting
-- [ ] `APP_BASE_URL` env var for deep links
-- [ ] HTTP POST to webhook URL with 10s timeout
-- [ ] Tests for message formatting and sending
+- [x] Slack messages include: service name, dependency name, old -> new status, timestamp, link to Depsera
+- [x] Uses Slack Block Kit for rich formatting
+- [x] `APP_BASE_URL` env var for deep links
+- [x] HTTP POST to webhook URL with 10s timeout
+- [x] Tests for message formatting and sending
 
-**Files likely touched:**
+**Files touched:**
 - `server/src/services/alerts/senders/SlackSender.ts` (new)
+- `server/src/services/alerts/senders/SlackSender.test.ts` (new)
+- `server/src/services/alerts/index.ts` — export SlackSender
+- `server/src/index.ts` — register SlackSender on startup
 - `server/.env.example` — `APP_BASE_URL`
 
 ---

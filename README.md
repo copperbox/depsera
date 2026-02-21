@@ -23,6 +23,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Audit Trail** — All admin actions (user role changes, team/service mutations, member management) are recorded with actor, action, resource, details, and IP address; queryable via admin API with filtering by date range, user, action, and resource type
 - **Admin Settings** — Runtime-configurable application settings with admin UI page and API; 10 keys (data retention, poll intervals, rate limits, alert thresholds) with in-memory cache over SQLite persistence; env-var defaults overridable at runtime; all changes audited
 - **Alert Dispatch Engine** — Event-driven alert dispatch that listens to polling status changes and errors; team-scoped alert rules with severity filtering (critical, warning, all); flap protection with configurable cooldown; per-team hourly rate limiting; pluggable sender interface for Slack and webhook channels; automatic retry on failure; all attempts recorded in alert history
+- **Slack Alerts** — Rich Block Kit-formatted notifications to Slack via incoming webhooks; shows service name, dependency, status transition, severity, timestamp, and deep link back to Depsera; handles rate limiting (429) and timeouts; configurable via `APP_BASE_URL` env var for deep links
 
 ## Tech Stack
 
@@ -76,6 +77,7 @@ cp server/.env.example server/.env
 | `LOCAL_AUTH` | `false` | Set `true` to enable local username/password auth (mutually exclusive with `AUTH_BYPASS`) |
 | `ADMIN_EMAIL` | — | Initial admin email (required on first startup with `LOCAL_AUTH=true`) |
 | `ADMIN_PASSWORD` | — | Initial admin password, min 8 chars (required on first startup with `LOCAL_AUTH=true`) |
+| `APP_BASE_URL` | — | Base URL for deep links in alert messages (e.g., `https://depsera.internal.com`) |
 | `AUTH_BYPASS` | `false` | Set `true` to skip OIDC in development |
 | `AUTH_BYPASS_USER_EMAIL` | `dev@localhost` | Dev user email (bypass mode) |
 | `AUTH_BYPASS_USER_NAME` | `Development User` | Dev user name (bypass mode) |

@@ -1433,7 +1433,13 @@ All configuration is via environment variables on the server (set in `server/.en
 |---|---|---|
 | `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls per target hostname |
 
-### 11.6 Logging
+### 11.6 Alerting
+
+| Variable | Default | Description |
+|---|---|---|
+| `APP_BASE_URL` | — | Base URL for deep links in alert messages (e.g., `https://depsera.internal.com`) |
+
+### 11.7 Logging
 
 | Variable | Default | Description |
 |---|---|---|
@@ -1538,7 +1544,7 @@ Support for services that don't use the proactive-deps format:
 
 **Alert lifecycle:** **[Implemented]** (PRO-82). dispatch → record in `alert_history` (including suppressed) → retry once after 30s on failure. Graceful shutdown flushes pending retries.
 
-**Slack message format:** Service name, dependency name, old → new status, timestamp, deep link back to Depsera. Uses Slack Block Kit. Requires `APP_BASE_URL` env var for links.
+**Slack message format:** **[Implemented]** (PRO-83). `SlackSender` implements `IAlertSender`, sending Block Kit-formatted messages to Slack incoming webhooks. Header shows status emoji + service name + Degraded/Recovered. Section shows dependency name + status transition. Context shows severity + timestamp. Actions block includes "View in Depsera" button linking to service detail page (requires `APP_BASE_URL` env var). Poll error events show a warning format with the error message. 10-second request timeout. Handles Slack rate limiting (429) gracefully. Registered in `index.ts` on startup. See `/server/src/services/alerts/senders/SlackSender.ts`.
 
 **Webhook payload:**
 ```json
