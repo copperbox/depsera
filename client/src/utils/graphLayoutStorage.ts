@@ -19,13 +19,30 @@ export function saveNodePositions(userId: string, positions: NodePositions): voi
   }
 }
 
+function isNodePosition(value: unknown): value is NodePosition {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as NodePosition).x === 'number' &&
+    typeof (value as NodePosition).y === 'number' &&
+    isFinite((value as NodePosition).x) &&
+    isFinite((value as NodePosition).y)
+  );
+}
+
 export function loadNodePositions(userId: string): NodePositions {
   try {
     const stored = localStorage.getItem(getStorageKey(userId));
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as NodePositions;
+        const validated: NodePositions = {};
+        for (const [key, value] of Object.entries(parsed)) {
+          if (isNodePosition(value)) {
+            validated[key] = value;
+          }
+        }
+        return validated;
       }
     }
   } catch {

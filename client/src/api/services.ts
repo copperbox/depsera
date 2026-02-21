@@ -9,7 +9,11 @@ import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
 
 export async function fetchServices(teamId?: string): Promise<ServiceWithDependencies[]> {
-  const url = teamId ? `/api/services?team_id=${teamId}` : '/api/services';
+  let url = '/api/services';
+  if (teamId) {
+    const params = new URLSearchParams({ team_id: teamId });
+    url += `?${params}`;
+  }
   const response = await fetch(url, { credentials: 'include' });
   return handleResponse<ServiceWithDependencies[]>(response);
 }

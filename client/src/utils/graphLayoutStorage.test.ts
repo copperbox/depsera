@@ -35,6 +35,60 @@ describe('graphLayoutStorage', () => {
       expect(loadNodePositions(userId)).toEqual({});
     });
 
+    it('filters out entries with non-number coordinates', () => {
+      localStorage.setItem(
+        'graph-node-positions-user-123',
+        JSON.stringify({
+          'valid': { x: 10, y: 20 },
+          'bad-string': { x: 'hello', y: 20 },
+          'bad-null': { x: null, y: 20 },
+          'bad-object': { x: {}, y: 20 },
+        })
+      );
+      expect(loadNodePositions(userId)).toEqual({ 'valid': { x: 10, y: 20 } });
+    });
+
+    it('filters out entries with missing coordinates', () => {
+      localStorage.setItem(
+        'graph-node-positions-user-123',
+        JSON.stringify({
+          'valid': { x: 5, y: 15 },
+          'no-x': { y: 20 },
+          'no-y': { x: 10 },
+          'empty': {},
+        })
+      );
+      expect(loadNodePositions(userId)).toEqual({ 'valid': { x: 5, y: 15 } });
+    });
+
+    it('filters out entries with NaN or Infinity coordinates', () => {
+      localStorage.setItem(
+        'graph-node-positions-user-123',
+        JSON.stringify({
+          'valid': { x: 0, y: 0 },
+          'nan': { x: NaN, y: 10 },
+          'infinity': { x: 10, y: Infinity },
+          'neg-infinity': { x: -Infinity, y: 10 },
+        })
+      );
+      // NaN/Infinity become null in JSON.stringify, so they'll fail type checks
+      expect(loadNodePositions(userId)).toEqual({ 'valid': { x: 0, y: 0 } });
+    });
+
+    it('filters out non-object entries', () => {
+      localStorage.setItem(
+        'graph-node-positions-user-123',
+        JSON.stringify({
+          'valid': { x: 1, y: 2 },
+          'string': 'not-a-position',
+          'number': 42,
+          'null-val': null,
+          'array': [1, 2],
+        })
+      );
+      expect(loadNodePositions(userId)).toEqual({ 'valid': { x: 1, y: 2 } });
+    });
+
     it('uses user-specific keys', () => {
       saveNodePositions('user-a', { 'n1': { x: 1, y: 2 } });
       saveNodePositions('user-b', { 'n1': { x: 3, y: 4 } });

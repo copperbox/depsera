@@ -154,17 +154,18 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Use `URLSearchParams` for query parameter encoding, validate localStorage JSON parsing (wrap in try/catch), add `eslint-plugin-security` for client.
 
 **Acceptance criteria:**
-- [ ] All query string construction uses `URLSearchParams` (no manual `?key=value` concatenation)
-- [ ] All `JSON.parse(localStorage.getItem(...))` calls wrapped in try/catch
-- [ ] `eslint-plugin-security` added to client ESLint config, any findings fixed
-- [ ] Tests where applicable
+- [x] All query string construction uses `URLSearchParams` (no manual `?key=value` concatenation)
+- [x] All `JSON.parse(localStorage.getItem(...))` calls wrapped in try/catch
+- [x] `eslint-plugin-security` added to client ESLint config, any findings fixed
+- [x] Tests where applicable
 
-**Files likely touched:**
-- `client/src/api/*.ts` — query parameter construction
-- `client/src/hooks/*.ts` — localStorage reads
-- `client/src/contexts/*.ts` — localStorage reads
-- `client/.eslintrc.*`
-- `client/package.json`
+**Files touched:**
+- `client/src/api/services.ts` — replaced string interpolation with `URLSearchParams`
+- `client/src/utils/graphLayoutStorage.ts` — added `isNodePosition()` schema validator, filters invalid entries
+- `client/.eslintrc.json` — added `plugin:security/recommended-legacy` and `security` plugin
+- `client/package.json` — `eslint-plugin-security` dev dependency
+- `client/src/api/services.test.ts` — new test for URLSearchParams encoding
+- `client/src/utils/graphLayoutStorage.test.ts` — 4 new tests for schema validation of corrupted data
 
 ---
 

@@ -43,6 +43,18 @@ describe('fetchServices', () => {
     expect(result).toEqual(data);
   });
 
+  it('encodes special characters in team id via URLSearchParams', async () => {
+    const data = [{ id: '1', name: 'Service A' }];
+    mockFetch.mockResolvedValue(jsonResponse(data));
+
+    await fetchServices('team&id=bad');
+
+    const calledUrl = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('team_id=');
+    expect(calledUrl).not.toContain('team&id=bad');
+    expect(calledUrl).toContain(encodeURIComponent('team&id=bad'));
+  });
+
   it('throws on error response', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ message: 'Server error' }, 500));
 
