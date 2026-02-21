@@ -1173,10 +1173,11 @@ The order matters — each layer builds on previous:
 | 6 | Global Rate Limit | 100 req/15min per IP — early rejection before session creation |
 | 7 | Session | Populates `req.session` |
 | 8 | Auth Bypass | Dev-only auto-auth |
-| 9 | CSRF Protection | Double-submit cookie validation on `/api` routes |
-| 10 | Auth Rate Limit | 10 req/1min on `/api/auth` |
-| 11 | Route Handlers | API endpoints with auth middleware |
-| 12 | Static Files + SPA | Serves `client/dist/` with compression and catch-all |
+| 9 | Request Logger | `pino-http` structured logging (method, path, status, response time, userId) |
+| 10 | CSRF Protection | Double-submit cookie validation on `/api` routes |
+| 11 | Auth Rate Limit | 10 req/1min on `/api/auth` |
+| 12 | Route Handlers | API endpoints with auth middleware |
+| 13 | Static Files + SPA | Serves `client/dist/` with compression and catch-all |
 
 ---
 
@@ -1319,6 +1320,14 @@ All configuration is via environment variables on the server (set in `server/.en
 |---|---|---|
 | `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls per target hostname |
 
+### 11.6 Logging
+
+| Variable | Default | Description |
+|---|---|---|
+| `LOG_LEVEL` | `info` | Log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
+
+**[Implemented]** — Structured JSON logging in production, pretty-printed in development. HTTP requests logged via `pino-http` with method, path, status, response time, and authenticated user ID. Sensitive headers (`Authorization`, `Cookie`, `X-CSRF-Token`, `Set-Cookie`) are redacted from log output. `/api/health` is excluded from request logs by default to reduce noise.
+
 ---
 
 ## 12. Planned Features (1.0)
@@ -1334,7 +1343,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - **Session cookie improvements:** Evaluate `sameSite: 'strict'` against OIDC callback flow. Add startup warning if `secure` is false outside dev.
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.
 - **Client-side hardening:** `URLSearchParams` for query encoding, validate localStorage JSON parsing, `eslint-plugin-security`.
-- **HTTP request logging:** Structured logging via `pino` + `pino-http` (method, path, status, response time, user ID). JSON in production, readable in dev. Configurable via `LOG_LEVEL`.
+- **HTTP request logging:** ~~Structured logging via `pino` + `pino-http` (method, path, status, response time, user ID). JSON in production, readable in dev. Configurable via `LOG_LEVEL`.~~ **[Implemented]** (PRO-93). All HTTP requests logged via `pino-http` middleware with method, path, status, response time, user ID. Sensitive headers (Authorization, Cookie, X-CSRF-Token) redacted. Health check endpoint optionally excluded from logs. See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
 - **Audit trail:** `audit_log` table and store. Log admin actions. `GET /api/admin/audit-log` (admin only).
 
 ### 12.2 Team-Scoped Access Control (Phase 2)

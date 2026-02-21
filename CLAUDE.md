@@ -53,7 +53,7 @@ npm run db:clear      # Clear all data (dangerous!)
 
 - `/client` - React SPA with Vite, routes via react-router-dom
 - `/server` - Express REST API, SQLite database in `/server/data/` (sessions also stored in SQLite via `better-sqlite3-session-store`)
-- `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, rate limiting, static file serving, compression)
+- `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, rate limiting, request logging, static file serving, compression)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
 - In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
 
@@ -111,6 +111,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Redirect Validation:** Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed. See `/client/src/utils/redirect.ts`.
 - **Rate Limiting:** In-memory rate limiting via `express-rate-limit`. Global limit (100 req/15min per IP) applied before session middleware to reject abusive requests early. Stricter auth limit (10 req/1min per IP) on `/api/auth` to prevent brute-force attacks. All limits configurable via env vars. See `/server/src/middleware/rateLimit.ts`.
 - **Error Sanitization:** All route handler catch blocks use `sendErrorResponse()` which logs the full error server-side and returns sanitized responses to clients. Non-operational errors (non-`AppError`) return generic `{ error: "Internal server error" }` with no `message` field. `InvalidOrderByError` is treated as client input validation (returns 400). Poll errors are sanitized via `sanitizePollError()` before DB storage — strips private IPs, internal URLs, file paths, and maps known error codes (ECONNREFUSED, ETIMEDOUT, etc.) to safe descriptions. See `/server/src/utils/errors.ts`.
+- **HTTP Request Logging:** Structured logging via `pino` + `pino-http`. Logs method, path, status code, response time, and authenticated user ID. Sensitive headers (`Authorization`, `Cookie`, `X-CSRF-Token`, `Set-Cookie`) are redacted. `/api/health` excluded from logs by default. JSON output in production, pretty-printed in development. Configurable via `LOG_LEVEL` env var (default: `info`). See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)

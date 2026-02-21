@@ -20,6 +20,8 @@ import { createSecurityHeaders } from './middleware/securityHeaders';
 import { parseTrustProxy } from './middleware/trustProxy';
 import { createHttpsRedirect } from './middleware/httpsRedirect';
 import { createGlobalRateLimit, createAuthRateLimit } from './middleware/rateLimit';
+import { createRequestLogger } from './middleware/requestLogger';
+import logger from './utils/logger';
 
 dotenv.config();
 
@@ -46,6 +48,9 @@ app.use(sessionMiddleware);
 // Dev bypass middleware (auto-authenticates in dev mode when AUTH_BYPASS=true)
 app.use(bypassAuthMiddleware);
 
+// HTTP request logging (after session so userId is available in log entries)
+app.use(createRequestLogger({ logger }));
+
 // CSRF protection (must come after session middleware)
 app.use('/api', csrfProtection);
 
@@ -65,7 +70,7 @@ app.use('/api', requireAuth, associationsRouter);
 
 // Serve built client in production (auto-detected by presence of client/dist/index.html)
 if (clientBuildExists()) {
-  console.log('[Static] Serving client build from client/dist/');
+  logger.info('serving client build from client/dist/');
   app.use(createStaticMiddleware());
 }
 
@@ -78,8 +83,7 @@ async function start() {
     try {
       await initializeOIDC();
     } catch (error) {
-      console.error('Failed to initialize OIDC:', error);
-      console.error('Set AUTH_BYPASS=true for local development without OIDC');
+      logger.fatal({ err: error }, 'failed to initialize OIDC — set AUTH_BYPASS=true for local development without OIDC');
       process.exit(1);
     }
   }
@@ -89,33 +93,33 @@ async function start() {
 
   // Log status changes (for debugging and future alerting)
   pollingService.on(PollingEventType.STATUS_CHANGE, (event: StatusChangeEvent) => {
-    console.log(`[Health] ${event.serviceName}/${event.dependencyName}: ${event.previousHealthy} -> ${event.currentHealthy}`);
+    logger.info({ service: event.serviceName, dependency: event.dependencyName, from: event.previousHealthy, to: event.currentHealthy }, 'dependency status changed');
   });
 
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
-    console.error(`[Health] Poll failed for ${event.serviceName}: ${event.error}`);
+    logger.error({ service: event.serviceName, error: event.error }, 'poll failed');
   });
 
   // Warn about HTTPS redirect without proxy trust
   if (process.env.REQUIRE_HTTPS === 'true' && !process.env.TRUST_PROXY) {
-    console.warn('[Security] REQUIRE_HTTPS is enabled but TRUST_PROXY is not set. HTTPS redirect will not work correctly behind a reverse proxy.');
+    logger.warn('REQUIRE_HTTPS is enabled but TRUST_PROXY is not set — HTTPS redirect will not work correctly behind a reverse proxy');
   }
 
   // Log SSRF allowlist configuration
   if (process.env.SSRF_ALLOWLIST) {
-    console.log(`[Security] SSRF allowlist: ${process.env.SSRF_ALLOWLIST}`);
+    logger.info({ allowlist: process.env.SSRF_ALLOWLIST }, 'SSRF allowlist configured');
   }
 
   // Start polling all active services
   pollingService.startAll();
 
   const server = app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    logger.info({ port: PORT }, 'server started');
   });
 
   // Graceful shutdown
   const shutdown = async () => {
-    console.log('\nShutting down...');
+    logger.info('shutting down');
 
     // Remove event listeners to allow garbage collection
     pollingService.removeAllListeners();
@@ -126,14 +130,14 @@ async function start() {
     closeDatabase();
 
     server.close(() => {
-      console.log('Server closed');
+      logger.info('server closed');
       process.exit(0);
     });
 
     // Force exit after 10 seconds if server doesn't close gracefully
     // Use unref() so this timer doesn't keep the process alive
     const forceExitTimer = setTimeout(() => {
-      console.log('Forcing exit...');
+      logger.warn('forcing exit after timeout');
       process.exit(0);
     }, 10000);
     forceExitTimer.unref();
@@ -144,7 +148,7 @@ async function start() {
 }
 
 start().catch((error) => {
-  console.error('Failed to start server:', error);
+  logger.fatal({ err: error }, 'failed to start server');
   process.exit(1);
 });
 

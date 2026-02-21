@@ -182,18 +182,18 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Install `pino` + `pino-http`. Log method, path, status code, response time, user ID. Structured JSON in production, readable format in development. Configurable via `LOG_LEVEL` env var.
 
 **Acceptance criteria:**
-- [ ] `pino` and `pino-http` installed
-- [ ] All HTTP requests logged with: method, path, status, response time, user ID (from session)
-- [ ] `NODE_ENV=production` outputs JSON; development outputs pretty-printed
-- [ ] `LOG_LEVEL` env var controls log level (default: `info`)
-- [ ] Health check endpoint (`/api/health`) is optionally quieted (not logged at info level)
-- [ ] Tests verify logging middleware is wired in
+- [x] `pino` and `pino-http` installed
+- [x] All HTTP requests logged with: method, path, status, response time, user ID (from session)
+- [x] `NODE_ENV=production` outputs JSON; development outputs pretty-printed
+- [x] `LOG_LEVEL` env var controls log level (default: `info`)
+- [x] Health check endpoint (`/api/health`) is optionally quieted (not logged at info level)
+- [x] Tests verify logging middleware is wired in
 
 **Files likely touched:**
 - `server/package.json` — new dependencies
 - `server/src/utils/logger.ts` (new)
 - `server/src/middleware/requestLogger.ts` (new)
-- `server/src/app.ts` — middleware registration
+- `server/src/index.ts` — middleware registration
 - `server/.env.example` — `LOG_LEVEL`
 
 ---
