@@ -75,7 +75,7 @@ describe('SettingsService', () => {
       expect(service.get('data_retention_days')).toBe(365);
       expect(service.get('retention_cleanup_time')).toBe('02:00');
       expect(service.get('default_poll_interval_ms')).toBe(30000);
-      expect(service.get('global_rate_limit')).toBe(100);
+      expect(service.get('global_rate_limit')).toBe(300);
       expect(service.get('global_rate_limit_window_minutes')).toBe(15);
       expect(service.get('auth_rate_limit')).toBe(10);
       expect(service.get('auth_rate_limit_window_minutes')).toBe(1);
@@ -113,7 +113,7 @@ describe('SettingsService', () => {
       const all = service.getAll();
 
       expect(all.data_retention_days).toEqual({ value: 180, source: 'database' });
-      expect(all.global_rate_limit).toEqual({ value: 100, source: 'default' });
+      expect(all.global_rate_limit).toEqual({ value: 300, source: 'default' });
     });
 
     it('should include all known keys', () => {

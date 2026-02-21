@@ -124,7 +124,7 @@ describe('Rate Limit Middleware', () => {
       const config = parseRateLimitConfig();
 
       expect(config.global.windowMs).toBe(900000);
-      expect(config.global.max).toBe(100);
+      expect(config.global.max).toBe(300);
       expect(config.auth.windowMs).toBe(60000);
       expect(config.auth.max).toBe(10);
     });

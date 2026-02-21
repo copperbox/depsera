@@ -325,6 +325,43 @@ describe('Alert API Routes', () => {
       expect(JSON.parse(res.body.config)).toEqual({ webhook_url: 'https://hooks.slack.com/services/T00/B00/xxx' });
     });
 
+    it('should auto-create a default alert rule when team has none', async () => {
+      // Verify no rules exist before
+      const rulesBefore = testDb.prepare('SELECT * FROM alert_rules WHERE team_id = ?').all(teamId);
+      expect(rulesBefore).toHaveLength(0);
+
+      await request(app)
+        .post(`/api/teams/${teamId}/alert-channels`)
+        .send({
+          channel_type: 'webhook',
+          config: { url: 'https://example.com/hook' },
+        });
+
+      // Verify a default rule was auto-created
+      const rulesAfter = testDb.prepare('SELECT * FROM alert_rules WHERE team_id = ?').all(teamId) as Array<{ severity_filter: string; is_active: number }>;
+      expect(rulesAfter).toHaveLength(1);
+      expect(rulesAfter[0].severity_filter).toBe('all');
+      expect(rulesAfter[0].is_active).toBe(1);
+    });
+
+    it('should not create duplicate rule when team already has one', async () => {
+      // Create a rule first
+      testDb.exec(`INSERT INTO alert_rules (id, team_id, severity_filter) VALUES ('existing-rule', '${teamId}', 'critical')`);
+
+      await request(app)
+        .post(`/api/teams/${teamId}/alert-channels`)
+        .send({
+          channel_type: 'webhook',
+          config: { url: 'https://example.com/hook' },
+        });
+
+      // Should still have just the one rule
+      const rules = testDb.prepare('SELECT * FROM alert_rules WHERE team_id = ?').all(teamId) as Array<{ id: string; severity_filter: string }>;
+      expect(rules).toHaveLength(1);
+      expect(rules[0].id).toBe('existing-rule');
+      expect(rules[0].severity_filter).toBe('critical');
+    });
+
     it('should create a webhook channel', async () => {
       const res = await request(app)
         .post(`/api/teams/${teamId}/alert-channels`)

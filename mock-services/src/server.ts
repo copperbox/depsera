@@ -56,6 +56,18 @@ export function createServer(config: ServerConfig): http.Server {
         return;
       }
 
+      if (req.method === 'POST' && url.pathname === '/alert-webhook') {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+        const teamName = req.headers['x-team-name'] || '(none)';
+        console.log(`\n[ALERT WEBHOOK] Team: ${teamName}`);
+        console.log(JSON.stringify(body, null, 2));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+        return;
+      }
+
       if (pathParts.length === 0) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({

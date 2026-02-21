@@ -43,7 +43,7 @@ function getEnvDefaults(): SettingsDefaults {
     retention_cleanup_time: process.env.RETENTION_CLEANUP_TIME || '02:00',
     default_poll_interval_ms: parseInt(process.env.DEFAULT_POLL_INTERVAL_MS || '30000', 10),
     ssrf_allowlist: process.env.SSRF_ALLOWLIST || '',
-    global_rate_limit: parseInt(process.env.RATE_LIMIT_MAX || '100', 10),
+    global_rate_limit: parseInt(process.env.RATE_LIMIT_MAX || '300', 10),
     global_rate_limit_window_minutes: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10) / 60000,
     auth_rate_limit: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10),
     auth_rate_limit_window_minutes: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '60000', 10) / 60000,

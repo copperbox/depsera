@@ -155,15 +155,24 @@ export class AlertService {
 
     // 2. Find active alert rules for the team
     const rules = this.stores.alertRules.findActiveByTeamId(teamId);
-    if (rules.length === 0) return;
+    if (rules.length === 0) {
+      logger.info({ teamId, serviceId: event.serviceId }, 'alert: no active rules for team');
+      return;
+    }
 
     // 3. Check severity filter: does any rule match this event's severity?
     const matchingRules = rules.filter(rule => this.matchesSeverity(rule.severity_filter, event.severity));
-    if (matchingRules.length === 0) return;
+    if (matchingRules.length === 0) {
+      logger.info({ teamId, severity: event.severity }, 'alert: no rules match severity');
+      return;
+    }
 
     // 4. Find active alert channels for the team
     const channels = this.stores.alertChannels.findActiveByTeamId(teamId);
-    if (channels.length === 0) return;
+    if (channels.length === 0) {
+      logger.info({ teamId }, 'alert: no active channels for team');
+      return;
+    }
 
     // 5. Check flap protection
     const flapKey = event.dependencyId || event.serviceId;
@@ -174,7 +183,7 @@ export class AlertService {
       for (const channel of channels) {
         this.recordHistory(channel.id, event, 'suppressed');
       }
-      logger.debug({ flapKey, event: event.eventType }, 'alert suppressed by flap protection');
+      logger.info({ flapKey, event: event.eventType }, 'alert suppressed by flap protection');
       return;
     }
 
@@ -186,11 +195,12 @@ export class AlertService {
       for (const channel of channels) {
         this.recordHistory(channel.id, event, 'suppressed');
       }
-      logger.debug({ teamId, event: event.eventType }, 'alert suppressed by rate limit');
+      logger.info({ teamId, event: event.eventType }, 'alert suppressed by rate limit');
       return;
     }
 
     // 7. Dispatch to all active channels
+    logger.info({ teamId, eventType: event.eventType, serviceName: event.serviceName, channels: channels.length }, 'alert: dispatching to channels');
     this.flapProtector.recordAlert(flapKey);
     this.rateLimiter.recordAlert(teamId);
 

@@ -8,6 +8,8 @@ import * as migration006 from './migrations/006_add_dependency_aliases';
 import * as migration007 from './migrations/007_poll_interval_ms';
 import * as migration008 from './migrations/008_add_audit_log';
 import * as migration009 from './migrations/009_add_settings';
+import * as migration010 from './migrations/010_add_password_hash';
+import * as migration011 from './migrations/011_add_alerts';
 
 interface Migration {
   id: string;
@@ -70,6 +72,18 @@ const migrations: Migration[] = [
     name: 'add_settings',
     up: migration009.up,
     down: migration009.down
+  },
+  {
+    id: '010',
+    name: 'add_password_hash',
+    up: migration010.up,
+    down: migration010.down
+  },
+  {
+    id: '011',
+    name: 'add_alerts',
+    up: migration011.up,
+    down: migration011.down
   }
 ];
 
