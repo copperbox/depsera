@@ -5,6 +5,7 @@ export {
   requireAdmin,
   requireTeamAccess,
   requireTeamLead,
+  requireServiceTeamAccess,
   requireServiceTeamLead,
   requireBodyTeamLead,
 } from './middleware';

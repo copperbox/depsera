@@ -12,12 +12,29 @@ jest.mock('../../db', () => ({
   default: testDb,
 }));
 
+// Default admin user for tests — admin sees all services (no team filtering)
+const adminUserId = 'test-admin-user-id';
+const defaultAdminUser = {
+  id: adminUserId,
+  email: 'admin@test.com',
+  name: 'Test Admin',
+  oidc_subject: null,
+  role: 'admin' as const,
+  is_active: 1,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 // Mock the auth module to avoid session store initialization
 jest.mock('../../auth', () => ({
-  requireAuth: jest.fn((_req, _res, next) => next()),
+  requireAuth: jest.fn((req, _res, next) => {
+    req.user = defaultAdminUser;
+    next();
+  }),
   requireAdmin: jest.fn((_req, _res, next) => next()),
   requireTeamAccess: jest.fn((_req, _res, next) => next()),
   requireTeamLead: jest.fn((_req, _res, next) => next()),
+  requireServiceTeamAccess: jest.fn((_req, _res, next) => next()),
   requireServiceTeamLead: jest.fn((_req, _res, next) => next()),
   requireBodyTeamLead: jest.fn((_req, _res, next) => next()),
 }));

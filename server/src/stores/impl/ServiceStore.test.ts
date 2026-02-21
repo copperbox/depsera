@@ -134,6 +134,34 @@ describe('ServiceStore', () => {
       expect(services).toHaveLength(2);
     });
 
+    it('should filter by teamIds array', () => {
+      const services = store.findAll({ teamIds: ['team-1', 'team-2'] });
+      expect(services).toHaveLength(3);
+    });
+
+    it('should filter by single teamIds entry', () => {
+      const services = store.findAll({ teamIds: ['team-2'] });
+      expect(services).toHaveLength(1);
+      expect(services[0].name).toBe('Service C');
+    });
+
+    it('should return empty for empty teamIds array', () => {
+      const services = store.findAll({ teamIds: [] });
+      // Empty teamIds should not add a filter, returning all
+      expect(services).toHaveLength(3);
+    });
+
+    it('should prefer teamId over teamIds when both are provided', () => {
+      const services = store.findAll({ teamId: 'team-1', teamIds: ['team-2'] });
+      expect(services).toHaveLength(2); // teamId takes precedence
+    });
+
+    it('should filter by teamIds in findAllWithTeam', () => {
+      const services = store.findAllWithTeam({ teamIds: ['team-2'] });
+      expect(services).toHaveLength(1);
+      expect(services[0].team_name).toBe('Team Two');
+    });
+
     it('should filter by isActive', () => {
       // Deactivate one service
       const all = store.findAll();

@@ -206,6 +206,10 @@ export class ServiceStore implements IServiceStore {
     if (options?.teamId) {
       conditions.push(`${prefix}team_id = ?`);
       params.push(options.teamId);
+    } else if (options?.teamIds && options.teamIds.length > 0) {
+      const placeholders = options.teamIds.map(() => '?').join(', ');
+      conditions.push(`${prefix}team_id IN (${placeholders})`);
+      params.push(...options.teamIds);
     }
 
     if (options?.isActive !== undefined) {

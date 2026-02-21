@@ -476,6 +476,7 @@ Safe methods (GET, HEAD, OPTIONS) are exempt from validation.
 | `requireAdmin` | User role is `admin` | — |
 | `requireTeamAccess` | User is admin OR member of team (from `req.params.id` or `req.params.teamId`) | `req.teamMembership` |
 | `requireTeamLead` | User is admin OR team lead (from params) | `req.teamMembership` |
+| `requireServiceTeamAccess` | User is admin OR member of the service's owning team (from `req.params.id`) | `req.teamMembership` |
 | `requireServiceTeamLead` | User is admin OR lead of the service's owning team (from `req.params.id`) | `req.teamMembership` |
 | `requireBodyTeamLead` | User is admin OR lead of team specified in `req.body.team_id` | `req.teamMembership` |
 
@@ -553,12 +554,12 @@ Rate limited: 10 requests/minute per IP.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/services` | requireAuth | List services. Query: `team_id` (optional filter). |
-| GET | `/api/services/:id` | requireAuth | Get service with dependencies and dependent reports. |
+| GET | `/api/services` | requireAuth | List services. Non-admin: scoped to user's teams. Query: `team_id` (optional filter, validated against membership). |
+| GET | `/api/services/:id` | requireAuth | Get service with dependencies and dependent reports. Non-admin: requires team membership. |
 | POST | `/api/services` | requireBodyTeamLead | Create service. |
 | PUT | `/api/services/:id` | requireServiceTeamLead | Update service. |
 | DELETE | `/api/services/:id` | requireServiceTeamLead | Delete service. Returns 204. |
-| POST | `/api/services/:id/poll` | requireServiceTeamLead | Trigger manual poll. |
+| POST | `/api/services/:id/poll` | requireServiceTeamAccess | Trigger manual poll. Requires team membership (any role). |
 
 **POST /api/services request:**
 
@@ -1338,10 +1339,12 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 
 ### 12.2 Team-Scoped Access Control (Phase 2)
 
-- `GET /api/services` returns only the user's team services (unless admin)
-- Service CRUD restricted to team leads of the owning team
-- Graph, wallboard, and dashboard endpoints continue to return all services org-wide
-- Client adjusts team filter behavior and empty states
+- `GET /api/services` returns only the user's team services (unless admin) **[Implemented]** (PRO-97)
+- `GET /api/services/:id` requires team membership (or admin) **[Implemented]** (PRO-97)
+- `POST /api/services/:id/poll` requires team membership (not just lead) **[Implemented]** (PRO-97)
+- Service CRUD restricted to team leads of the owning team **[Implemented]** (existing middleware)
+- Graph, wallboard, and dashboard endpoints continue to return all services org-wide **[Implemented]**
+- Client adjusts team filter behavior and empty states **[Planned]** (PRO-98)
 
 ### 12.3 Admin Settings (Phase 2–3)
 

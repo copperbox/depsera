@@ -101,6 +101,31 @@ export function requireTeamLead(req: Request, res: Response, next: NextFunction)
 }
 
 /**
+ * Middleware: require user to be a member of the service's team (or admin)
+ * Looks up the service from req.params.id to get the team_id
+ */
+export function requireServiceTeamAccess(req: Request, res: Response, next: NextFunction): void {
+  requireAuth(req, res, () => {
+    const serviceId = req.params.id;
+    if (!serviceId) {
+      res.status(400).json({ error: 'Service ID required' });
+      return;
+    }
+
+    const result = AuthorizationService.checkServiceTeamAccess(req.user!, serviceId);
+    if (!result.authorized) {
+      res.status(result.statusCode!).json({ error: result.error });
+      return;
+    }
+
+    if (result.membership) {
+      req.teamMembership = result.membership;
+    }
+    next();
+  });
+}
+
+/**
  * Middleware: require user to be a lead of the service's team (or admin)
  * Looks up the service from req.params.id to get the team_id
  */

@@ -16,6 +16,7 @@ import {
   requireAdmin,
   requireTeamAccess,
   requireTeamLead,
+  requireServiceTeamAccess,
   requireServiceTeamLead,
   requireBodyTeamLead,
 } from './middleware';
@@ -505,6 +506,100 @@ describe('Auth Middleware', () => {
       const next = jest.fn();
 
       requireServiceTeamLead(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  describe('requireServiceTeamAccess', () => {
+    it('should return 401 when not authenticated', () => {
+      const req = createMockRequest({ params: { id: serviceId } });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+
+    it('should return 400 when no service ID', () => {
+      const req = createMockRequest({
+        session: { userId: teamMemberId } as any,
+        params: {},
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Service ID required' });
+    });
+
+    it('should return 404 when service not found', () => {
+      const req = createMockRequest({
+        session: { userId: teamMemberId } as any,
+        params: { id: 'non-existent-service' },
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Service not found' });
+    });
+
+    it('should return 403 when user is not a member of the service team', () => {
+      const req = createMockRequest({
+        session: { userId: regularUserId } as any,
+        params: { id: serviceId },
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('should call next when user is a team member (not lead)', () => {
+      const req = createMockRequest({
+        session: { userId: teamMemberId } as any,
+        params: { id: serviceId },
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.teamMembership?.role).toBe('member');
+    });
+
+    it('should call next when user is a team lead', () => {
+      const req = createMockRequest({
+        session: { userId: teamLeadId } as any,
+        params: { id: serviceId },
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(req.teamMembership?.role).toBe('lead');
+    });
+
+    it('should allow admin access', () => {
+      const req = createMockRequest({
+        session: { userId: adminId } as any,
+        params: { id: serviceId },
+      });
+      const res = createMockResponse();
+      const next = jest.fn();
+
+      requireServiceTeamAccess(req, res, next);
 
       expect(next).toHaveBeenCalled();
     });

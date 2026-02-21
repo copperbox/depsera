@@ -17,7 +17,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
 - **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis
 - **OIDC Authentication** — OpenID Connect integration with optional dev bypass mode; sessions persisted in SQLite (survive server restarts)
-- **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions
+- **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions. Service list and detail views are team-scoped for non-admin users; admin users see all services org-wide
 - **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 
 ## Tech Stack
@@ -203,7 +203,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Auth | `GET /api/auth/login`, `/callback`, `/me`; `POST /api/auth/logout` |
 | Users | `GET /api/users`, `GET /api/users/:id`, `PUT /api/users/:id/role`, `POST /api/users/:id/reactivate`, `DELETE /api/users/:id` |
 | Teams | CRUD on `/api/teams`, member management via `/api/teams/:id/members` |
-| Services | CRUD on `/api/services`, `POST /api/services/:id/poll` for manual polling |
+| Services | CRUD on `/api/services` (team-scoped), `POST /api/services/:id/poll` for manual polling |
 | Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |
 | Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |

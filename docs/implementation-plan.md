@@ -233,11 +233,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Modify service routes so `GET /api/services` returns only the requesting user's team services (unless admin). Service create/edit/delete restricted to team members (team lead+) of the owning team. Graph, wallboard, and dashboard endpoints continue to return ALL services org-wide.
 
 **Acceptance criteria:**
-- [ ] `GET /api/services` filters by user's team memberships (non-admin)
-- [ ] Admin users see all services
-- [ ] Service create/edit/delete restricted to owning team's lead or admin
-- [ ] `GET /api/graph`, wallboard, and dashboard data remain org-wide
-- [ ] Tests cover admin bypass, team lead access, member access, non-member rejection
+- [x] `GET /api/services` filters by user's team memberships (non-admin)
+- [x] Admin users see all services
+- [x] Service create/edit/delete restricted to owning team's lead or admin
+- [x] `GET /api/graph`, wallboard, and dashboard data remain org-wide
+- [x] Tests cover admin bypass, team lead access, member access, non-member rejection
 
 **Files likely touched:**
 - `server/src/routes/services.ts`

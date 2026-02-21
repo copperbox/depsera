@@ -122,7 +122,7 @@ Key files in `/server/src/services/polling/`:
 ## API Routes
 
 - `/api/auth` - OIDC authentication
-- `/api/services` - CRUD + manual polling
+- `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership)
 - `/api/teams` - CRUD + member management
 - `/api/users` - Admin user management
 - `/api/aliases` - Dependency alias CRUD (admin only for mutations) + canonical name lookup

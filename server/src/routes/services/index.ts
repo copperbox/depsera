@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireBodyTeamLead, requireServiceTeamLead } from '../../auth';
+import { requireAuth, requireBodyTeamLead, requireServiceTeamAccess, requireServiceTeamLead } from '../../auth';
 import { listServices } from './list';
 import { getService } from './get';
 import { createService } from './create';
@@ -9,16 +9,16 @@ import { pollServiceNow } from './poll';
 
 const router = Router();
 
-// Read is open to authenticated users
-router.get('/', listServices);
-router.get('/:id', getService);
+// Read requires auth; results scoped to user's teams (unless admin)
+router.get('/', requireAuth, listServices);
+router.get('/:id', requireAuth, getService);
 
 // Write requires team lead (of the service's team) or admin
 router.post('/', requireBodyTeamLead, createService);
 router.put('/:id', requireServiceTeamLead, updateService);
 router.delete('/:id', requireServiceTeamLead, deleteService);
 
-// Trigger immediate poll
-router.post('/:id/poll', requireServiceTeamLead, pollServiceNow);
+// Trigger immediate poll requires team membership (not just lead)
+router.post('/:id/poll', requireServiceTeamAccess, pollServiceNow);
 
 export default router;

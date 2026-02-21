@@ -25,6 +25,7 @@ export interface ListOptions {
 // Service-specific filter options
 export interface ServiceListOptions extends ListOptions {
   teamId?: string;
+  teamIds?: string[];
   isActive?: boolean;
 }
 
