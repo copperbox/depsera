@@ -13,6 +13,7 @@ import graphRouter from './routes/graph';
 import latencyRouter from './routes/latency';
 import errorsRouter from './routes/errors';
 import aliasesRouter from './routes/aliases';
+import adminRouter from './routes/admin';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
@@ -67,6 +68,7 @@ app.use('/api/latency', requireAuth, latencyRouter);
 app.use('/api/errors', requireAuth, errorsRouter);
 app.use('/api/aliases', requireAuth, aliasesRouter);
 app.use('/api', requireAuth, associationsRouter);
+app.use('/api/admin', requireAuth, adminRouter);
 
 // Serve built client in production (auto-detected by presence of client/dist/index.html)
 if (clientBuildExists()) {

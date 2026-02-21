@@ -20,6 +20,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions. Service list and detail views are team-scoped for non-admin users; admin users see all services org-wide
 - **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
 - **Structured Logging** — HTTP request logging via pino with method, path, status, response time, and user ID; JSON output in production, pretty-printed in development; sensitive headers redacted; configurable log level via `LOG_LEVEL`
+- **Audit Trail** — All admin actions (user role changes, team/service mutations, member management) are recorded with actor, action, resource, details, and IP address; queryable via admin API with filtering by date range, user, action, and resource type
 
 ## Tech Stack
 
@@ -210,6 +211,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
 | Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:dependencyId`, `GET /api/errors/:dependencyId` |
+| Admin | `GET /api/admin/audit-log` (filterable by date, user, action, resource type) |
 
 ## Mock Services
 

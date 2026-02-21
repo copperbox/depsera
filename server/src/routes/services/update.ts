@@ -4,6 +4,7 @@ import { HealthPollingService } from '../../services/polling';
 import { formatUpdatedService } from '../formatters';
 import { validateServiceUpdate } from '../../utils/validation';
 import { NotFoundError, ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function updateService(req: Request, res: Response): void {
   try {
@@ -60,6 +61,10 @@ export function updateService(req: Request, res: Response): void {
         pollingService.stopService(id);
       }
     }
+
+    auditFromRequest(req, 'service.updated', 'service', id, {
+      name: existingService.name,
+    });
 
     // Format and return updated service
     const formatted = formatUpdatedService(id);

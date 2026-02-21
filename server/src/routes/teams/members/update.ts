@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { TeamMemberRole } from '../../../db/types';
 import { sendErrorResponse } from '../../../utils/errors';
+import { auditFromRequest } from '../../../services/audit/AuditLogService';
 
 export function updateMember(req: Request, res: Response): void {
   try {
@@ -33,7 +34,14 @@ export function updateMember(req: Request, res: Response): void {
       return;
     }
 
+    const previousMembership = stores.teams.getMembership(id, userId);
     stores.teams.updateMemberRole(id, userId, role);
+
+    auditFromRequest(req, 'team.member_role_changed', 'team', id, {
+      memberId: userId,
+      previousRole: previousMembership?.role,
+      newRole: role,
+    });
 
     // Get user details
     const user = stores.users.findById(userId)!;

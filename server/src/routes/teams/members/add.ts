@@ -8,6 +8,7 @@ import {
   formatError,
   getErrorStatusCode,
 } from '../../../utils/errors';
+import { auditFromRequest } from '../../../services/audit/AuditLogService';
 
 export function addMember(req: Request, res: Response): void {
   try {
@@ -34,6 +35,12 @@ export function addMember(req: Request, res: Response): void {
     }
 
     const member = stores.teams.addMember(id, validated.user_id, validated.role);
+
+    auditFromRequest(req, 'team.member_added', 'team', id, {
+      memberId: validated.user_id,
+      memberEmail: user.email,
+      memberRole: validated.role,
+    });
 
     res.status(201).json({
       team_id: id,

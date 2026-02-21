@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { sendErrorResponse } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function reactivateUser(req: Request, res: Response): void {
   try {
@@ -22,6 +23,10 @@ export function reactivateUser(req: Request, res: Response): void {
 
     // Reactivate user
     const updatedUser = stores.users.update(id, { is_active: true });
+
+    auditFromRequest(req, 'user.reactivated', 'user', id, {
+      email: user.email,
+    });
 
     res.json(updatedUser);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {

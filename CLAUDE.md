@@ -69,8 +69,9 @@ Core tables:
 - `dependency_aliases` - Maps reported dependency names (alias) to canonical names
 - `dependency_latency_history` - Historical latency data points per dependency
 - `dependency_error_history` - Historical error records per dependency
+- `audit_log` - Admin action audit trail (user/team/service mutations) with user FK, IP address, and JSON details
 
-Migrations are in `/server/src/db/migrations/` (001-007). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-008). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 
@@ -82,7 +83,7 @@ Migrations are in `/server/src/db/migrations/` (001-007). Types are in `/server/
 ## Store Registry
 
 All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). Stores:
-- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`
+- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`, `auditLog`
 
 Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
 
@@ -112,6 +113,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Rate Limiting:** In-memory rate limiting via `express-rate-limit`. Global limit (100 req/15min per IP) applied before session middleware to reject abusive requests early. Stricter auth limit (10 req/1min per IP) on `/api/auth` to prevent brute-force attacks. All limits configurable via env vars. See `/server/src/middleware/rateLimit.ts`.
 - **Error Sanitization:** All route handler catch blocks use `sendErrorResponse()` which logs the full error server-side and returns sanitized responses to clients. Non-operational errors (non-`AppError`) return generic `{ error: "Internal server error" }` with no `message` field. `InvalidOrderByError` is treated as client input validation (returns 400). Poll errors are sanitized via `sanitizePollError()` before DB storage — strips private IPs, internal URLs, file paths, and maps known error codes (ECONNREFUSED, ETIMEDOUT, etc.) to safe descriptions. See `/server/src/utils/errors.ts`.
 - **HTTP Request Logging:** Structured logging via `pino` + `pino-http`. Logs method, path, status code, response time, and authenticated user ID. Sensitive headers (`Authorization`, `Cookie`, `X-CSRF-Token`, `Set-Cookie`) are redacted. `/api/health` excluded from logs by default. JSON output in production, pretty-printed in development. Configurable via `LOG_LEVEL` env var (default: `info`). See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
+- **Audit Trail:** Admin action audit log records all user, team, and service mutations with actor, action, resource, details, and IP address. Fire-and-forget logging — errors are logged but never block the request. Admin-only query endpoint with filtering by date range, user, action, and resource type. See `/server/src/services/audit/AuditLogService.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)
@@ -135,6 +137,7 @@ Key files in `/server/src/services/polling/`:
 - `/api/graph` - Dependency graph data
 - `/api/latency/:id` - Latency history
 - `/api/errors/:id` - Error history
+- `/api/admin/audit-log` - Audit log query (admin only, filterable by date range, user, action, resource type)
 
 ## General Guidance
 

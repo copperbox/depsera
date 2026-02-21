@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { sendErrorResponse } from '../../../utils/errors';
+import { auditFromRequest } from '../../../services/audit/AuditLogService';
 
 export function removeMember(req: Request, res: Response): void {
   try {
@@ -20,6 +21,10 @@ export function removeMember(req: Request, res: Response): void {
     }
 
     stores.teams.removeMember(id, userId);
+
+    auditFromRequest(req, 'team.member_removed', 'team', id, {
+      memberId: userId,
+    });
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {

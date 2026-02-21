@@ -4,6 +4,7 @@ import { HealthPollingService } from '../../services/polling';
 import { formatNewService } from '../formatters';
 import { validateServiceCreate } from '../../utils/validation';
 import { ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function createService(req: Request, res: Response): void {
   try {
@@ -28,6 +29,11 @@ export function createService(req: Request, res: Response): void {
 
     // Start polling for the new service (is_active defaults to 1)
     HealthPollingService.getInstance().startService(service.id);
+
+    auditFromRequest(req, 'service.created', 'service', service.id, {
+      name: service.name,
+      teamId: service.team_id,
+    });
 
     res.status(201).json(formatNewService(service, team));
   } catch (error) {

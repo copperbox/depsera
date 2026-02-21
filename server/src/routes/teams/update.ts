@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { UpdateTeamInput } from '../../db/types';
 import { sendErrorResponse } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function updateTeam(req: Request, res: Response): void {
   try {
@@ -44,6 +45,10 @@ export function updateTeam(req: Request, res: Response): void {
       name: input.name?.trim(),
       description: input.description,
     })!;
+
+    auditFromRequest(req, 'team.updated', 'team', id, {
+      name: team.name,
+    });
 
     res.json({
       ...team,

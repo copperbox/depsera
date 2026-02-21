@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { UserRole } from '../../db/types';
 import { sendErrorResponse } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function updateUserRole(req: Request, res: Response): void {
   try {
@@ -23,6 +24,8 @@ export function updateUserRole(req: Request, res: Response): void {
       return;
     }
 
+    const previousRole = user.role;
+
     // If demoting from admin, ensure there's at least one other admin
     if (user.role === 'admin' && role === 'user') {
       const adminCount = stores.users.countActiveAdmins();
@@ -34,6 +37,11 @@ export function updateUserRole(req: Request, res: Response): void {
     }
 
     const updatedUser = stores.users.update(id, { role });
+
+    auditFromRequest(req, 'user.role_changed', 'user', id, {
+      previousRole,
+      newRole: role,
+    });
 
     res.json(updatedUser);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {

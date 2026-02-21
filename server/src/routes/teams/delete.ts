@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { sendErrorResponse } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function deleteTeam(req: Request, res: Response): void {
   try {
@@ -8,7 +9,8 @@ export function deleteTeam(req: Request, res: Response): void {
     const stores = getStores();
 
     // Check if team exists
-    if (!stores.teams.exists(id)) {
+    const team = stores.teams.findById(id);
+    if (!team) {
       res.status(404).json({ error: 'Team not found' });
       return;
     }
@@ -26,6 +28,10 @@ export function deleteTeam(req: Request, res: Response): void {
 
     // Delete team (cascades to team_members)
     stores.teams.delete(id);
+
+    auditFromRequest(req, 'team.deleted', 'team', id, {
+      name: team.name,
+    });
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {

@@ -204,13 +204,13 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Create `audit_log` table and AuditLogStore. Log admin actions (role changes, user deactivation, team/service CRUD). `GET /api/admin/audit-log` endpoint (admin only).
 
 **Acceptance criteria:**
-- [ ] Migration creates `audit_log` table (id, user_id, action, target_type, target_id, details, created_at)
-- [ ] `IAuditLogStore` interface + `SQLiteAuditLogStore` implementation
-- [ ] Store registered in `StoreRegistry`
-- [ ] Admin actions in user, team, and service routes write audit entries
-- [ ] `GET /api/admin/audit-log` returns paginated audit entries (admin only)
-- [ ] Audit log entries subject to data retention cleanup (future story)
-- [ ] Tests for store, route, and audit logging
+- [x] Migration creates `audit_log` table (id, user_id, action, resource_type, resource_id, details, ip_address, created_at)
+- [x] `IAuditLogStore` interface + `AuditLogStore` implementation
+- [x] Store registered in `StoreRegistry`
+- [x] Admin actions in user, team, and service routes write audit entries
+- [x] `GET /api/admin/audit-log` returns paginated audit entries (admin only)
+- [x] Audit log entries subject to data retention cleanup (via `deleteOlderThan`)
+- [x] Tests for store, route, and audit logging
 
 **Files likely touched:**
 - `server/src/db/migrations/008_add_audit_log.ts` (new)

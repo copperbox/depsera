@@ -284,3 +284,36 @@ export interface ErrorHistoryResponse {
     isRecovery: boolean;
   }[];
 }
+
+// Audit log types
+export type AuditAction =
+  | 'user.role_changed'
+  | 'user.deactivated'
+  | 'user.reactivated'
+  | 'team.created'
+  | 'team.updated'
+  | 'team.deleted'
+  | 'team.member_added'
+  | 'team.member_removed'
+  | 'team.member_role_changed'
+  | 'service.created'
+  | 'service.updated'
+  | 'service.deleted';
+
+export type AuditResourceType = 'user' | 'team' | 'service';
+
+export interface AuditLogEntry {
+  id: string;
+  user_id: string;
+  action: AuditAction;
+  resource_type: AuditResourceType;
+  resource_id: string | null;
+  details: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+export interface AuditLogEntryWithUser extends AuditLogEntry {
+  user_email: string;
+  user_name: string;
+}

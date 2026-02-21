@@ -262,19 +262,22 @@ type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'ot
 
 Key-value store for runtime-configurable admin settings. See [Section 12.3](#123-admin-settings).
 
-#### audit_log **[Planned]**
+#### audit_log **[Implemented]**
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
-| user_id | TEXT | FK → users.id | |
+| user_id | TEXT | NOT NULL, FK → users.id | |
 | action | TEXT | NOT NULL | |
-| target_type | TEXT | NOT NULL | |
-| target_id | TEXT | | |
+| resource_type | TEXT | NOT NULL | |
+| resource_id | TEXT | | |
 | details | TEXT | | NULL |
+| ip_address | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 
-Records admin actions (role changes, user deactivation, team/service CRUD).
+**Indexes:** `idx_audit_log_user_id`, `idx_audit_log_created_at`, `idx_audit_log_resource` (resource_type, resource_id)
+
+Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD).
 
 #### schema_mappings **[Planned]**
 
@@ -331,6 +334,7 @@ Nullable `TEXT` column added to `users` table for local auth mode.
 | 005 | simplify_polling | Adds last_poll_success, last_poll_error to services |
 | 006 | add_dependency_aliases | Creates dependency_aliases; adds canonical_name to dependencies |
 | 007 | poll_interval_ms | Rebuilds services table: polling_interval (seconds) → poll_interval_ms (milliseconds) |
+| 008 | add_audit_log | Creates audit_log table with indexes |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
 
@@ -787,6 +791,40 @@ Stats are for the last 24 hours. Data points limited to the last 100 records.
 ```
 
 Errors are for the last 24 hours, limited to the last 50 records. `isRecovery: true` indicates a recovery event (both `error` and `errorMessage` are null).
+
+### 4.10 Admin
+
+**[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/admin/audit-log` | requireAdmin | Paginated audit log. Query: `limit`, `offset`, `startDate`, `endDate`, `userId`, `action`, `resourceType`. |
+
+**GET /api/admin/audit-log response:**
+
+```json
+{
+  "entries": [
+    {
+      "id": "uuid",
+      "user_id": "uuid",
+      "action": "user.role_changed",
+      "resource_type": "user",
+      "resource_id": "uuid",
+      "details": "{\"previousRole\":\"user\",\"newRole\":\"admin\"}",
+      "ip_address": "127.0.0.1",
+      "created_at": "2024-01-15T10:00:00.000Z",
+      "user_email": "admin@example.com",
+      "user_name": "Admin User"
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`
 
 ---
 
@@ -1344,7 +1382,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - **Server-side hardening:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security`.
 - **Client-side hardening:** `URLSearchParams` for query encoding, validate localStorage JSON parsing, `eslint-plugin-security`.
 - **HTTP request logging:** ~~Structured logging via `pino` + `pino-http` (method, path, status, response time, user ID). JSON in production, readable in dev. Configurable via `LOG_LEVEL`.~~ **[Implemented]** (PRO-93). All HTTP requests logged via `pino-http` middleware with method, path, status, response time, user ID. Sensitive headers (Authorization, Cookie, X-CSRF-Token) redacted. Health check endpoint optionally excluded from logs. See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
-- **Audit trail:** `audit_log` table and store. Log admin actions. `GET /api/admin/audit-log` (admin only).
+- **Audit trail:** ~~`audit_log` table and store. Log admin actions. `GET /api/admin/audit-log` (admin only).~~ **[Implemented]** (PRO-94). `audit_log` table with `AuditLogStore` and fire-and-forget `AuditLogService`. Logs role changes, user deactivation/reactivation, team CRUD, team member changes, and service CRUD. `GET /api/admin/audit-log` endpoint with pagination and filters (date range, action, resource type, user). See `/server/src/services/audit/AuditLogService.ts` and `/server/src/routes/admin/auditLog.ts`.
 
 ### 12.2 Team-Scoped Access Control (Phase 2)
 
@@ -1495,6 +1533,7 @@ class StoreRegistry {
   public readonly latencyHistory: ILatencyHistoryStore;
   public readonly errorHistory: IErrorHistoryStore;
   public readonly aliases: IDependencyAliasStore;
+  public readonly auditLog: IAuditLogStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -1626,4 +1665,12 @@ create(alias: string, canonicalName: string): DependencyAlias
 update(id: string, canonicalName: string): DependencyAlias | undefined
 delete(id: string): boolean
 resolveAlias(name: string): string | null
+```
+
+#### IAuditLogStore
+```typescript
+create(entry: Omit<AuditLogEntry, 'id' | 'created_at'>): AuditLogEntry
+findAll(options?: AuditLogListOptions): AuditLogEntryWithUser[]
+count(options?: AuditLogListOptions): number
+deleteOlderThan(timestamp: string): number
 ```

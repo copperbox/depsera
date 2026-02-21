@@ -3,6 +3,7 @@ import { getStores } from '../../stores';
 import { validateTeamCreate } from '../../utils/validation';
 import { formatNewTeam } from '../formatters';
 import { ConflictError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function createTeam(req: Request, res: Response): void {
   try {
@@ -20,6 +21,10 @@ export function createTeam(req: Request, res: Response): void {
     const team = stores.teams.create({
       name: validated.name,
       description: validated.description,
+    });
+
+    auditFromRequest(req, 'team.created', 'team', team.id, {
+      name: team.name,
     });
 
     res.status(201).json(formatNewTeam(team));

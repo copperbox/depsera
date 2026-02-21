@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { sendErrorResponse } from '../../utils/errors';
+import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function deactivateUser(req: Request, res: Response): void {
   try {
@@ -29,6 +30,10 @@ export function deactivateUser(req: Request, res: Response): void {
 
     // Remove from all teams
     stores.teams.removeAllMembershipsForUser(id);
+
+    auditFromRequest(req, 'user.deactivated', 'user', id, {
+      email: user.email,
+    });
 
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
