@@ -1344,7 +1344,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 - `POST /api/services/:id/poll` requires team membership (not just lead) **[Implemented]** (PRO-97)
 - Service CRUD restricted to team leads of the owning team **[Implemented]** (existing middleware)
 - Graph, wallboard, and dashboard endpoints continue to return all services org-wide **[Implemented]**
-- Client adjusts team filter behavior and empty states **[Planned]** (PRO-98)
+- Client adjusts team filter behavior and empty states **[Implemented]** (PRO-98)
 
 ### 12.3 Admin Settings (Phase 2–3)
 

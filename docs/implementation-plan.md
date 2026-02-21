@@ -252,11 +252,11 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Adjust team filter dropdown behavior (may now be redundant or simplified for non-admins), update empty states, verify graph/wallboard/dashboard remain unaffected.
 
 **Acceptance criteria:**
-- [ ] Service list reflects team-scoped API response
-- [ ] Team filter dropdown still works (admin sees all, users see their teams)
-- [ ] Empty state shown when user has no team services
-- [ ] Graph, wallboard, dashboard render unchanged
-- [ ] Tests updated
+- [x] Service list reflects team-scoped API response
+- [x] Team filter dropdown still works (admin sees all, users see their teams)
+- [x] Empty state shown when user has no team services
+- [x] Graph, wallboard, dashboard render unchanged
+- [x] Tests updated
 
 **Files likely touched:**
 - `client/src/hooks/useServicesList.ts`

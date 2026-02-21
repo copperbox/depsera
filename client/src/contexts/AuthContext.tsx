@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  canManageServices: boolean;
   login: () => void;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated: user !== null,
     isAdmin: user?.role === 'admin',
+    canManageServices: user?.role === 'admin' || user?.permissions?.canManageServices === true,
     login,
     logout,
     checkAuth,

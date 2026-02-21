@@ -17,12 +17,13 @@ Object.defineProperty(window, 'location', {
 
 // Test component that uses the auth context
 function TestComponent() {
-  const { user, isLoading, isAuthenticated, isAdmin, login, logout, checkAuth } = useAuth();
+  const { user, isLoading, isAuthenticated, isAdmin, canManageServices, login, logout, checkAuth } = useAuth();
   return (
     <div>
       <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
       <span data-testid="authenticated">{isAuthenticated ? 'yes' : 'no'}</span>
       <span data-testid="admin">{isAdmin ? 'yes' : 'no'}</span>
+      <span data-testid="can-manage-services">{canManageServices ? 'yes' : 'no'}</span>
       <span data-testid="user">{user?.name || 'none'}</span>
       <button onClick={login}>Login</button>
       <button onClick={logout}>Logout</button>
@@ -116,6 +117,56 @@ describe('AuthProvider', () => {
     });
 
     expect(screen.getByTestId('admin')).toHaveTextContent('yes');
+    expect(screen.getByTestId('can-manage-services')).toHaveTextContent('yes');
+  });
+
+  it('sets canManageServices true for team leads via permissions', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        id: '2',
+        name: 'Team Lead',
+        role: 'user',
+        permissions: { canManageUsers: false, canManageTeams: false, canManageServices: true },
+      }),
+    });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    });
+
+    expect(screen.getByTestId('admin')).toHaveTextContent('no');
+    expect(screen.getByTestId('can-manage-services')).toHaveTextContent('yes');
+  });
+
+  it('sets canManageServices false for regular members', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        id: '3',
+        name: 'Member User',
+        role: 'user',
+        permissions: { canManageUsers: false, canManageTeams: false, canManageServices: false },
+      }),
+    });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    });
+
+    expect(screen.getByTestId('can-manage-services')).toHaveTextContent('no');
   });
 
   it('login redirects to OIDC endpoint with return URL', async () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useServicesList } from '../../../hooks/useServicesList';
@@ -11,7 +11,7 @@ import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import styles from './Services.module.css';
 
 function ServicesList() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, canManageServices } = useAuth();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const {
@@ -27,6 +27,26 @@ function ServicesList() {
     setTeamFilter,
     loadData,
   } = useServicesList();
+
+  // For non-admins, filter the team dropdown to only show teams the user belongs to
+  const userTeamIds = useMemo(
+    () => new Set(user?.teams?.map((t) => t.team_id) ?? []),
+    [user?.teams]
+  );
+
+  const filterTeams = useMemo(
+    () => (isAdmin ? teams : teams.filter((t) => userTeamIds.has(t.id))),
+    [isAdmin, teams, userTeamIds]
+  );
+
+  // For the create form, only show teams where the user is a lead (or all for admin)
+  const creatableTeams = useMemo(() => {
+    if (isAdmin) return teams;
+    const leadTeamIds = new Set(
+      user?.teams?.filter((t) => t.role === 'lead').map((t) => t.team_id) ?? []
+    );
+    return teams.filter((t) => leadTeamIds.has(t.id));
+  }, [isAdmin, teams, user?.teams]);
 
   // Initial load
   useEffect(() => {
@@ -110,7 +130,7 @@ function ServicesList() {
               ))}
             </select>
           </div>
-          {isAdmin && (
+          {canManageServices && (
             <button
               onClick={() => setIsAddModalOpen(true)}
               className={styles.addButton}
@@ -153,27 +173,29 @@ function ServicesList() {
             className={styles.searchInput}
           />
         </div>
-        <select
-          value={teamFilter}
-          onChange={(e) => setTeamFilter(e.target.value)}
-          className={styles.teamSelect}
-          aria-label="Filter by team"
-        >
-          <option value="">All Teams</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
-        </select>
+        {filterTeams.length > 1 && (
+          <select
+            value={teamFilter}
+            onChange={(e) => setTeamFilter(e.target.value)}
+            className={styles.teamSelect}
+            aria-label="Filter by team"
+          >
+            <option value="">{isAdmin ? 'All Teams' : 'My Teams'}</option>
+            {filterTeams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {filteredServices.length === 0 ? (
         <div className={styles.emptyState}>
           {services.length === 0 ? (
             <>
-              <p>No services have been added yet.</p>
-              {isAdmin && (
+              <p>{isAdmin ? 'No services have been added yet.' : 'No services found for your team(s).'}</p>
+              {canManageServices && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
                   className={styles.addButton}
@@ -242,7 +264,7 @@ function ServicesList() {
         size="medium"
       >
         <ServiceForm
-          teams={teams}
+          teams={creatableTeams}
           onSuccess={handleServiceCreated}
           onCancel={() => setIsAddModalOpen(false)}
         />

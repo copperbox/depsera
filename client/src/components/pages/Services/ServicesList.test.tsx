@@ -54,8 +54,53 @@ const mockTeams = [
   { id: 't2', name: 'Team B', service_count: 1 },
 ];
 
-function renderServicesList(isAdmin = false) {
-  mockUseAuth.mockReturnValue({ isAdmin });
+const adminUser = {
+  id: 'u1',
+  name: 'Admin User',
+  email: 'admin@example.com',
+  role: 'admin' as const,
+  is_active: true,
+  teams: [
+    { team_id: 't1', role: 'lead' as const, team: { id: 't1', name: 'Team A', description: null } },
+    { team_id: 't2', role: 'lead' as const, team: { id: 't2', name: 'Team B', description: null } },
+  ],
+  permissions: { canManageUsers: true, canManageTeams: true, canManageServices: true },
+};
+
+const teamLeadUser = {
+  id: 'u2',
+  name: 'Team Lead',
+  email: 'lead@example.com',
+  role: 'user' as const,
+  is_active: true,
+  teams: [
+    { team_id: 't1', role: 'lead' as const, team: { id: 't1', name: 'Team A', description: null } },
+    { team_id: 't2', role: 'member' as const, team: { id: 't2', name: 'Team B', description: null } },
+  ],
+  permissions: { canManageUsers: false, canManageTeams: false, canManageServices: true },
+};
+
+const memberUser = {
+  id: 'u3',
+  name: 'Member User',
+  email: 'member@example.com',
+  role: 'user' as const,
+  is_active: true,
+  teams: [
+    { team_id: 't1', role: 'member' as const, team: { id: 't1', name: 'Team A', description: null } },
+  ],
+  permissions: { canManageUsers: false, canManageTeams: false, canManageServices: false },
+};
+
+interface RenderOptions {
+  user?: typeof adminUser;
+  isAdmin?: boolean;
+  canManageServices?: boolean;
+}
+
+function renderServicesList(options: RenderOptions = {}) {
+  const { user = memberUser, isAdmin = false, canManageServices = false } = options;
+  mockUseAuth.mockReturnValue({ user, isAdmin, canManageServices });
   return render(
     <MemoryRouter>
       <ServicesList />
@@ -83,7 +128,7 @@ describe('ServicesList', () => {
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList();
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Services')).toBeInTheDocument();
@@ -119,7 +164,7 @@ describe('ServicesList', () => {
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList();
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Service Alpha')).toBeInTheDocument();
@@ -134,24 +179,88 @@ describe('ServicesList', () => {
     expect(screen.queryByText('Service Gamma')).not.toBeInTheDocument();
   });
 
-  it('filters services by team', async () => {
+  it('filters services by team for admin users', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList();
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Service Alpha')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByLabelText('Filter by team'), {
-      target: { value: 't2' },
-    });
+    const teamSelect = screen.getByLabelText('Filter by team');
+    expect(teamSelect).toBeInTheDocument();
+
+    fireEvent.change(teamSelect, { target: { value: 't2' } });
 
     expect(screen.getByText('Service Beta')).toBeInTheDocument();
     expect(screen.queryByText('Service Alpha')).not.toBeInTheDocument();
     expect(screen.queryByText('Service Gamma')).not.toBeInTheDocument();
+  });
+
+  it('shows "All Teams" label in team filter for admin', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+    });
+
+    const options = screen.getByLabelText('Filter by team').querySelectorAll('option');
+    expect(options[0].textContent).toBe('All Teams');
+  });
+
+  it('shows "My Teams" label in team filter for non-admin', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: teamLeadUser, canManageServices: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+    });
+
+    const options = screen.getByLabelText('Filter by team').querySelectorAll('option');
+    expect(options[0].textContent).toBe('My Teams');
+  });
+
+  it('shows only user teams in filter dropdown for non-admin', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: teamLeadUser, canManageServices: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+    });
+
+    const teamSelect = screen.getByLabelText('Filter by team');
+    const options = teamSelect.querySelectorAll('option');
+    // "My Teams" + Team A + Team B (user is member of both)
+    expect(options).toHaveLength(3);
+    expect(options[1].textContent).toBe('Team A');
+    expect(options[2].textContent).toBe('Team B');
+  });
+
+  it('hides team filter when user belongs to only one team', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: memberUser });
+
+    await waitFor(() => {
+      expect(screen.getByText('Services')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText('Filter by team')).not.toBeInTheDocument();
   });
 
   it('shows empty state when no services match', async () => {
@@ -159,7 +268,7 @@ describe('ServicesList', () => {
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList();
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Service Alpha')).toBeInTheDocument();
@@ -172,15 +281,27 @@ describe('ServicesList', () => {
     expect(screen.getByText('No services match your search criteria.')).toBeInTheDocument();
   });
 
-  it('shows empty state when no services exist', async () => {
+  it('shows admin empty state when no services exist for admin', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList();
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('No services have been added yet.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows team-scoped empty state when no services exist for non-admin', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: memberUser });
+
+    await waitFor(() => {
+      expect(screen.getByText('No services found for your team(s).')).toBeInTheDocument();
     });
   });
 
@@ -189,25 +310,65 @@ describe('ServicesList', () => {
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList(true);
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Add Service')).toBeInTheDocument();
     });
   });
 
-  it('hides add button for non-admin users', async () => {
+  it('shows add button for team lead users', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList(false);
+    renderServicesList({ user: teamLeadUser, canManageServices: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('Add Service')).toBeInTheDocument();
+    });
+  });
+
+  it('hides add button for regular member users', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: memberUser });
 
     await waitFor(() => {
       expect(screen.getByText('Services')).toBeInTheDocument();
     });
 
     expect(screen.queryByText('Add Service')).not.toBeInTheDocument();
+  });
+
+  it('shows add button in empty state for team lead', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: teamLeadUser, canManageServices: true });
+
+    await waitFor(() => {
+      expect(screen.getByText('No services found for your team(s).')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Add your first service')).toBeInTheDocument();
+  });
+
+  it('hides add button in empty state for regular member', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+    renderServicesList({ user: memberUser });
+
+    await waitFor(() => {
+      expect(screen.getByText('No services found for your team(s).')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Add your first service')).not.toBeInTheDocument();
   });
 
   it('toggles auto-refresh polling', async () => {
@@ -250,7 +411,7 @@ describe('ServicesList', () => {
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServicesList(true);
+    renderServicesList({ user: adminUser, isAdmin: true, canManageServices: true });
 
     await waitFor(() => {
       expect(screen.getByText('Add Service')).toBeInTheDocument();
