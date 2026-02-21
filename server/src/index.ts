@@ -20,6 +20,7 @@ import { SettingsService } from './services/settings/SettingsService';
 import { DataRetentionService } from './services/retention/DataRetentionService';
 import { AlertService } from './services/alerts';
 import { SlackSender } from './services/alerts/senders/SlackSender';
+import { WebhookSender } from './services/alerts/senders/WebhookSender';
 import { getStores } from './stores';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
@@ -134,6 +135,7 @@ async function start() {
   // Initialize alert service (subscribe to polling events)
   const alertService = AlertService.getInstance();
   alertService.registerSender('slack', new SlackSender());
+  alertService.registerSender('webhook', new WebhookSender());
   alertService.start(pollingService);
 
   // Start data retention scheduler

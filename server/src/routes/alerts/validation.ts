@@ -13,7 +13,10 @@ interface SlackConfig {
 interface WebhookConfig {
   url: string;
   headers?: Record<string, string>;
+  method?: string;
 }
+
+const VALID_WEBHOOK_METHODS = ['POST', 'PUT', 'PATCH'];
 
 export interface ValidatedChannelCreate {
   channel_type: AlertChannelType;
@@ -150,7 +153,7 @@ function validateSlackConfig(config: Record<string, unknown>): SlackConfig {
 }
 
 function validateWebhookConfig(config: Record<string, unknown>): WebhookConfig {
-  const { url, headers } = config;
+  const { url, headers, method } = config;
 
   if (!url || typeof url !== 'string') {
     throw new ValidationError('config.url is required for webhook channels', 'config.url');
@@ -177,6 +180,17 @@ function validateWebhookConfig(config: Record<string, unknown>): WebhookConfig {
     }
 
     result.headers = headers as Record<string, string>;
+  }
+
+  if (method !== undefined) {
+    if (typeof method !== 'string') {
+      throw new ValidationError('config.method must be a string', 'config.method');
+    }
+    const upper = method.toUpperCase();
+    if (!VALID_WEBHOOK_METHODS.includes(upper)) {
+      throw new ValidationError(`config.method must be one of: ${VALID_WEBHOOK_METHODS.join(', ')}`, 'config.method');
+    }
+    result.method = upper;
   }
 
   return result;

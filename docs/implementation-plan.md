@@ -638,14 +638,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Generic HTTP webhook. JSON payload, configurable headers, 10s timeout.
 
 **Acceptance criteria:**
-- [ ] POST JSON payload: `{ event, service, dependency, oldStatus, newStatus, timestamp, severity }`
-- [ ] Configurable custom headers (for auth tokens, API keys)
-- [ ] 10-second timeout
-- [ ] Response status recorded in alert history
-- [ ] Tests for payload formatting, header injection, timeout handling
+- [x] POST JSON payload: `{ event, service, dependency, oldStatus, newStatus, timestamp, severity }`
+- [x] Configurable custom headers (for auth tokens, API keys)
+- [x] 10-second timeout
+- [x] Response status recorded in alert history
+- [x] Tests for payload formatting, header injection, timeout handling
 
-**Files likely touched:**
+**Files touched:**
 - `server/src/services/alerts/senders/WebhookSender.ts` (new)
+- `server/src/services/alerts/senders/WebhookSender.test.ts` (new)
+- `server/src/routes/alerts/validation.ts` — added optional `method` field to webhook config
+- `server/src/index.ts` — register WebhookSender on startup
 
 ---
 

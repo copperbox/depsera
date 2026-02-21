@@ -1546,16 +1546,31 @@ Support for services that don't use the proactive-deps format:
 
 **Slack message format:** **[Implemented]** (PRO-83). `SlackSender` implements `IAlertSender`, sending Block Kit-formatted messages to Slack incoming webhooks. Header shows status emoji + service name + Degraded/Recovered. Section shows dependency name + status transition. Context shows severity + timestamp. Actions block includes "View in Depsera" button linking to service detail page (requires `APP_BASE_URL` env var). Poll error events show a warning format with the error message. 10-second request timeout. Handles Slack rate limiting (429) gracefully. Registered in `index.ts` on startup. See `/server/src/services/alerts/senders/SlackSender.ts`.
 
-**Webhook payload:**
+**Webhook sender:** **[Implemented]** (PRO-84). `WebhookSender` implements `IAlertSender`, sending JSON payloads to generic HTTP webhook URLs. Supports configurable custom headers (for auth tokens, API keys) and configurable HTTP method (POST, PUT, PATCH — default POST). Includes deep link URL via `APP_BASE_URL`. 10-second request timeout. Two event types: `dependency_status_change` and `poll_error`. Registered in `index.ts` on startup. See `/server/src/services/alerts/senders/WebhookSender.ts`.
+
+**Webhook payload (status change):**
 ```json
 {
-  "event": "status_change",
+  "event": "dependency_status_change",
   "service": { "id": "...", "name": "..." },
   "dependency": { "id": "...", "name": "..." },
   "oldStatus": "healthy",
   "newStatus": "critical",
+  "severity": "critical",
   "timestamp": "2024-01-15T10:00:00.000Z",
-  "severity": "critical"
+  "url": "https://depsera.internal.com/services/..."
+}
+```
+
+**Webhook payload (poll error):**
+```json
+{
+  "event": "poll_error",
+  "service": { "id": "...", "name": "..." },
+  "error": "Connection refused",
+  "severity": "critical",
+  "timestamp": "2024-01-15T10:00:00.000Z",
+  "url": "https://depsera.internal.com/services/..."
 }
 ```
 

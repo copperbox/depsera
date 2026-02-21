@@ -24,6 +24,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Admin Settings** — Runtime-configurable application settings with admin UI page and API; 10 keys (data retention, poll intervals, rate limits, alert thresholds) with in-memory cache over SQLite persistence; env-var defaults overridable at runtime; all changes audited
 - **Alert Dispatch Engine** — Event-driven alert dispatch that listens to polling status changes and errors; team-scoped alert rules with severity filtering (critical, warning, all); flap protection with configurable cooldown; per-team hourly rate limiting; pluggable sender interface for Slack and webhook channels; automatic retry on failure; all attempts recorded in alert history
 - **Slack Alerts** — Rich Block Kit-formatted notifications to Slack via incoming webhooks; shows service name, dependency, status transition, severity, timestamp, and deep link back to Depsera; handles rate limiting (429) and timeouts; configurable via `APP_BASE_URL` env var for deep links
+- **Webhook Alerts** — Generic HTTP webhook sender for integration with arbitrary systems; JSON payloads with service/dependency details, status transitions, severity, and deep links; configurable custom headers (for auth tokens, API keys) and HTTP method (POST/PUT/PATCH); 10-second timeout
 
 ## Tech Stack
 

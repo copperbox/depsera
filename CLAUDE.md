@@ -164,6 +164,7 @@ Key files in `/server/src/services/alerts/`:
 - `AlertRateLimiter.ts` — Per-team hourly rate limiter
 - `types.ts` — `AlertEvent`, `IAlertSender`, `SendResult` interfaces
 - `senders/SlackSender.ts` — Slack incoming webhook sender (Block Kit format, 10s timeout, 429 handling)
+- `senders/WebhookSender.ts` — Generic HTTP webhook sender (JSON payload, custom headers, configurable method, 10s timeout)
 
 ## API Routes
 
