@@ -1,7 +1,17 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { getOIDCConfig, client } from '../../auth/config';
 import { getStores } from '../../stores';
-import { User } from '../../db/types';
+
+/**
+ * Timing-safe comparison for OIDC state parameter.
+ * Prevents timing attacks that could leak information about the expected state value.
+ */
+function timingSafeStateCompare(a: string | undefined | null, b: string | undefined | null): boolean {
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
 
 export async function callback(req: Request, res: Response): Promise<void> {
   const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
@@ -14,9 +24,9 @@ export async function callback(req: Request, res: Response): Promise<void> {
       `${req.protocol}://${req.get('host')}${req.originalUrl}`
     );
 
-    // Validate state
+    // Validate state using timing-safe comparison
     const state = currentUrl.searchParams.get('state');
-    if (state !== req.session.state) {
+    if (!timingSafeStateCompare(state, req.session.state)) {
       console.error('State mismatch:', { expected: req.session.state, received: state });
       res.redirect(`${frontendOrigin}/login?error=state_mismatch`);
       return;

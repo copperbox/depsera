@@ -13,6 +13,12 @@ export function initializeDatabase(): void {
   // Enable WAL mode for better concurrent performance
   db.pragma('journal_mode = WAL');
 
+  // Full synchronous mode — ensures durability even on power loss
+  db.pragma('synchronous = FULL');
+
+  // Auto-checkpoint WAL every 1000 pages (~4MB) to prevent unbounded WAL growth
+  db.pragma('wal_autocheckpoint = 1000');
+
   // Run migrations
   runMigrations(db);
 

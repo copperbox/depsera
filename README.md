@@ -276,6 +276,13 @@ The polling service includes per-hostname concurrency limiting and request dedup
 
 Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed.
 
+### Additional Hardening
+
+- **Body size limit:** `express.json()` enforces a 100KB request body limit to prevent memory exhaustion.
+- **Timing-safe auth:** OIDC callback state comparison uses `crypto.timingSafeEqual` to prevent timing attacks.
+- **SQLite durability:** `synchronous = FULL` and `wal_autocheckpoint = 1000` pragmas ensure data durability and bounded WAL file growth.
+- **Static security analysis:** `eslint-plugin-security` is configured on the server to catch common security anti-patterns during development.
+
 ## License
 
 MIT

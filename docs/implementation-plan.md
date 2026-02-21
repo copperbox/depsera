@@ -130,19 +130,21 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Timing-safe OIDC state comparison, explicit body size limits on `express.json()`, session destroy error handling, SQLite WAL pragmas, `eslint-plugin-security` for server.
 
 **Acceptance criteria:**
-- [ ] OIDC state parameter compared using `crypto.timingSafeEqual`
-- [ ] `express.json({ limit: '100kb' })` (or similar explicit limit)
-- [ ] `req.session.destroy()` error is handled (logged, not swallowed)
-- [ ] SQLite WAL mode pragma set explicitly in database initialization
-- [ ] `eslint-plugin-security` added to server ESLint config, any findings fixed
-- [ ] Tests for each change
+- [x] OIDC state parameter compared using `crypto.timingSafeEqual`
+- [x] `express.json({ limit: '100kb' })` (or similar explicit limit)
+- [x] `req.session.destroy()` error is handled (logged, not swallowed)
+- [x] SQLite WAL mode pragma set explicitly in database initialization
+- [x] `eslint-plugin-security` added to server ESLint config, any findings fixed
+- [x] Tests for each change
 
-**Files likely touched:**
-- `server/src/routes/auth.ts` — timing-safe comparison
-- `server/src/app.ts` or `server/src/middleware/` — body size limits
-- `server/src/db/database.ts` — WAL pragma
-- `server/.eslintrc.*` — eslint plugin
-- `server/package.json`
+**Files touched:**
+- `server/src/routes/auth/callback.ts` — timing-safe state comparison via `timingSafeStateCompare()` using `crypto.timingSafeEqual`
+- `server/src/routes/auth/logout.ts` — session destroy awaited with Promise, returns 500 on failure
+- `server/src/index.ts` — `express.json({ limit: '100kb' })`
+- `server/src/db/index.ts` — `synchronous = FULL` and `wal_autocheckpoint = 1000` pragmas
+- `server/.eslintrc.json` — `eslint-plugin-security` with `plugin:security/recommended-legacy`
+- `server/package.json` — `eslint-plugin-security` dev dependency
+- `server/src/routes/auth/serverHardening.test.ts` (new) — 8 tests
 
 ---
 

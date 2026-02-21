@@ -6,12 +6,15 @@ export async function logout(req: Request, res: Response): Promise<void> {
   const postLogoutRedirectUri = `${frontendOrigin}/login`;
 
   try {
-    // Destroy session
-    req.session.destroy((err) => {
-      /* istanbul ignore if -- Session destroy callback error rarely occurs */
-      if (err) {
-        console.error('Session destroy error:', err);
-      }
+    // Destroy session — wait for completion before responding
+    await new Promise<void>((resolve, reject) => {
+      req.session.destroy((err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
     });
 
     // Clear session cookie
@@ -34,7 +37,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       // OIDC provider may not support end_session_endpoint
       res.json({ redirectUrl: '/login' });
     }
-  } catch (error) /* istanbul ignore next -- Catch block for unexpected errors during logout */ {
+  } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Logout failed' });
   }
