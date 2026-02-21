@@ -6,6 +6,9 @@ import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import TeamForm from './TeamForm';
 import AlertChannels from './AlertChannels';
+import AlertRules from './AlertRules';
+import AlertHistory from './AlertHistory';
+import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
 
 function TeamDetail() {
@@ -18,6 +21,8 @@ function TeamDetail() {
     const membership = user.teams.find((t) => t.team_id === id);
     return membership?.role === 'lead';
   }, [isAdmin, user?.teams, id]);
+
+  const { channels: alertChannels, loadChannels: loadAlertChannels } = useAlertChannels(id);
 
   const {
     team,
@@ -48,7 +53,8 @@ function TeamDetail() {
 
   useEffect(() => {
     loadTeam();
-  }, [loadTeam]);
+    loadAlertChannels();
+  }, [loadTeam, loadAlertChannels]);
 
   /* istanbul ignore next -- @preserve
      handleEditSuccess is triggered by TeamForm onSuccess inside a Modal.
@@ -325,6 +331,12 @@ function TeamDetail() {
 
       {/* Alert Channels Section */}
       <AlertChannels teamId={id!} canManage={canManageAlerts} />
+
+      {/* Alert Rules Section */}
+      <AlertRules teamId={id!} canManage={canManageAlerts} />
+
+      {/* Alert History Section */}
+      <AlertHistory teamId={id!} channels={alertChannels} />
 
       <Modal
         isOpen={isEditModalOpen}

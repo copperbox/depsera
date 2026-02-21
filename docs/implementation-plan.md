@@ -702,16 +702,26 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** UI for severity rules and alert history viewing per team.
 
 **Acceptance criteria:**
-- [ ] Severity filter dropdown (critical, warning, all)
-- [ ] Enable/disable toggle for rules
-- [ ] Alert history table with columns: time, service, dependency, status change, delivery status
-- [ ] Status filter on history (sent, failed, suppressed)
-- [ ] Tests for component
+- [x] Severity filter dropdown (critical, warning, all)
+- [x] Enable/disable toggle for rules
+- [x] Alert history table with columns: time, service, dependency, status change, delivery status
+- [x] Status filter on history (sent, failed, suppressed)
+- [x] Tests for component
 
-**Files likely touched:**
-- `client/src/components/AlertRules/` (new)
-- `client/src/components/AlertHistory/` (new)
-- `client/src/pages/TeamDetail.tsx`
+**Files touched:**
+- `client/src/components/pages/Teams/AlertRules.tsx` (new)
+- `client/src/components/pages/Teams/AlertRules.module.css` (new)
+- `client/src/components/pages/Teams/AlertRules.test.tsx` (new)
+- `client/src/components/pages/Teams/AlertHistory.tsx` (new)
+- `client/src/components/pages/Teams/AlertHistory.module.css` (new)
+- `client/src/components/pages/Teams/AlertHistory.test.tsx` (new)
+- `client/src/hooks/useAlertRules.ts` (new)
+- `client/src/hooks/useAlertRules.test.ts` (new)
+- `client/src/hooks/useAlertHistory.ts` (new)
+- `client/src/hooks/useAlertHistory.test.ts` (new)
+- `client/src/api/alerts.ts` — added fetchAlertRules, updateAlertRules, fetchAlertHistory
+- `client/src/types/alert.ts` — added AlertRule, AlertHistoryEntry, UpdateAlertRuleInput, AlertHistoryListOptions, AlertHistoryResponse types
+- `client/src/components/pages/Teams/TeamDetail.tsx` — integrated AlertRules and AlertHistory sections
 
 ---
 

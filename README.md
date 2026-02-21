@@ -26,6 +26,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 - **Slack Alerts** — Rich Block Kit-formatted notifications to Slack via incoming webhooks; shows service name, dependency, status transition, severity, timestamp, and deep link back to Depsera; handles rate limiting (429) and timeouts; configurable via `APP_BASE_URL` env var for deep links
 - **Webhook Alerts** — Generic HTTP webhook sender for integration with arbitrary systems; JSON payloads with service/dependency details, status transitions, severity, and deep links; configurable custom headers (for auth tokens, API keys) and HTTP method (POST/PUT/PATCH); 10-second timeout
 - **Alert Channel Management UI** — Team detail page section for managing alert channels; create/edit/delete Slack webhooks and generic HTTP webhooks with custom headers; enable/disable toggle, test alert button with success/failure feedback, delete confirmation; team lead+ access control
+- **Alert Rules & History UI** — Team detail page sections for configuring alert severity rules (critical only, warning+, all) with enable/disable toggle, and viewing alert history with status filter (sent/failed/suppressed); team leads see editable form, members see read-only summary
 
 ## Tech Stack
 

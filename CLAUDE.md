@@ -170,6 +170,12 @@ Key files in `/server/src/services/alerts/`:
 
 `AlertChannels` component (`/client/src/components/pages/Teams/AlertChannels.tsx`) provides CRUD for team alert channels on the team detail page. Team leads and admins can create/edit/delete channels, toggle enable/disable, and send test alerts. Supports Slack webhook and generic HTTP webhook (with custom headers and method selection). Client-side validation for Slack URL format and valid URL. Uses `useAlertChannels` hook (`/client/src/hooks/useAlertChannels.ts`) and API client (`/client/src/api/alerts.ts`). Types in `/client/src/types/alert.ts`.
 
+## Alert Rules & History UI
+
+`AlertRules` component (`/client/src/components/pages/Teams/AlertRules.tsx`) provides alert rule configuration on the team detail page. Team leads and admins see an editable form with severity filter dropdown (Critical only / Warning and above / All status changes) and enable/disable toggle with save button. Team members see a read-only summary. Uses `useAlertRules` hook (`/client/src/hooks/useAlertRules.ts`).
+
+`AlertHistory` component (`/client/src/components/pages/Teams/AlertHistory.tsx`) displays the last 50 alerts in reverse chronological order with columns: time, service, dependency, event type, delivery status (sent/failed/suppressed), and channel type. Includes status filter dropdown. Handles missing/malformed payloads gracefully. Uses `useAlertHistory` hook (`/client/src/hooks/useAlertHistory.ts`).
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.

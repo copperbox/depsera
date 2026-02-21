@@ -1,0 +1,96 @@
+/* Header Actions */
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.filterSelect {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Status Badges */
+.statusBadge {
+  display: inline-flex;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.status_sent {
+  color: #166534;
+  background-color: #dcfce7;
+}
+
+[data-theme="dark"] .status_sent {
+  color: #86efac;
+  background-color: #14532d;
+}
+
+.status_failed {
+  color: #991b1b;
+  background-color: #fee2e2;
+}
+
+[data-theme="dark"] .status_failed {
+  color: #fca5a5;
+  background-color: #7f1d1d;
+}
+
+.status_suppressed {
+  color: #92400e;
+  background-color: #fef3c7;
+}
+
+[data-theme="dark"] .status_suppressed {
+  color: #fcd34d;
+  background-color: #78350f;
+}
+
+/* Cell Styles */
+.timestampCell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.eventCell {
+  font-size: 0.8125rem;
+}
+
+/* Dismiss Button */
+.dismissButton {
+  background: none;
+  border: none;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.dismissButton:hover {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .filterSelect {
+    width: 100%;
+  }
+}

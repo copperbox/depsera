@@ -1,8 +1,12 @@
 import type {
   AlertChannel,
+  AlertRule,
   CreateAlertChannelInput,
   UpdateAlertChannelInput,
+  UpdateAlertRuleInput,
   TestAlertChannelResult,
+  AlertHistoryResponse,
+  AlertHistoryListOptions,
 } from '../types/alert';
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
@@ -63,4 +67,42 @@ export async function testAlertChannel(
     credentials: 'include',
   });
   return handleResponse<TestAlertChannelResult>(response);
+}
+
+export async function fetchAlertRules(teamId: string): Promise<AlertRule[]> {
+  const response = await fetch(`/api/teams/${teamId}/alert-rules`, {
+    credentials: 'include',
+  });
+  return handleResponse<AlertRule[]>(response);
+}
+
+export async function updateAlertRules(
+  teamId: string,
+  input: UpdateAlertRuleInput
+): Promise<AlertRule> {
+  const response = await fetch(`/api/teams/${teamId}/alert-rules`, {
+    method: 'PUT',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+    credentials: 'include',
+  });
+  return handleResponse<AlertRule>(response);
+}
+
+export async function fetchAlertHistory(
+  teamId: string,
+  options: AlertHistoryListOptions = {}
+): Promise<AlertHistoryResponse> {
+  const params = new URLSearchParams();
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  if (options.status) params.set('status', options.status);
+
+  const query = params.toString();
+  const url = `/api/teams/${teamId}/alert-history${query ? `?${query}` : ''}`;
+
+  const response = await fetch(url, {
+    credentials: 'include',
+  });
+  return handleResponse<AlertHistoryResponse>(response);
 }

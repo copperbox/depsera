@@ -59,3 +59,20 @@ export interface TestAlertChannelResult {
   success: boolean;
   error: string | null;
 }
+
+export interface UpdateAlertRuleInput {
+  severity_filter: AlertSeverityFilter;
+  is_active?: boolean;
+}
+
+export interface AlertHistoryListOptions {
+  limit?: number;
+  offset?: number;
+  status?: AlertStatus;
+}
+
+export interface AlertHistoryResponse {
+  entries: AlertHistoryEntry[];
+  limit: number;
+  offset: number;
+}
