@@ -153,3 +153,4 @@ vite.config.ts.timestamp-*
 
 .claude/
 .ralph/
+.playwright-mcp/
