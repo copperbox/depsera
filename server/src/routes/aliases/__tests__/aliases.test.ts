@@ -12,6 +12,12 @@ jest.mock('../../../db', () => ({
   db: testDb,
 }));
 
+// Mock auth — admin passes through by default
+jest.mock('../../../auth', () => ({
+  requireAuth: jest.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  requireAdmin: jest.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+}));
+
 // Reset singleton so it picks up our test db
 import { StoreRegistry } from '../../../stores';
 StoreRegistry.resetInstance();
@@ -36,6 +42,10 @@ describe('Aliases API', () => {
 
   beforeEach(() => {
     testDb.exec('DELETE FROM dependency_aliases');
+  });
+
+  afterAll(() => {
+    testDb.close();
   });
 
   describe('GET /api/aliases', () => {

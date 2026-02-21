@@ -664,7 +664,7 @@ Rate limited: 10 requests/minute per IP.
 | PUT | `/api/aliases/:id` | requireAuth | Update alias. Body: `{ canonical_name }`. |
 | DELETE | `/api/aliases/:id` | requireAuth | Delete alias. Returns 204. |
 
-**Note:** Alias mutations currently require only `requireAuth`. Restricting to `requireAdmin` is [Planned] (PRO-92).
+**Note:** Alias read endpoints (`GET`) require `requireAuth`. Alias mutations (`POST`, `PUT`, `DELETE`) require `requireAdmin`. **[Implemented]** (PRO-92).
 
 ### 4.7 Associations
 

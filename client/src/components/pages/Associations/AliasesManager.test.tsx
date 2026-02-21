@@ -6,6 +6,12 @@ const mockLoadCanonicalNames = jest.fn();
 const mockAddAlias = jest.fn();
 const mockRemoveAlias = jest.fn();
 
+// Mock auth context
+const mockUseAuth = jest.fn();
+jest.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 jest.mock('../../../hooks/useAliases', () => ({
   useAliases: () => ({
     aliases: mockAliases,
@@ -39,6 +45,7 @@ beforeEach(() => {
   mockCanonicalNames = [];
   mockIsLoading = false;
   mockError = null;
+  mockUseAuth.mockReturnValue({ isAdmin: true });
 });
 
 describe('AliasesManager', () => {
@@ -187,5 +194,43 @@ describe('AliasesManager', () => {
     const datalist = document.getElementById('canonical-names-list');
     expect(datalist).toBeInTheDocument();
     expect(datalist?.querySelectorAll('option')).toHaveLength(3);
+  });
+
+  describe('non-admin user', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({ isAdmin: false });
+    });
+
+    it('hides the add alias form for non-admin users', () => {
+      render(<AliasesManager {...defaultProps} />);
+
+      expect(screen.queryByText('Add Alias')).not.toBeInTheDocument();
+      expect(screen.queryByText('Alias (reported name)')).not.toBeInTheDocument();
+    });
+
+    it('hides delete buttons for non-admin users', () => {
+      mockAliases = [
+        { id: '1', alias: 'pg-main', canonical_name: 'Primary DB', created_at: '' },
+      ];
+
+      render(<AliasesManager {...defaultProps} />);
+
+      expect(screen.getByText('pg-main')).toBeInTheDocument();
+      expect(screen.queryByTitle('Delete alias')).not.toBeInTheDocument();
+    });
+
+    it('still displays aliases in read-only mode', () => {
+      mockAliases = [
+        { id: '1', alias: 'pg-main', canonical_name: 'Primary DB', created_at: '' },
+        { id: '2', alias: 'redis-1', canonical_name: 'Cache', created_at: '' },
+      ];
+
+      render(<AliasesManager {...defaultProps} />);
+
+      expect(screen.getByText('Primary DB')).toBeInTheDocument();
+      expect(screen.getByText('Cache')).toBeInTheDocument();
+      expect(screen.getByText('pg-main')).toBeInTheDocument();
+      expect(screen.getByText('redis-1')).toBeInTheDocument();
+    });
   });
 });

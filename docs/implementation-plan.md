@@ -66,10 +66,10 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Add `requireAdmin` middleware to alias create/update/delete. Keep read endpoints accessible to all authenticated users.
 
 **Acceptance criteria:**
-- [ ] `POST /api/aliases`, `PUT /api/aliases/:id`, `DELETE /api/aliases/:id` require admin role
-- [ ] `GET /api/aliases`, `GET /api/aliases/canonical-names` remain `requireAuth`
-- [ ] Non-admin mutation attempts return 403
-- [ ] Tests updated
+- [x] `POST /api/aliases`, `PUT /api/aliases/:id`, `DELETE /api/aliases/:id` require admin role
+- [x] `GET /api/aliases`, `GET /api/aliases/canonical-names` remain `requireAuth`
+- [x] Non-admin mutation attempts return 403
+- [x] Tests updated
 
 **Files likely touched:**
 - `server/src/routes/aliases.ts`

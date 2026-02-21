@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useAliases } from '../../../hooks/useAliases';
 import SearchableSelect from '../../common/SearchableSelect';
 import type { SelectOption } from '../../common/SearchableSelect';
@@ -9,6 +10,7 @@ interface AliasesManagerProps {
 }
 
 function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
+  const { isAdmin } = useAuth();
   const {
     aliases,
     canonicalNames,
@@ -62,40 +64,42 @@ function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
         aliases unify them under one canonical identity.
       </p>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.field}>
-          <SearchableSelect
-            options={dependencyOptions}
-            value={aliasInput}
-            onChange={setAliasInput}
-            placeholder="e.g. postgres-main"
-            label="Alias (reported name)"
-            allowCustom
-          />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.fieldLabel}>Canonical Name</label>
-          <input
-            className={styles.input}
-            list="canonical-names-list"
-            value={canonicalInput}
-            onChange={(e) => setCanonicalInput(e.target.value)}
-            placeholder="e.g. Primary Database"
-          />
-          <datalist id="canonical-names-list">
-            {canonicalNames.map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-        </div>
-        <button
-          type="submit"
-          className={styles.addButton}
-          disabled={!aliasInput.trim() || !canonicalInput.trim()}
-        >
-          Add Alias
-        </button>
-      </form>
+      {isAdmin && (
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <SearchableSelect
+              options={dependencyOptions}
+              value={aliasInput}
+              onChange={setAliasInput}
+              placeholder="e.g. postgres-main"
+              label="Alias (reported name)"
+              allowCustom
+            />
+          </div>
+          <div className={styles.field}>
+            <label className={styles.fieldLabel}>Canonical Name</label>
+            <input
+              className={styles.input}
+              list="canonical-names-list"
+              value={canonicalInput}
+              onChange={(e) => setCanonicalInput(e.target.value)}
+              placeholder="e.g. Primary Database"
+            />
+            <datalist id="canonical-names-list">
+              {canonicalNames.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </div>
+          <button
+            type="submit"
+            className={styles.addButton}
+            disabled={!aliasInput.trim() || !canonicalInput.trim()}
+          >
+            Add Alias
+          </button>
+        </form>
+      )}
 
       {error && <div className={styles.error}>{error}</div>}
 
@@ -113,17 +117,19 @@ function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
               {items.map((a) => (
                 <div key={a.id} className={styles.aliasRow}>
                   <span className={styles.aliasName}>{a.alias}</span>
-                  <div className={styles.aliasActions}>
-                    <button
-                      className={`${styles.iconButton} ${styles.deleteButton}`}
-                      onClick={() => removeAlias(a.id)}
-                      title="Delete alias"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334z" />
-                      </svg>
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className={styles.aliasActions}>
+                      <button
+                        className={`${styles.iconButton} ${styles.deleteButton}`}
+                        onClick={() => removeAlias(a.id)}
+                        title="Delete alias"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
