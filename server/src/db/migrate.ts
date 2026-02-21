@@ -6,6 +6,8 @@ import * as migration004 from './migrations/004_add_check_details_and_errors';
 import * as migration005 from './migrations/005_simplify_polling';
 import * as migration006 from './migrations/006_add_dependency_aliases';
 import * as migration007 from './migrations/007_poll_interval_ms';
+import * as migration008 from './migrations/008_add_audit_log';
+import * as migration009 from './migrations/009_add_settings';
 
 interface Migration {
   id: string;
@@ -56,6 +58,18 @@ const migrations: Migration[] = [
     name: 'poll_interval_ms',
     up: migration007.up,
     down: migration007.down
+  },
+  {
+    id: '008',
+    name: 'add_audit_log',
+    up: migration008.up,
+    down: migration008.down
+  },
+  {
+    id: '009',
+    name: 'add_settings',
+    up: migration009.up,
+    down: migration009.down
   }
 ];
 

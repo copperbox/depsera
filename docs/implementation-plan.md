@@ -293,22 +293,22 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** `settings` key-value table, store, API routes, in-memory cache. Env vars serve as initial defaults; admin settings override at runtime.
 
 **Acceptance criteria:**
-- [ ] Migration creates `settings` table (key TEXT PK, value TEXT, updated_at, updated_by)
-- [ ] `ISettingsStore` interface + `SQLiteSettingsStore` implementation
-- [ ] In-memory settings cache, refreshed on update
-- [ ] `GET /api/settings` (admin only) returns all settings
-- [ ] `PUT /api/settings` (admin only) updates settings
-- [ ] Settings keys: `data_retention_days`, `retention_cleanup_time`, `default_poll_interval_ms`, `ssrf_allowlist`, `global_rate_limit`, `global_rate_limit_window_minutes`, `auth_rate_limit`, `auth_rate_limit_window_minutes`
-- [ ] Env vars provide initial defaults; DB values override
-- [ ] Tests for store, caching, and routes
+- [x] Migration creates `settings` table (key TEXT PK, value TEXT, updated_at, updated_by)
+- [x] `ISettingsStore` interface + `SQLiteSettingsStore` implementation
+- [x] In-memory settings cache, refreshed on update
+- [x] `GET /api/settings` (admin only) returns all settings
+- [x] `PUT /api/settings` (admin only) updates settings
+- [x] Settings keys: `data_retention_days`, `retention_cleanup_time`, `default_poll_interval_ms`, `ssrf_allowlist`, `global_rate_limit`, `global_rate_limit_window_minutes`, `auth_rate_limit`, `auth_rate_limit_window_minutes`
+- [x] Env vars provide initial defaults; DB values override
+- [x] Tests for store, caching, and routes
 
 **Files likely touched:**
-- `server/src/db/migrations/008_add_settings.ts` (new — number depends on audit_log)
+- `server/src/db/migrations/009_add_settings.ts` (new)
 - `server/src/stores/interfaces/ISettingsStore.ts` (new)
-- `server/src/stores/impl/SQLiteSettingsStore.ts` (new)
+- `server/src/stores/impl/SettingsStore.ts` (new)
 - `server/src/stores/index.ts`
 - `server/src/services/settings/SettingsService.ts` (new) — cache layer
-- `server/src/routes/settings.ts` (new)
+- `server/src/routes/admin/settings.ts` (new)
 - `server/src/db/types.ts`
 
 ---

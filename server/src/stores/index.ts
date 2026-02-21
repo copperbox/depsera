@@ -11,6 +11,7 @@ import type { ILatencyHistoryStore } from './interfaces/ILatencyHistoryStore';
 import type { IErrorHistoryStore } from './interfaces/IErrorHistoryStore';
 import type { IDependencyAliasStore } from './interfaces/IDependencyAliasStore';
 import type { IAuditLogStore } from './interfaces/IAuditLogStore';
+import type { ISettingsStore } from './interfaces/ISettingsStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -22,6 +23,7 @@ import { LatencyHistoryStore } from './impl/LatencyHistoryStore';
 import { ErrorHistoryStore } from './impl/ErrorHistoryStore';
 import { DependencyAliasStore } from './impl/DependencyAliasStore';
 import { AuditLogStore } from './impl/AuditLogStore';
+import { SettingsStore } from './impl/SettingsStore';
 
 /**
  * Central registry providing access to all stores.
@@ -39,6 +41,7 @@ export class StoreRegistry {
   public readonly errorHistory: IErrorHistoryStore;
   public readonly aliases: IDependencyAliasStore;
   public readonly auditLog: IAuditLogStore;
+  public readonly settings: ISettingsStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -50,6 +53,7 @@ export class StoreRegistry {
     this.errorHistory = new ErrorHistoryStore(database);
     this.aliases = new DependencyAliasStore(database);
     this.auditLog = new AuditLogStore(database);
+    this.settings = new SettingsStore(database);
   }
 
   /**

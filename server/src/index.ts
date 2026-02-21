@@ -15,6 +15,8 @@ import errorsRouter from './routes/errors';
 import aliasesRouter from './routes/aliases';
 import adminRouter from './routes/admin';
 import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
+import { SettingsService } from './services/settings/SettingsService';
+import { getStores } from './stores';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
 import { csrfProtection } from './middleware/csrf';
 import { createSecurityHeaders } from './middleware/securityHeaders';
@@ -89,6 +91,9 @@ async function start() {
       process.exit(1);
     }
   }
+
+  // Initialize settings service (auto-loads DB values into cache on first access)
+  SettingsService.getInstance(getStores().settings);
 
   // Initialize health polling service
   const pollingService = HealthPollingService.getInstance();

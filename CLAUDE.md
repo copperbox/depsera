@@ -70,8 +70,9 @@ Core tables:
 - `dependency_latency_history` - Historical latency data points per dependency
 - `dependency_error_history` - Historical error records per dependency
 - `audit_log` - Admin action audit trail (user/team/service mutations) with user FK, IP address, and JSON details
+- `settings` - Key-value store for runtime-configurable admin settings (key TEXT PK, value TEXT, updated_at, updated_by FK → users)
 
-Migrations are in `/server/src/db/migrations/` (001-008). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-009). Types are in `/server/src/db/types.ts`.
 
 ## Client-Side Storage
 
@@ -83,11 +84,15 @@ Migrations are in `/server/src/db/migrations/` (001-008). Types are in `/server/
 ## Store Registry
 
 All data access goes through `StoreRegistry` (`/server/src/stores/index.ts`). Stores:
-- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`, `auditLog`
+- `services`, `teams`, `users`, `dependencies`, `associations`, `latencyHistory`, `errorHistory`, `aliases`, `auditLog`, `settings`
 
 Interfaces in `/server/src/stores/interfaces/`, implementations in `/server/src/stores/impl/`.
 
 **ORDER BY validation:** All stores that accept `orderBy`/`orderDirection` parameters use `validateOrderBy()` from `/server/src/stores/orderByValidator.ts` to whitelist allowed columns and prevent SQL injection. Each store defines its own `ALLOWED_COLUMNS` set. Invalid columns throw `InvalidOrderByError`.
+
+## Settings Service
+
+`SettingsService` (`/server/src/services/settings/SettingsService.ts`) provides in-memory cached access to admin-configurable settings. Singleton pattern with auto-loading from DB on first access. Settings keys: `data_retention_days`, `retention_cleanup_time`, `default_poll_interval_ms`, `ssrf_allowlist`, `global_rate_limit`, `global_rate_limit_window_minutes`, `auth_rate_limit`, `auth_rate_limit_window_minutes`, `alert_cooldown_minutes`, `alert_rate_limit_per_hour`. Env vars serve as initial defaults; DB values override at runtime.
 
 ## Polling Architecture
 
@@ -138,6 +143,7 @@ Key files in `/server/src/services/polling/`:
 - `/api/latency/:id` - Latency history
 - `/api/errors/:id` - Error history
 - `/api/admin/audit-log` - Audit log query (admin only, filterable by date range, user, action, resource type)
+- `/api/admin/settings` - Admin settings CRUD (admin only, GET returns all settings with defaults, PUT updates settings)
 
 ## General Guidance
 

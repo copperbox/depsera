@@ -7,3 +7,4 @@ export type { ILatencyHistoryStore, LatencyDataPoint } from './ILatencyHistorySt
 export type { IErrorHistoryStore } from './IErrorHistoryStore';
 export type { IDependencyAliasStore } from './IDependencyAliasStore';
 export type { IAuditLogStore, AuditLogListOptions } from './IAuditLogStore';
+export type { ISettingsStore } from './ISettingsStore';

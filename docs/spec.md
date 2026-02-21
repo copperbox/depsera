@@ -251,14 +251,14 @@ type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'ot
 
 ### Planned Schema Changes
 
-#### settings **[Planned]**
+#### settings **[Implemented]**
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | key | TEXT | PRIMARY KEY | |
 | value | TEXT | | |
-| updated_at | TEXT | | |
-| updated_by | TEXT | | |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_by | TEXT | FK → users.id | |
 
 Key-value store for runtime-configurable admin settings. See [Section 12.3](#123-admin-settings).
 
@@ -335,6 +335,7 @@ Nullable `TEXT` column added to `users` table for local auth mode.
 | 006 | add_dependency_aliases | Creates dependency_aliases; adds canonical_name to dependencies |
 | 007 | poll_interval_ms | Rebuilds services table: polling_interval (seconds) → poll_interval_ms (milliseconds) |
 | 008 | add_audit_log | Creates audit_log table with indexes |
+| 009 | add_settings | Creates settings key-value table |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
 
@@ -799,6 +800,8 @@ Errors are for the last 24 hours, limited to the last 50 records. `isRecovery: t
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/admin/audit-log` | requireAdmin | Paginated audit log. Query: `limit`, `offset`, `startDate`, `endDate`, `userId`, `action`, `resourceType`. |
+| GET | `/api/admin/settings` | requireAdmin | Returns all settings with current values and source (`database` or `default`). |
+| PUT | `/api/admin/settings` | requireAdmin | Update settings. Body: partial object of `{ key: value }` pairs. Validates values before persisting. |
 
 **GET /api/admin/audit-log response:**
 
@@ -824,7 +827,7 @@ Errors are for the last 24 hours, limited to the last 50 records. `isRecovery: t
 }
 ```
 
-**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`
+**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`
 
 ---
 
@@ -1395,7 +1398,7 @@ All items in this section are **[Planned]**. See the [PRD](./PRD-1.0.md) for ful
 
 ### 12.3 Admin Settings (Phase 2–3)
 
-**Backend:** `settings` key-value table with in-memory cache. `GET /api/settings` and `PUT /api/settings` (admin only). Env vars serve as initial defaults; settings override at runtime.
+**Backend:** **[Implemented]** (PRO-75). `settings` key-value table with in-memory cache. `GET /api/admin/settings` and `PUT /api/admin/settings` (admin only). Env vars serve as initial defaults; DB settings override at runtime. `SettingsService` singleton provides cache layer with `get()` and `getAll()` methods. Validation rules enforce value ranges per key. See `/server/src/services/settings/SettingsService.ts` and `/server/src/routes/admin/settings.ts`.
 
 **Settings keys:**
 
@@ -1521,7 +1524,7 @@ Support for services that don't use the proactive-deps format:
 
 ### StoreRegistry
 
-Central singleton providing access to all 8 stores:
+Central singleton providing access to all 10 stores:
 
 ```typescript
 class StoreRegistry {
@@ -1534,6 +1537,7 @@ class StoreRegistry {
   public readonly errorHistory: IErrorHistoryStore;
   public readonly aliases: IDependencyAliasStore;
   public readonly auditLog: IAuditLogStore;
+  public readonly settings: ISettingsStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -1673,4 +1677,13 @@ create(entry: Omit<AuditLogEntry, 'id' | 'created_at'>): AuditLogEntry
 findAll(options?: AuditLogListOptions): AuditLogEntryWithUser[]
 count(options?: AuditLogListOptions): number
 deleteOlderThan(timestamp: string): number
+```
+
+#### ISettingsStore
+```typescript
+findAll(): Setting[]
+findByKey(key: string): Setting | undefined
+upsert(key: string, value: string | null, updatedBy: string): Setting
+upsertMany(entries: Array<{ key: string; value: string | null }>, updatedBy: string): Setting[]
+delete(key: string): boolean
 ```

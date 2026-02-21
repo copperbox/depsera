@@ -298,9 +298,10 @@ export type AuditAction =
   | 'team.member_role_changed'
   | 'service.created'
   | 'service.updated'
-  | 'service.deleted';
+  | 'service.deleted'
+  | 'settings.updated';
 
-export type AuditResourceType = 'user' | 'team' | 'service';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'settings';
 
 export interface AuditLogEntry {
   id: string;
@@ -316,4 +317,12 @@ export interface AuditLogEntry {
 export interface AuditLogEntryWithUser extends AuditLogEntry {
   user_email: string;
   user_name: string;
+}
+
+// Settings types
+export interface Setting {
+  key: string;
+  value: string | null;
+  updated_at: string;
+  updated_by: string | null;
 }
