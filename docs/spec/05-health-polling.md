@@ -1,0 +1,155 @@
+# 5. Health Polling System
+
+**[Implemented]**
+
+The polling system is the core engine of Depsera. It runs server-side, polling registered service health endpoints on configurable intervals with resilience patterns to handle failures gracefully.
+
+## 5.1 Polling Lifecycle
+
+```mermaid
+flowchart TD
+    A[5s Tick] --> B[Sync active services from DB]
+    B --> C{For each service}
+    C --> D{Circuit breaker<br>allows attempt?}
+    D -- No (OPEN) --> E[Skip - mark polled with<br>cooldown TTL]
+    D -- Yes --> F{PollCache TTL<br>expired?}
+    F -- No --> G[Skip - not due yet]
+    F -- Yes --> H{Host rate limiter<br>slot available?}
+    H -- No --> I[Skip - retry next tick]
+    H -- Yes --> J[Mark isPolling = true]
+    J --> K{Same URL already<br>in-flight?}
+    K -- Yes --> L[Share existing promise]
+    K -- No --> M[Execute HTTP request<br>10s timeout]
+    L --> N[Process result]
+    M --> N
+    N --> O[Update DB: dependencies,<br>latency, errors, service status]
+    O --> P[Update circuit breaker<br>& backoff]
+    P --> Q[Set PollCache TTL]
+    Q --> R[Emit events]
+    R --> S[Release host rate<br>limiter slot]
+```
+
+**Tick interval:** 5 seconds (`POLL_CYCLE_MS = 5000`). Each tick evaluates which services are due for polling based on their individual `poll_interval_ms` and current backoff state.
+
+**Per-service poll interval:** Configurable via `poll_interval_ms` (default 30,000ms, min 5,000ms, max 3,600,000ms). On success, the next poll is scheduled at this interval. On failure, the interval is extended by the backoff delay.
+
+## 5.2 Circuit Breaker
+
+Each service has an independent circuit breaker instance.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> Open: 10 consecutive failures
+    Open --> HalfOpen: 5min cooldown expires
+    HalfOpen --> Closed: Probe succeeds
+    HalfOpen --> Open: Probe fails
+```
+
+| Parameter | Value |
+|---|---|
+| Failure threshold | 10 consecutive failures |
+| Cooldown period | 300,000ms (5 minutes) |
+| Half-open behavior | Allows exactly 1 probe request |
+
+**State transitions:**
+- `recordSuccess()` → state = `closed`, failures = 0
+- `recordFailure()` → failures++; if failures ≥ 10, state = `open`, record lastFailureTime
+- `canAttempt()` → `closed`: always true; `open`: true if elapsed ≥ cooldownMs (transitions to `half-open`); `half-open`: true (allows single probe)
+
+When the circuit is **open**, the PollCache is set with the cooldown duration as TTL, effectively blocking polling for 5 minutes.
+
+## 5.3 Exponential Backoff
+
+Each service has an independent backoff instance.
+
+**Formula:** `delay = min(baseDelayMs × multiplier^attempt, maxDelayMs)`
+
+| Parameter | Value |
+|---|---|
+| Base delay | 1,000ms |
+| Multiplier | 2× |
+| Max delay | 300,000ms (5 minutes) |
+
+**Progression:** 1s → 2s → 4s → 8s → 16s → 32s → 64s → 128s → 256s → 300s (capped)
+
+On success, the backoff resets to attempt 0. On failure, the next poll TTL is `max(poll_interval_ms, backoff_delay)`.
+
+## 5.4 PollCache (TTL Scheduling)
+
+In-memory `Map<serviceId, { expiresAt: number }>`.
+
+- `shouldPoll(serviceId)` → true if entry missing or `Date.now() >= expiresAt`
+- `markPolled(serviceId, ttlMs)` → sets `expiresAt = Date.now() + ttlMs`
+- `invalidate(serviceId)` → deletes entry, forcing poll on next tick
+
+**TTL values by scenario:**
+| Scenario | TTL |
+|---|---|
+| Successful poll | `poll_interval_ms` |
+| Failed poll | `max(poll_interval_ms, backoff_delay)` |
+| Circuit open | `cooldownMs` (300,000ms) |
+| Endpoint changed | Cache invalidated (immediate repoll) |
+
+## 5.5 Host Rate Limiter
+
+Per-hostname concurrency semaphore preventing DDoS amplification.
+
+- **Max concurrent per host:** 3 (configurable via `POLL_MAX_CONCURRENT_PER_HOST`)
+- **Mechanism:** `Map<hostname, number>` tracking active poll count
+- `acquire(hostname)` → increments count if < max, returns boolean
+- `release(hostname)` → decrements count; removes entry if ≤ 0
+- **Hostname extraction:** `new URL(url).hostname`
+
+Services that cannot acquire a slot are skipped this tick and automatically retried on the next 5-second tick. There is no explicit retry queue.
+
+## 5.6 Poll Deduplication
+
+Promise coalescing for services sharing the same health endpoint URL.
+
+- **Mechanism:** `Map<url, Promise<PollResult>>` tracking in-flight requests
+- If a URL is already being polled, all services sharing that URL await the same promise
+- The promise is removed from the map via `.finally()` when the request completes
+- Each service maintains independent circuit breaker and backoff state despite sharing the HTTP response
+- No cross-cycle caching — each tick triggers fresh requests
+
+## 5.7 Dependency Parsing & Upsert
+
+When a poll succeeds, the health endpoint response is parsed (proactive-deps format) and each dependency is upserted:
+
+1. **Alias resolution:** `aliasStore.resolveAlias(dep.name)` → sets `canonical_name` if alias exists
+2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). Returns whether the dependency is new and whether health changed.
+3. **Status change detection:** If `healthy` value changed, `last_status_change` is updated and a `STATUS_CHANGE` event is emitted.
+4. **Error history:** Deduplication logic — only records if the error state changed:
+   - Healthy → only record if previous entry was an error (records recovery with null error)
+   - Unhealthy → only record if no previous entry, previous was recovery, or error JSON changed
+5. **Latency history:** Records data point if `latency_ms > 0`
+6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
+
+## 5.8 Events
+
+| Event | Emitted When | Payload |
+|---|---|---|
+| `status:change` | Dependency healthy ↔ unhealthy | serviceId, serviceName, dependencyName, previousHealthy, currentHealthy, timestamp |
+| `poll:complete` | Poll finishes (success or failure) | serviceId, success, dependenciesUpdated, statusChanges[], error?, latencyMs |
+| `poll:error` | Poll fails | serviceId, serviceName, error |
+| `service:started` | Service added to polling | serviceId, serviceName |
+| `service:stopped` | Service removed from polling | serviceId, serviceName |
+| `circuit:open` | Circuit transitions to open | serviceId, serviceName |
+| `circuit:close` | Circuit closes from half-open | serviceId, serviceName |
+
+## 5.9 Constants Summary
+
+| Constant | Value | Location |
+|---|---|---|
+| POLL_CYCLE_MS | 5,000ms | HealthPollingService |
+| Circuit failure threshold | 10 | CircuitBreaker |
+| Circuit cooldown | 300,000ms (5 min) | CircuitBreaker |
+| Backoff base delay | 1,000ms | backoff.ts |
+| Backoff multiplier | 2× | backoff.ts |
+| Backoff max delay | 300,000ms (5 min) | backoff.ts |
+| Poll HTTP timeout | 10,000ms | ServicePoller |
+| Default poll interval | 30,000ms | services table default |
+| Min poll interval | 5,000ms | API validation |
+| Max poll interval | 3,600,000ms (1 hr) | API validation |
+| Host concurrency limit | 3 | HostRateLimiter (env: `POLL_MAX_CONCURRENT_PER_HOST`) |
