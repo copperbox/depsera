@@ -43,8 +43,25 @@ jest.mock('../../services/matching', () => ({
 
 import associationsRouter from './index';
 
+// Admin user used for all existing tests (authorization checks pass for admin)
+const adminUser = {
+  id: 'admin-test-user-id',
+  email: 'admin@test.com',
+  name: 'Admin',
+  oidc_subject: null,
+  role: 'admin' as const,
+  is_active: 1,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 const app = express();
 app.use(express.json());
+// Set req.user to admin for all requests (handlers now require it for authorization)
+app.use((req, _res, next) => {
+  req.user = adminUser;
+  next();
+});
 // Mount at /api since the router defines the full paths
 app.use('/api', associationsRouter);
 

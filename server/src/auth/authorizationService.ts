@@ -90,6 +90,61 @@ export class AuthorizationService {
   }
 
   /**
+   * Check if a user has team access for a dependency's owning service (or is admin).
+   * Looks up the dependency to find its service, then checks team membership.
+   */
+  static checkDependencyTeamAccess(user: User, dependencyId: string): AuthorizationResult {
+    if (user.role === 'admin') {
+      return { authorized: true };
+    }
+
+    const stores = getStores();
+    const dependency = stores.dependencies.findById(dependencyId);
+
+    if (!dependency) {
+      return {
+        authorized: false,
+        error: 'Dependency not found',
+        statusCode: 404,
+      };
+    }
+
+    const service = stores.services.findById(dependency.service_id);
+
+    if (!service) {
+      return {
+        authorized: false,
+        error: 'Service not found',
+        statusCode: 404,
+      };
+    }
+
+    return this.checkTeamAccess(user, service.team_id);
+  }
+
+  /**
+   * Check if a user has team access for a service (or is admin).
+   */
+  static checkServiceTeamAccess(user: User, serviceId: string): AuthorizationResult {
+    if (user.role === 'admin') {
+      return { authorized: true };
+    }
+
+    const stores = getStores();
+    const service = stores.services.findById(serviceId);
+
+    if (!service) {
+      return {
+        authorized: false,
+        error: 'Service not found',
+        statusCode: 404,
+      };
+    }
+
+    return this.checkTeamAccess(user, service.team_id);
+  }
+
+  /**
    * Check if user is an admin
    */
   static checkAdminAccess(user: User): AuthorizationResult {

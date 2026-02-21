@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { AssociationMatcher } from '../../services/matching';
+import { AuthorizationService } from '../../auth/authorizationService';
 
 export function acceptSuggestion(req: Request, res: Response): void {
   try {
@@ -12,6 +13,13 @@ export function acceptSuggestion(req: Request, res: Response): void {
 
     if (!suggestion || !suggestion.is_auto_suggested) {
       res.status(404).json({ error: 'Suggestion not found or already accepted' });
+      return;
+    }
+
+    // Verify user has team access to the dependency's owning service
+    const authResult = AuthorizationService.checkDependencyTeamAccess(req.user!, suggestion.dependency_id);
+    if (!authResult.authorized) {
+      res.status(authResult.statusCode!).json({ error: authResult.error });
       return;
     }
 

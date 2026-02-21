@@ -9,6 +9,7 @@ import {
   formatError,
   getErrorStatusCode,
 } from '../../utils/errors';
+import { AuthorizationService } from '../../auth/authorizationService';
 
 export function createAssociation(req: Request, res: Response): void {
   try {
@@ -22,6 +23,13 @@ export function createAssociation(req: Request, res: Response): void {
     const dependency = stores.dependencies.findById(dependencyId);
     if (!dependency) {
       throw new NotFoundError('Dependency');
+    }
+
+    // Verify user has team access to the dependency's owning service
+    const authResult = AuthorizationService.checkDependencyTeamAccess(req.user!, dependencyId);
+    if (!authResult.authorized) {
+      res.status(authResult.statusCode!).json({ error: authResult.error });
+      return;
     }
 
     // Verify linked service exists

@@ -78,6 +78,25 @@ describe('AuthorizationService', () => {
       )
     `);
 
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS dependencies (
+        id TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        canonical_name TEXT,
+        type TEXT,
+        version TEXT,
+        status TEXT NOT NULL DEFAULT 'unknown',
+        latency_ms INTEGER,
+        last_check_at TEXT,
+        check_details TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
+        UNIQUE(service_id, name)
+      )
+    `);
+
     // Create test users
     const adminId = randomUUID();
     const regularId = randomUUID();
@@ -300,6 +319,68 @@ describe('AuthorizationService', () => {
       );
       expect(result.authorized).toBe(false);
       expect(result.error).toBe('Team lead access required');
+    });
+  });
+
+  describe('checkDependencyTeamAccess', () => {
+    let dependencyId: string;
+
+    beforeAll(() => {
+      dependencyId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO dependencies (id, service_id, name, status)
+        VALUES (?, ?, ?, ?)
+      `).run(dependencyId, serviceId, 'test-dep', 'healthy');
+    });
+
+    it('should allow admin access to any dependency', () => {
+      const result = AuthorizationService.checkDependencyTeamAccess(adminUser, dependencyId);
+      expect(result.authorized).toBe(true);
+    });
+
+    it('should allow team member access to own team dependency', () => {
+      const result = AuthorizationService.checkDependencyTeamAccess(teamMemberUser, dependencyId);
+      expect(result.authorized).toBe(true);
+    });
+
+    it('should deny access to non-member', () => {
+      const result = AuthorizationService.checkDependencyTeamAccess(regularUser, dependencyId);
+      expect(result.authorized).toBe(false);
+      expect(result.error).toBe('Team access required');
+      expect(result.statusCode).toBe(403);
+    });
+
+    it('should return 404 for non-existent dependency', () => {
+      const result = AuthorizationService.checkDependencyTeamAccess(teamMemberUser, 'non-existent');
+      expect(result.authorized).toBe(false);
+      expect(result.error).toBe('Dependency not found');
+      expect(result.statusCode).toBe(404);
+    });
+  });
+
+  describe('checkServiceTeamAccess', () => {
+    it('should allow admin access to any service', () => {
+      const result = AuthorizationService.checkServiceTeamAccess(adminUser, serviceId);
+      expect(result.authorized).toBe(true);
+    });
+
+    it('should allow team member access to own team service', () => {
+      const result = AuthorizationService.checkServiceTeamAccess(teamMemberUser, serviceId);
+      expect(result.authorized).toBe(true);
+    });
+
+    it('should deny access to non-member', () => {
+      const result = AuthorizationService.checkServiceTeamAccess(regularUser, serviceId);
+      expect(result.authorized).toBe(false);
+      expect(result.error).toBe('Team access required');
+      expect(result.statusCode).toBe(403);
+    });
+
+    it('should return 404 for non-existent service', () => {
+      const result = AuthorizationService.checkServiceTeamAccess(teamMemberUser, 'non-existent');
+      expect(result.authorized).toBe(false);
+      expect(result.error).toBe('Service not found');
+      expect(result.statusCode).toBe(404);
     });
   });
 

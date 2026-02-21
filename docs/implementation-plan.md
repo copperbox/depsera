@@ -48,10 +48,10 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Association routes only check `requireAuth` but don't verify the user has access to the specific dependency's owning service/team. Add team ownership verification before creating/deleting associations.
 
 **Acceptance criteria:**
-- [ ] Creating an association checks that the user is a member (lead+) of the dependency's owning team, or is admin
-- [ ] Deleting an association checks the same
-- [ ] Returns 403 for unauthorized access
-- [ ] Tests cover authorized and unauthorized cases
+- [x] Creating an association checks that the user is a member (lead+) of the dependency's owning team, or is admin
+- [x] Deleting an association checks the same
+- [x] Returns 403 for unauthorized access
+- [x] Tests cover authorized and unauthorized cases
 
 **Files likely touched:**
 - `server/src/routes/associations.ts`

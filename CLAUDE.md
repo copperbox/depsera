@@ -126,8 +126,8 @@ Key files in `/server/src/services/polling/`:
 - `/api/teams` - CRUD + member management
 - `/api/users` - Admin user management
 - `/api/aliases` - Dependency alias CRUD (admin only for mutations) + canonical name lookup
-- `/api/dependencies/:id/associations` - Association CRUD
-- `/api/associations/suggestions` - Auto-suggestion management
+- `/api/dependencies/:id/associations` - Association CRUD (team membership required for mutations)
+- `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss)
 - `/api/graph` - Dependency graph data
 - `/api/latency/:id` - Latency history
 - `/api/errors/:id` - Error history

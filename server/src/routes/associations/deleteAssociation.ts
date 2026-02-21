@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { AuthorizationService } from '../../auth/authorizationService';
 
 export function deleteAssociation(req: Request, res: Response): void {
   try {
@@ -9,6 +10,13 @@ export function deleteAssociation(req: Request, res: Response): void {
     // Verify dependency exists
     if (!stores.dependencies.exists(dependencyId)) {
       res.status(404).json({ error: 'Dependency not found' });
+      return;
+    }
+
+    // Verify user has team access to the dependency's owning service
+    const authResult = AuthorizationService.checkDependencyTeamAccess(req.user!, dependencyId);
+    if (!authResult.authorized) {
+      res.status(authResult.statusCode!).json({ error: authResult.error });
       return;
     }
 
