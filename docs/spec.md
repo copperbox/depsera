@@ -506,6 +506,7 @@ A local authentication mode for zero-external-dependency deployment:
 - Initial admin created from `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars on first startup (when no users exist)
 - `POST /api/auth/login` accepts `{ email, password }`, sets session, returns user info
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }` (public, no auth required)
+- Client login page conditionally renders local auth form or OIDC button based on `GET /api/auth/mode` **[Implemented]** (PRO-100)
 - Admin can create users and reset passwords via API **[Planned — PRO-101]**
 
 ---
@@ -1280,7 +1281,7 @@ All API modules follow a consistent pattern:
 3. `handleResponse<T>(response)` — throws `Error` with server message if `!response.ok`, otherwise returns parsed JSON
 4. No built-in retry logic — components handle errors via state
 
-**API modules:** `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`
+**API modules:** `auth.ts`, `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`
 
 ### 10.4 Custom Hooks
 
@@ -1504,7 +1505,7 @@ Support for services that don't use the proactive-deps format:
 - Initial admin: `ADMIN_USERNAME` / `ADMIN_PASSWORD` env vars
 - `POST /api/auth/login` for credentials-based login
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" | "bypass" }`
-- Client renders login form or OIDC button based on mode
+- Client renders login form or OIDC button based on mode **[Implemented]** (PRO-100). Login page calls `GET /api/auth/mode` on mount; shows email/password form in local mode, SSO button in OIDC mode. Auth API client in `client/src/api/auth.ts`.
 - Admin can create users and reset passwords
 
 ### 12.9 Deployment (Phase 7)

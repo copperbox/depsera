@@ -16,6 +16,14 @@ Object.defineProperty(window, 'location', {
   writable: true,
 });
 
+function jsonResponse(data: unknown, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(data),
+  };
+}
+
 function renderLogin(initialPath = '/login') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -44,77 +52,181 @@ describe('Login', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('renders login page when not authenticated', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-    });
-
-    renderLogin();
-
-    expect(await screen.findByText('Depsera')).toBeInTheDocument();
-    expect(screen.getByText('Sign in to continue')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign In with SSO' })).toBeInTheDocument();
-  });
-
   it('redirects to home when already authenticated', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ id: '1', name: 'User', role: 'user' }),
-    });
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      id: '1', name: 'User', role: 'user',
+    }));
 
     renderLogin();
 
     expect(await screen.findByText('Home Page')).toBeInTheDocument();
   });
 
-  it('displays auth_failed error', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
+  describe('OIDC mode', () => {
+    beforeEach(() => {
+      // First call: /api/auth/me (not authenticated)
+      // Second call: /api/auth/mode (returns oidc)
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({}, 401))
+        .mockResolvedValueOnce(jsonResponse({ mode: 'oidc' }));
     });
 
-    renderLogin('/login?error=auth_failed');
+    it('renders SSO button in OIDC mode', async () => {
+      renderLogin();
 
-    expect(await screen.findByText('Authentication failed. Please try again.')).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Sign In with SSO' })).toBeInTheDocument();
+    });
+
+    it('does not render email/password form', async () => {
+      renderLogin();
+
+      await screen.findByRole('button', { name: 'Sign In with SSO' });
+      expect(screen.queryByLabelText('Email')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
+    });
+
+    it('calls login when SSO button is clicked', async () => {
+      renderLogin();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Sign In with SSO' })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In with SSO' }));
+
+      expect(mockLocation.href).toBe('/api/auth/login?returnTo=%2Flogin');
+    });
   });
 
-  it('displays state_mismatch error', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
+  describe('local auth mode', () => {
+    beforeEach(() => {
+      // First call: /api/auth/me (not authenticated)
+      // Second call: /api/auth/mode (returns local)
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({}, 401))
+        .mockResolvedValueOnce(jsonResponse({ mode: 'local' }));
     });
 
-    renderLogin('/login?error=state_mismatch');
+    it('renders email and password form in local mode', async () => {
+      renderLogin();
 
-    expect(await screen.findByText('Session expired. Please try again.')).toBeInTheDocument();
+      expect(await screen.findByLabelText('Email')).toBeInTheDocument();
+      expect(screen.getByLabelText('Password')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument();
+    });
+
+    it('does not render SSO button', async () => {
+      renderLogin();
+
+      await screen.findByLabelText('Email');
+      expect(screen.queryByRole('button', { name: 'Sign In with SSO' })).not.toBeInTheDocument();
+    });
+
+    it('submits credentials and redirects on success', async () => {
+      renderLogin();
+
+      await screen.findByLabelText('Email');
+
+      fireEvent.change(screen.getByLabelText('Email'), {
+        target: { value: 'admin@test.com' },
+      });
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'password123' },
+      });
+
+      // POST /api/auth/login (success)
+      // GET /api/auth/me (re-check auth after login)
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({
+          id: '1', email: 'admin@test.com', name: 'Admin', role: 'admin',
+        }))
+        .mockResolvedValueOnce(jsonResponse({
+          id: '1', email: 'admin@test.com', name: 'Admin', role: 'admin',
+        }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+      expect(await screen.findByText('Home Page')).toBeInTheDocument();
+    });
+
+    it('shows error on invalid credentials', async () => {
+      renderLogin();
+
+      await screen.findByLabelText('Email');
+
+      fireEvent.change(screen.getByLabelText('Email'), {
+        target: { value: 'bad@test.com' },
+      });
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'wrong' },
+      });
+
+      // POST /api/auth/login (fails)
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ error: 'Invalid email or password' }, 401),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+      expect(await screen.findByText('Invalid email or password')).toBeInTheDocument();
+    });
+
+    it('shows submitting state during login', async () => {
+      renderLogin();
+
+      await screen.findByLabelText('Email');
+
+      fireEvent.change(screen.getByLabelText('Email'), {
+        target: { value: 'admin@test.com' },
+      });
+      fireEvent.change(screen.getByLabelText('Password'), {
+        target: { value: 'password123' },
+      });
+
+      // POST /api/auth/login (pending)
+      mockFetch.mockImplementationOnce(() => new Promise(() => {}));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+
+      expect(await screen.findByRole('button', { name: 'Signing in...' })).toBeDisabled();
+    });
   });
 
-  it('displays generic error for unknown error codes', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
+  describe('error display', () => {
+    beforeEach(() => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({}, 401))
+        .mockResolvedValueOnce(jsonResponse({ mode: 'oidc' }));
     });
 
-    renderLogin('/login?error=unknown_error');
+    it('displays auth_failed error', async () => {
+      renderLogin('/login?error=auth_failed');
 
-    expect(await screen.findByText('An error occurred. Please try again.')).toBeInTheDocument();
+      expect(await screen.findByText('Authentication failed. Please try again.')).toBeInTheDocument();
+    });
+
+    it('displays state_mismatch error', async () => {
+      renderLogin('/login?error=state_mismatch');
+
+      expect(await screen.findByText('Session expired. Please try again.')).toBeInTheDocument();
+    });
+
+    it('displays generic error for unknown error codes', async () => {
+      renderLogin('/login?error=unknown_error');
+
+      expect(await screen.findByText('An error occurred. Please try again.')).toBeInTheDocument();
+    });
   });
 
-  it('calls login when SSO button is clicked', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
+  describe('auth mode fallback', () => {
+    it('falls back to OIDC mode when mode endpoint fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({}, 401))
+        .mockResolvedValueOnce(jsonResponse({ error: 'Server error' }, 500));
+
+      renderLogin();
+
+      expect(await screen.findByRole('button', { name: 'Sign In with SSO' })).toBeInTheDocument();
     });
-
-    renderLogin();
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Sign In with SSO' })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sign In with SSO' }));
-
-    expect(mockLocation.href).toBe('/api/auth/login?returnTo=%2Flogin');
   });
 });

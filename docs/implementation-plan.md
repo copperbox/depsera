@@ -375,17 +375,19 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Client calls `/api/auth/mode` to determine mode, shows username/password form or OIDC redirect button accordingly.
 
 **Acceptance criteria:**
-- [ ] Login page calls `GET /api/auth/mode` on mount
-- [ ] `mode: "local"` shows username/password form
-- [ ] `mode: "oidc"` shows existing OIDC redirect button
-- [ ] Form submits to `POST /api/auth/login`
-- [ ] Error handling for invalid credentials
-- [ ] Tests for both modes
+- [x] Login page calls `GET /api/auth/mode` on mount
+- [x] `mode: "local"` shows username/password form
+- [x] `mode: "oidc"` shows existing OIDC redirect button
+- [x] Form submits to `POST /api/auth/login`
+- [x] Error handling for invalid credentials
+- [x] Tests for both modes
 
-**Files likely touched:**
-- `client/src/pages/Login.tsx`
-- `client/src/api/auth.ts`
-- `client/src/contexts/AuthContext.tsx`
+**Files touched:**
+- `client/src/components/Login/Login.tsx`
+- `client/src/api/auth.ts` (new)
+- `client/src/api/auth.test.ts` (new)
+- `client/src/components/Login/Login.test.tsx`
+- `client/src/App.test.tsx`
 
 ---
 
