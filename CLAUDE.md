@@ -36,6 +36,10 @@ npm run lint          # Lint both packages
 
 # Building
 npm run build         # Build both packages
+
+# Docker
+docker compose up -d              # Run with Docker Compose
+docker build -t depsera .          # Build image manually
 ```
 
 ## Database Commands
@@ -55,6 +59,10 @@ npm run db:clear      # Clear all data (dangerous!)
 - `/server/src/middleware/` - Express middleware (security headers, HTTPS redirect, trust proxy, CSRF, rate limiting, request logging, static file serving, compression)
 - API proxy configured in Vite dev server (client requests to `/api/*` forward to backend)
 - In production, Express serves the built client from `client/dist/` with compression and SPA catch-all routing (auto-detected)
+
+## Docker
+
+Multi-stage `Dockerfile` using `node:22-slim`. Build stage installs native build tools (python3, make, g++ for `better-sqlite3`), builds both client and server. Production stage copies only built artifacts and production dependencies, runs as non-root `node` user. `NODE_ENV=production` baked in. Port 3001 exposed. SQLite data persisted via volume at `/app/server/data`. Health check via `curl -f http://localhost:3001/api/health`. `docker-compose.yml` provides sensible defaults with `LOCAL_AUTH=true` and named volume. `.dockerignore` keeps the build context minimal.
 
 ## Database Schema
 

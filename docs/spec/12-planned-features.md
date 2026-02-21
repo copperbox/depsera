@@ -160,13 +160,15 @@ Support for services that don't use the proactive-deps format:
 
 ## 12.9 Deployment (Phase 7)
 
-**Docker:**
-- Multi-stage Dockerfile: build stage → minimal Node.js runtime
+**Docker:** **[Implemented]** (PRO-55). Multi-stage Dockerfile using `node:22-slim`:
+- **Build stage:** Installs build tools (python3, make, g++ for `better-sqlite3` native compilation), installs all dependencies via `npm ci`, builds both server (TypeScript) and client (Vite)
+- **Production stage:** Installs only production dependencies (`npm ci --omit=dev`), copies built artifacts from build stage, runs as non-root `node` user
 - `NODE_ENV=production` baked in
-- Internal port 3001
-- SQLite data as mountable volume (`/data`)
-- Health check: `GET /api/health`
-- Docker Compose with sensible defaults
+- Internal port 3001 (consumers map via `-p`)
+- SQLite data directory as mountable volume (`/app/server/data`)
+- Health check: `curl -f http://localhost:3001/api/health` (30s interval, 5s timeout, 10s start period, 3 retries)
+- `docker-compose.yml` with sensible defaults: `LOCAL_AUTH=true`, named volume for data persistence, `restart: unless-stopped`, commented OIDC configuration
+- `.dockerignore` excludes `node_modules`, `.git`, `data/`, `.env`, test files, docs, and IDE configs
 - Defaults to local auth if no OIDC config provided
 
 **Documentation:**

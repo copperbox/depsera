@@ -446,20 +446,21 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Multi-stage Dockerfile, docker-compose.yml, .dockerignore. Defaults to local auth if no OIDC config provided.
 
 **Acceptance criteria:**
-- [ ] Multi-stage Dockerfile: build (client + server) -> minimal Node.js runtime
-- [ ] `NODE_ENV=production` baked in
-- [ ] Internal port 3001
-- [ ] SQLite data directory as mountable volume (`/data`)
-- [ ] Docker health check: `GET /api/health`
-- [ ] `docker-compose.yml` with sensible defaults
-- [ ] `.dockerignore` excludes node_modules, .git, etc.
-- [ ] Image builds and runs successfully
-- [ ] Tests: `docker build` succeeds, container starts and responds to health check
+- [x] Multi-stage Dockerfile: build (client + server) -> minimal Node.js runtime
+- [x] `NODE_ENV=production` baked in
+- [x] Internal port 3001
+- [x] SQLite data directory as mountable volume (`/data`)
+- [x] Docker health check: `GET /api/health`
+- [x] `docker-compose.yml` with sensible defaults
+- [x] `.dockerignore` excludes node_modules, .git, etc.
+- [x] Image builds and runs successfully
+- [x] Tests: `docker build` succeeds, container starts and responds to health check
 
-**Files likely touched:**
-- `Dockerfile` (new)
-- `.dockerignore` (new)
-- `docker-compose.yml` (new)
+**Files touched:**
+- `Dockerfile` (new) — multi-stage build with `node:22-slim`, build tools for native modules, non-root user
+- `.dockerignore` (new) — excludes node_modules, .git, data, .env, tests, docs
+- `docker-compose.yml` (new) — sensible defaults with LOCAL_AUTH, named volume, restart policy
+- `server/src/infra/docker.test.ts` (new) — 33 tests validating Dockerfile, docker-compose.yml, and .dockerignore configuration
 
 ---
 

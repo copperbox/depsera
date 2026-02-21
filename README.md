@@ -120,7 +120,33 @@ npm run test:client
 npm run build
 ```
 
-### Production Mode
+### Docker
+
+The fastest way to run Depsera is with Docker:
+
+```bash
+docker run -d \
+  -p 3001:3001 \
+  -v depsera-data:/app/server/data \
+  -e SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('hex'))") \
+  -e LOCAL_AUTH=true \
+  -e ADMIN_EMAIL=admin@example.com \
+  -e ADMIN_PASSWORD=changeme123 \
+  depsera
+```
+
+Or use Docker Compose:
+
+```bash
+# Edit docker-compose.yml to set SESSION_SECRET and admin credentials
+docker compose up -d
+```
+
+The image includes everything needed to run the application. SQLite data is persisted in the `/app/server/data` volume. Set `LOCAL_AUTH=true` for standalone deployment with username/password auth, or provide OIDC environment variables for SSO integration.
+
+See the `docker-compose.yml` file for a complete reference of available configuration options.
+
+### Production Mode (Bare Node.js)
 
 After building, the server can serve both the API and the client UI from a single process:
 
