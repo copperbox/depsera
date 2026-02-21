@@ -755,19 +755,27 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Install Recharts. Create latency line chart (min/avg/max), health timeline swimlane, reusable time range selector.
 
 **Acceptance criteria:**
-- [ ] `recharts` installed
-- [ ] `LatencyChart` component: line chart with min/avg/max lines, tooltips
-- [ ] `HealthTimeline` component: horizontal swimlane (green/yellow/red periods)
-- [ ] `TimeRangeSelector` component: 1h, 6h, 24h, 7d, 30d buttons
-- [ ] All components handle empty data gracefully
-- [ ] Responsive (works on various screen widths)
-- [ ] Tests for each component
+- [x] `recharts` installed
+- [x] `LatencyChart` component: line chart with min/avg/max lines, tooltips
+- [x] `HealthTimeline` component: horizontal swimlane (green/yellow/red periods)
+- [x] `TimeRangeSelector` component: 1h, 6h, 24h, 7d, 30d buttons
+- [x] All components handle empty data gracefully
+- [x] Responsive (works on various screen widths)
+- [x] Tests for each component
 
-**Files likely touched:**
+**Files touched:**
 - `client/package.json` — `recharts`
+- `client/src/types/chart.ts` (new) — LatencyBucket, HealthTransition, response types
+- `client/src/api/latency.ts` — added `fetchLatencyBuckets`
+- `client/src/api/timeline.ts` (new) — `fetchHealthTimeline`
 - `client/src/components/Charts/LatencyChart.tsx` (new)
+- `client/src/components/Charts/LatencyChart.module.css` (new)
 - `client/src/components/Charts/HealthTimeline.tsx` (new)
+- `client/src/components/Charts/HealthTimeline.module.css` (new)
 - `client/src/components/Charts/TimeRangeSelector.tsx` (new)
+- `client/src/components/Charts/TimeRangeSelector.module.css` (new)
+- `client/src/components/Charts/index.ts` (new)
+- `client/src/index.css` — added chart color CSS variables
 
 ---
 

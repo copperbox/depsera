@@ -1617,10 +1617,13 @@ Support for services that don't use the proactive-deps format:
 - Bucket sizes: 1h/6h → 1min, 24h → 15min, 7d → 1hr, 30d → 6hr. Efficient SQLite `strftime` aggregation queries.
 - `GET /api/dependencies/:id/timeline?range=24h|7d|30d` — health state transitions (`{ transitions: [{ timestamp, state }], currentState }`). Derived from error history (error = unhealthy, recovery = healthy). Default range: 24h.
 
-**Chart components:** Recharts library:
-- Latency chart: line chart (min/avg/max) with range selector
-- Health timeline: horizontal swimlane (green/yellow/red periods)
-- Time range selector: reusable 1h, 6h, 24h, 7d, 30d buttons
+**Chart components:** **[Implemented]** (PRO-87). Recharts library (`recharts` npm package):
+- `LatencyChart` component: line chart with min (green), avg (blue), max (red) lines, custom tooltip with data point count, responsive sizing via `ResponsiveContainer`. Fetches from `/api/latency/:dependencyId/buckets`.
+- `HealthTimeline` component: horizontal swimlane bar showing health state periods color-coded green (healthy), red (unhealthy), gray (unknown). Tooltip on hover shows state, time range, and duration. Derived from `/api/dependencies/:id/timeline` transitions.
+- `TimeRangeSelector` component: reusable button group supporting any combination of 1h, 6h, 24h, 7d, 30d ranges. Persists selection to localStorage per context via configurable `storageKey`.
+- All components support dark mode via CSS custom properties (`--color-chart-min`, `--color-chart-avg`, `--color-chart-max`).
+- All components handle loading, error (with retry), and empty states.
+- Chart types in `/client/src/types/chart.ts`. API functions in `/client/src/api/latency.ts` and `/client/src/api/timeline.ts`. Components in `/client/src/components/Charts/`.
 
 **Integration:** Service detail page (per dependency), Dashboard (aggregate health %).
 

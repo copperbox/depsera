@@ -39,6 +39,11 @@
   --color-spinner-track: #e9ecef;
   --color-spinner-fill: #1a1a2e;
 
+  /* Chart colors */
+  --color-chart-min: #22c55e;
+  --color-chart-avg: #3b82f6;
+  --color-chart-max: #ef4444;
+
   /* Shadow */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -84,6 +89,11 @@
   /* Spinner */
   --color-spinner-track: #3a3a4a;
   --color-spinner-fill: #60a5fa;
+
+  /* Chart colors */
+  --color-chart-min: #34d399;
+  --color-chart-avg: #60a5fa;
+  --color-chart-max: #f87171;
 
   /* Shadow */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
