@@ -1,0 +1,35 @@
+.container {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--color-bg-active);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+
+.button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+}
+
+.active {
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.active:hover {
+  background: var(--color-bg-card);
+}

@@ -1,0 +1,179 @@
+import { PollStateManager } from './PollStateManager';
+import { Service } from '../../db/types';
+
+describe('PollStateManager', () => {
+  let manager: PollStateManager;
+
+  const createService = (id: string, name: string, overrides: Partial<Service> = {}): Service => ({
+    id,
+    name,
+    team_id: 'team-1',
+    health_endpoint: `http://${name}.local/health`,
+    metrics_endpoint: null,
+    schema_config: null,
+    poll_interval_ms: 30000,
+    is_active: 1,
+    last_poll_success: null,
+    last_poll_error: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    manager = new PollStateManager();
+  });
+
+  describe('addService', () => {
+    it('should add a service and return poll state', () => {
+      const service = createService('svc-1', 'user-service');
+      const state = manager.addService(service);
+
+      expect(state.serviceId).toBe('svc-1');
+      expect(state.serviceName).toBe('user-service');
+      expect(state.isPolling).toBe(false);
+      expect(state.consecutiveFailures).toBe(0);
+      expect(state.circuitState).toBe('closed');
+      expect(state.pollIntervalMs).toBe(30000);
+    });
+
+    it('should respect custom poll_interval_ms', () => {
+      const service = createService('svc-1', 'user-service', { poll_interval_ms: 60000 });
+      const state = manager.addService(service);
+
+      expect(state.pollIntervalMs).toBe(60000);
+    });
+
+    it('should increase size', () => {
+      expect(manager.size).toBe(0);
+
+      manager.addService(createService('svc-1', 'service-1'));
+      expect(manager.size).toBe(1);
+
+      manager.addService(createService('svc-2', 'service-2'));
+      expect(manager.size).toBe(2);
+    });
+  });
+
+  describe('removeService', () => {
+    it('should remove an existing service', () => {
+      manager.addService(createService('svc-1', 'user-service'));
+
+      const removed = manager.removeService('svc-1');
+
+      expect(removed).toBe(true);
+      expect(manager.hasService('svc-1')).toBe(false);
+    });
+
+    it('should return false for non-existent service', () => {
+      const removed = manager.removeService('non-existent');
+      expect(removed).toBe(false);
+    });
+  });
+
+  describe('getState', () => {
+    it('should return state for existing service', () => {
+      manager.addService(createService('svc-1', 'user-service'));
+
+      const state = manager.getState('svc-1');
+
+      expect(state).toBeDefined();
+      expect(state?.serviceId).toBe('svc-1');
+    });
+
+    it('should return undefined for non-existent service', () => {
+      const state = manager.getState('non-existent');
+      expect(state).toBeUndefined();
+    });
+  });
+
+  describe('hasService', () => {
+    it('should return true for existing service', () => {
+      manager.addService(createService('svc-1', 'user-service'));
+      expect(manager.hasService('svc-1')).toBe(true);
+    });
+
+    it('should return false for non-existent service', () => {
+      expect(manager.hasService('non-existent')).toBe(false);
+    });
+  });
+
+  describe('getServiceIds', () => {
+    it('should return all service IDs', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      manager.addService(createService('svc-2', 'service-2'));
+
+      const ids = manager.getServiceIds();
+
+      expect(ids).toContain('svc-1');
+      expect(ids).toContain('svc-2');
+      expect(ids).toHaveLength(2);
+    });
+  });
+
+  describe('getAllStates', () => {
+    it('should return all states', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      manager.addService(createService('svc-2', 'service-2'));
+
+      const states = manager.getAllStates();
+
+      expect(states).toHaveLength(2);
+    });
+  });
+
+  describe('markPolling', () => {
+    it('should mark service as polling', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+
+      const result = manager.markPolling('svc-1', true);
+
+      expect(result).toBe(true);
+      expect(manager.getState('svc-1')?.isPolling).toBe(true);
+    });
+
+    it('should mark service as not polling', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      manager.markPolling('svc-1', true);
+
+      manager.markPolling('svc-1', false);
+
+      expect(manager.getState('svc-1')?.isPolling).toBe(false);
+    });
+
+    it('should return false for non-existent service', () => {
+      const result = manager.markPolling('non-existent', true);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getActivePollingCount', () => {
+    it('should return count of services currently polling', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      manager.addService(createService('svc-2', 'service-2'));
+      manager.addService(createService('svc-3', 'service-3'));
+
+      manager.markPolling('svc-1', true);
+      manager.markPolling('svc-2', true);
+
+      expect(manager.getActivePollingCount()).toBe(2);
+    });
+
+    it('should return 0 when no services are polling', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      expect(manager.getActivePollingCount()).toBe(0);
+    });
+  });
+
+  describe('clear', () => {
+    it('should remove all services', () => {
+      manager.addService(createService('svc-1', 'service-1'));
+      manager.addService(createService('svc-2', 'service-2'));
+
+      manager.clear();
+
+      expect(manager.size).toBe(0);
+      expect(manager.getServiceIds()).toHaveLength(0);
+    });
+  });
+});

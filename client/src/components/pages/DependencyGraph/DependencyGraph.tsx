@@ -1,0 +1,541 @@
+import { useEffect, useCallback, useMemo } from 'react';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Controls,
+  MiniMap,
+  Background,
+  useOnSelectionChange,
+  type EdgeMouseHandler,
+  BackgroundVariant,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+import { getServiceHealthStatus } from '../../../types/graph';
+import { ServiceNode } from './ServiceNode';
+import { CustomEdge } from './CustomEdge';
+import { NodeDetailsPanel } from './NodeDetailsPanel';
+import { EdgeDetailsPanel } from './EdgeDetailsPanel';
+import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
+import { useGraphState } from '../../../hooks/useGraphState';
+import { useAuth } from '../../../contexts/AuthContext';
+import {
+  type AppNode,
+  type AppEdge,
+  type LayoutDirection,
+  MIN_TIER_SPACING,
+  MAX_TIER_SPACING,
+  MIN_LATENCY_THRESHOLD,
+  MAX_LATENCY_THRESHOLD,
+} from '../../../utils/graphLayout';
+import {
+  getRelatedNodeIds,
+  getRelatedNodeIdsFromEdge,
+  getRelatedEdgeIds,
+} from '../../../utils/graphTraversal';
+import styles from './DependencyGraph.module.css';
+
+const nodeTypes = {
+  service: ServiceNode,
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
+/* istanbul ignore next -- @preserve
+   DependencyGraphInner is the main ReactFlow graph component that uses ReactFlow hooks
+   (useOnSelectionChange), ReactFlow components (ReactFlow, Controls, MiniMap, Background),
+   and ReactFlow event handlers. Unit testing this component would require mocking
+   ReactFlow's entire context, state management, and rendering pipeline.
+
+   Additionally, this component:
+   - Uses useOnSelectionChange which only works inside ReactFlowProvider
+   - Uses onNodesChange/onEdgesChange callbacks tied to ReactFlow's internal state
+   - Renders ReactFlow which requires actual DOM measurements for layout
+
+   Integration tests with Cypress/Playwright are the appropriate testing strategy
+   for this component. The supporting hooks (useGraphState, usePolling) and utilities
+   (graphTraversal, graphLayout) have comprehensive unit test coverage. */
+function DependencyGraphInner() {
+  const { user } = useAuth();
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    teams,
+    selectedTeam,
+    setSelectedTeam,
+    searchQuery,
+    setSearchQuery,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedEdgeId,
+    setSelectedEdgeId,
+    layoutDirection,
+    setLayoutDirection,
+    tierSpacing,
+    setTierSpacing,
+    latencyThreshold,
+    setLatencyThreshold,
+    isLoading,
+    isRefreshing,
+    error,
+    loadData,
+    resetLayout,
+  } = useGraphState({ userId: user?.id });
+
+  // Initial load and team/direction/spacing change
+  useEffect(() => {
+    loadData();
+  }, [selectedTeam, layoutDirection, tierSpacing]);
+
+  // Polling hook
+  const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
+    storageKey: 'graph',
+    onPoll: useCallback(() => {
+      loadData(true);
+    }, [loadData]),
+  });
+
+  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedTeam(e.target.value);
+  };
+
+  const handleDirectionChange = (direction: LayoutDirection) => {
+    setLayoutDirection(direction);
+  };
+
+  const handleTierSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newSpacing = parseInt(e.target.value, 10);
+    setTierSpacing(newSpacing);
+  };
+
+  const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newThreshold = parseInt(e.target.value, 10);
+    setLatencyThreshold(newThreshold);
+  };
+
+  // Get the selected node's data for the details panel
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return nodes.find((n) => n.id === selectedNodeId) || null;
+  }, [nodes, selectedNodeId]);
+
+  // Get related node IDs when a node or edge is selected
+  const relatedNodeIds = useMemo(() => {
+    if (selectedNodeId) {
+      return getRelatedNodeIds(selectedNodeId, edges);
+    }
+    if (selectedEdgeId) {
+      return getRelatedNodeIdsFromEdge(selectedEdgeId, edges);
+    }
+    return null;
+  }, [selectedNodeId, selectedEdgeId, edges]);
+
+  // Get related edge IDs based on selection
+  const relatedEdgeIds = useMemo(() => {
+    if (!selectedNodeId && !selectedEdgeId) return null;
+    return getRelatedEdgeIds(selectedNodeId, selectedEdgeId, edges);
+  }, [selectedNodeId, selectedEdgeId, edges]);
+
+  // Filter nodes based on search query and selection
+  const filteredNodes = useMemo(() => {
+    let result = nodes;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchingIds = new Set<string>();
+
+      nodes.forEach((node) => {
+        if (node.data.name.toLowerCase().includes(query)) {
+          matchingIds.add(node.id);
+        }
+        if (node.data.teamName?.toLowerCase().includes(query)) {
+          matchingIds.add(node.id);
+        }
+      });
+
+      result = nodes.map((node) => ({
+        ...node,
+        style: matchingIds.has(node.id)
+          ? { opacity: 1 }
+          : { opacity: 0.3 },
+      }));
+    }
+
+    // Apply selection highlighting
+    if (relatedNodeIds) {
+      result = result.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          isSelected: node.id === selectedNodeId,
+        },
+        style: relatedNodeIds.has(node.id)
+          ? { ...(node.style || {}), opacity: 1 }
+          : { ...(node.style || {}), opacity: 0.2 },
+      }));
+    }
+
+    return result;
+  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
+
+  // Compute whether an edge has high latency
+  const computeIsHighLatency = useCallback((latencyMs: number | null | undefined, avgLatencyMs24h: number | null | undefined): boolean => {
+    if (!latencyMs || !avgLatencyMs24h || avgLatencyMs24h === 0) return false;
+    const threshold = 1 + latencyThreshold / 100;
+    return latencyMs > avgLatencyMs24h * threshold;
+  }, [latencyThreshold]);
+
+  // Filter edges based on selection
+  const filteredEdges = useMemo((): AppEdge[] => {
+    const processEdge = (edge: AppEdge, isSelected: boolean, isHighlighted: boolean, opacity: number): AppEdge => {
+      const isHighLatency = computeIsHighLatency(edge.data?.latencyMs, edge.data?.avgLatencyMs24h);
+      return {
+        ...edge,
+        data: {
+          ...edge.data!,
+          isSelected,
+          isHighlighted,
+          isHighLatency,
+        },
+        style: { opacity },
+      };
+    };
+
+    if (!relatedEdgeIds) {
+      return edges.map((edge) => processEdge(edge, false, false, 1));
+    }
+
+    return edges.map((edge) => {
+      const isRelated = relatedEdgeIds.has(edge.id);
+      const isSelected = edge.id === selectedEdgeId;
+      return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
+    });
+  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency]);
+
+  // Get the selected edge's data for the details panel
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeId) return null;
+    return filteredEdges.find((e) => e.id === selectedEdgeId) || null;
+  }, [filteredEdges, selectedEdgeId]);
+
+  // Handle node selection change
+  useOnSelectionChange({
+    onChange: ({ nodes: selectedNodes }) => {
+      if (selectedNodes.length > 0) {
+        setSelectedNodeId(selectedNodes[0].id);
+        setSelectedEdgeId(null);
+      } else {
+        setSelectedNodeId(null);
+      }
+    },
+  });
+
+  // Handle edge click
+  const handleEdgeClick: EdgeMouseHandler<AppEdge> = useCallback((_, edge) => {
+    setSelectedEdgeId(edge.id);
+    setSelectedNodeId(null);
+  }, [setSelectedEdgeId, setSelectedNodeId]);
+
+  // Handle pane click (deselect all)
+  const handlePaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, [setSelectedNodeId, setSelectedEdgeId]);
+
+  const getMiniMapNodeColor = (node: AppNode) => {
+    const status = getServiceHealthStatus(node.data);
+
+    switch (status) {
+      case 'healthy':
+        return '#10b981';
+      case 'warning':
+        return '#f59e0b';
+      case 'critical':
+        return '#dc2626';
+      default:
+        return '#9ca3af';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+          <span>Loading dependency graph...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <span>{error}</span>
+          <button className={styles.retryButton} onClick={() => loadData()}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>Team:</label>
+          <select
+            className={styles.select}
+            value={selectedTeam}
+            onChange={handleTeamChange}
+          >
+            <option value="">All Teams</option>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="Search nodes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>Layout:</label>
+          <div className={styles.directionToggle}>
+            <button
+              className={`${styles.directionButton} ${layoutDirection === 'TB' ? styles.directionActive : ''}`}
+              onClick={() => handleDirectionChange('TB')}
+              title="Top to Bottom"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M12 3v18M12 21l-4-4M12 21l4-4" />
+              </svg>
+            </button>
+            <button
+              className={`${styles.directionButton} ${layoutDirection === 'LR' ? styles.directionActive : ''}`}
+              onClick={() => handleDirectionChange('LR')}
+              title="Left to Right"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M3 12h18M21 12l-4-4M21 12l-4 4" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <button
+            className={styles.toolbarButton}
+            onClick={resetLayout}
+            title="Reset to auto-layout"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M1 4v6h6M23 20v-6h-6" />
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+            </svg>
+            Reset Layout
+          </button>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>Tier spacing:</label>
+          <input
+            type="range"
+            className={styles.tierSpacingSlider}
+            min={MIN_TIER_SPACING}
+            max={MAX_TIER_SPACING}
+            step={10}
+            value={tierSpacing}
+            onChange={handleTierSpacingChange}
+            title={`${tierSpacing}px`}
+          />
+          <span className={styles.tierSpacingValue}>{tierSpacing}px</span>
+        </div>
+
+        <div className={styles.toolbarGroup}>
+          <label className={styles.toolbarLabel}>High latency:</label>
+          <input
+            type="range"
+            className={styles.latencyThresholdSlider}
+            min={MIN_LATENCY_THRESHOLD}
+            max={MAX_LATENCY_THRESHOLD}
+            step={10}
+            value={latencyThreshold}
+            onChange={handleLatencyThresholdChange}
+            title={`Alert when ${latencyThreshold}% above average`}
+          />
+          <span className={styles.latencyThresholdValue}>+{latencyThreshold}%</span>
+        </div>
+
+        <div className={styles.autoRefreshControls}>
+          {isRefreshing && (
+            <div className={styles.refreshingIndicator}>
+              <div className={styles.spinnerSmall} />
+            </div>
+          )}
+          <span className={styles.autoRefreshLabel}>Auto-refresh</span>
+          <button
+            role="switch"
+            aria-checked={isPollingEnabled}
+            onClick={togglePolling}
+            className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
+          >
+            <span className={styles.toggleKnob} />
+          </button>
+          <select
+            value={pollingInterval}
+            onChange={handleIntervalChange}
+            className={styles.intervalSelect}
+            disabled={!isPollingEnabled}
+            aria-label="Refresh interval"
+          >
+            {INTERVAL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.toolbarSpacer} />
+
+        <div className={styles.legend}>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.healthy}`} />
+            <span>Healthy</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.warning}`} />
+            <span>Warning</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.critical}`} />
+            <span>Critical</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.unknown}`} />
+            <span>Unknown</span>
+          </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.highLatency}`} />
+            <span>High Latency</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.mainContent}>
+        <div className={styles.graphWrapper}>
+          {filteredNodes.length === 0 ? (
+            <div className={styles.emptyState}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+                />
+              </svg>
+              <span>No services or dependencies to display</span>
+            </div>
+          ) : (
+            <ReactFlow
+              nodes={filteredNodes}
+              edges={filteredEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onEdgeClick={handleEdgeClick}
+              onPaneClick={handlePaneClick}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.1}
+              maxZoom={2}
+              defaultEdgeOptions={{
+                type: 'custom',
+              }}
+            >
+              <Controls />
+              <MiniMap
+                nodeColor={getMiniMapNodeColor}
+                maskColor="rgba(0, 0, 0, 0.1)"
+                pannable
+                zoomable
+              />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e5e7eb" />
+
+              {/* Custom marker definitions */}
+              <svg>
+                <defs>
+                  <marker
+                    id="arrow-dependency"
+                    viewBox="0 0 10 10"
+                    refX="10"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
+                  </marker>
+                </defs>
+              </svg>
+            </ReactFlow>
+          )}
+        </div>
+
+        {selectedNode && (
+          <NodeDetailsPanel
+            nodeId={selectedNode.id}
+            data={selectedNode.data}
+            nodes={nodes}
+            edges={edges}
+            onClose={() => setSelectedNodeId(null)}
+          />
+        )}
+
+        {selectedEdge && selectedEdge.data && (
+          <EdgeDetailsPanel
+            edgeId={selectedEdge.id}
+            data={selectedEdge.data}
+            sourceNode={nodes.find((n) => n.id === selectedEdge.source)}
+            targetNode={nodes.find((n) => n.id === selectedEdge.target)}
+            onClose={() => setSelectedEdgeId(null)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* istanbul ignore next -- @preserve
+   DependencyGraph is a simple wrapper that provides ReactFlowProvider context.
+   Cannot be unit tested without ReactFlow's full context infrastructure. */
+export function DependencyGraph() {
+  return (
+    <ReactFlowProvider>
+      <DependencyGraphInner />
+    </ReactFlowProvider>
+  );
+}

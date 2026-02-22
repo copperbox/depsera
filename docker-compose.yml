@@ -1,0 +1,32 @@
+services:
+  depsera:
+    build: .
+    image: depsera
+    ports:
+      - "3001:3001"
+    environment:
+      # Session secret (required — generate with: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")
+      - SESSION_SECRET=change-me-to-a-secure-random-string-at-least-32-chars
+
+      # Local auth (enabled by default when no OIDC config is provided)
+      - LOCAL_AUTH=true
+      - ADMIN_EMAIL=admin@example.com
+      - ADMIN_PASSWORD=changeme123
+
+      # OIDC (uncomment and fill in to use SSO instead of local auth)
+      # - OIDC_ISSUER_URL=https://your-idp.example.com
+      # - OIDC_CLIENT_ID=your-client-id
+      # - OIDC_CLIENT_SECRET=your-client-secret
+      # - OIDC_REDIRECT_URI=http://localhost:3001/api/auth/callback
+
+      # Optional configuration
+      # - LOG_LEVEL=info
+      # - DATA_RETENTION_DAYS=365
+      # - APP_BASE_URL=http://localhost:3001
+      # - SSRF_ALLOWLIST=localhost,127.0.0.0/8
+    volumes:
+      - depsera-data:/app/server/data
+    restart: unless-stopped
+
+volumes:
+  depsera-data:

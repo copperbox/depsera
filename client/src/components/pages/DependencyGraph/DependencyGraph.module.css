@@ -1,0 +1,767 @@
+/* Container */
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg-page);
+  overflow: hidden;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbarLabel {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-input);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  min-width: 150px;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.searchInput {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-input);
+  border-radius: 6px;
+  font-size: 14px;
+  width: 200px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.toolbarButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-input);
+  border-radius: 6px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toolbarButton:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-muted);
+}
+
+.toolbarButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbarSpacer {
+  flex: 1;
+}
+
+/* Tier Spacing Slider */
+.tierSpacingSlider {
+  width: 100px;
+  height: 4px;
+  appearance: none;
+  background: var(--color-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.tierSpacingSlider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.tierSpacingSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.tierSpacingSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.tierSpacingSlider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.tierSpacingValue {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  min-width: 42px;
+  text-align: right;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legendDot.healthy {
+  background: var(--color-success);
+}
+
+.legendDot.warning {
+  background: var(--color-warning);
+}
+
+.legendDot.critical {
+  background: var(--color-error);
+}
+
+.legendDot.unknown {
+  background: var(--color-text-muted);
+}
+
+/* Main Content (graph + panel) */
+.mainContent {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Graph Wrapper */
+.graphWrapper {
+  flex: 1;
+  background: var(--color-bg-page);
+  min-width: 0;
+}
+
+/* Loading & Error States */
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  color: var(--color-error);
+}
+
+.retryButton {
+  padding: 8px 16px;
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retryButton:hover {
+  background: var(--color-accent-hover);
+}
+
+/* Custom Nodes - Base */
+.serviceNode,
+.dependencyNode {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-bg-card);
+  border: 2px solid var(--color-border);
+  min-width: 160px;
+  max-width: 200px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s;
+}
+
+.serviceNode:hover,
+.dependencyNode:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.serviceNode.selected,
+.dependencyNode.selected {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Health Status Colors */
+.serviceNode.healthy,
+.dependencyNode.healthy {
+  border-color: var(--color-success);
+}
+
+.serviceNode.warning,
+.dependencyNode.warning {
+  border-color: var(--color-warning);
+}
+
+.serviceNode.critical,
+.dependencyNode.critical {
+  border-color: var(--color-error);
+}
+
+.serviceNode.unknown,
+.dependencyNode.unknown {
+  border-color: var(--color-text-muted);
+}
+
+/* External Node */
+.serviceNode.external {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--color-bg-card) 85%, transparent);
+}
+
+/* Node Header */
+.nodeHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.statusIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.statusIndicator.healthy {
+  background: var(--color-success);
+}
+
+.statusIndicator.warning {
+  background: var(--color-warning);
+}
+
+.statusIndicator.critical {
+  background: var(--color-error);
+}
+
+.statusIndicator.unknown {
+  background: var(--color-text-muted);
+}
+
+.nodeType {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.typeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.typeIcon svg {
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-muted);
+}
+
+/* Node Name Row */
+.nodeNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+/* Node Name */
+.nodeName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Node Details */
+.nodeDetails {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.teamName,
+.serviceName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.healthSummary {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.healthyCount {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.separator {
+  color: var(--color-border-input);
+}
+
+.totalCount {
+  font-weight: 500;
+}
+
+.label {
+  margin-left: 2px;
+  color: var(--color-text-muted);
+}
+
+.noDeps {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.pollFailure {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin-bottom: 4px;
+  background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--color-warning);
+  line-height: 1.3;
+}
+
+.pollFailure svg {
+  flex-shrink: 0;
+}
+
+.latency {
+  font-family: monospace;
+  font-size: 10px;
+  background: var(--color-bg-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Handles */
+.handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: var(--color-text-muted) !important;
+  border: 2px solid var(--color-bg-card) !important;
+}
+
+.handle:hover {
+  background: var(--color-accent) !important;
+}
+
+/* Edges */
+.edge {
+  stroke-width: 2px;
+}
+
+.healthyEdge {
+  stroke: var(--color-success);
+}
+
+.unhealthyEdge {
+  stroke: var(--color-error);
+}
+
+.edgeSelected {
+  stroke-width: 3px;
+}
+
+.healthyEdge.edgeSelected {
+  filter: drop-shadow(0 0 4px var(--color-success)) drop-shadow(0 0 8px var(--color-success));
+}
+
+.unhealthyEdge.edgeSelected {
+  filter: drop-shadow(0 0 4px var(--color-error)) drop-shadow(0 0 8px var(--color-error));
+}
+
+.edgeLabelSelectedHealthy {
+  border-color: var(--color-success);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.edgeLabelSelectedUnhealthy {
+  border-color: var(--color-error);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.5);
+}
+
+/* Edge Labels */
+.edgeLabel {
+  position: absolute;
+  background: var(--color-bg-card);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.edgeLabelUnhealthy {
+  color: var(--color-error);
+  border-color: var(--color-error-border);
+  background: var(--color-error-bg);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  gap: 12px;
+}
+
+.emptyState svg {
+  width: 64px;
+  height: 64px;
+  color: var(--color-border-input);
+}
+
+/* Controls override */
+.graphWrapper :global(.react-flow__controls) {
+  box-shadow: var(--shadow-md);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.graphWrapper :global(.react-flow__controls-button) {
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.graphWrapper :global(.react-flow__controls-button:hover) {
+  background: var(--color-bg-hover);
+}
+
+.graphWrapper :global(.react-flow__controls-button svg) {
+  fill: var(--color-text-primary);
+}
+
+.graphWrapper :global(.react-flow__minimap) {
+  background: var(--color-bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+/* Auto-refresh controls */
+.autoRefreshControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background-color: var(--color-bg-hover);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.autoRefreshLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.refreshingIndicator {
+  display: flex;
+  align-items: center;
+}
+
+.spinnerSmall {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.togglePill {
+  position: relative;
+  width: 2.5rem;
+  height: 1.5rem;
+  padding: 0;
+  background-color: var(--color-border-input);
+  border: none;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.togglePill:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.togglePill.toggleActive {
+  background-color: var(--color-success);
+}
+
+.toggleKnob {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: var(--color-bg-card);
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.togglePill.toggleActive .toggleKnob {
+  transform: translateX(1rem);
+}
+
+.intervalSelect {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 4px;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.intervalSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.intervalSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Direction toggle */
+.directionToggle {
+  display: flex;
+  border: 1px solid var(--color-border-input);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.directionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background: var(--color-bg-card);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--color-text-primary);
+}
+
+.directionButton:first-child {
+  border-right: 1px solid var(--color-border-input);
+}
+
+.directionButton:hover {
+  background: var(--color-bg-hover);
+}
+
+.directionButton.directionActive {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.directionButton.directionActive:hover {
+  background: var(--color-accent-hover);
+}
+
+.directionButton svg {
+  display: block;
+}
+
+/* High Latency Edge Animation */
+@keyframes pulseLatency {
+  0%, 100% {
+    stroke-width: 2px;
+    filter: drop-shadow(0 0 2px var(--color-warning));
+  }
+  50% {
+    stroke-width: 3.5px;
+    filter: drop-shadow(0 0 8px var(--color-warning));
+  }
+}
+
+@keyframes pulseLabel {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+  }
+}
+
+.highLatencyEdge {
+  stroke: var(--color-warning) !important;
+  animation: pulseLatency 1.5s ease-in-out infinite;
+}
+
+.edgeLabelHighLatency {
+  color: var(--color-warning) !important;
+  border-color: var(--color-warning) !important;
+  background: #fffbeb !important;
+  animation: pulseLabel 1.5s ease-in-out infinite;
+}
+
+[data-theme="dark"] .edgeLabelHighLatency {
+  background: #451a03 !important;
+}
+
+/* Latency threshold slider */
+.latencyThresholdSlider {
+  width: 80px;
+  height: 4px;
+  appearance: none;
+  background: var(--color-border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.latencyThresholdSlider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--color-warning);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.latencyThresholdSlider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.latencyThresholdSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--color-warning);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.latencyThresholdSlider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.latencyThresholdValue {
+  font-size: 12px;
+  color: var(--color-warning);
+  font-weight: 600;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* Pulsing legend dot for high latency */
+@keyframes pulseLegendDot {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 2px var(--color-warning);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 6px var(--color-warning);
+  }
+}
+
+.legendDot.highLatency {
+  background: var(--color-warning);
+  animation: pulseLegendDot 1.5s ease-in-out infinite;
+}

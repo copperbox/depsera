@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (rebuilt in Docker)
+server/dist/
+client/dist/
+
+# Data directory (mounted as volume)
+data/
+server/data/
+
+# Git
+.git/
+.gitignore
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files (config via Docker env vars)
+.env
+server/.env
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Tests (not needed in production image)
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+jest.config.*
+coverage/
+
+# Claude Code
+.claude/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore

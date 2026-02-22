@@ -1,0 +1,224 @@
+/* Rules Form */
+.rulesForm {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+}
+
+.ruleRow {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-end;
+}
+
+.ruleField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ruleLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.ruleSelect {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+  min-width: 12rem;
+}
+
+.ruleSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Toggle Switch */
+.toggleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.toggleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleTrack {
+  display: inline-flex;
+  align-items: center;
+  width: 2.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  padding: 0.125rem;
+  transition: background-color 0.2s;
+}
+
+.toggleActive .toggleTrack {
+  background-color: #22c55e;
+}
+
+.toggleInactive .toggleTrack {
+  background-color: var(--color-border-input);
+}
+
+.toggleThumb {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background-color: white;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.toggleActive .toggleThumb {
+  transform: translateX(1rem);
+}
+
+.toggleInactive .toggleThumb {
+  transform: translateX(0);
+}
+
+.toggleLabel {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* Rule Actions */
+.ruleActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.saveButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-inverse);
+  background-color: var(--color-accent);
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.saveButton:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Save Success Banner */
+.saveSuccess {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #166534;
+  background-color: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 0.375rem;
+}
+
+[data-theme="dark"] .saveSuccess {
+  color: #86efac;
+  background-color: #14532d;
+  border-color: #166534;
+}
+
+.dismissButton {
+  background: none;
+  border: none;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  padding: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.dismissButton:hover {
+  opacity: 1;
+}
+
+/* Read-only View */
+.rulesReadonly {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.rulesSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.rulesSummaryLabel {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.rulesSummaryValue {
+  color: var(--color-text-primary);
+}
+
+.rulesStatusBadge {
+  display: inline-flex;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  margin-left: 0.5rem;
+}
+
+.rulesStatusActive {
+  color: #166534;
+  background-color: #dcfce7;
+}
+
+[data-theme="dark"] .rulesStatusActive {
+  color: #86efac;
+  background-color: #14532d;
+}
+
+.rulesStatusInactive {
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-hover);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .ruleRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .ruleSelect {
+    min-width: 0;
+    width: 100%;
+  }
+}
