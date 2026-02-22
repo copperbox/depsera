@@ -215,5 +215,31 @@ describe('DependencyParser', () => {
     it('should throw for non-array data without schema', () => {
       expect(() => parser.parse({ not: 'array' })).toThrow('expected array');
     });
+
+    it('should parse object-keyed schema with $key name mapping', () => {
+      const objectSchema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: '$key',
+          healthy: { field: 'status', equals: 'UP' },
+        },
+      };
+
+      const data = {
+        status: 'UP',
+        components: {
+          db: { status: 'UP' },
+          redis: { status: 'DOWN' },
+        },
+      };
+
+      const result = parser.parse(data, objectSchema);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('db');
+      expect(result[0].healthy).toBe(true);
+      expect(result[1].name).toBe('redis');
+      expect(result[1].healthy).toBe(false);
+    });
   });
 });

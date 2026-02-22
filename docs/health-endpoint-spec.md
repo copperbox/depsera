@@ -20,6 +20,7 @@ This document covers the health endpoint format that Depsera expects, and how to
   - [Boolean Comparisons](#boolean-comparisons)
   - [Dot-Notation Paths](#dot-notation-paths)
   - [Healthy Value Coercion](#healthy-value-coercion)
+  - [Object-Keyed Dependencies](#object-keyed-dependencies)
 - [Examples](#examples)
   - [Spring Boot Actuator](#spring-boot-actuator)
   - [ASP.NET Health Checks](#aspnet-health-checks)
@@ -153,18 +154,18 @@ If your service doesn't return the proactive-deps format, you can configure a **
 
 Use custom schema mapping when your health endpoint:
 
-- Returns an object with a nested array (instead of a top-level array)
+- Returns an object with a nested array or object-keyed dependencies (instead of a top-level array)
 - Uses different field names (e.g., `status` instead of `healthy`)
 - Represents health as a string (e.g., `"UP"`, `"DOWN"`) instead of a boolean
 - Uses a different response structure than proactive-deps
 
 ### Schema Configuration
 
-A schema mapping has two parts: a **root path** pointing to the array of checks, and **field mappings** that tell Depsera where to find each piece of data.
+A schema mapping has two parts: a **root path** pointing to the array or object of checks, and **field mappings** that tell Depsera where to find each piece of data.
 
 ```json
 {
-  "root": "path.to.checks.array",
+  "root": "path.to.dependencies",
   "fields": {
     "name": "fieldName",
     "healthy": "fieldName",
@@ -177,7 +178,7 @@ A schema mapping has two parts: a **root path** pointing to the array of checks,
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `root` | string | Yes | Dot-notation path to the array of dependency checks in the response |
+| `root` | string | Yes | Dot-notation path to the dependencies in the response (array or object with named keys) |
 | `fields.name` | string or object | Yes | Path to the dependency name field |
 | `fields.healthy` | string or object | Yes | Path to the health status field (or a [boolean comparison](#boolean-comparisons)) |
 | `fields.latency` | string or object | No | Path to the latency/response time field |
@@ -280,6 +281,45 @@ Use a boolean comparison when your status values don't match the built-in coerci
 }
 ```
 
+### Object-Keyed Dependencies
+
+Many health endpoints (Spring Boot Actuator, ASP.NET Health Checks) return dependencies as an **object with named keys** instead of an array:
+
+```json
+{
+  "components": {
+    "db": { "status": "UP" },
+    "redis": { "status": "UP" },
+    "diskSpace": { "status": "DOWN" }
+  }
+}
+```
+
+Depsera auto-detects whether the root path resolves to an array or an object. When it resolves to an object, each key is treated as a separate dependency.
+
+To use the object key as the dependency name, set `fields.name` to the special sentinel value `"$key"`:
+
+```json
+{
+  "root": "components",
+  "fields": {
+    "name": "$key",
+    "healthy": { "field": "status", "equals": "UP" }
+  }
+}
+```
+
+This produces three dependencies named `"db"`, `"redis"`, and `"diskSpace"`.
+
+**Rules:**
+
+- `"$key"` is only valid for the `name` field. Using it for `healthy`, `latency`, `impact`, or `description` will be rejected.
+- You can also use a regular field path for `name` if each object value contains a name field (e.g., `"name": "displayName"`). The object key is ignored in this case.
+- Non-object values in the root object (strings, numbers, null) are silently skipped.
+- An empty object produces an empty dependency list.
+
+**In the UI:** Check the "Use object keys as dependency names" checkbox below the root path field. This hides the name field input and sets `fields.name` to `"$key"` automatically.
+
 ---
 
 ## Examples
@@ -316,35 +356,21 @@ Spring Boot Actuator's `/actuator/health` endpoint returns:
 }
 ```
 
-**Problem:** Actuator returns an object with named keys, not an array. Depsera's schema mapper requires an array at the root path.
-
-**Solution:** If your Spring Boot application can expose health data as an array, configure a custom endpoint that wraps the components:
-
-```json
-// Your custom /health/deps endpoint returns:
-{
-  "checks": [
-    { "name": "db", "status": "UP", "responseTime": 5 },
-    { "name": "redis", "status": "UP", "responseTime": 1 },
-    { "name": "diskSpace", "status": "UP" }
-  ]
-}
-```
-
-**Schema mapping:**
+**Schema mapping** — point directly at the `components` object and use `$key` for the name:
 
 ```json
 {
-  "root": "checks",
+  "root": "components",
   "fields": {
-    "name": "name",
-    "healthy": { "field": "status", "equals": "UP" },
-    "latency": "responseTime"
+    "name": "$key",
+    "healthy": { "field": "status", "equals": "UP" }
   }
 }
 ```
 
-> **Tip:** Spring Boot Actuator's default format uses an object with component keys rather than an array. You'll need a custom endpoint or a thin adapter that transforms the response into an array format. A simple Spring `@RestController` returning a list of check objects works well.
+This produces three dependencies: `"db"` (healthy), `"redis"` (healthy), and `"diskSpace"` (healthy). No wrapper endpoint needed.
+
+> **Tip:** In the UI, check "Use object keys as dependency names" to set this up with the guided form.
 
 ### ASP.NET Health Checks
 
@@ -369,45 +395,22 @@ ASP.NET Core's health check endpoint (`/health`) with detailed output returns:
 }
 ```
 
-**Problem:** Like Spring Boot, ASP.NET returns entries as an object with named keys instead of an array.
-
-**Solution:** Create a custom health endpoint that transforms entries into an array:
-
-```json
-// Your custom /health/deps endpoint returns:
-{
-  "results": [
-    {
-      "name": "sqlserver",
-      "status": "Healthy",
-      "durationMs": 23,
-      "description": "SQL Server connection check"
-    },
-    {
-      "name": "redis",
-      "status": "Degraded",
-      "durationMs": 150,
-      "description": "Redis connectivity"
-    }
-  ]
-}
-```
-
-**Schema mapping:**
+**Schema mapping** — point directly at the `entries` object and use `$key` for the name:
 
 ```json
 {
-  "root": "results",
+  "root": "entries",
   "fields": {
-    "name": "name",
+    "name": "$key",
     "healthy": { "field": "status", "equals": "Healthy" },
-    "latency": "durationMs",
     "description": "description"
   }
 }
 ```
 
-> **Note:** ASP.NET's `"Degraded"` status would be mapped as unhealthy with this comparison (since it doesn't equal `"Healthy"`). If you want both `"Healthy"` and `"Degraded"` to be treated as healthy, you could coerce by using a simple string mapping and returning `"ok"` or `"true"` from your adapter endpoint.
+This produces two dependencies: `"sqlserver"` (healthy) and `"redis"` (unhealthy, since `"Degraded"` doesn't equal `"Healthy"`). No wrapper endpoint needed.
+
+> **Note:** ASP.NET's `"Degraded"` status is mapped as unhealthy with this comparison. If you want both `"Healthy"` and `"Degraded"` to be treated as healthy, you could use a simple string mapping with `"healthy": "status"` — the value `"Healthy"` is auto-coerced to `true` (see [Healthy Value Coercion](#healthy-value-coercion)).
 
 ### Custom Status Page
 
@@ -570,7 +573,7 @@ curl -X POST http://localhost:3001/api/services/test-schema \
 
 **Possible warnings:**
 - `"No <field> field mapping configured — <field> data will not be captured"` — an optional field mapping is missing
-- `"Schema mapping error: root path \"...\" did not resolve to an array"` — the root path doesn't point to an array
+- `"Schema mapping error: root path \"...\" did not resolve to an array or object"` — the root path doesn't point to an array or object
 - `"No dependencies parsed from response"` — the mapping produced zero results
 
 ---
@@ -583,12 +586,12 @@ Your endpoint returns a JSON object (not an array) and no schema mapping is conf
 - Change your endpoint to return a top-level JSON array, or
 - Configure a custom schema mapping with a `root` path pointing to the array
 
-### "Root path did not resolve to an array"
+### "Root path did not resolve to an array or object"
 
-The `root` path in your schema mapping doesn't point to an array in the response. Verify:
+The `root` path in your schema mapping doesn't point to an array or object in the response. Verify:
 - The response structure matches what you expect (use `curl` to check)
 - The `root` path is correct (e.g., `data.checks`, not `data.check`)
-- The path leads to an array, not an object or primitive
+- The path leads to an array or an object with named keys, not a string or number
 
 ### No dependencies parsed
 

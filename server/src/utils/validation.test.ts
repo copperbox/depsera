@@ -673,6 +673,43 @@ describe('Schema Config Validation', () => {
         fields: { name: 123, healthy: 'h' },
       })).toThrow(/schema_config\.fields\.name/);
     });
+
+    it('should accept $key as name field mapping', () => {
+      const result = validateSchemaConfig({
+        root: 'components',
+        fields: { name: '$key', healthy: { field: 'status', equals: 'UP' } },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.name).toBe('$key');
+    });
+
+    it('should reject $key for healthy field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: '$key' },
+      })).toThrow(/schema_config\.fields\.healthy cannot use "\$key"/);
+    });
+
+    it('should reject $key for latency field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', latency: '$key' },
+      })).toThrow(/schema_config\.fields\.latency cannot use "\$key"/);
+    });
+
+    it('should reject $key for impact field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', impact: '$key' },
+      })).toThrow(/schema_config\.fields\.impact cannot use "\$key"/);
+    });
+
+    it('should reject $key for description field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', description: '$key' },
+      })).toThrow(/schema_config\.fields\.description cannot use "\$key"/);
+    });
   });
 
   describe('validateServiceCreate with schema_config', () => {

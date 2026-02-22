@@ -20,6 +20,7 @@ interface SchemaConfigEditorProps {
 interface GuidedFormState {
   root: string;
   nameField: string;
+  useKeyAsName: boolean;
   healthyField: string;
   healthyEquals: string;
   latencyField: string;
@@ -39,9 +40,11 @@ function isBooleanComparison(fm: FieldMapping): fm is BooleanComparison {
 }
 
 function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
+  const isKeyName = typeof mapping.fields.name === 'string' && mapping.fields.name === '$key';
   return {
     root: mapping.root,
-    nameField: typeof mapping.fields.name === 'string' ? mapping.fields.name : mapping.fields.name.field,
+    nameField: isKeyName ? '' : (typeof mapping.fields.name === 'string' ? mapping.fields.name : mapping.fields.name.field),
+    useKeyAsName: isKeyName,
     healthyField: isBooleanComparison(mapping.fields.healthy) ? mapping.fields.healthy.field : (typeof mapping.fields.healthy === 'string' ? mapping.fields.healthy : ''),
     healthyEquals: isBooleanComparison(mapping.fields.healthy) ? mapping.fields.healthy.equals : '',
     latencyField: mapping.fields.latency ? (typeof mapping.fields.latency === 'string' ? mapping.fields.latency : mapping.fields.latency.field) : '',
@@ -58,7 +61,7 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
   const mapping: SchemaMapping = {
     root: state.root,
     fields: {
-      name: state.nameField,
+      name: state.useKeyAsName ? '$key' : state.nameField,
       healthy,
     },
   };
@@ -79,6 +82,7 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
 const emptyFormState: GuidedFormState = {
   root: '',
   nameField: '',
+  useKeyAsName: false,
   healthyField: '',
   healthyEquals: '',
   latencyField: '',
@@ -100,7 +104,8 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
 
   const updateFromGuided = useCallback((newState: GuidedFormState) => {
     setFormState(newState);
-    if (newState.root.trim() && newState.nameField.trim() && newState.healthyField.trim()) {
+    const hasName = newState.useKeyAsName || newState.nameField.trim();
+    if (newState.root.trim() && hasName && newState.healthyField.trim()) {
       const mapping = formStateToSchemaMapping(newState);
       onChange(mapping);
       setJsonText(JSON.stringify(mapping, null, 2));
@@ -140,7 +145,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
   const validateForTest = (): boolean => {
     const newErrors: FormErrors = {};
     if (!formState.root.trim()) newErrors.root = 'Required';
-    if (!formState.nameField.trim()) newErrors.nameField = 'Required';
+    if (!formState.useKeyAsName && !formState.nameField.trim()) newErrors.nameField = 'Required';
     if (!formState.healthyField.trim()) newErrors.healthyField = 'Required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -206,7 +211,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
             <div className={styles.fields}>
               <div className={styles.field}>
                 <label htmlFor="schema-root" className={styles.label}>
-                  Path to checks array <span className={styles.required}>*</span>
+                  Path to dependencies <span className={styles.required}>*</span>
                 </label>
                 <input
                   id="schema-root"
@@ -218,12 +223,31 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                   disabled={disabled}
                 />
                 {errors.root && <span className={styles.fieldError}>{errors.root}</span>}
-                <span className={styles.hint}>Dot-notation path to the array of dependency checks</span>
+                <span className={styles.hint}>Dot-notation path to the array or object with named keys</span>
               </div>
+
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={formState.useKeyAsName}
+                  onChange={(e) => {
+                    const newState = { ...formState, useKeyAsName: e.target.checked };
+                    if (e.target.checked) {
+                      newState.nameField = '';
+                    }
+                    setErrors((prev) => ({ ...prev, nameField: undefined }));
+                    updateFromGuided(newState);
+                  }}
+                  disabled={disabled}
+                />
+                Use object keys as dependency names
+                <span className={styles.hint}>Enable when the root path resolves to an object (e.g., Spring Boot Actuator, ASP.NET Health Checks)</span>
+              </label>
 
               <div className={styles.divider} />
 
               <div className={styles.fieldRow}>
+                {!formState.useKeyAsName && (
                 <div className={styles.field}>
                   <label htmlFor="schema-name" className={styles.label}>
                     Name field <span className={styles.required}>*</span>
@@ -239,6 +263,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                   />
                   {errors.nameField && <span className={styles.fieldError}>{errors.nameField}</span>}
                 </div>
+                )}
                 <div className={styles.field}>
                   <label htmlFor="schema-description" className={styles.label}>
                     Description field
@@ -352,7 +377,8 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
               onClick={() => {
                 if (!showAdvanced) {
                   // Sync JSON from guided form before switching
-                  if (formState.root.trim() && formState.nameField.trim() && formState.healthyField.trim()) {
+                  const hasName = formState.useKeyAsName || formState.nameField.trim();
+                  if (formState.root.trim() && hasName && formState.healthyField.trim()) {
                     setJsonText(JSON.stringify(formStateToSchemaMapping(formState), null, 2));
                   }
                 }

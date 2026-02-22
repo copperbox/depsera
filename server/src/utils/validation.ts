@@ -555,6 +555,17 @@ export function validateSchemaConfig(value: unknown): string {
     validatedFields[key] = validateFieldMapping(fields[key], key);
   }
 
+  // Restrict $key sentinel to name field only
+  const KEY_SENTINEL = '$key';
+  for (const [fieldName, mapping] of Object.entries(validatedFields)) {
+    if (fieldName !== 'name' && typeof mapping === 'string' && mapping === KEY_SENTINEL) {
+      throw new ValidationError(
+        `schema_config.fields.${fieldName} cannot use "$key" — it is only valid for the name field`,
+        'schema_config'
+      );
+    }
+  }
+
   // Build validated SchemaMapping
   const validated: SchemaMapping = {
     root: config.root,
