@@ -21,7 +21,7 @@ By submitting a pull request, you agree to the terms of our [Contributor License
 
 ```bash
 # Clone the repository
-git clone https://github.com/dantheuber/depsera.git
+git clone https://github.com/copperbox/depsera.git
 cd depsera
 
 # Install all dependencies (root, server, and client)
@@ -45,7 +45,7 @@ For detailed configuration options, see the [README](README.md#configuration).
 
 ### Reporting Bugs
 
-Open a [bug report](https://github.com/dantheuber/depsera/issues/new?template=bug_report.md) with:
+Open a [bug report](https://github.com/copperbox/depsera/issues/new?template=bug_report.md) with:
 
 - Steps to reproduce
 - Expected vs. actual behavior
@@ -53,7 +53,7 @@ Open a [bug report](https://github.com/dantheuber/depsera/issues/new?template=bu
 
 ### Suggesting Features
 
-Open a [feature request](https://github.com/dantheuber/depsera/issues/new?template=feature_request.md) describing the problem you want to solve and your proposed solution.
+Open a [feature request](https://github.com/copperbox/depsera/issues/new?template=feature_request.md) describing the problem you want to solve and your proposed solution.
 
 ### Submitting Changes
 

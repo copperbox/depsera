@@ -10,7 +10,7 @@ A dependency monitoring and service health dashboard. Track service health acros
 The fastest way to get running is with Docker Compose:
 
 ```bash
-git clone https://github.com/dantheuber/depsera
+git clone https://github.com/copperbox/depsera
 cd depsera
 
 # Edit docker-compose.yml to set SESSION_SECRET and admin credentials
