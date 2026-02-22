@@ -172,7 +172,7 @@ Support for services that don't use the proactive-deps format:
 - Defaults to local auth if no OIDC config provided
 
 **Documentation:**
-- Installation guide (Docker, bare Node, reverse proxy examples)
+- Installation guide (Docker, bare Node, reverse proxy examples) **[Implemented]** (PRO-111). Comprehensive `docs/installation.md` with Docker quickstart, Docker Compose, bare Node.js deployment, process management (systemd, PM2), reverse proxy examples (nginx with SSL, Caddy with auto-TLS), complete env var reference table (all 23+ env vars), admin settings reference (all 10 runtime-configurable keys), production checklist, SQLite backup/restore procedures (file copy, sqlite3 CLI, Docker volume), automated backup cron examples, and upgrading guide. 69 tests validating doc accuracy against codebase.
 - Health endpoint spec and custom schema guide
 - Admin guide (first-run, user management, alerts, SSRF allowlist)
 - API reference with curl examples

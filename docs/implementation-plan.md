@@ -849,11 +849,15 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Docker quickstart, Docker Compose setup, bare Node.js deployment guide, reverse proxy examples (nginx, Caddy), complete env var reference, backup procedures.
 
 **Acceptance criteria:**
-- [ ] `docs/installation.md` with Docker quickstart, Docker Compose, bare Node.js options
-- [ ] Reverse proxy examples (nginx, Caddy) with SSL termination
-- [ ] Complete env var reference table
-- [ ] SQLite backup procedures
-- [ ] All instructions tested end-to-end
+- [x] `docs/installation.md` with Docker quickstart, Docker Compose, bare Node.js options
+- [x] Reverse proxy examples (nginx, Caddy) with SSL termination
+- [x] Complete env var reference table
+- [x] SQLite backup procedures
+- [x] All instructions tested end-to-end
+
+**Files touched:**
+- `docs/installation.md` (new) — comprehensive installation guide with Docker quickstart, Docker Compose, bare Node.js, reverse proxy (nginx/Caddy), configuration reference (all env vars + admin settings), production checklist, backup/restore procedures, and upgrading guide
+- `server/src/infra/installation-docs.test.ts` (new) — 69 tests validating documentation accuracy against codebase artifacts (env vars, admin settings, Docker config, build scripts, reverse proxy requirements)
 
 ---
 

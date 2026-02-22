@@ -122,7 +122,14 @@ npm run build
 
 ### Docker
 
-The fastest way to run Depsera is with Docker:
+The fastest way to run Depsera is with Docker Compose:
+
+```bash
+# Edit docker-compose.yml to set SESSION_SECRET and admin credentials
+docker compose up -d
+```
+
+Or run directly:
 
 ```bash
 docker run -d \
@@ -135,16 +142,7 @@ docker run -d \
   depsera
 ```
 
-Or use Docker Compose:
-
-```bash
-# Edit docker-compose.yml to set SESSION_SECRET and admin credentials
-docker compose up -d
-```
-
 The image includes everything needed to run the application. SQLite data is persisted in the `/app/server/data` volume. Set `LOCAL_AUTH=true` for standalone deployment with username/password auth, or provide OIDC environment variables for SSO integration.
-
-See the `docker-compose.yml` file for a complete reference of available configuration options.
 
 ### Production Mode (Bare Node.js)
 
@@ -157,6 +155,10 @@ npm start
 ```
 
 The server auto-detects the built client at `client/dist/` and serves it with compression and appropriate cache headers. No separate web server (nginx, etc.) is required. In development, the Vite dev server continues to be used as before.
+
+### Production Deployment
+
+For production deployments including reverse proxy configuration (nginx/Caddy), backup procedures, process management, and a complete configuration reference, see the [Installation Guide](docs/installation.md).
 
 ### Linting
 
