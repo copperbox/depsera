@@ -240,7 +240,7 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 - `docs/api-reference.md` — All REST API endpoints with request/response schemas and curl examples
 - `docs/health-endpoint-spec.md` — Proactive-deps format, custom schema mapping guide, examples (Spring Boot, ASP.NET), testing guide
 - `docs/testing-with-keycloak.md` — Local Keycloak OIDC testing setup, Docker Compose quick start, test users, troubleshooting
-- `docs/testing-with-okta.md` — Okta developer account setup, app registration, env vars, login flow walkthrough, troubleshooting
+- `docs/testing-with-auth0.md` — Auth0 account setup, app registration, env vars, login flow walkthrough, troubleshooting
 - `docs/spec/` — Technical specification (13 sections) — see `docs/spec/index.md` for topic map
 - `docs/implementation-plan.md` — 1.0 story tracker with Linear ticket references
 

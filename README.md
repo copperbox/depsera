@@ -313,7 +313,7 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 | [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |
 | [Health Endpoint Spec](docs/health-endpoint-spec.md) | Proactive-deps format, custom schema mapping, examples (Spring Boot, ASP.NET) |
 | [Testing with Keycloak](docs/testing-with-keycloak.md) | Local Keycloak OIDC testing with Docker Compose |
-| [Testing with Okta](docs/testing-with-okta.md) | OIDC testing with Okta developer account |
+| [Testing with Auth0](docs/testing-with-auth0.md) | OIDC testing with Auth0 (free tier) |
 
 ## License
 
