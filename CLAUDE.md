@@ -10,7 +10,7 @@ Depsera - A dependency monitoring and service health dashboard.
 
 - **Frontend:** React 18 + TypeScript + Vite + CSS Modules (`/client`)
 - **Backend:** Express.js + TypeScript + SQLite (`/server`)
-- **Testing:** Jest + React Testing Library
+- **Testing:** Jest + React Testing Library + `oidc-provider` (in-process OIDC server for integration tests)
 - **Package Manager:** npm
 
 ## Build Commands
@@ -146,6 +146,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Timing-Safe Auth:** OIDC callback state parameter compared using `crypto.timingSafeEqual` to prevent timing attacks. See `/server/src/routes/auth/callback.ts`.
 - **SQLite Durability:** `synchronous = FULL` pragma ensures durability even on power loss. `wal_autocheckpoint = 1000` prevents unbounded WAL growth. See `/server/src/db/index.ts`.
 - **ESLint Security:** `eslint-plugin-security` (recommended-legacy ruleset) added to server ESLint config for static security analysis.
+- **OIDC Integration Tests:** Full login-flow integration tests using `oidc-provider` as an in-process OIDC server. Covers login redirect, callback token exchange, user creation/sync, session establishment, logout, first-user admin bootstrap, and error handling. Mocks `openid-client` (ESM-only) with CJS-compatible implementations. See `/server/src/__tests__/integration/oidc.test.ts` and `/server/src/__tests__/helpers/oidcProvider.ts`.
 
 Key files in `/server/src/services/polling/`:
 - `HealthPollingService.ts` — Main orchestrator (singleton)

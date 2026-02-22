@@ -409,10 +409,10 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Use `oidc-provider` (Node.js) as in-process OIDC server for automated integration tests.
 
 **Acceptance criteria:**
-- [ ] `oidc-provider` installed as dev dependency
-- [ ] Tests cover: login redirect, callback token exchange, user creation/sync, session establishment, logout, first-user admin bootstrap, error handling
-- [ ] Tests run in CI without external services
-- [ ] All tests pass
+- [x] `oidc-provider` installed as dev dependency
+- [x] Tests cover: login redirect, callback token exchange, user creation/sync, session establishment, logout, first-user admin bootstrap, error handling
+- [x] Tests run in CI without external services
+- [x] All tests pass
 
 **Files likely touched:**
 - `server/package.json` — `oidc-provider` dev dependency
