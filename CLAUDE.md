@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Depsera - A dependency monitoring and service health dashboard.
+Depsera — A dependency monitoring and service health dashboard (v1.0).
 
 ## Tech Stack
 
@@ -231,6 +231,14 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 - `/api/teams/:id/alert-channels` - Team alert channel CRUD (GET: team member+, POST/PUT/DELETE: team lead+). `POST /:channelId/test` sends a test alert. Supports Slack webhook and generic HTTP webhook channel types.
 - `/api/teams/:id/alert-rules` - Team alert rule get/upsert (GET: team member+, PUT: team lead+). Severity filter: `critical`, `warning`, `all`.
 - `/api/teams/:id/alert-history` - Team alert history (GET: team member+). Paginated with `limit`, `offset`, and `status` filter (`sent`, `failed`, `suppressed`).
+
+## Documentation
+
+- `README.md` — Project overview, quickstart, features, architecture, configuration
+- `docs/installation.md` — Docker, Docker Compose, bare Node.js, reverse proxy, backups
+- `docs/api-reference.md` — All REST API endpoints with request/response schemas and curl examples
+- `docs/spec/` — Technical specification (13 sections) — see `docs/spec/index.md` for topic map
+- `docs/implementation-plan.md` — 1.0 story tracker with Linear ticket references
 
 ## General Guidance
 

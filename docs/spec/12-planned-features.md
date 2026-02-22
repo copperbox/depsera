@@ -175,5 +175,5 @@ Support for services that don't use the proactive-deps format:
 - Installation guide (Docker, bare Node, reverse proxy examples) **[Implemented]** (PRO-111). Comprehensive `docs/installation.md` with Docker quickstart, Docker Compose, bare Node.js deployment, process management (systemd, PM2), reverse proxy examples (nginx with SSL, Caddy with auto-TLS), complete env var reference table (all 23+ env vars), admin settings reference (all 10 runtime-configurable keys), production checklist, SQLite backup/restore procedures (file copy, sqlite3 CLI, Docker volume), automated backup cron examples, and upgrading guide. 69 tests validating doc accuracy against codebase.
 - Health endpoint spec and custom schema guide
 - Admin guide (first-run, user management, alerts, SSRF allowlist)
-- API reference with curl examples
+- API reference with curl examples **[Implemented]** (PRO-114). `docs/api-reference.md` documents all 55+ REST API endpoints with HTTP method, path, auth requirements, request/response schemas (JSON), curl examples, and error codes. README.md overhauled with badges, architecture diagram, categorized feature list, quick start, pages table, and links to docs. CLAUDE.md updated with v1.0 status and documentation section. 125 tests validate documentation accuracy.
 - Apache 2.0 license + CLA

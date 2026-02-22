@@ -859,6 +859,12 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 - `docs/installation.md` (new) — comprehensive installation guide with Docker quickstart, Docker Compose, bare Node.js, reverse proxy (nginx/Caddy), configuration reference (all env vars + admin settings), production checklist, backup/restore procedures, and upgrading guide
 - `server/src/infra/installation-docs.test.ts` (new) — 69 tests validating documentation accuracy against codebase artifacts (env vars, admin settings, Docker config, build scripts, reverse proxy requirements)
 
+**Files touched:**
+- `docs/api-reference.md` (new) — comprehensive API reference with all 55+ endpoints, request/response schemas, curl examples, auth requirements, and error codes
+- `README.md` — overhauled with badges, architecture diagram, quick start, categorized features, pages table, API summary linking to full reference, documentation section
+- `CLAUDE.md` — added v1.0 designation and documentation section with references to all docs
+- `server/src/infra/api-docs.test.ts` (new) — 125 tests validating documentation accuracy (all endpoint paths documented, curl/JSON examples present, env vars covered, badge/section/architecture presence, CLAUDE.md route groups and store entries)
+
 ---
 
 ### 7.3b — Health endpoint spec and custom schema guide
@@ -894,9 +900,9 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** All endpoints with request/response schemas, curl examples, README overhaul with quickstart, feature list, screenshots, badges.
 
 **Acceptance criteria:**
-- [ ] `docs/api-reference.md` with all endpoints, request/response schemas, curl examples
-- [ ] `README.md` overhauled: quickstart, feature list, screenshots, badges
-- [ ] `CLAUDE.md` updated to reflect all 1.0 changes
+- [x] `docs/api-reference.md` with all endpoints, request/response schemas, curl examples
+- [x] `README.md` overhauled: quickstart, feature list, architecture diagram, badges
+- [x] `CLAUDE.md` updated to reflect all 1.0 changes
 
 ---
 

@@ -1,39 +1,123 @@
 # Depsera
 
-A dependency monitoring and service health dashboard. Monitor service health, visualize dependency relationships, and track issues across teams.
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> **Note:** This project is in early stages of development and is not ready for production deployment.
+A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
+
+## Quick Start
+
+The fastest way to get running is with Docker Compose:
+
+```bash
+git clone https://github.com/your-org/depsera.git
+cd depsera
+
+# Edit docker-compose.yml to set SESSION_SECRET and admin credentials
+docker compose up -d
+```
+
+Open `http://localhost:3001` in your browser and log in with the admin credentials you configured.
+
+For detailed deployment options (bare Node.js, reverse proxy, backups), see the [Installation Guide](docs/installation.md).
 
 ## Features
 
-- **Dashboard Overview** — Summary of service health across all teams with quick links to issues and recent activity
-- **Service Management** — Register services with health endpoints, view dependency status, trigger manual polls, and track error/latency history. Supports custom health endpoint schema mapping with a guided form editor and live testing for non-proactive-deps services (e.g., Spring Boot Actuator, ASP.NET health checks)
-- **Dependency Graph** — Interactive visualization (React Flow) of service dependencies with team filtering, search/highlight, layout controls, and latency threshold filtering
-- **Wallboard** — Real-time status board with service health cards, team filtering, and unhealthy-only view
-- **Team Management** — Organize services by team, manage members and roles (lead/member)
-- **User Administration** — Admin panel for managing users, roles, and account status
-- **Auto-Polling** — Server-side health polling with per-service configurable intervals (default 30s), exponential backoff on failures, and circuit breaker protection (opens after 10 consecutive failures, 5-minute cooldown); client-side auto-refresh with configurable intervals (10s, 20s, 30s, 1m)
-- **Dependency Associations** — Automatic suggestion engine that links dependencies to services using name matching, hostname matching, token overlap, and string similarity with confidence scoring
-- **Dependency Aliases** — Map multiple reported dependency names to a single canonical identity, unifying dependencies that different services report under different names
-- **Error & Latency History** — Historical tracking of dependency errors and latency with trend analysis; time-bucketed latency API for chart rendering (configurable ranges: 1h, 6h, 24h, 7d, 30d) and health state timeline API showing dependency health transitions over time; reusable Recharts-based chart components (`LatencyChart` with min/avg/max lines, `HealthTimeline` swimlane, `TimeRangeSelector`) with dark mode support
-- **Authentication** — OpenID Connect integration or local username/password auth (`LOCAL_AUTH=true`) for zero-external-dependency deployment; sessions persisted in SQLite (survive server restarts)
-- **Role-Based Access Control** — Admin, team lead, and member roles with scoped permissions. Service list and detail views are team-scoped for non-admin users; admin users see all services org-wide
-- **Security Hardening** — Security headers (CSP, HSTS, X-Frame-Options) via Helmet, SSRF protection on health endpoints with configurable allowlist for internal networks, CSRF double-submit cookie protection, API rate limiting, session secret enforcement, redirect URL validation, optional HTTPS redirect, and reverse-proxy-aware secure cookies
-- **Structured Logging** — HTTP request logging via pino with method, path, status, response time, and user ID; JSON output in production, pretty-printed in development; sensitive headers redacted; configurable log level via `LOG_LEVEL`
-- **Audit Trail** — All admin actions (user role changes, team/service mutations, member management) are recorded with actor, action, resource, details, and IP address; queryable via admin API with filtering by date range, user, action, and resource type
-- **Admin Settings** — Runtime-configurable application settings with admin UI page and API; 10 keys (data retention, poll intervals, rate limits, alert thresholds) with in-memory cache over SQLite persistence; env-var defaults overridable at runtime; all changes audited
-- **Alert Dispatch Engine** — Event-driven alert dispatch that listens to polling status changes and errors; team-scoped alert rules with severity filtering (critical, warning, all); flap protection with configurable cooldown; per-team hourly rate limiting; pluggable sender interface for Slack and webhook channels; automatic retry on failure; all attempts recorded in alert history
-- **Slack Alerts** — Rich Block Kit-formatted notifications to Slack via incoming webhooks; shows service name, dependency, status transition, severity, timestamp, and deep link back to Depsera; handles rate limiting (429) and timeouts; configurable via `APP_BASE_URL` env var for deep links
-- **Webhook Alerts** — Generic HTTP webhook sender for integration with arbitrary systems; JSON payloads with service/dependency details, status transitions, severity, and deep links; configurable custom headers (for auth tokens, API keys) and HTTP method (POST/PUT/PATCH); 10-second timeout
-- **Alert Channel Management UI** — Team detail page section for managing alert channels; create/edit/delete Slack webhooks and generic HTTP webhooks with custom headers; enable/disable toggle, test alert button with success/failure feedback, delete confirmation; team lead+ access control
-- **Alert Rules & History UI** — Team detail page sections for configuring alert severity rules (critical only, warning+, all) with enable/disable toggle, and viewing alert history with status filter (sent/failed/suppressed); team leads see editable form, members see read-only summary
+**Health Monitoring**
+- Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
+- Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
+- Custom schema mapping for non-standard health endpoints (Spring Boot Actuator, ASP.NET, etc.)
+- Per-hostname concurrency limiting and request deduplication prevent polling abuse
+
+**Visualization**
+- Interactive dependency graph (React Flow) with team filtering, search, layout controls, and latency thresholds
+- Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
+- Real-time wallboard with health cards, team filtering, and unhealthy-only view
+- Dashboard with health distribution, services with issues, and team health summaries
+
+**Team Management**
+- Organize services by team with lead/member roles
+- Team-scoped service access — non-admin users see only their team's services
+- Association engine automatically suggests links between dependencies and services
+
+**Alerting**
+- Slack notifications with Block Kit formatting and deep links
+- Generic webhook sender with custom headers and configurable HTTP method
+- Severity-based alert rules (critical, warning, all) per team
+- Flap protection and per-team hourly rate limiting
+- Full alert delivery history (sent, failed, suppressed)
+
+**Security**
+- OIDC/SSO authentication with PKCE or local username/password auth
+- RBAC with admin, team lead, and member roles
+- SSRF protection with configurable allowlist for internal networks
+- CSRF protection, rate limiting, security headers (CSP, HSTS, X-Frame-Options)
+- Audit trail for all admin actions
+- Session secret validation, redirect URL validation, timing-safe comparisons
+
+**Operations**
+- SQLite database — zero external dependencies, sessions survive restarts
+- Automatic data retention cleanup (configurable period, default 365 days)
+- Runtime-configurable admin settings (retention, polling, rate limits, alerts)
+- Structured JSON logging in production via pino
+- Docker image with health check and volume-mounted data
+
+## Architecture
+
+```
+                            +---------------------+
+                            |  Browser (React SPA) |
+                            +----------+----------+
+                                       |
+                              HTTPS (optional)
+                                       |
+                            +----------v----------+
+                            |   Reverse Proxy      |
+                            |  (nginx / Caddy)     |
+                            +----------+----------+
+                                       |
+                            +----------v----------+
+                            |   Express Server     |
+                            |   (port 3001)        |
+                            |                      |
+                            |  +----------------+  |
+                            |  | Static Files   |  |  client/dist/
+                            |  +----------------+  |
+                            |  | REST API       |  |  /api/*
+                            |  +----------------+  |
+                            |  | Health Poller  |  |  background service
+                            |  +----------------+  |
+                            |  | Alert Engine   |  |  event-driven
+                            |  +----------------+  |
+                            |  | Retention Job  |  |  daily cleanup
+                            |  +----------------+  |
+                            +----------+----------+
+                                       |
+                            +----------v----------+
+                            |   SQLite Database    |
+                            |  (server/data/)      |
+                            +---------------------+
+```
+
+**Monorepo layout:**
+
+| Directory | Description |
+|-----------|-------------|
+| `client/` | React 18 + TypeScript + Vite SPA |
+| `server/` | Express.js + TypeScript + SQLite REST API |
+| `docs/` | Installation guide, API reference, specs |
+
+**Development:** Two processes — Vite dev server on `:3000` (proxies `/api/*` to backend), Express on `:3001`.
+
+**Production:** Single process — Express serves the built client from `client/dist/` with compression and SPA catch-all routing.
 
 ## Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, CSS Modules, React Flow
+- **Frontend:** React 18, TypeScript, Vite, CSS Modules, React Flow, Recharts
 - **Backend:** Express.js, TypeScript, SQLite (better-sqlite3)
-- **Authentication:** OpenID Connect (openid-client) or local auth (bcryptjs), express-session
+- **Authentication:** OpenID Connect (openid-client) or local auth (bcryptjs)
 - **Testing:** Jest, React Testing Library
+- **Logging:** pino + pino-http
 
 ## Getting Started
 
@@ -49,7 +133,7 @@ A dependency monitoring and service health dashboard. Monitor service health, vi
 npm run install:all
 ```
 
-### Environment Configuration
+### Configuration
 
 Copy the example env file and configure:
 
@@ -57,81 +141,96 @@ Copy the example env file and configure:
 cp server/.env.example server/.env
 ```
 
+**Core settings:**
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port |
 | `DATABASE_PATH` | `./data/database.sqlite` | SQLite database location |
-| `SESSION_SECRET` | — | Session secret (must be 32+ chars in production; weak defaults rejected) |
+| `SESSION_SECRET` | — | Session signing secret (32+ chars required in production) |
 | `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origin |
+
+**Authentication (choose one):**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LOCAL_AUTH` | `false` | Set `true` for local username/password auth |
+| `ADMIN_EMAIL` | — | Initial admin email (required on first startup with `LOCAL_AUTH=true`) |
+| `ADMIN_PASSWORD` | — | Initial admin password, min 8 chars (required on first startup with `LOCAL_AUTH=true`) |
 | `OIDC_ISSUER_URL` | — | OIDC provider issuer URL |
 | `OIDC_CLIENT_ID` | — | OAuth2 client ID |
 | `OIDC_CLIENT_SECRET` | — | OAuth2 client secret |
 | `OIDC_REDIRECT_URI` | `http://localhost:3001/api/auth/callback` | OAuth2 callback URL |
-| `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), and CIDRs (`10.0.0.0/8`) to bypass SSRF blocking for internal services |
-| `TRUST_PROXY` | — | Express trust proxy setting for reverse proxy support (`true`, hop count, IP/subnet, `loopback`) |
-| `REQUIRE_HTTPS` | `false` | Set `true` to 301-redirect HTTP to HTTPS (requires `TRUST_PROXY` behind a proxy) |
-| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Global rate limit window |
-| `RATE_LIMIT_MAX` | `100` | Max requests per IP per global window |
-| `AUTH_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Auth endpoint rate limit window |
-| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per window |
-| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls to the same target hostname |
+
+**Security & networking:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), CIDRs (`10.0.0.0/8`) |
+| `TRUST_PROXY` | — | Express trust proxy setting (`true`, hop count, IP/subnet, `loopback`) |
+| `REQUIRE_HTTPS` | `false` | Set `true` to redirect HTTP to HTTPS |
+| `RATE_LIMIT_MAX` | `100` | Max requests per IP per 15-minute window |
+| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per minute |
+
+**Operations:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATA_RETENTION_DAYS` | `365` | Days to keep latency, error, and audit log history |
+| `RETENTION_CLEANUP_TIME` | `02:00` | Daily cleanup time (HH:MM, local time) |
+| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls per target hostname |
 | `LOG_LEVEL` | `info` | Log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| `LOCAL_AUTH` | `false` | Set `true` to enable local username/password auth for development or standalone deployment |
-| `ADMIN_EMAIL` | — | Initial admin email (required on first startup with `LOCAL_AUTH=true`) |
-| `ADMIN_PASSWORD` | — | Initial admin password, min 8 chars (required on first startup with `LOCAL_AUTH=true`) |
-| `APP_BASE_URL` | — | Base URL for deep links in alert messages (e.g., `https://depsera.internal.com`) |
+| `APP_BASE_URL` | — | Base URL for deep links in alert messages |
+
+See `server/.env.example` for the full list with comments. Additional settings are configurable at runtime via the admin settings UI (`/admin/settings`).
 
 ### Development
 
 ```bash
-# Run server and client in development mode
+# Run server and client concurrently
 npm run dev
 
 # Or run them separately:
-npm run dev:server  # Starts backend on http://localhost:3001
-npm run dev:client  # Starts frontend on http://localhost:3000
+npm run dev:server  # Backend on http://localhost:3001
+npm run dev:client  # Frontend on http://localhost:3000
 ```
 
-### Database Commands
+### Database
 
 ```bash
 # Run from /server directory
 npm run db:migrate    # Run pending migrations
 npm run db:rollback   # Rollback last migration
 npm run db:status     # Show migration status
-npm run db:clear      # Clear all data (dangerous!)
 ```
 
 ### Testing
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests for a specific package
-npm run test:server
-npm run test:client
+npm test              # All tests
+npm run test:server   # Server tests only
+npm run test:client   # Client tests only
 ```
 
 ### Building
 
 ```bash
-# Build both packages
-npm run build
+npm run build         # Build both packages
+```
+
+### Linting
+
+```bash
+npm run lint          # Lint both packages
 ```
 
 ### Docker
 
-The fastest way to run Depsera is with Docker Compose:
-
 ```bash
-# Edit docker-compose.yml to set SESSION_SECRET and admin credentials
+# Docker Compose (recommended)
 docker compose up -d
-```
 
-Or run directly:
-
-```bash
+# Or run directly
 docker run -d \
   -p 3001:3001 \
   -v depsera-data:/app/server/data \
@@ -142,174 +241,75 @@ docker run -d \
   depsera
 ```
 
-The image includes everything needed to run the application. SQLite data is persisted in the `/app/server/data` volume. Set `LOCAL_AUTH=true` for standalone deployment with username/password auth, or provide OIDC environment variables for SSO integration.
+SQLite data is persisted via a Docker volume at `/app/server/data`. Set `LOCAL_AUTH=true` for standalone deployment or provide OIDC env vars for SSO.
 
-### Production Mode (Bare Node.js)
-
-After building, the server can serve both the API and the client UI from a single process:
+### Production (Bare Node.js)
 
 ```bash
 npm run build
-cd server
-npm start
+cd server && npm start
 ```
 
-The server auto-detects the built client at `client/dist/` and serves it with compression and appropriate cache headers. No separate web server (nginx, etc.) is required. In development, the Vite dev server continues to be used as before.
+The server auto-detects the built client at `client/dist/` and serves it with compression. No separate web server is required.
 
-### Production Deployment
-
-For production deployments including reverse proxy configuration (nginx/Caddy), backup procedures, process management, and a complete configuration reference, see the [Installation Guide](docs/installation.md).
-
-### Linting
-
-```bash
-# Lint all packages
-npm run lint
-```
-
-## Project Structure
-
-```
-├── client/              # React frontend
-│   └── src/
-│       ├── components/
-│       │   ├── Layout/          # App shell and navigation
-│       │   ├── Login/           # Login page
-│       │   ├── ProtectedRoute/  # Auth/role guard
-│       │   ├── common/          # StatusBadge, Modal, ConfirmDialog, ErrorHistoryPanel, SearchableSelect
-│       │   └── pages/
-│       │       ├── Dashboard/       # Health summary overview
-│       │       ├── Services/        # Service list, detail, and form
-│       │       ├── Teams/           # Team list, detail, and form
-│       │       ├── DependencyGraph/ # Interactive graph visualization
-│       │       ├── Associations/     # Association management
-│       │       ├── Wallboard/       # Real-time status board
-│       │       └── Admin/           # User management, admin settings
-│       ├── contexts/        # Auth and Theme contexts
-│       └── hooks/           # usePolling and other custom hooks
-├── server/              # Express REST API
-│   └── src/
-│       ├── auth/            # OIDC, local auth, session middleware
-│       ├── db/              # SQLite schema, migrations, types
-│       ├── routes/          # API route handlers
-│       ├── services/        # Polling, graph building, matching
-│       └── stores/          # Data access layer
-└── package.json         # Root scripts
-```
+For production deployments with reverse proxy (nginx/Caddy), backup procedures, and process management, see the [Installation Guide](docs/installation.md).
 
 ## Pages
 
-### Dashboard (`/`)
-Health summary with total/healthy/warning/critical service counts, services with issues, health by team, recent activity feed, and a mini dependency graph preview.
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard — health distribution, services with issues, team health summaries |
+| `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, and manual poll |
+| `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
+| `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
+| `/associations` | Suggestions inbox, manual association creation, existing associations browser, and alias management |
+| `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
+| `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
+| `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
 
-### Services (`/services`)
-Searchable, filterable list of all registered services. Click through to service detail for dependency status, latency stats, error history, and manual poll triggering.
+## API
 
-### Teams (`/teams`)
-Team listing with member/service counts. Team detail shows members with role management and owned services.
-
-### Dependency Graph (`/graph`)
-Interactive graph built with React Flow. Controls include team filter, search/highlight, horizontal/vertical layout, tier spacing, latency threshold slider, and minimap. Dragged node positions are persisted per user across page refreshes; use the "Reset Layout" button to revert to auto-layout.
-
-### Associations (`/associations`)
-Manage dependency-to-service associations. Four tabs: **Suggestions Inbox** for reviewing auto-generated association suggestions with accept/dismiss (individual and bulk), filterable by source or linked service; **Create** for manually linking a dependency to a target service with searchable dropdowns; **Existing** for browsing confirmed associations by dependency with search, type filter, and delete; **Aliases** for mapping reported dependency names to canonical names so that the same external dependency reported under different names can be unified. Associations are also shown inline on each Service Detail page with a "Generate Suggestions" button.
-
-### Wallboard (`/wallboard`)
-Status board showing service health cards with latency stats, impact info, and poll failure indicators. Supports team filtering and unhealthy-only view. Filter preferences persist in localStorage.
-
-### User Management (`/admin/users`)
-Admin-only page for managing user accounts: search, filter by status, toggle admin role, deactivate/reactivate users. In local auth mode, admins can also create new users and reset passwords.
-
-### Admin Settings (`/admin/settings`)
-Admin-only page for configuring runtime application settings. Organized into collapsible sections: **Data Retention** (retention period, cleanup time), **Polling Defaults** (default poll interval), **Security** (SSRF allowlist, rate limits), and **Alerts** (cooldown, rate limits). Changes take effect immediately with client-side validation and save confirmation.
-
-## API Overview
-
-All endpoints require authentication unless noted. Admin endpoints require the admin role.
+All endpoints require authentication unless noted. Admin endpoints require the admin role. Full documentation with request/response schemas and curl examples: **[API Reference](docs/api-reference.md)**.
 
 | Area | Endpoints |
 |------|-----------|
-| Auth | `GET /api/auth/login`, `/callback`, `/me`; `POST /api/auth/logout` |
-| Users | `GET /api/users`, `GET /api/users/:id`, `POST /api/users` (local auth), `PUT /api/users/:id/role`, `PUT /api/users/:id/password` (local auth), `POST /api/users/:id/reactivate`, `DELETE /api/users/:id` |
-| Teams | CRUD on `/api/teams`, member management via `/api/teams/:id/members` |
-| Services | CRUD on `/api/services` (team-scoped), `POST /api/services/:id/poll` for manual polling, `POST /api/services/test-schema` for schema mapping preview |
-| Associations | `/api/dependencies/:id/associations`, suggestion generation and accept/dismiss |
-| Aliases | `GET/POST /api/aliases`, `PUT/DELETE /api/aliases/:id`, `GET /api/aliases/canonical-names` |
-| Graph | `GET /api/graph` with optional `team`, `service`, `dependency` filters |
-| History | `GET /api/latency/:dependencyId`, `GET /api/latency/:dependencyId/buckets`, `GET /api/errors/:dependencyId`, `GET /api/dependencies/:id/timeline` |
-| Admin | `GET /api/admin/audit-log` (filterable by date, user, action, resource type), `GET/PUT /api/admin/settings` |
-| Alerts | `GET/POST /api/teams/:id/alert-channels`, `PUT/DELETE /:channelId`, `POST /:channelId/test`; `GET/PUT /api/teams/:id/alert-rules`; `GET /api/teams/:id/alert-history` |
+| Health | `GET /api/health` |
+| Auth | `GET /api/auth/mode`, `/login`, `/callback`, `/me`; `POST /api/auth/login` (local), `/logout` |
+| Services | CRUD on `/api/services` (team-scoped), `POST /:id/poll`, `POST /test-schema` |
+| Teams | CRUD on `/api/teams`, member management via `/:id/members` |
+| Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
+| Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
+| Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
+| Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
+| History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline` |
+| Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
+| Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
 
 ## Security
 
-### Security Headers
+Depsera includes defense-in-depth security:
 
-All responses include security headers via [Helmet](https://helmetjs.github.io/):
+- **Security headers** via Helmet (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
+- **SSRF protection** on health endpoints with private IP blocking and DNS rebinding prevention; configurable allowlist for internal networks
+- **CSRF protection** via double-submit cookie pattern
+- **Rate limiting** — global (100 req/15min) and auth-specific (10 req/min) per IP
+- **Session secret validation** — production startup refuses weak or missing secrets
+- **Redirect validation** prevents open redirect attacks on logout
+- **Body size limit** (100KB) on JSON payloads
+- **Timing-safe comparisons** for OIDC state parameter
+- **SQLite durability** — `synchronous = FULL` and WAL autocheckpoint
+- **Static security analysis** via `eslint-plugin-security`
+- **Audit trail** for all admin actions with actor, action, resource, and IP address
+- **Poll DDoS protection** — per-hostname concurrency limiting and request deduplication
 
-- **Content-Security-Policy** — `default-src 'self'`, inline styles allowed (React Flow), `object-src 'none'`, `frame-ancestors 'none'`. In development, `'unsafe-eval'` and `ws:` are added for Vite HMR.
-- **X-Frame-Options** — `DENY`
-- **X-Content-Type-Options** — `nosniff`
-- **Strict-Transport-Security** — Production only, `max-age=31536000; includeSubDomains`
-- **Referrer-Policy**, **X-DNS-Prefetch-Control**, etc. — Helmet defaults
+For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md).
 
-### HTTPS & Proxy Hardening
+## Documentation
 
-When deployed behind a reverse proxy (nginx, AWS ALB, etc.):
-
-1. Set `TRUST_PROXY` so Express reads `X-Forwarded-*` headers for `req.secure`, `req.ip`, etc.
-2. Optionally set `REQUIRE_HTTPS=true` to 301-redirect all HTTP traffic to HTTPS (except `/api/health` for load-balancer probes).
-3. Session and CSRF cookies automatically set `Secure` flag based on the actual connection protocol (`req.secure`), so they work correctly behind TLS-terminating proxies.
-
-### SSRF Protection
-
-Health endpoint URLs are validated against private/reserved IP ranges (RFC 1918, link-local, loopback, multicast, etc.) at two points: service creation/update time (synchronous hostname and IP check) and poll time (DNS resolution to catch DNS rebinding attacks). This prevents the server from being used to probe internal infrastructure or access cloud metadata endpoints (169.254.169.254).
-
-Since this app is designed to monitor internal services, a configurable **`SSRF_ALLOWLIST`** env var lets you open specific ranges while keeping the full block list as a default:
-
-```bash
-# Local development
-SSRF_ALLOWLIST=localhost,127.0.0.0/8
-
-# Corporate network
-SSRF_ALLOWLIST=*.internal,*.corp.com,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,localhost
-```
-
-Supported formats: exact hostnames (`localhost`), wildcard patterns (`*.internal`), and CIDR ranges (`10.0.0.0/8`). Cloud metadata IPs are only allowed if explicitly included in the allowlist.
-
-### CSRF Protection
-
-All mutating API routes are protected by a double-submit cookie pattern. The server sets a `csrf-token` cookie readable by JavaScript; the client reads it and sends it back as an `X-CSRF-Token` header on POST/PUT/DELETE requests. The middleware validates that they match. This prevents cross-site request forgery without requiring additional dependencies.
-
-### Session Secret Validation
-
-In production (`NODE_ENV=production`), the server refuses to start if `SESSION_SECRET` is missing, matches a known weak default, or is shorter than 32 characters. This prevents accidental deployment with insecure session signing.
-
-### Rate Limiting
-
-All API endpoints are protected by in-memory rate limiting via `express-rate-limit`:
-
-- **Global limit:** 100 requests per 15 minutes per IP (configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`)
-- **Auth limit:** 10 requests per minute per IP on `/api/auth` endpoints (configurable via `AUTH_RATE_LIMIT_WINDOW_MS` and `AUTH_RATE_LIMIT_MAX`)
-
-The global rate limiter runs before session middleware to reject abusive requests early without session creation cost. Rate-limited responses return `429 Too Many Requests` with standard `RateLimit-*` and `Retry-After` headers.
-
-### Poll DDoS Protection
-
-The polling service includes per-hostname concurrency limiting and request deduplication to prevent abuse:
-
-- **Host rate limiting:** Max 3 concurrent polls per target hostname (configurable via `POLL_MAX_CONCURRENT_PER_HOST`). Services that can't acquire a slot are skipped and retried on the next 5-second tick.
-- **Poll deduplication:** Services sharing the same health endpoint URL share a single HTTP request per poll cycle. Each service maintains independent circuit breaker and backoff state.
-
-### Redirect Validation
-
-Logout redirect URLs are validated to prevent open redirect attacks. Only relative paths, same-origin URLs, and external HTTPS URLs (for OIDC end-session endpoints) are allowed.
-
-### Additional Hardening
-
-- **Body size limit:** `express.json()` enforces a 100KB request body limit to prevent memory exhaustion.
-- **Timing-safe auth:** OIDC callback state comparison uses `crypto.timingSafeEqual` to prevent timing attacks.
-- **SQLite durability:** `synchronous = FULL` and `wal_autocheckpoint = 1000` pragmas ensure data durability and bounded WAL file growth.
-- **Static security analysis:** `eslint-plugin-security` is configured on the server to catch common security anti-patterns during development.
+| Document | Description |
+|----------|-------------|
+| [Installation Guide](docs/installation.md) | Docker, Docker Compose, bare Node.js, reverse proxy, backups |
+| [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |
 
 ## License
 
