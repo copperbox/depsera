@@ -174,6 +174,11 @@ describe('Graph API', () => {
       expect(extNode.data.name).toBe('External DB');
       expect(extNode.data.isExternal).toBe(true);
 
+      // External service should show correct dependency counts from targeting deps
+      expect(extNode.data.dependencyCount).toBe(1);
+      expect(extNode.data.healthyCount).toBe(1);
+      expect(extNode.data.unhealthyCount).toBe(0);
+
       // Cleanup
       testDb.exec(`DELETE FROM dependency_associations WHERE id = 'assoc-ext'`);
       testDb.exec(`DELETE FROM services WHERE id = 'ext-1'`);

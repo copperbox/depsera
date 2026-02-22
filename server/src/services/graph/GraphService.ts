@@ -82,7 +82,7 @@ export class GraphService {
     // Find external services (associated but from other teams) and add them
     const externalServiceIds = this.findExternalServiceIds(dependencies, builder);
     if (externalServiceIds.length > 0) {
-      this.addExternalServices(builder, externalServiceIds, serviceTypes);
+      this.addExternalServices(builder, externalServiceIds, serviceTypes, dependencies);
     }
 
     // Add external nodes for unassociated dependencies
@@ -162,7 +162,7 @@ export class GraphService {
     // Find associated services not in the initial set (e.g. external DB services)
     const externalServiceIds = this.findExternalServiceIds(dependencies, builder);
     if (externalServiceIds.length > 0) {
-      this.addExternalServices(builder, externalServiceIds, serviceTypes);
+      this.addExternalServices(builder, externalServiceIds, serviceTypes, dependencies);
     }
 
     // Add external nodes for unassociated dependencies
@@ -245,11 +245,14 @@ export class GraphService {
 
   /**
    * Add external services to the graph.
+   * Uses the existing dependencies array to find deps targeting each service,
+   * so external services (which own no dependencies) get correct report counts.
    */
   private addExternalServices(
     builder: DependencyGraphBuilder,
     serviceIds: string[],
-    serviceTypes: Map<string, import('../../db/types').DependencyType>
+    serviceTypes: Map<string, import('../../db/types').DependencyType>,
+    dependencies: DependencyWithTarget[]
   ): void {
     /* istanbul ignore if -- Defensive guard; caller checks length before calling */
     if (serviceIds.length === 0) return;
@@ -258,20 +261,10 @@ export class GraphService {
       const service = this.serviceStore.findByIdWithTeam(serviceId) as ServiceWithTeam | undefined;
       if (!service) continue;
 
-      const serviceDeps = this.dependencyStore.findByServiceId(serviceId);
+      // Filter dependencies that target this service (i.e., other services report on this one)
+      const targetingDeps = dependencies.filter(d => d.target_service_id === serviceId);
 
-      // Convert to DependencyWithTarget format for compatibility
-      const depsWithTarget: DependencyWithTarget[] = serviceDeps.map(d => ({
-        ...d,
-        service_name: service.name,
-        target_service_id: null,
-        association_type: null,
-        is_auto_suggested: null,
-        confidence_score: null,
-        avg_latency_24h: null,
-      }));
-
-      builder.addServiceNode(service, depsWithTarget, serviceTypes.get(service.id));
+      builder.addServiceNode(service, targetingDeps, serviceTypes.get(service.id));
     }
   }
 }

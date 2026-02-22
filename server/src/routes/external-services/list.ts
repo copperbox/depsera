@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { ServiceListOptions } from '../../stores/types';
 import { sendErrorResponse } from '../../utils/errors';
+import { formatServiceDetail } from '../formatters/serviceFormatter';
+import { getDependentReports } from '../../utils/serviceHealth';
 
 export function listExternalServices(req: Request, res: Response): void {
   try {
@@ -35,20 +37,12 @@ export function listExternalServices(req: Request, res: Response): void {
 
     const rows = stores.services.findAllWithTeam(options);
 
-    // Format for client — include team info as nested object
-    const result = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description ?? null,
-      team_id: row.team_id,
-      team: {
-        id: row.team_id,
-        name: row.team_name,
-        description: row.team_description ?? null,
-      },
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
+    // Format with health data (same pattern as GET /api/services)
+    const result = rows.map((row) => {
+      const dependencies = stores.dependencies.findByServiceId(row.id);
+      const dependentReports = getDependentReports(row.id);
+      return formatServiceDetail(row, dependencies, dependentReports);
+    });
 
     res.json(result);
   } catch (error) {

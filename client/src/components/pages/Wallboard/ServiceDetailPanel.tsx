@@ -117,7 +117,7 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
             <span className={styles.statusDot} />
             {healthStatusLabels[service.health.status]}
           </div>
-          {service.last_poll_success === 0 && (
+          {service.is_external !== 1 && service.last_poll_success === 0 && (
             <div className={styles.pollFailure}>
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="8" cy="8" r="6" />
@@ -137,10 +137,12 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
                 {service.team.name}
               </Link>
             </div>
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Health Endpoint</span>
-              <span className={styles.detailValue}>{service.health_endpoint}</span>
-            </div>
+            {service.health_endpoint && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>Health Endpoint</span>
+                <span className={styles.detailValue}>{service.health_endpoint}</span>
+              </div>
+            )}
             <div className={styles.detailItem}>
               <span className={styles.detailLabel}>Last Report</span>
               <span className={styles.detailValue}>

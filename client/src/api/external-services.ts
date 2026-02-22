@@ -3,6 +3,7 @@ import type {
   CreateExternalServiceInput,
   UpdateExternalServiceInput,
 } from '../types/external-service';
+import type { ServiceWithDependencies } from '../types/service';
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
 
@@ -39,6 +40,11 @@ export async function updateExternalService(
     credentials: 'include',
   });
   return handleResponse<ExternalService>(response);
+}
+
+export async function fetchExternalServicesWithHealth(): Promise<ServiceWithDependencies[]> {
+  const response = await fetch('/api/external-services', { credentials: 'include' });
+  return handleResponse<ServiceWithDependencies[]>(response);
 }
 
 export async function deleteExternalService(id: string): Promise<void> {

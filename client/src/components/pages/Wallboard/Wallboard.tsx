@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchServices } from '../../../api/services';
+import { fetchExternalServicesWithHealth } from '../../../api/external-services';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import { ServiceDetailPanel } from './ServiceDetailPanel';
@@ -60,8 +61,11 @@ function Wallboard() {
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const data = await fetchServices();
-      setServices(data);
+      const [tracked, external] = await Promise.all([
+        fetchServices(),
+        fetchExternalServicesWithHealth().catch(() => [] as ServiceWithDependencies[]),
+      ]);
+      setServices([...tracked, ...external]);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load services');
@@ -224,8 +228,13 @@ function Wallboard() {
                     }
                   }}
                 >
-                  <span className={styles.cardName}>{service.name}</span>
-                  {service.last_poll_success === 0 && (
+                  <span className={styles.cardName}>
+                    {service.name}
+                    {service.is_external === 1 && (
+                      <span className={styles.externalBadge}>External</span>
+                    )}
+                  </span>
+                  {service.is_external !== 1 && service.last_poll_success === 0 && (
                     <div className={styles.pollFailure}>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="8" cy="8" r="6" />

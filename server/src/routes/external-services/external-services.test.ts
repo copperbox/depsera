@@ -106,6 +106,44 @@ describe('External Services API', () => {
     `);
 
     testDb.exec(`
+      CREATE TABLE IF NOT EXISTS dependencies (
+        id TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        canonical_name TEXT,
+        description TEXT,
+        impact TEXT,
+        type TEXT DEFAULT 'other',
+        healthy INTEGER,
+        health_state INTEGER,
+        health_code INTEGER,
+        latency_ms INTEGER,
+        check_details TEXT,
+        error TEXT,
+        error_message TEXT,
+        last_checked TEXT,
+        last_status_change TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (service_id, name)
+      )
+    `);
+
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS dependency_associations (
+        id TEXT PRIMARY KEY,
+        dependency_id TEXT NOT NULL,
+        linked_service_id TEXT NOT NULL,
+        association_type TEXT DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        confidence_score REAL,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (dependency_id, linked_service_id)
+      )
+    `);
+
+    testDb.exec(`
       CREATE TABLE IF NOT EXISTS audit_log (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -255,6 +293,25 @@ describe('External Services API', () => {
       expect(res.body[0].team).toBeDefined();
       expect(res.body[0].team.id).toBe(teamId);
       expect(res.body[0].team.name).toBe('Test Team');
+    });
+
+    it('should return health, dependencies, and dependent_reports fields', async () => {
+      const createRes = await request(app)
+        .post('/api/external-services')
+        .send({ name: 'Health External', team_id: teamId });
+
+      const res = await request(app).get('/api/external-services');
+
+      expect(res.status).toBe(200);
+      const svc = res.body.find((s: { id: string }) => s.id === createRes.body.id);
+      expect(svc).toBeDefined();
+      expect(svc.health).toBeDefined();
+      expect(svc.health.status).toBeDefined();
+      expect(svc.health.total_reports).toBe(0);
+      expect(svc.dependencies).toBeDefined();
+      expect(Array.isArray(svc.dependencies)).toBe(true);
+      expect(svc.dependent_reports).toBeDefined();
+      expect(Array.isArray(svc.dependent_reports)).toBe(true);
     });
   });
 

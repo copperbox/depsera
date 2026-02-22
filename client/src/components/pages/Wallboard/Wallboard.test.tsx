@@ -1,8 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { ServiceWithDependencies } from '../../../types/service';
 
-// Mock the api module
+// Mock the api modules
 jest.mock('../../../api/services');
+jest.mock('../../../api/external-services');
 // Mock the ServiceDetailPanel
 jest.mock('./ServiceDetailPanel', () => ({
   ServiceDetailPanel: () => <div data-testid="detail-panel" />,
@@ -19,9 +20,11 @@ jest.mock('../../../hooks/usePolling', () => ({
 }));
 
 import { fetchServices } from '../../../api/services';
+import { fetchExternalServicesWithHealth } from '../../../api/external-services';
 import Wallboard from './Wallboard';
 
 const mockFetchServices = fetchServices as jest.MockedFunction<typeof fetchServices>;
+const mockFetchExternal = fetchExternalServicesWithHealth as jest.MockedFunction<typeof fetchExternalServicesWithHealth>;
 
 function makeService(overrides: Partial<ServiceWithDependencies> = {}): ServiceWithDependencies {
   return {
@@ -55,6 +58,8 @@ describe('Wallboard', () => {
   beforeEach(() => {
     localStorage.clear();
     mockFetchServices.mockReset();
+    mockFetchExternal.mockReset();
+    mockFetchExternal.mockResolvedValue([]);
   });
 
   it('renders team filter dropdown with teams from services', async () => {
@@ -285,6 +290,49 @@ describe('Wallboard', () => {
 
     // Healthy service should not be visible
     expect(screen.queryByText('Healthy Service')).not.toBeInTheDocument();
+  });
+
+  it('renders external services from separate endpoint', async () => {
+    mockFetchServices.mockResolvedValue([makeService()]);
+    mockFetchExternal.mockResolvedValue([
+      makeService({
+        id: 'ext-1',
+        name: 'External DB',
+        is_external: 1,
+        health_endpoint: '',
+        last_poll_success: null,
+      }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+    expect(screen.getByText('External DB')).toBeInTheDocument();
+  });
+
+  it('shows External badge on external service cards', async () => {
+    mockFetchServices.mockResolvedValue([]);
+    mockFetchExternal.mockResolvedValue([
+      makeService({
+        id: 'ext-1',
+        name: 'External API',
+        is_external: 1,
+        health_endpoint: '',
+        last_poll_success: null,
+      }),
+    ]);
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('External API')).toBeInTheDocument());
+    expect(screen.getByText('External')).toBeInTheDocument();
+  });
+
+  it('handles external services fetch failure gracefully', async () => {
+    mockFetchServices.mockResolvedValue([makeService()]);
+    mockFetchExternal.mockRejectedValue(new Error('Network error'));
+
+    render(<Wallboard />);
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
+    // Should still render tracked services even if external fetch fails
   });
 
   it('hides latency row when no latency data', async () => {
