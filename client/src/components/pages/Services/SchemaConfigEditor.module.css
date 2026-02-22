@@ -125,6 +125,25 @@
   gap: 0.75rem;
 }
 
+.checkboxLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.checkboxLabel .hint {
+  margin-left: 0.25rem;
+}
+
 .divider {
   border-top: 1px solid var(--color-border);
   margin: 0.25rem 0;

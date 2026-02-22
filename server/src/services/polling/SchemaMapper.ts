@@ -16,7 +16,7 @@ export class SchemaMapper {
    * Parse a health endpoint response using the schema mapping.
    * @param data - The raw response data (object with nested structure)
    * @returns Array of parsed ProactiveDepsStatus objects
-   * @throws Error if the root path doesn't resolve to an array
+   * @throws Error if the root path doesn't resolve to an array or object
    */
   parse(data: unknown): ProactiveDepsStatus[] {
     if (typeof data !== 'object' || data === null) {
@@ -24,12 +24,24 @@ export class SchemaMapper {
     }
 
     const items = resolveFieldPath(data, this.schema.root);
-    if (!Array.isArray(items)) {
-      throw new Error(
-        `Schema mapping error: root path "${this.schema.root}" did not resolve to an array`
-      );
+
+    if (Array.isArray(items)) {
+      return this.parseArray(items);
     }
 
+    if (typeof items === 'object' && items !== null) {
+      return this.parseObject(items as Record<string, unknown>);
+    }
+
+    throw new Error(
+      `Schema mapping error: root path "${this.schema.root}" did not resolve to an array or object`
+    );
+  }
+
+  /**
+   * Parse an array of dependency items.
+   */
+  private parseArray(items: unknown[]): ProactiveDepsStatus[] {
     const results: ProactiveDepsStatus[] = [];
 
     for (let i = 0; i < items.length; i++) {
@@ -49,14 +61,51 @@ export class SchemaMapper {
   }
 
   /**
-   * Parse a single item from the checks array using the schema mapping.
-   * Returns null if required fields are missing (logs a warning).
+   * Parse an object with named keys as dependencies.
+   * Each key becomes a potential dependency; the key can be used as the name
+   * via the `$key` sentinel in the name field mapping.
    */
-  private parseItem(item: unknown, index: number): ProactiveDepsStatus | null {
+  private parseObject(obj: Record<string, unknown>): ProactiveDepsStatus[] {
+    const results: ProactiveDepsStatus[] = [];
+    const keys = Object.keys(obj);
+
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const value = obj[key];
+
+      if (typeof value !== 'object' || value === null) {
+        logger.warn({ key }, 'Schema mapping: skipping non-object value for key "%s"', key);
+        continue;
+      }
+
+      const parsed = this.parseItem(value, i, key);
+      if (parsed) {
+        results.push(parsed);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Check if a field mapping is the `$key` sentinel.
+   */
+  private isKeyMapping(mapping: FieldMapping): boolean {
+    return typeof mapping === 'string' && mapping === '$key';
+  }
+
+  /**
+   * Parse a single item from the checks array/object using the schema mapping.
+   * Returns null if required fields are missing (logs a warning).
+   * @param objectKey - When parsing an object root, the key for this item
+   */
+  private parseItem(item: unknown, index: number, objectKey?: string): ProactiveDepsStatus | null {
     const fields = this.schema.fields;
 
     // Extract required fields
-    const name = this.resolveMapping(item, fields.name);
+    const name = this.isKeyMapping(fields.name) && objectKey !== undefined
+      ? objectKey
+      : this.resolveMapping(item, fields.name);
     if (typeof name !== 'string' || name.trim() === '') {
       logger.warn(
         { index },

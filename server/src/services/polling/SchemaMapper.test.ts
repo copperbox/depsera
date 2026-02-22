@@ -553,5 +553,212 @@ describe('SchemaMapper', () => {
       expect(result[0].impact).toBeUndefined();
       expect(result[0].description).toBeUndefined();
     });
+
+    it('should throw when root resolves to a non-array/non-object (string)', () => {
+      const schema: SchemaMapping = {
+        root: 'data.value',
+        fields: { name: 'name', healthy: 'ok' },
+      };
+      const mapper = new SchemaMapper(schema);
+      expect(() => mapper.parse({ data: { value: 'just-a-string' } })).toThrow(
+        'did not resolve to an array or object'
+      );
+    });
+
+    it('should throw when root resolves to a number', () => {
+      const schema: SchemaMapping = {
+        root: 'data.count',
+        fields: { name: 'name', healthy: 'ok' },
+      };
+      const mapper = new SchemaMapper(schema);
+      expect(() => mapper.parse({ data: { count: 42 } })).toThrow(
+        'did not resolve to an array or object'
+      );
+    });
+
+    it('should throw when root resolves to null', () => {
+      const schema: SchemaMapping = {
+        root: 'data.items',
+        fields: { name: 'name', healthy: 'ok' },
+      };
+      const mapper = new SchemaMapper(schema);
+      expect(() => mapper.parse({ data: { items: null } })).toThrow(
+        'did not resolve to an array or object'
+      );
+    });
+  });
+
+  describe('parse with object-keyed root', () => {
+    it('should parse Spring Boot Actuator format with $key name', () => {
+      const schema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: '$key',
+          healthy: { field: 'status', equals: 'UP' },
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        status: 'UP',
+        components: {
+          db: { status: 'UP', details: { database: 'PostgreSQL' } },
+          redis: { status: 'UP', details: { version: '7.0.0' } },
+          diskSpace: { status: 'DOWN' },
+        },
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].name).toBe('db');
+      expect(result[0].healthy).toBe(true);
+      expect(result[1].name).toBe('redis');
+      expect(result[1].healthy).toBe(true);
+      expect(result[2].name).toBe('diskSpace');
+      expect(result[2].healthy).toBe(false);
+    });
+
+    it('should parse ASP.NET Health Checks format with $key name', () => {
+      const schema: SchemaMapping = {
+        root: 'entries',
+        fields: {
+          name: '$key',
+          healthy: { field: 'status', equals: 'Healthy' },
+          description: 'description',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        status: 'Healthy',
+        totalDuration: '00:00:00.0512345',
+        entries: {
+          sqlserver: {
+            status: 'Healthy',
+            duration: '00:00:00.0234567',
+            description: 'SQL Server connection check',
+          },
+          redis: {
+            status: 'Degraded',
+            duration: '00:00:00.1500000',
+            description: 'Redis connectivity',
+          },
+        },
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('sqlserver');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].description).toBe('SQL Server connection check');
+      expect(result[1].name).toBe('redis');
+      expect(result[1].healthy).toBe(false);
+      expect(result[1].description).toBe('Redis connectivity');
+    });
+
+    it('should parse object-keyed with nested field paths in values', () => {
+      const schema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: '$key',
+          healthy: { field: 'health.status', equals: 'passing' },
+          latency: 'metrics.responseTime',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        components: {
+          postgres: {
+            health: { status: 'passing' },
+            metrics: { responseTime: 12 },
+          },
+          redis: {
+            health: { status: 'failing' },
+            metrics: { responseTime: 500 },
+          },
+        },
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('postgres');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.latency).toBe(12);
+      expect(result[1].name).toBe('redis');
+      expect(result[1].healthy).toBe(false);
+      expect(result[1].health.latency).toBe(500);
+    });
+
+    it('should parse object-keyed without $key (name from value field)', () => {
+      const schema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: 'displayName',
+          healthy: 'isUp',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        components: {
+          db: { displayName: 'Primary Database', isUp: true },
+          cache: { displayName: 'Redis Cache', isUp: false },
+        },
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Primary Database');
+      expect(result[0].healthy).toBe(true);
+      expect(result[1].name).toBe('Redis Cache');
+      expect(result[1].healthy).toBe(false);
+    });
+
+    it('should skip non-object values in object root with warning', () => {
+      const schema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: '$key',
+          healthy: { field: 'status', equals: 'UP' },
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        components: {
+          db: { status: 'UP' },
+          version: '1.0.0',
+          count: 42,
+          cache: { status: 'DOWN' },
+          nullEntry: null,
+        },
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('db');
+      expect(result[1].name).toBe('cache');
+      expect(logger.warn).toHaveBeenCalledWith(
+        { key: 'version' },
+        expect.stringContaining('skipping non-object value for key'),
+        'version'
+      );
+    });
+
+    it('should return empty array for empty object root', () => {
+      const schema: SchemaMapping = {
+        root: 'components',
+        fields: {
+          name: '$key',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = { components: {} };
+
+      const result = mapper.parse(data);
+      expect(result).toEqual([]);
+    });
   });
 });
