@@ -175,6 +175,8 @@ describe('Alert API Routes', () => {
         schema_config TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
+        is_external INTEGER NOT NULL DEFAULT 0,
+        description TEXT,
         last_poll_success INTEGER,
         last_poll_error TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),

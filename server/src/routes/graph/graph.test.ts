@@ -39,6 +39,8 @@ describe('Graph API', () => {
         schema_config TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
+        is_external INTEGER NOT NULL DEFAULT 0,
+        description TEXT,
         last_poll_success INTEGER,
         last_poll_error TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -148,6 +150,33 @@ describe('Graph API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.nodes).toHaveLength(0);
+    });
+
+    it('should include external services as nodes when they are association targets', async () => {
+      // Create an external service
+      testDb.exec(`
+        INSERT INTO services (id, name, team_id, health_endpoint, is_external)
+        VALUES ('ext-1', 'External DB', 'team-1', '', 1)
+      `);
+
+      // Associate a dependency with the external service
+      testDb.exec(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id)
+        VALUES ('assoc-ext', 'dep-1', 'ext-1')
+      `);
+
+      const response = await request(app).get('/api/graph');
+
+      expect(response.status).toBe(200);
+
+      const extNode = response.body.nodes.find((n: { id: string }) => n.id === 'ext-1');
+      expect(extNode).toBeDefined();
+      expect(extNode.data.name).toBe('External DB');
+      expect(extNode.data.isExternal).toBe(true);
+
+      // Cleanup
+      testDb.exec(`DELETE FROM dependency_associations WHERE id = 'assoc-ext'`);
+      testDb.exec(`DELETE FROM services WHERE id = 'ext-1'`);
     });
   });
 });

@@ -26,6 +26,8 @@ describe('ServiceStore', () => {
         schema_config TEXT,
         poll_interval_ms INTEGER NOT NULL DEFAULT 30000,
         is_active INTEGER NOT NULL DEFAULT 1,
+        is_external INTEGER NOT NULL DEFAULT 0,
+        description TEXT,
         last_poll_success INTEGER,
         last_poll_error TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -278,6 +280,130 @@ describe('ServiceStore', () => {
       const active = store.findActiveWithTeam();
       expect(active).toHaveLength(1);
       expect(active[0].team_name).toBe('Team One');
+    });
+  });
+
+  describe('isExternal filtering', () => {
+    beforeEach(() => {
+      store.create({ name: 'Tracked', team_id: 'team-1', health_endpoint: 'http://a/health' });
+      store.create({ name: 'External', team_id: 'team-1', health_endpoint: '', is_external: true });
+    });
+
+    it('should filter by isExternal: true', () => {
+      const externals = store.findAll({ isExternal: true });
+      expect(externals).toHaveLength(1);
+      expect(externals[0].name).toBe('External');
+      expect(externals[0].is_external).toBe(1);
+    });
+
+    it('should filter by isExternal: false', () => {
+      const tracked = store.findAll({ isExternal: false });
+      expect(tracked).toHaveLength(1);
+      expect(tracked[0].name).toBe('Tracked');
+      expect(tracked[0].is_external).toBe(0);
+    });
+
+    it('should return all when isExternal is not specified', () => {
+      const all = store.findAll();
+      expect(all).toHaveLength(2);
+    });
+
+    it('should exclude external services from findActive', () => {
+      const active = store.findActive();
+      expect(active).toHaveLength(1);
+      expect(active[0].name).toBe('Tracked');
+    });
+
+    it('should exclude external services from findActiveWithTeam', () => {
+      const active = store.findActiveWithTeam();
+      expect(active).toHaveLength(1);
+      expect(active[0].name).toBe('Tracked');
+      expect(active[0].team_name).toBe('Team One');
+    });
+
+    it('should filter by isExternal in findAllWithTeam', () => {
+      const externals = store.findAllWithTeam({ isExternal: true });
+      expect(externals).toHaveLength(1);
+      expect(externals[0].name).toBe('External');
+      expect(externals[0].team_name).toBe('Team One');
+    });
+
+    it('should filter by isExternal in count', () => {
+      expect(store.count({ isExternal: true })).toBe(1);
+      expect(store.count({ isExternal: false })).toBe(1);
+    });
+  });
+
+  describe('create external service', () => {
+    it('should create service with is_external flag', () => {
+      const service = store.create({
+        name: 'External DB',
+        team_id: 'team-1',
+        health_endpoint: '',
+        is_external: true,
+      });
+
+      expect(service.is_external).toBe(1);
+      expect(service.health_endpoint).toBe('');
+    });
+
+    it('should create service with description', () => {
+      const service = store.create({
+        name: 'External API',
+        team_id: 'team-1',
+        health_endpoint: '',
+        is_external: true,
+        description: 'Third-party payment gateway',
+      });
+
+      expect(service.description).toBe('Third-party payment gateway');
+    });
+
+    it('should default description to null', () => {
+      const service = store.create({
+        name: 'No Desc',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+      });
+
+      expect(service.description).toBeNull();
+    });
+
+    it('should default is_external to 0', () => {
+      const service = store.create({
+        name: 'Tracked',
+        team_id: 'team-1',
+        health_endpoint: 'http://test/health',
+      });
+
+      expect(service.is_external).toBe(0);
+    });
+  });
+
+  describe('update description', () => {
+    it('should update description', () => {
+      const service = store.create({
+        name: 'Test',
+        team_id: 'team-1',
+        health_endpoint: '',
+        is_external: true,
+      });
+
+      const updated = store.update(service.id, { description: 'New desc' });
+      expect(updated?.description).toBe('New desc');
+    });
+
+    it('should clear description with null', () => {
+      const service = store.create({
+        name: 'Test',
+        team_id: 'team-1',
+        health_endpoint: '',
+        is_external: true,
+        description: 'Has desc',
+      });
+
+      const updated = store.update(service.id, { description: null });
+      expect(updated?.description).toBeNull();
     });
   });
 

@@ -14,6 +14,8 @@ import {
   validateTeamMemberRoleUpdate,
   validateDependencyType,
   validateSchemaConfig,
+  validateExternalServiceCreate,
+  validateExternalServiceUpdate,
   MIN_POLL_INTERVAL_MS,
   MAX_POLL_INTERVAL_MS,
   VALID_ASSOCIATION_TYPES,
@@ -775,6 +777,108 @@ describe('Schema Config Validation', () => {
       expect(() => validateServiceUpdate({
         schema_config: 'not-json',
       })).toThrow(ValidationError);
+    });
+  });
+});
+
+describe('External Service Validation', () => {
+  describe('validateExternalServiceCreate', () => {
+    it('should validate valid input', () => {
+      const result = validateExternalServiceCreate({
+        name: 'External API',
+        team_id: 'team-123',
+      });
+      expect(result.name).toBe('External API');
+      expect(result.team_id).toBe('team-123');
+      expect(result.description).toBeNull();
+    });
+
+    it('should accept description', () => {
+      const result = validateExternalServiceCreate({
+        name: 'External API',
+        team_id: 'team-123',
+        description: 'A third-party service',
+      });
+      expect(result.description).toBe('A third-party service');
+    });
+
+    it('should trim name', () => {
+      const result = validateExternalServiceCreate({
+        name: '  Trimmed Name  ',
+        team_id: 'team-123',
+      });
+      expect(result.name).toBe('Trimmed Name');
+    });
+
+    it('should reject missing name', () => {
+      expect(() => validateExternalServiceCreate({
+        team_id: 'team-123',
+      })).toThrow(ValidationError);
+    });
+
+    it('should reject empty name', () => {
+      expect(() => validateExternalServiceCreate({
+        name: '   ',
+        team_id: 'team-123',
+      })).toThrow(ValidationError);
+    });
+
+    it('should reject missing team_id', () => {
+      expect(() => validateExternalServiceCreate({
+        name: 'Test',
+      })).toThrow(ValidationError);
+    });
+
+    it('should reject non-string description', () => {
+      expect(() => validateExternalServiceCreate({
+        name: 'Test',
+        team_id: 'team-123',
+        description: 123,
+      })).toThrow(ValidationError);
+    });
+
+    it('should normalize empty description to null', () => {
+      const result = validateExternalServiceCreate({
+        name: 'Test',
+        team_id: 'team-123',
+        description: '',
+      });
+      expect(result.description).toBeNull();
+    });
+  });
+
+  describe('validateExternalServiceUpdate', () => {
+    it('should validate name update', () => {
+      const result = validateExternalServiceUpdate({ name: 'New Name' });
+      expect(result).not.toBeNull();
+      expect(result!.name).toBe('New Name');
+    });
+
+    it('should validate description update', () => {
+      const result = validateExternalServiceUpdate({ description: 'New desc' });
+      expect(result).not.toBeNull();
+      expect(result!.description).toBe('New desc');
+    });
+
+    it('should allow clearing description with null', () => {
+      const result = validateExternalServiceUpdate({ description: null });
+      expect(result).not.toBeNull();
+      expect(result!.description).toBeNull();
+    });
+
+    it('should return null for no fields', () => {
+      const result = validateExternalServiceUpdate({});
+      expect(result).toBeNull();
+    });
+
+    it('should reject empty name', () => {
+      expect(() => validateExternalServiceUpdate({ name: '' }))
+        .toThrow(ValidationError);
+    });
+
+    it('should reject non-string description', () => {
+      expect(() => validateExternalServiceUpdate({ description: 123 }))
+        .toThrow(ValidationError);
     });
   });
 });

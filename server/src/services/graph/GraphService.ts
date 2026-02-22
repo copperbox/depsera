@@ -159,6 +159,12 @@ export class GraphService {
       builder.addServiceNode(service, serviceDeps, serviceTypes.get(service.id));
     }
 
+    // Find associated services not in the initial set (e.g. external DB services)
+    const externalServiceIds = this.findExternalServiceIds(dependencies, builder);
+    if (externalServiceIds.length > 0) {
+      this.addExternalServices(builder, externalServiceIds, serviceTypes);
+    }
+
     // Add external nodes for unassociated dependencies
     this.addExternalNodes(builder, dependencies);
 

@@ -16,6 +16,8 @@ describe('dependencyFormatter', () => {
     schema_config: null,
     poll_interval_ms: 30000,
     is_active: 1,
+    is_external: 0,
+    description: null,
     last_poll_success: null,
     last_poll_error: null,
     created_at: '2024-01-01T00:00:00.000Z',

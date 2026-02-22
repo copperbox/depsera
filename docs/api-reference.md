@@ -403,6 +403,122 @@ On parse failure: `{ "success": false, "dependencies": [], "warnings": ["error m
 
 ---
 
+## External Services
+
+External services are lightweight entries (name + description, no health endpoint) representing services outside Depsera's monitoring scope. They can be used as association targets for dependencies.
+
+### `GET /api/external-services`
+
+List external services. Non-admin users see only external services belonging to their teams. Admin users see all.
+
+| Query Param | Type | Description |
+|-------------|------|-------------|
+| `team_id` | uuid | Optional. Filter by team |
+
+```bash
+curl http://localhost:3001/api/external-services -b cookies.txt
+```
+
+**Response (200):** Array of external service objects.
+
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Payment Gateway",
+    "team_id": "uuid",
+    "description": "Stripe integration",
+    "is_external": 1,
+    "team": { "id": "uuid", "name": "Platform" },
+    "created_at": "2024-01-15T10:00:00.000Z",
+    "updated_at": "2024-01-15T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+### `POST /api/external-services`
+
+Create an external service. Requires team lead role on the specified team, or admin.
+
+```bash
+curl -X POST http://localhost:3001/api/external-services \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{ "name": "Payment Gateway", "team_id": "<team-uuid>", "description": "Stripe integration" }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | External service name |
+| `team_id` | uuid | Yes | Owning team ID |
+| `description` | string | No | Description of the external service |
+
+**Response (201):** The created external service object.
+
+**Error responses:**
+
+| Status | Reason |
+|--------|--------|
+| `400` | Validation error (missing name, invalid team) |
+| `403` | Not a team lead of the specified team |
+
+---
+
+### `PUT /api/external-services/:id`
+
+Update an external service. Requires team lead role on the service's owning team, or admin.
+
+```bash
+curl -X PUT http://localhost:3001/api/external-services/<service-id> \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{ "name": "Updated Name", "description": "Updated description" }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | No | Updated name |
+| `description` | string/null | No | Updated description (null to clear) |
+
+**Response (200):** The updated external service object.
+
+**Error responses:**
+
+| Status | Reason |
+|--------|--------|
+| `400` | Empty name or no changes provided |
+| `404` | External service not found |
+
+---
+
+### `DELETE /api/external-services/:id`
+
+Delete an external service. Cascades to associated `dependency_associations`. Requires team lead role on the service's owning team, or admin.
+
+```bash
+curl -X DELETE http://localhost:3001/api/external-services/<service-id> \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response:** `204 No Content`
+
+**Error responses:**
+
+| Status | Reason |
+|--------|--------|
+| `404` | External service not found |
+
+---
+
 ## Teams
 
 ### `GET /api/teams`
@@ -1184,7 +1300,7 @@ curl "http://localhost:3001/api/admin/audit-log?limit=20&action=user.role_change
 }
 ```
 
-**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`
+**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`
 
 ---
 

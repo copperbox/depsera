@@ -7,9 +7,10 @@ import SuggestionsInbox from './SuggestionsInbox';
 import AssociationForm from './AssociationForm';
 import AssociationsList from './AssociationsList';
 import AliasesManager from './AliasesManager';
+import ExternalServicesManager from './ExternalServicesManager';
 import styles from './AssociationsPage.module.css';
 
-type Tab = 'suggestions' | 'create' | 'existing' | 'aliases';
+type Tab = 'suggestions' | 'create' | 'existing' | 'aliases' | 'external';
 
 function AssociationsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('suggestions');
@@ -92,6 +93,12 @@ function AssociationsPage() {
         >
           Aliases
         </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'external' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('external')}
+        >
+          External Services
+        </button>
       </div>
 
       <div className={styles.content}>
@@ -104,6 +111,8 @@ function AssociationsPage() {
         )}
 
         {activeTab === 'aliases' && <AliasesManager dependencyOptions={aliasDependencyOptions} />}
+
+        {activeTab === 'external' && <ExternalServicesManager />}
 
         {activeTab === 'existing' && (
           <div>
