@@ -1,0 +1,84 @@
+{
+  "id": "depsera-test",
+  "realm": "depsera-test",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Default user role"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin@test.com",
+      "email": "admin@test.com",
+      "firstName": "Test",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "user@test.com",
+      "email": "user@test.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "depsera",
+      "name": "Depsera",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "depsera-test-secret",
+      "redirectUris": [
+        "http://localhost:3001/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3001",
+        "http://localhost:3000"
+      ],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "email",
+        "profile"
+      ]
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {}
+}

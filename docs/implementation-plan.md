@@ -427,16 +427,17 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Docker Compose profile with Keycloak for manual E2E testing + Okta testing guide.
 
 **Acceptance criteria:**
-- [ ] `docker-compose.testing.yml` with Keycloak service and pre-configured realm
-- [ ] Realm includes a test client matching Depsera's OIDC config
-- [ ] `docs/testing-with-keycloak.md` with setup instructions
-- [ ] `docs/testing-with-okta.md` guide for Okta testing
+- [x] `docker-compose.oidc-test.yml` with Keycloak service and pre-configured realm
+- [x] Realm includes a test client matching Depsera's OIDC config
+- [x] `docs/testing-with-keycloak.md` with setup instructions
+- [x] `docs/testing-with-okta.md` guide for Okta testing
 
-**Files likely touched:**
-- `docker-compose.testing.yml` (new)
-- `keycloak/` — realm export JSON (new)
-- `docs/testing-with-keycloak.md` (new)
-- `docs/testing-with-okta.md` (new)
+**Files touched:**
+- `docker-compose.oidc-test.yml` (new) — Docker Compose with Keycloak and Depsera services, health check dependency, OIDC env vars
+- `keycloak/depsera-test-realm.json` (new) — Keycloak realm export with `depsera` client (PKCE S256, authorization code), test users (`admin@test.com`, `user@test.com`)
+- `docs/testing-with-keycloak.md` (new) — Quick start, test users, admin console, env vars, running outside Docker, what to test, troubleshooting
+- `docs/testing-with-okta.md` (new) — Account setup, app registration, redirect URI, env vars, login flow walkthrough, troubleshooting
+- `server/src/infra/oidc-testing-docs.test.ts` (new) — 68 tests validating docker-compose, realm export, and documentation accuracy and cross-file consistency
 
 ---
 

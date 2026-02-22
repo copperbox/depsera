@@ -62,7 +62,7 @@ npm run db:clear      # Clear all data (dangerous!)
 
 ## Docker
 
-Multi-stage `Dockerfile` using `node:22-slim`. Build stage installs native build tools (python3, make, g++ for `better-sqlite3`), builds both client and server. Production stage copies only built artifacts and production dependencies, runs as non-root `node` user. `NODE_ENV=production` baked in. Port 3001 exposed. SQLite data persisted via volume at `/app/server/data`. Health check via `curl -f http://localhost:3001/api/health`. `docker-compose.yml` provides sensible defaults with `LOCAL_AUTH=true` and named volume. `.dockerignore` keeps the build context minimal. See `docs/installation.md` for production deployment guide (reverse proxy, backup, process management).
+Multi-stage `Dockerfile` using `node:22-slim`. Build stage installs native build tools (python3, make, g++ for `better-sqlite3`), builds both client and server. Production stage copies only built artifacts and production dependencies, runs as non-root `node` user. `NODE_ENV=production` baked in. Port 3001 exposed. SQLite data persisted via volume at `/app/server/data`. Health check via `curl -f http://localhost:3001/api/health`. `docker-compose.yml` provides sensible defaults with `LOCAL_AUTH=true` and named volume. `.dockerignore` keeps the build context minimal. `docker-compose.oidc-test.yml` provides a Keycloak + Depsera stack for manual OIDC testing (see `docs/testing-with-keycloak.md`). See `docs/installation.md` for production deployment guide (reverse proxy, backup, process management).
 
 ## Database Schema
 
@@ -239,6 +239,8 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 - `docs/admin-guide.md` — First-run setup, user/team management, alerts, admin settings, troubleshooting
 - `docs/api-reference.md` — All REST API endpoints with request/response schemas and curl examples
 - `docs/health-endpoint-spec.md` — Proactive-deps format, custom schema mapping guide, examples (Spring Boot, ASP.NET), testing guide
+- `docs/testing-with-keycloak.md` — Local Keycloak OIDC testing setup, Docker Compose quick start, test users, troubleshooting
+- `docs/testing-with-okta.md` — Okta developer account setup, app registration, env vars, login flow walkthrough, troubleshooting
 - `docs/spec/` — Technical specification (13 sections) — see `docs/spec/index.md` for topic map
 - `docs/implementation-plan.md` — 1.0 story tracker with Linear ticket references
 

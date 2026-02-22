@@ -1,0 +1,44 @@
+services:
+  depsera:
+    build: .
+    image: depsera
+    ports:
+      - "3001:3001"
+    environment:
+      - SESSION_SECRET=oidc-test-session-secret-change-me-in-production-32chars
+      - OIDC_ISSUER_URL=http://keycloak:8080/realms/depsera-test
+      - OIDC_CLIENT_ID=depsera
+      - OIDC_CLIENT_SECRET=depsera-test-secret
+      - OIDC_REDIRECT_URI=http://localhost:3001/api/auth/callback
+      - CORS_ORIGIN=http://localhost:3000
+      - SSRF_ALLOWLIST=localhost,127.0.0.0/8
+      - LOG_LEVEL=debug
+    volumes:
+      - depsera-data:/app/server/data
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/depsera-test-realm.json:/opt/keycloak/data/import/depsera-test-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  depsera-data:
