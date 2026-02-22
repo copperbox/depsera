@@ -24,8 +24,10 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-// Mock AlertChannels to isolate TeamDetail tests
+// Mock AlertChannels, AlertRules, and AlertHistory to isolate TeamDetail tests
 jest.mock('./AlertChannels', () => () => <div data-testid="alert-channels" />);
+jest.mock('./AlertRules', () => () => <div data-testid="alert-rules" />);
+jest.mock('./AlertHistory', () => () => <div data-testid="alert-history" />);
 
 function jsonResponse(data: unknown, status = 200) {
   return {
@@ -102,8 +104,8 @@ describe('TeamDetail', () => {
   it('displays error state and allows retry', async () => {
     mockFetch
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse(mockUsers));
+      .mockResolvedValueOnce(jsonResponse([]))             // alert channels (initial)
+      .mockResolvedValueOnce(jsonResponse(mockTeam));      // retry: team
 
     renderTeamDetail();
 
@@ -285,6 +287,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse(availableUsers))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockResolvedValueOnce(jsonResponse({ success: true }))
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]));
@@ -318,6 +321,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse(availableUsers))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockResolvedValueOnce(jsonResponse({ success: true }))
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]));
@@ -354,6 +358,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockResolvedValueOnce(jsonResponse({ success: true }))
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]));
@@ -382,6 +387,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockResolvedValueOnce(jsonResponse({ success: true }))
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]));
@@ -410,6 +416,7 @@ describe('TeamDetail', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]))              // alert channels
       .mockResolvedValueOnce(jsonResponse({ success: true }))
       .mockResolvedValueOnce(jsonResponse(mockTeam))
       .mockResolvedValueOnce(jsonResponse([]));

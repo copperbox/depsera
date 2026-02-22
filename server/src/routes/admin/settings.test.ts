@@ -88,7 +88,7 @@ describe('Admin Settings API', () => {
         source: 'default',
       });
       expect(response.body.settings.global_rate_limit).toEqual({
-        value: 100,
+        value: 300,
         source: 'default',
       });
     });

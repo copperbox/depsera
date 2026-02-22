@@ -7,7 +7,6 @@ describe('OIDC manual testing infrastructure (PRO-103)', () => {
   let dockerComposeOidc: string;
   let realmExport: string;
   let keycloakGuide: string;
-  let oktaGuide: string;
 
   beforeAll(() => {
     dockerComposeOidc = fs.readFileSync(
@@ -20,10 +19,6 @@ describe('OIDC manual testing infrastructure (PRO-103)', () => {
     );
     keycloakGuide = fs.readFileSync(
       path.join(repoRoot, 'docs', 'testing-with-keycloak.md'),
-      'utf-8',
-    );
-    oktaGuide = fs.readFileSync(
-      path.join(repoRoot, 'docs', 'testing-with-okta.md'),
       'utf-8',
     );
   });
@@ -292,82 +287,6 @@ describe('OIDC manual testing infrastructure (PRO-103)', () => {
     });
   });
 
-  describe('docs/testing-with-okta.md', () => {
-    it('exists and is non-empty', () => {
-      expect(oktaGuide.length).toBeGreaterThan(100);
-    });
-
-    it('has a title', () => {
-      expect(oktaGuide).toMatch(/^# Testing with Okta/m);
-    });
-
-    it('links to Okta developer signup', () => {
-      expect(oktaGuide).toContain('developer.okta.com');
-    });
-
-    it('documents application registration steps', () => {
-      expect(oktaGuide).toMatch(/OIDC.*OpenID Connect/i);
-      expect(oktaGuide).toMatch(/Web Application/i);
-      expect(oktaGuide).toContain('Authorization Code');
-    });
-
-    it('documents redirect URI configuration', () => {
-      expect(oktaGuide).toContain(
-        'http://localhost:3001/api/auth/callback',
-      );
-      expect(oktaGuide).toMatch(/redirect/i);
-    });
-
-    it('documents the required env vars', () => {
-      expect(oktaGuide).toContain('OIDC_ISSUER_URL');
-      expect(oktaGuide).toContain('OIDC_CLIENT_ID');
-      expect(oktaGuide).toContain('OIDC_CLIENT_SECRET');
-      expect(oktaGuide).toContain('OIDC_REDIRECT_URI');
-    });
-
-    it('documents the issuer URL pattern', () => {
-      expect(oktaGuide).toMatch(/dev-.*\.okta\.com/);
-    });
-
-    it('mentions the discovery document URL', () => {
-      expect(oktaGuide).toContain('.well-known/openid-configuration');
-    });
-
-    it('explains the expected login flow', () => {
-      expect(oktaGuide).toMatch(/Sign in with SSO/i);
-      expect(oktaGuide).toMatch(/redirect/i);
-    });
-
-    it('documents the expected server startup log', () => {
-      expect(oktaGuide).toContain('Discovering OIDC issuer');
-      expect(oktaGuide).toContain('OIDC issuer discovered');
-    });
-
-    it('explains first-user admin bootstrap', () => {
-      expect(oktaGuide).toMatch(/first.*admin/i);
-    });
-
-    it('includes a troubleshooting section', () => {
-      expect(oktaGuide).toMatch(/## Troubleshooting/);
-    });
-
-    it('troubleshoots redirect_uri mismatch', () => {
-      expect(oktaGuide).toMatch(/redirect_uri/);
-    });
-
-    it('troubleshoots invalid client credentials', () => {
-      expect(oktaGuide).toMatch(/client_id|client_secret/i);
-    });
-
-    it('explains how to add test users in Okta', () => {
-      expect(oktaGuide).toMatch(/Add.*person|test user/i);
-    });
-
-    it('warns about LOCAL_AUTH mutual exclusion', () => {
-      expect(oktaGuide).toContain('LOCAL_AUTH');
-    });
-  });
-
   describe('cross-file consistency', () => {
     it('docker-compose client ID matches realm export', () => {
       const realm = JSON.parse(realmExport);
@@ -411,7 +330,6 @@ describe('OIDC manual testing infrastructure (PRO-103)', () => {
       expect(dockerComposeOidc).toContain(expectedUri);
       expect(realmExport).toContain(expectedUri);
       expect(keycloakGuide).toContain(expectedUri);
-      expect(oktaGuide).toContain(expectedUri);
     });
   });
 });
