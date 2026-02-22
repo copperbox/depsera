@@ -236,6 +236,7 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 
 - `README.md` — Project overview, quickstart, features, architecture, configuration
 - `docs/installation.md` — Docker, Docker Compose, bare Node.js, reverse proxy, backups
+- `docs/admin-guide.md` — First-run setup, user/team management, alerts, admin settings, troubleshooting
 - `docs/api-reference.md` — All REST API endpoints with request/response schemas and curl examples
 - `docs/spec/` — Technical specification (13 sections) — see `docs/spec/index.md` for topic map
 - `docs/implementation-plan.md` — 1.0 story tracker with Linear ticket references

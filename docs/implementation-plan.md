@@ -886,11 +886,15 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** First-run setup walkthrough, user/team management, admin settings, alert channel setup, data retention, SSRF allowlist, troubleshooting.
 
 **Acceptance criteria:**
-- [ ] `docs/admin-guide.md` covering all admin operations
-- [ ] First-run setup walkthrough (both OIDC and local auth)
-- [ ] User/team management guide
-- [ ] Alert configuration guide (Slack, webhook)
-- [ ] Troubleshooting section (common issues + fixes)
+- [x] `docs/admin-guide.md` covering all admin operations
+- [x] First-run setup walkthrough (both OIDC and local auth)
+- [x] User/team management guide
+- [x] Alert configuration guide (Slack, webhook)
+- [x] Troubleshooting section (common issues + fixes)
+
+**Files touched:**
+- `docs/admin-guide.md` (new) — comprehensive admin guide with first-run setup (local auth + OIDC), user management, team management, alert configuration (Slack + webhook), admin settings, SSRF allowlist, data retention, audit log, monitoring/observability, and troubleshooting
+- `server/src/infra/admin-guide-docs.test.ts` (new) — 101 tests validating documentation accuracy against codebase (sections, settings ranges, rate limit defaults, retention behavior, SSRF blocked ranges)
 
 ---
 

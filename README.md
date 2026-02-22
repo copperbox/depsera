@@ -309,6 +309,7 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 | Document | Description |
 |----------|-------------|
 | [Installation Guide](docs/installation.md) | Docker, Docker Compose, bare Node.js, reverse proxy, backups |
+| [Admin Guide](docs/admin-guide.md) | First-run setup, user/team management, alerts, settings, troubleshooting |
 | [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |
 
 ## License
