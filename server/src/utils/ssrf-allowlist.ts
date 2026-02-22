@@ -1,4 +1,5 @@
 import net from 'net';
+import { SettingsService } from '../services/settings/SettingsService';
 
 export interface ParsedCIDR {
   ip: number;   // 32-bit integer for base IP
@@ -121,12 +122,27 @@ export function ipMatchesAllowlist(ip: string, allowlist: SsrfAllowlist): boolea
 }
 
 /**
- * Get the parsed SSRF allowlist, cached from process.env.SSRF_ALLOWLIST.
- * Returns an empty allowlist if the env var is not set.
- * Cache is invalidated if the env var value changes.
+ * Get the effective SSRF allowlist value.
+ * Checks SettingsService (DB value from admin settings) first,
+ * then falls back to the SSRF_ALLOWLIST env var.
+ */
+function getEffectiveAllowlistValue(): string | undefined {
+  const settings = SettingsService.tryGetInstance();
+  if (settings) {
+    const dbValue = settings.get('ssrf_allowlist');
+    if (dbValue) return dbValue;
+  }
+  return process.env.SSRF_ALLOWLIST;
+}
+
+/**
+ * Get the parsed SSRF allowlist.
+ * Reads from SettingsService (admin settings DB) first, falling back to
+ * the SSRF_ALLOWLIST env var. Returns an empty allowlist if neither is set.
+ * Cache is invalidated when the effective value changes.
  */
 export function getAllowlist(): SsrfAllowlist {
-  const rawValue = process.env.SSRF_ALLOWLIST;
+  const rawValue = getEffectiveAllowlistValue();
 
   if (cachedAllowlist !== null && cachedRawValue === rawValue) {
     return cachedAllowlist;

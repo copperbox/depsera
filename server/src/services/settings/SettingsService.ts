@@ -148,6 +148,15 @@ export class SettingsService {
     return SettingsService.instance;
   }
 
+  /**
+   * Returns the existing singleton instance, or null if not yet initialized.
+   * Used by utility code (e.g. SSRF allowlist) that needs settings but
+   * cannot provide a store reference.
+   */
+  static tryGetInstance(): SettingsService | null {
+    return SettingsService.instance;
+  }
+
   static resetInstance(): void {
     SettingsService.instance = null;
   }

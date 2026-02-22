@@ -8,6 +8,7 @@ import {
   getAllowlist,
   clearAllowlistCache,
 } from './ssrf-allowlist';
+import { SettingsService } from '../services/settings/SettingsService';
 
 jest.mock('net', () => ({
   isIPv4: (ip: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(ip),
@@ -262,6 +263,7 @@ describe('SSRF Allowlist', () => {
 
     beforeEach(() => {
       clearAllowlistCache();
+      SettingsService.resetInstance();
     });
 
     afterEach(() => {
@@ -271,6 +273,7 @@ describe('SSRF Allowlist', () => {
         process.env.SSRF_ALLOWLIST = originalEnv;
       }
       clearAllowlistCache();
+      SettingsService.resetInstance();
     });
 
     it('should return empty allowlist when env var is not set', () => {
@@ -314,6 +317,60 @@ describe('SSRF Allowlist', () => {
       delete process.env.SSRF_ALLOWLIST;
       const result2 = getAllowlist();
       expect(result2.hostnames).toEqual([]);
+    });
+
+    it('should prefer SettingsService DB value over env var', () => {
+      process.env.SSRF_ALLOWLIST = 'from-env';
+      const mockStore = {
+        findAll: () => [{ key: 'ssrf_allowlist', value: 'localhost,*.internal', updated_at: '', updated_by: null }],
+        upsertMany: jest.fn(),
+        findByKey: jest.fn(),
+      };
+      SettingsService.getInstance(mockStore as any);
+
+      const result = getAllowlist();
+      expect(result.hostnames).toEqual(['localhost']);
+      expect(result.patterns).toEqual(['*.internal']);
+    });
+
+    it('should fall back to env var when SettingsService has no DB value', () => {
+      process.env.SSRF_ALLOWLIST = 'from-env';
+      const mockStore = {
+        findAll: () => [],
+        upsertMany: jest.fn(),
+        findByKey: jest.fn(),
+      };
+      SettingsService.getInstance(mockStore as any);
+
+      const result = getAllowlist();
+      expect(result.hostnames).toEqual(['from-env']);
+    });
+
+    it('should fall back to env var when SettingsService is not initialized', () => {
+      process.env.SSRF_ALLOWLIST = 'fallback-host';
+      // No SettingsService.getInstance() call — simulates early startup
+      const result = getAllowlist();
+      expect(result.hostnames).toEqual(['fallback-host']);
+    });
+
+    it('should invalidate cache when SettingsService value changes', () => {
+      const mockStore = {
+        findAll: () => [{ key: 'ssrf_allowlist', value: 'localhost', updated_at: '', updated_by: null }],
+        upsertMany: jest.fn().mockReturnValue([]),
+        findByKey: jest.fn(),
+      };
+      const settings = SettingsService.getInstance(mockStore as any);
+
+      const result1 = getAllowlist();
+      expect(result1.hostnames).toEqual(['localhost']);
+
+      // Simulate admin updating the setting
+      settings.update({ ssrf_allowlist: 'localhost,*.corp.com' }, 'admin-id');
+      clearAllowlistCache();
+
+      const result2 = getAllowlist();
+      expect(result2.hostnames).toEqual(['localhost']);
+      expect(result2.patterns).toEqual(['*.corp.com']);
     });
   });
 });

@@ -1,7 +1,7 @@
 # Depsera
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
 
@@ -10,7 +10,7 @@ A dependency monitoring and service health dashboard. Track service health acros
 The fastest way to get running is with Docker Compose:
 
 ```bash
-git clone https://github.com/your-org/depsera.git
+git clone https://github.com/dantheuber/depsera
 cd depsera
 
 # Edit docker-compose.yml to set SESSION_SECRET and admin credentials
@@ -313,4 +313,4 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 
 ## License
 
-MIT
+Apache 2.0 — see [LICENSE](LICENSE) for details.
