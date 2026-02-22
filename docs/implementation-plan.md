@@ -818,15 +818,15 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Apache 2.0 license, CLA, CONTRIBUTING.md, CODE_OF_CONDUCT.md, GitHub issue/PR templates.
 
 **Acceptance criteria:**
-- [ ] `LICENSE` — Apache 2.0
-- [ ] `CLA.md` — Contributor License Agreement
-- [ ] `CONTRIBUTING.md` — dev setup, code style, PR process, CLA requirement
-- [ ] `CODE_OF_CONDUCT.md` — Contributor Covenant
-- [ ] `.github/ISSUE_TEMPLATE/bug_report.md`
-- [ ] `.github/ISSUE_TEMPLATE/feature_request.md`
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] `LICENSE` — Apache 2.0
+- [x] `CLA.md` — Contributor License Agreement
+- [x] `CONTRIBUTING.md` — dev setup, code style, PR process, CLA requirement
+- [x] `CODE_OF_CONDUCT.md` — Contributor Covenant
+- [x] `.github/ISSUE_TEMPLATE/bug_report.md`
+- [x] `.github/ISSUE_TEMPLATE/feature_request.md`
+- [x] `.github/PULL_REQUEST_TEMPLATE.md`
 
-**Files likely touched:** All listed above (new files)
+**Files touched:** All listed above (new files)
 
 ---
 
@@ -873,10 +873,14 @@ Stories within a phase can be worked in parallel unless a blocking relationship 
 **Scope:** Document proactive-deps format, custom schema mapping guide with examples for common formats (Spring Boot Actuator, ASP.NET health checks).
 
 **Acceptance criteria:**
-- [ ] `docs/health-endpoint-spec.md` documenting proactive-deps format
-- [ ] Custom schema mapping guide with examples
-- [ ] Example mappings for Spring Boot Actuator, ASP.NET health checks
-- [ ] Step-by-step guide for creating a custom mapping
+- [x] `docs/health-endpoint-spec.md` documenting proactive-deps format
+- [x] Custom schema mapping guide with examples
+- [x] Example mappings for Spring Boot Actuator, ASP.NET health checks
+- [x] Step-by-step guide for creating a custom mapping
+
+**Files touched:**
+- `docs/health-endpoint-spec.md` (new) — comprehensive health endpoint specification covering proactive-deps default format (field reference, health states, dependency types, flat format), custom schema mapping (configuration, field mappings, boolean comparisons, dot-notation paths, healthy value coercion), examples (Spring Boot Actuator, ASP.NET Health Checks, custom formats), testing guide (UI and API), and troubleshooting
+- `server/src/infra/health-endpoint-docs.test.ts` (new) — 51 tests validating documentation accuracy against codebase types (SchemaMapping, BooleanComparison, DEPENDENCY_TYPES, healthy coercion values, ProactiveDepsStatus fields)
 
 ---
 
