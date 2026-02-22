@@ -11,6 +11,7 @@ import * as migration009 from './migrations/009_add_settings';
 import * as migration010 from './migrations/010_add_password_hash';
 import * as migration011 from './migrations/011_add_alerts';
 import * as migration012 from './migrations/012_add_schema_config';
+import * as migration013 from './migrations/013_add_external_services';
 
 interface Migration {
   id: string;
@@ -91,6 +92,12 @@ const migrations: Migration[] = [
     name: 'add_schema_config',
     up: migration012.up,
     down: migration012.down
+  },
+  {
+    id: '013',
+    name: 'add_external_services',
+    up: migration013.up,
+    down: migration013.down
   }
 ];
 

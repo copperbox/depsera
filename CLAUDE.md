@@ -84,6 +84,8 @@ Core tables:
 
 Migrations are in `/server/src/db/migrations/` (001-013). Types are in `/server/src/db/types.ts`.
 
+**IMPORTANT:** When adding a new migration file to `/server/src/db/migrations/`, you **must** also register it in `/server/src/db/migrate.ts` — add the import and append an entry to the `migrations` array. The migration runner only executes migrations listed in that array; a migration file that isn't registered will never run.
+
 ## Client-Side Storage
 
 - `graph-node-positions-{userId}` — Persisted node positions for manually dragged graph nodes (per user)
