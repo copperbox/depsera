@@ -70,7 +70,9 @@ export function LatencyChart({ dependencyId, dependencyName, storageKey }: Laten
         setData(
           response.buckets.map((b: LatencyBucket) => ({
             ...b,
-            avg: Math.round(b.avg * 100) / 100,
+            min: Math.round(b.min),
+            avg: Math.round(b.avg),
+            max: Math.round(b.max),
             label: formatTimestamp(b.timestamp, selectedRange),
           }))
         );
@@ -168,7 +170,7 @@ export function LatencyChart({ dependencyId, dependencyName, storageKey }: Laten
                 tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value: number) => `${value}ms`}
+                tickFormatter={(value: number) => `${Math.round(value)}ms`}
                 width={60}
               />
               <Tooltip content={renderTooltipContent} />

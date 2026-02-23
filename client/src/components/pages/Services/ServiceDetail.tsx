@@ -279,7 +279,7 @@ function ServiceDetail() {
                     />
                   </td>
                   <td className={styles.latencyCell}>
-                    {report.latency_ms !== null ? `${report.latency_ms}ms` : '-'}
+                    {report.latency_ms !== null ? `${Math.round(report.latency_ms)}ms` : '-'}
                   </td>
                   <td className={styles.timeCell}>
                     {formatRelativeTime(report.last_checked)}
@@ -346,7 +346,7 @@ function ServiceDetail() {
                     />
                   </td>
                   <td className={styles.latencyCell}>
-                    {dep.latency_ms !== null ? `${dep.latency_ms}ms` : '-'}
+                    {dep.latency_ms !== null ? `${Math.round(dep.latency_ms)}ms` : '-'}
                   </td>
                   <td className={styles.timeCell}>
                     {formatRelativeTime(dep.last_checked)}

@@ -41,8 +41,8 @@ function computeLatencySummary(
 ): { min: number; avg: number; max: number } | null {
   const values = reports.map((r) => r.latency_ms).filter((v): v is number => v !== null);
   if (values.length === 0) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.round(Math.min(...values));
+  const max = Math.round(Math.max(...values));
   const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
   return { min, avg, max };
 }
