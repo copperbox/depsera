@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -7,6 +7,7 @@ import {
   Background,
   useOnSelectionChange,
   type EdgeMouseHandler,
+  type NodeMouseHandler,
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -86,6 +87,8 @@ function DependencyGraphInner() {
     resetLayout,
   } = useGraphState({ userId: user?.id });
 
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+
   // Initial load and team/direction/spacing change
   useEffect(() => {
     loadData();
@@ -140,6 +143,17 @@ function DependencyGraphInner() {
     return getRelatedEdgeIds(selectedNodeId, selectedEdgeId, edges);
   }, [selectedNodeId, selectedEdgeId, edges]);
 
+  // Get hovered node's related nodes/edges (only when nothing is selected)
+  const hoveredRelatedNodeIds = useMemo(() => {
+    if (!hoveredNodeId || selectedNodeId || selectedEdgeId) return null;
+    return getRelatedNodeIds(hoveredNodeId, edges);
+  }, [hoveredNodeId, selectedNodeId, selectedEdgeId, edges]);
+
+  const hoveredRelatedEdgeIds = useMemo(() => {
+    if (!hoveredNodeId || selectedNodeId || selectedEdgeId) return null;
+    return getRelatedEdgeIds(hoveredNodeId, null, edges);
+  }, [hoveredNodeId, selectedNodeId, selectedEdgeId, edges]);
+
   // Filter nodes based on search query and selection
   const filteredNodes = useMemo(() => {
     let result = nodes;
@@ -180,8 +194,18 @@ function DependencyGraphInner() {
       }));
     }
 
+    // Apply hover highlighting (only when nothing is selected)
+    if (hoveredRelatedNodeIds) {
+      result = result.map((node) => ({
+        ...node,
+        style: hoveredRelatedNodeIds.has(node.id)
+          ? { ...(node.style || {}), opacity: 1 }
+          : { ...(node.style || {}), opacity: 0.15 },
+      }));
+    }
+
     return result;
-  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
+  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId, hoveredRelatedNodeIds]);
 
   // Compute whether an edge has high latency
   const computeIsHighLatency = useCallback((latencyMs: number | null | undefined, avgLatencyMs24h: number | null | undefined): boolean => {
@@ -207,6 +231,13 @@ function DependencyGraphInner() {
     };
 
     if (!relatedEdgeIds) {
+      // Apply hover highlighting if active (no selection)
+      if (hoveredRelatedEdgeIds) {
+        return edges.map((edge) => {
+          const isHoverRelated = hoveredRelatedEdgeIds.has(edge.id);
+          return processEdge(edge, false, false, isHoverRelated ? 1 : 0.15);
+        });
+      }
       return edges.map((edge) => processEdge(edge, false, false, 1));
     }
 
@@ -215,7 +246,7 @@ function DependencyGraphInner() {
       const isSelected = edge.id === selectedEdgeId;
       return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency, hoveredRelatedEdgeIds]);
 
   // Get the selected edge's data for the details panel
   const selectedEdge = useMemo(() => {
@@ -240,6 +271,15 @@ function DependencyGraphInner() {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
   }, [setSelectedEdgeId, setSelectedNodeId]);
+
+  // Handle node hover (highlight connections when nothing is selected)
+  const handleNodeMouseEnter: NodeMouseHandler<AppNode> = useCallback((_, node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const handleNodeMouseLeave: NodeMouseHandler<AppNode> = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
 
   // Handle pane click (deselect all)
   const handlePaneClick = useCallback(() => {
@@ -466,6 +506,8 @@ function DependencyGraphInner() {
               onEdgesChange={onEdgesChange}
               onEdgeClick={handleEdgeClick}
               onPaneClick={handlePaneClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView

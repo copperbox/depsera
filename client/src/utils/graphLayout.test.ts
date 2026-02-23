@@ -1,6 +1,7 @@
 import {
   getLayoutedElements,
   transformGraphData,
+  computeEdgeFanOutData,
   NODE_WIDTH,
   NODE_HEIGHT,
   DEFAULT_TIER_SPACING,
@@ -108,14 +109,21 @@ describe('getLayoutedElements', () => {
     expect(result.nodes[0].position.y).toBe(0);
     expect(result.nodes[1].position.x).toBe(200);
     expect(result.nodes[1].position.y).toBe(150);
-    expect(result.edges).toEqual(edges);
+    // Edges should have fan-out data attached
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].data?.sourceIndex).toBe(0);
+    expect(result.edges[0].data?.sourceCount).toBe(1);
+    expect(result.edges[0].data?.targetIndex).toBe(0);
+    expect(result.edges[0].data?.targetCount).toBe(1);
+    expect(result.edges[0].data?.layoutDirection).toBe('TB');
   });
 
   it('applies layout with LR direction', async () => {
     const result = await getLayoutedElements(nodes, edges, 'LR');
 
     expect(result.nodes).toHaveLength(2);
-    expect(result.edges).toEqual(edges);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].data?.layoutDirection).toBe('LR');
   });
 
   it('applies layout with custom tier spacing', async () => {
@@ -263,5 +271,114 @@ describe('transformGraphData', () => {
     const result = await transformGraphData(graphResponse, 'LR', 250);
 
     expect(result.nodes[0].data.layoutDirection).toBe('LR');
+  });
+});
+
+describe('computeEdgeFanOutData', () => {
+  it('assigns index 0, count 1 for a single edge', () => {
+    const edges: AppEdge[] = [
+      { id: 'e1', source: 'a', target: 'b', type: 'custom', data: { relationship: 'depends_on' } },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'TB');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].data?.sourceIndex).toBe(0);
+    expect(result[0].data?.sourceCount).toBe(1);
+    expect(result[0].data?.targetIndex).toBe(0);
+    expect(result[0].data?.targetCount).toBe(1);
+    expect(result[0].data?.layoutDirection).toBe('TB');
+  });
+
+  it('indexes edges sharing the same source node', () => {
+    const edges: AppEdge[] = [
+      { id: 'e1', source: 'a', target: 'b', type: 'custom', data: { relationship: 'depends_on' } },
+      { id: 'e2', source: 'a', target: 'c', type: 'custom', data: { relationship: 'depends_on' } },
+      { id: 'e3', source: 'a', target: 'd', type: 'custom', data: { relationship: 'depends_on' } },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'TB');
+
+    // All three edges share source 'a', so sourceCount should be 3
+    expect(result[0].data?.sourceIndex).toBe(0);
+    expect(result[0].data?.sourceCount).toBe(3);
+    expect(result[1].data?.sourceIndex).toBe(1);
+    expect(result[1].data?.sourceCount).toBe(3);
+    expect(result[2].data?.sourceIndex).toBe(2);
+    expect(result[2].data?.sourceCount).toBe(3);
+
+    // Each edge has a unique target, so targetCount should be 1
+    expect(result[0].data?.targetCount).toBe(1);
+    expect(result[1].data?.targetCount).toBe(1);
+    expect(result[2].data?.targetCount).toBe(1);
+  });
+
+  it('indexes edges sharing the same target node', () => {
+    const edges: AppEdge[] = [
+      { id: 'e1', source: 'a', target: 'z', type: 'custom', data: { relationship: 'depends_on' } },
+      { id: 'e2', source: 'b', target: 'z', type: 'custom', data: { relationship: 'depends_on' } },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'TB');
+
+    // Each edge has unique source
+    expect(result[0].data?.sourceCount).toBe(1);
+    expect(result[1].data?.sourceCount).toBe(1);
+
+    // Both edges share target 'z'
+    expect(result[0].data?.targetIndex).toBe(0);
+    expect(result[0].data?.targetCount).toBe(2);
+    expect(result[1].data?.targetIndex).toBe(1);
+    expect(result[1].data?.targetCount).toBe(2);
+  });
+
+  it('handles edges sharing both source and target independently', () => {
+    // Two edges from 'a' to 'z' (e.g. multiple dependencies between same services)
+    const edges: AppEdge[] = [
+      { id: 'e1', source: 'a', target: 'z', type: 'custom', data: { relationship: 'depends_on' } },
+      { id: 'e2', source: 'a', target: 'z', type: 'custom', data: { relationship: 'depends_on' } },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'TB');
+
+    expect(result[0].data?.sourceIndex).toBe(0);
+    expect(result[0].data?.sourceCount).toBe(2);
+    expect(result[0].data?.targetIndex).toBe(0);
+    expect(result[0].data?.targetCount).toBe(2);
+
+    expect(result[1].data?.sourceIndex).toBe(1);
+    expect(result[1].data?.sourceCount).toBe(2);
+    expect(result[1].data?.targetIndex).toBe(1);
+    expect(result[1].data?.targetCount).toBe(2);
+  });
+
+  it('sets layoutDirection to LR when specified', () => {
+    const edges: AppEdge[] = [
+      { id: 'e1', source: 'a', target: 'b', type: 'custom', data: { relationship: 'depends_on' } },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'LR');
+
+    expect(result[0].data?.layoutDirection).toBe('LR');
+  });
+
+  it('preserves existing edge data', () => {
+    const edges: AppEdge[] = [
+      {
+        id: 'e1', source: 'a', target: 'b', type: 'custom',
+        data: { relationship: 'depends_on', healthy: true, latencyMs: 42 },
+      },
+    ];
+
+    const result = computeEdgeFanOutData(edges, 'TB');
+
+    expect(result[0].data?.relationship).toBe('depends_on');
+    expect(result[0].data?.healthy).toBe(true);
+    expect(result[0].data?.latencyMs).toBe(42);
+  });
+
+  it('handles empty edges array', () => {
+    const result = computeEdgeFanOutData([], 'TB');
+    expect(result).toHaveLength(0);
   });
 });
