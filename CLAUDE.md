@@ -226,6 +226,17 @@ The Associations page (`/client/src/components/pages/Associations/AssociationsPa
 
 Key files: `AssociationsPage.tsx` (tab container), `SuggestionsInbox.tsx` (suggestions cards), `ManageAssociations.tsx` (accordion manager), `AliasesManager.tsx` (alias CRUD), `ExternalServicesManager.tsx` (external service CRUD), `AssociationForm.tsx` (reusable form for creating associations, used in Manage tab and ServiceAssociations modal).
 
+## Wallboard
+
+Dependency-focused wallboard at `/wallboard` showing all dependencies across all services, deduplicated by canonical name, with aggregated health status. Designed for both NOC TV display and interactive desk use.
+
+- **Backend:** `WallboardService` (`/server/src/services/wallboard/WallboardService.ts`) calls `findAllForWallboard()` store method, groups dependencies by `(canonical_name ?? name).toLowerCase().trim()`, aggregates health (worst status wins: critical > warning > healthy > unknown), latency (min/avg/max), and reporters. Returns `WallboardResponse` with `dependencies[]` and `teams[]` for the filter dropdown.
+- **Store method:** `DependencyStore.findAllForWallboard()` joins `dependencies` → `services` → `teams` with left joins to `dependency_associations` and linked services. Returns `DependencyForWallboard` type with `service_team_id`, `service_team_name`, `linked_service_name`.
+- **Route:** `GET /api/wallboard` — requires auth, admin sees all, non-admin scoped to their teams.
+- **Frontend:** `Wallboard.tsx` renders dependency cards in a responsive grid. Cards show canonical name, type badge, health status, reporters, latency (min/avg/max), linked service, and last checked time. Team filter and unhealthy-only toggle persisted to localStorage. Auto-refresh via `usePolling`.
+- **Detail panel:** `DependencyDetailPanel` opens on card click showing full dependency details, reporter list with service links, linked service, `LatencyChart` and `HealthTimeline` charts, and "View in Graph" link.
+- **Types:** `WallboardDependency`, `WallboardReporter`, `WallboardResponse` in `client/src/types/wallboard.ts` and `server/src/services/wallboard/types.ts`.
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.
@@ -246,6 +257,7 @@ Key files: `AssociationsPage.tsx` (tab container), `SuggestionsInbox.tsx` (sugge
 - `/api/teams/:id/alert-channels` - Team alert channel CRUD (GET: team member+, POST/PUT/DELETE: team lead+). `POST /:channelId/test` sends a test alert. Supports Slack webhook and generic HTTP webhook channel types.
 - `/api/teams/:id/alert-rules` - Team alert rule get/upsert (GET: team member+, PUT: team lead+). Severity filter: `critical`, `warning`, `all`.
 - `/api/teams/:id/alert-history` - Team alert history (GET: team member+). Paginated with `limit`, `offset`, and `status` filter (`sent`, `failed`, `suppressed`).
+- `/api/wallboard` - Dependency-focused wallboard data. Returns all dependencies deduplicated by canonical name with aggregated health status, latency, reporters, and linked services. Admin sees all; non-admin scoped to their teams.
 
 ## Documentation
 

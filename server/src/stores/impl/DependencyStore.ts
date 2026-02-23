@@ -8,6 +8,7 @@ import {
 } from '../interfaces/IDependencyStore';
 import {
   DependencyWithTarget,
+  DependencyForWallboard,
   DependencyListOptions,
   DependencyUpsertInput,
   DependentReport,
@@ -141,6 +142,35 @@ export class DependencyStore implements IDependencyStore {
         WHERE d.service_id IN (${placeholders})
       `)
       .all(...serviceIds) as DependencyWithTarget[];
+  }
+
+  findAllForWallboard(): DependencyForWallboard[] {
+    return this.db
+      .prepare(`
+        SELECT
+          d.*,
+          s.name as service_name,
+          s.team_id as service_team_id,
+          t.name as service_team_name,
+          da.linked_service_id as target_service_id,
+          da.association_type,
+          da.is_auto_suggested,
+          da.confidence_score,
+          ls.name as linked_service_name,
+          (
+            SELECT ROUND(AVG(latency_ms))
+            FROM dependency_latency_history
+            WHERE dependency_id = d.id
+              AND recorded_at >= datetime('now', '-24 hours')
+          ) as avg_latency_24h
+        FROM dependencies d
+        JOIN services s ON d.service_id = s.id
+        JOIN teams t ON s.team_id = t.id
+        LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
+        LEFT JOIN services ls ON da.linked_service_id = ls.id
+        WHERE s.is_active = 1
+      `)
+      .all() as DependencyForWallboard[];
   }
 
   findExistingByServiceId(serviceId: string): ExistingDependency[] {
