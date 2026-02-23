@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -60,6 +61,16 @@ const edgeTypes = {
    (graphTraversal, graphLayout) have comprehensive unit test coverage. */
 function DependencyGraphInner() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dependencyParam = searchParams.get('dependency');
+
+  // Clear query param after reading so it doesn't persist on refresh
+  useEffect(() => {
+    if (dependencyParam) {
+      setSearchParams({}, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const {
     nodes,
     edges,
@@ -85,7 +96,7 @@ function DependencyGraphInner() {
     error,
     loadData,
     resetLayout,
-  } = useGraphState({ userId: user?.id });
+  } = useGraphState({ userId: user?.id, initialDependencyId: dependencyParam });
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 

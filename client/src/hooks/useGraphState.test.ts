@@ -312,6 +312,91 @@ describe('useGraphState', () => {
     expect(result.current.isRefreshing).toBe(false);
   });
 
+  it('auto-selects source node when initialDependencyId matches an edge', async () => {
+    const { transformGraphData } = jest.requireMock('../utils/graphLayout');
+    const { fetchGraph } = jest.requireMock('../api/graph');
+    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({
+      nodes: [
+        { id: 'service-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
+        { id: 'service-2', position: { x: 100, y: 0 }, data: { name: 'Service B' } },
+      ],
+      edges: [
+        { id: 'edge-1', source: 'service-1', target: 'service-2', data: { dependencyId: 'dep-42' } },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useGraphState({ initialDependencyId: 'dep-42' })
+    );
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(result.current.selectedNodeId).toBe('service-1');
+    const selectedNode = result.current.nodes.find((n) => n.id === 'service-1');
+    expect(selectedNode?.selected).toBe(true);
+  });
+
+  it('does not auto-select when initialDependencyId does not match any edge', async () => {
+    const { transformGraphData } = jest.requireMock('../utils/graphLayout');
+    const { fetchGraph } = jest.requireMock('../api/graph');
+    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({
+      nodes: [
+        { id: 'service-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
+      ],
+      edges: [],
+    });
+
+    const { result } = renderHook(() =>
+      useGraphState({ initialDependencyId: 'dep-nonexistent' })
+    );
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(result.current.selectedNodeId).toBeNull();
+  });
+
+  it('only auto-selects on first load, not on subsequent loads', async () => {
+    const { transformGraphData } = jest.requireMock('../utils/graphLayout');
+    const { fetchGraph } = jest.requireMock('../api/graph');
+    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({
+      nodes: [
+        { id: 'service-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
+        { id: 'service-2', position: { x: 100, y: 0 }, data: { name: 'Service B' } },
+      ],
+      edges: [
+        { id: 'edge-1', source: 'service-1', target: 'service-2', data: { dependencyId: 'dep-42' } },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useGraphState({ initialDependencyId: 'dep-42' })
+    );
+
+    // First load — should auto-select
+    await act(async () => {
+      await result.current.loadData();
+    });
+    expect(result.current.selectedNodeId).toBe('service-1');
+
+    // Clear selection manually
+    act(() => {
+      result.current.setSelectedNodeId(null);
+    });
+
+    // Second load — should NOT auto-select again
+    await act(async () => {
+      await result.current.loadData();
+    });
+    expect(result.current.selectedNodeId).toBeNull();
+  });
+
   it('sets isRefreshing for background refresh', async () => {
     const { fetchGraph } = jest.requireMock('../api/graph');
     let resolvePromise: () => void;

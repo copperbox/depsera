@@ -74,10 +74,11 @@ export interface UseGraphStateReturn {
 
 export interface UseGraphStateOptions {
   userId?: string;
+  initialDependencyId?: string | null;
 }
 
 export function useGraphState(options: UseGraphStateOptions = {}): UseGraphStateReturn {
-  const { userId } = options;
+  const { userId, initialDependencyId } = options;
   const [nodes, setNodes, baseOnNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<AppEdge>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
@@ -144,6 +145,9 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   useEffect(() => {
     selectedEdgeIdRef.current = selectedEdgeId;
   }, [selectedEdgeId]);
+
+  // Track whether initial dependency selection has been applied
+  const initialDependencyAppliedRef = useRef(false);
 
   // Track manually dragged node IDs
   const movedNodeIdsRef = useRef<Set<string>>(new Set());
@@ -282,8 +286,32 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
           }))
         : layoutedEdges;
 
-      setNodes(nodesWithSelection);
-      setEdges(edgesWithSelection);
+      // Auto-select node for initial dependency navigation (e.g., from wallboard)
+      if (initialDependencyId && !initialDependencyAppliedRef.current) {
+        const matchingEdge = layoutedEdges.find(
+          (e) => e.data?.dependencyId === initialDependencyId
+        );
+        if (matchingEdge) {
+          const sourceNodeId = matchingEdge.source;
+          setSelectedNodeId(sourceNodeId);
+          initialDependencyAppliedRef.current = true;
+
+          // Mark the source node as selected
+          const finalNodes = nodesWithSelection.map((node) => ({
+            ...node,
+            selected: node.id === sourceNodeId,
+          }));
+          setNodes(finalNodes);
+          setEdges(edgesWithSelection);
+        } else {
+          initialDependencyAppliedRef.current = true;
+          setNodes(nodesWithSelection);
+          setEdges(edgesWithSelection);
+        }
+      } else {
+        setNodes(nodesWithSelection);
+        setEdges(edgesWithSelection);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {
