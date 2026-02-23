@@ -24,6 +24,34 @@ jest.mock('../../common/ConfirmDialog', () => ({
     ) : null,
 }));
 
+// Mock auth context
+const mockUseAuth = jest.fn();
+jest.mock('../../../contexts/AuthContext', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
+// Mock useAliases
+const mockLoadAliases = jest.fn();
+const mockLoadCanonicalNames = jest.fn();
+const mockAddAlias = jest.fn();
+const mockRemoveAlias = jest.fn();
+let mockAliases: { id: string; alias: string; canonical_name: string; created_at: string }[] = [];
+let mockCanonicalNames: string[] = [];
+
+jest.mock('../../../hooks/useAliases', () => ({
+  useAliases: () => ({
+    aliases: mockAliases,
+    canonicalNames: mockCanonicalNames,
+    isLoading: false,
+    error: null,
+    loadAliases: mockLoadAliases,
+    loadCanonicalNames: mockLoadCanonicalNames,
+    addAlias: mockAddAlias,
+    editAlias: jest.fn(),
+    removeAlias: mockRemoveAlias,
+  }),
+}));
+
 import { fetchServices } from '../../../api/services';
 import { fetchAssociations, deleteAssociation } from '../../../api/associations';
 import ManageAssociations from './ManageAssociations';
@@ -119,6 +147,13 @@ beforeEach(() => {
   mockFetchServices.mockReset();
   mockFetchAssociations.mockReset();
   mockDeleteAssociation.mockReset();
+  mockLoadAliases.mockReset();
+  mockLoadCanonicalNames.mockReset();
+  mockAddAlias.mockReset();
+  mockRemoveAlias.mockReset();
+  mockAliases = [];
+  mockCanonicalNames = [];
+  mockUseAuth.mockReturnValue({ isAdmin: true });
 });
 
 describe('ManageAssociations', () => {
@@ -399,5 +434,123 @@ describe('ManageAssociations', () => {
     });
 
     expect(screen.getByText('No services match your filters.')).toBeInTheDocument();
+  });
+
+  describe('inline aliases', () => {
+    async function expandDependency() {
+      mockFetchServices.mockResolvedValue([makeService()]);
+      mockFetchAssociations.mockResolvedValue([]);
+      render(<ManageAssociations />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Service Alpha'));
+      fireEvent.click(screen.getByText('Redis'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Aliases')).toBeInTheDocument();
+      });
+    }
+
+    it('shows Aliases section header in expanded dependency panel', async () => {
+      await expandDependency();
+      expect(screen.getByText('Aliases')).toBeInTheDocument();
+    });
+
+    it('displays existing aliases for the dependency', async () => {
+      mockAliases = [
+        { id: 'alias-1', alias: 'Redis', canonical_name: 'Primary Cache', created_at: '2024-01-01T00:00:00Z' },
+        { id: 'alias-2', alias: 'other-dep', canonical_name: 'Other', created_at: '2024-01-01T00:00:00Z' },
+      ];
+      await expandDependency();
+
+      // Should show alias matching dep name 'Redis'
+      expect(screen.getByText(/Primary Cache/)).toBeInTheDocument();
+      // Should not show alias for other dependency
+      expect(screen.queryByText(/Other/)).not.toBeInTheDocument();
+    });
+
+    it('admin sees "+ Add Alias" button', async () => {
+      await expandDependency();
+      expect(screen.getByText('+ Add Alias')).toBeInTheDocument();
+    });
+
+    it('non-admin does not see "+ Add Alias" button', async () => {
+      mockUseAuth.mockReturnValue({ isAdmin: false });
+      await expandDependency();
+      expect(screen.queryByText('+ Add Alias')).not.toBeInTheDocument();
+    });
+
+    it('clicking "+ Add Alias" shows canonical name input', async () => {
+      await expandDependency();
+      fireEvent.click(screen.getByText('+ Add Alias'));
+
+      expect(screen.getByPlaceholderText('Canonical name')).toBeInTheDocument();
+      expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('submitting alias form calls addAlias with dep name and canonical name', async () => {
+      mockAddAlias.mockResolvedValue(undefined);
+      await expandDependency();
+
+      fireEvent.click(screen.getByText('+ Add Alias'));
+      fireEvent.change(screen.getByPlaceholderText('Canonical name'), {
+        target: { value: 'Primary Cache' },
+      });
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(mockAddAlias).toHaveBeenCalledWith({
+          alias: 'Redis',
+          canonical_name: 'Primary Cache',
+        });
+      });
+    });
+
+    it('cancel hides the alias form', async () => {
+      await expandDependency();
+      fireEvent.click(screen.getByText('+ Add Alias'));
+      expect(screen.getByPlaceholderText('Canonical name')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Cancel'));
+      expect(screen.queryByPlaceholderText('Canonical name')).not.toBeInTheDocument();
+    });
+
+    it('admin can delete an alias', async () => {
+      mockAliases = [
+        { id: 'alias-1', alias: 'Redis', canonical_name: 'Primary Cache', created_at: '2024-01-01T00:00:00Z' },
+      ];
+      mockRemoveAlias.mockResolvedValue(undefined);
+      await expandDependency();
+
+      const deleteButtons = screen.getAllByTitle('Delete alias');
+      fireEvent.click(deleteButtons[0]);
+
+      await waitFor(() => {
+        expect(mockRemoveAlias).toHaveBeenCalledWith('alias-1');
+      });
+    });
+
+    it('non-admin does not see delete button for aliases', async () => {
+      mockUseAuth.mockReturnValue({ isAdmin: false });
+      mockAliases = [
+        { id: 'alias-1', alias: 'Redis', canonical_name: 'Primary Cache', created_at: '2024-01-01T00:00:00Z' },
+      ];
+      await expandDependency();
+
+      expect(screen.getByText(/Primary Cache/)).toBeInTheDocument();
+      expect(screen.queryByTitle('Delete alias')).not.toBeInTheDocument();
+    });
+
+    it('loads aliases and canonical names on mount', () => {
+      mockFetchServices.mockResolvedValue([]);
+      render(<ManageAssociations />);
+
+      expect(mockLoadAliases).toHaveBeenCalled();
+      expect(mockLoadCanonicalNames).toHaveBeenCalled();
+    });
   });
 });

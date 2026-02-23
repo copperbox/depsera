@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useManageAssociations } from '../../../hooks/useManageAssociations';
+import { useAliases } from '../../../hooks/useAliases';
+import { useAuth } from '../../../contexts/AuthContext';
 import { ASSOCIATION_TYPE_LABELS } from '../../../types/association';
 import type { Association } from '../../../types/association';
 import AssociationForm from './AssociationForm';
@@ -7,6 +9,7 @@ import ConfirmDialog from '../../common/ConfirmDialog';
 import styles from './ManageAssociations.module.css';
 
 function ManageAssociations() {
+  const { isAdmin } = useAuth();
   const {
     filteredServices,
     isLoading,
@@ -22,10 +25,27 @@ function ManageAssociations() {
     statusFilter,
     setStatusFilter,
   } = useManageAssociations();
+  const {
+    aliases,
+    canonicalNames,
+    loadAliases,
+    loadCanonicalNames,
+    addAlias,
+    removeAlias,
+  } = useAliases();
 
   const [addingForDepId, setAddingForDepId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ depId: string; assoc: Association } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [addingAliasForDepId, setAddingAliasForDepId] = useState<string | null>(null);
+  const [canonicalInput, setCanonicalInput] = useState('');
+  const [aliasError, setAliasError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadAliases();
+    loadCanonicalNames();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -49,6 +69,111 @@ function ManageAssociations() {
     toggleDependency(depId);
     // Small delay to allow state update, then re-expand
     setTimeout(() => toggleDependency(depId), 0);
+  };
+
+  const handleAliasSubmit = async (depName: string) => {
+    const canonical = canonicalInput.trim();
+    if (!canonical) return;
+    setAliasError(null);
+    try {
+      await addAlias({ alias: depName, canonical_name: canonical });
+      setCanonicalInput('');
+      setAddingAliasForDepId(null);
+    } catch (err) {
+      setAliasError(err instanceof Error ? err.message : 'Failed to create alias');
+    }
+  };
+
+  const handleAliasDelete = async (aliasId: string) => {
+    try {
+      await removeAlias(aliasId);
+    } catch {
+      // error logged in hook
+    }
+  };
+
+  const renderAliasSection = (depId: string, depName: string) => {
+    const depAliases = aliases.filter((a) => a.alias === depName);
+    const isShowingAliasForm = addingAliasForDepId === depId;
+
+    return (
+      <div className={styles.aliasSection}>
+        <div className={styles.aliasSectionHeader}>Aliases</div>
+        {depAliases.length > 0 && (
+          <div className={styles.aliasList}>
+            {depAliases.map((a) => (
+              <div key={a.id} className={styles.aliasItem}>
+                <span className={styles.aliasCanonical}>&rarr; {a.canonical_name}</span>
+                {isAdmin && (
+                  <button
+                    className={styles.deleteButton}
+                    onClick={() => handleAliasDelete(a.id)}
+                    title="Delete alias"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4l8 8M12 4l-8 8" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isAdmin && (
+          isShowingAliasForm ? (
+            <div>
+              <div className={styles.aliasForm}>
+                <input
+                  className={styles.aliasInput}
+                  list={`canonical-names-${depId}`}
+                  value={canonicalInput}
+                  onChange={(e) => {
+                    setCanonicalInput(e.target.value);
+                    setAliasError(null);
+                  }}
+                  placeholder="Canonical name"
+                />
+                <datalist id={`canonical-names-${depId}`}>
+                  {canonicalNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <button
+                  className={styles.addButton}
+                  onClick={() => handleAliasSubmit(depName)}
+                  disabled={!canonicalInput.trim()}
+                >
+                  Save
+                </button>
+                <button
+                  className={styles.addButton}
+                  onClick={() => {
+                    setAddingAliasForDepId(null);
+                    setCanonicalInput('');
+                    setAliasError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {aliasError && <div className={styles.aliasError}>{aliasError}</div>}
+            </div>
+          ) : (
+            <button
+              className={styles.addAliasButton}
+              onClick={() => {
+                setAddingAliasForDepId(depId);
+                setCanonicalInput('');
+                setAliasError(null);
+              }}
+            >
+              + Add Alias
+            </button>
+          )
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -200,6 +325,9 @@ function ManageAssociations() {
                                     + Add Association
                                   </button>
                                 )}
+
+                                {/* Aliases section */}
+                                {renderAliasSection(dep.id, dep.name)}
                               </>
                             )}
                           </div>
