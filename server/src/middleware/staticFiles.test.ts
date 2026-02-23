@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import path from 'path';
 import fs from 'fs';
 import { clientBuildExists, createStaticMiddleware } from './staticFiles';
@@ -45,7 +46,7 @@ describe('staticFiles', () => {
       };
       const next = jest.fn();
 
-      spaFallback(req as unknown, res as unknown, next);
+      spaFallback(req as any, res as any, next);
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Cache-Control',

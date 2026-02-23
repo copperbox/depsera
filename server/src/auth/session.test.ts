@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Database from 'better-sqlite3';
 import session from 'express-session';
 import SqliteStore from 'better-sqlite3-session-store';
@@ -40,7 +41,7 @@ describe('SQLite Session Store', () => {
       store.get('test-sid', (err?: Error | null, sess?: unknown) => {
         expect(err).toBeFalsy();
         expect(sess).toBeDefined();
-        expect(sess.userId).toBe('user-1');
+        expect((sess as any).userId).toBe('user-1');
         done();
       });
     });
