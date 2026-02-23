@@ -70,9 +70,9 @@ Core tables:
 - `users` - User accounts (OIDC or local auth, has `password_hash` for local mode)
 - `teams` - Organizational units that own services
 - `team_members` - Junction table for user-team membership
-- `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling, `schema_config` nullable JSON column for custom health endpoint schema mappings)
+- `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling, `schema_config` nullable JSON column for custom health endpoint schema mappings, `is_external` flag for external/unmonitored services, `description` nullable text)
 - `dependencies` - Dependency status data from proactive-deps (has `canonical_name` column for alias resolution)
-- `dependency_associations` - Links between dependencies and services
+- `dependency_associations` - Links between dependencies and services (has `match_reason` nullable text for auto-suggestion context)
 - `dependency_aliases` - Maps reported dependency names (alias) to canonical names
 - `dependency_latency_history` - Historical latency data points per dependency
 - `dependency_error_history` - Historical error records per dependency
@@ -82,7 +82,9 @@ Core tables:
 - `alert_rules` - Team-level alert rules with severity filters (critical, warning, all)
 - `alert_history` - Record of sent/failed/suppressed alerts with payload and status
 
-Migrations are in `/server/src/db/migrations/` (001-012). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-014). Types are in `/server/src/db/types.ts`.
+
+**IMPORTANT:** When adding a new migration file to `/server/src/db/migrations/`, you **must** also register it in `/server/src/db/migrate.ts` — add the import and append an entry to the `migrations` array. The migration runner only executes migrations listed in that array; a migration file that isn't registered will never run.
 
 ## Client-Side Storage
 
@@ -141,7 +143,7 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Rate Limiting:** In-memory rate limiting via `express-rate-limit`. Global limit (100 req/15min per IP) applied before session middleware to reject abusive requests early. Stricter auth limit (10 req/1min per IP) on `/api/auth` to prevent brute-force attacks. All limits configurable via env vars. See `/server/src/middleware/rateLimit.ts`.
 - **Error Sanitization:** A global `errorHandler` middleware is registered after all routes in `/server/src/index.ts` to catch framework-level errors (e.g., body-parser `SyntaxError` from malformed JSON) and return sanitized JSON responses. Route handler catch blocks use `sendErrorResponse()` which logs the full error server-side and returns sanitized responses to clients. Non-operational errors (non-`AppError`) return generic `{ error: "Internal server error" }` with no `message` field. `InvalidOrderByError` is treated as client input validation (returns 400). Poll errors are sanitized via `sanitizePollError()` before DB storage — strips private IPs, internal URLs, file paths, and maps known error codes (ECONNREFUSED, ETIMEDOUT, etc.) to safe descriptions. See `/server/src/utils/errors.ts`.
 - **HTTP Request Logging:** Structured logging via `pino` + `pino-http`. Logs method, path, status code, response time, and authenticated user ID. Sensitive headers (`Authorization`, `Cookie`, `X-CSRF-Token`, `Set-Cookie`) are redacted. `/api/health` excluded from logs by default. JSON output in production, pretty-printed in development. Configurable via `LOG_LEVEL` env var (default: `info`). See `/server/src/utils/logger.ts` and `/server/src/middleware/requestLogger.ts`.
-- **Audit Trail:** Admin action audit log records all user, team, and service mutations with actor, action, resource, details, and IP address. Fire-and-forget logging — errors are logged but never block the request. Admin-only query endpoint with filtering by date range, user, action, and resource type. See `/server/src/services/audit/AuditLogService.ts`.
+- **Audit Trail:** Admin action audit log records all user, team, service, and external service mutations with actor, action, resource, details, and IP address. Fire-and-forget logging — errors are logged but never block the request. Admin-only query endpoint with filtering by date range, user, action, and resource type. See `/server/src/services/audit/AuditLogService.ts`.
 - **Body Size Limit:** `express.json({ limit: '100kb' })` prevents oversized request payloads.
 - **Timing-Safe Auth:** OIDC callback state parameter compared using `crypto.timingSafeEqual` to prevent timing attacks. See `/server/src/routes/auth/callback.ts`.
 - **SQLite Durability:** `synchronous = FULL` pragma ensures durability even on power loss. `wal_autocheckpoint = 1000` prevents unbounded WAL growth. See `/server/src/db/index.ts`.
@@ -212,15 +214,27 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 
 `AlertHistory` component (`/client/src/components/pages/Teams/AlertHistory.tsx`) displays the last 50 alerts in reverse chronological order with columns: time, service, dependency, event type, delivery status (sent/failed/suppressed), and channel type. Includes status filter dropdown. Handles missing/malformed payloads gracefully. Uses `useAlertHistory` hook (`/client/src/hooks/useAlertHistory.ts`).
 
+## Associations Page UI
+
+The Associations page (`/client/src/components/pages/Associations/AssociationsPage.tsx`) has 4 tabs: **Suggestions**, **Manage**, **Aliases**, and **External Services**.
+
+- **Suggestions tab** (`SuggestionsInbox.tsx`): Card-based layout showing auto-suggested associations. Displays one suggestion per dependency (highest confidence, deduplicated server-side via window function). Cards show dependency name, source→linked service flow, confidence percentage bar, match reason, and accept/dismiss actions. Bulk accept/dismiss supported. Dismissing cascades to all suggestions for the same dependency. Confidence scores are 0–100 integers displayed directly as percentages.
+- **Manage tab** (`ManageAssociations.tsx`): Accordion-based view for browsing and editing associations. Services expand to show dependencies; dependencies expand to show existing associations, an inline "Add Association" form, and an "Aliases" section with inline create/delete for admins (read-only for non-admins, with canonical name autocomplete via datalist). Search bar and status filter (All/Linked/Unlinked). Uses `useManageAssociations` hook (`/client/src/hooks/useManageAssociations.ts`) for state management with lazy-loaded associations and `useAliases` hook for inline alias management.
+- **Aliases tab** (`AliasesManager.tsx`): CRUD for dependency name aliases.
+- **External Services tab** (`ExternalServicesManager.tsx`): CRUD for unmonitored external service entries used as association targets.
+
+Key files: `AssociationsPage.tsx` (tab container), `SuggestionsInbox.tsx` (suggestions cards), `ManageAssociations.tsx` (accordion manager), `AliasesManager.tsx` (alias CRUD), `ExternalServicesManager.tsx` (external service CRUD), `AssociationForm.tsx` (reusable form for creating associations, used in Manage tab and ServiceAssociations modal).
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.
-- `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership). `POST /api/services/test-schema` tests a schema mapping against a live URL (team lead+ or admin, SSRF-protected, does not store anything).
+- `/api/services` - CRUD + manual polling (team-scoped: non-admin users see only their team's services; mutations require team lead+; poll requires team membership). Excludes external services from listing. `POST /api/services/test-schema` tests a schema mapping against a live URL (team lead+ or admin, SSRF-protected, does not store anything).
+- `/api/external-services` - CRUD for external (unmonitored) services. External services are lightweight entries (name + description, no health endpoint) used as association targets for dependencies that connect to services outside Depsera's monitoring scope. Team-scoped: list shows user's teams only (admin sees all); create requires team lead+ on target team; update/delete require team lead+ on owning team. Managed from the "External Services" tab on the Associations page.
 - `/api/teams` - CRUD + member management
 - `/api/users` - Admin user management. `POST /api/users` creates a local user and `PUT /api/users/:id/password` resets password (both require `requireAdmin` + `requireLocalAuth`)
 - `/api/aliases` - Dependency alias CRUD (admin only for mutations) + canonical name lookup
 - `/api/dependencies/:id/associations` - Association CRUD (team membership required for mutations)
-- `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss)
+- `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss). GET returns deduplicated suggestions (one per dependency, highest confidence). Dismiss cascades to all suggestions for the same dependency.
 - `/api/graph` - Dependency graph data
 - `/api/latency/:id` - Latency history (24h stats + recent data points)
 - `/api/latency/:id/buckets` - Time-bucketed latency data for charts. Query param `range`: `1h`, `6h`, `24h` (default), `7d`, `30d`. Bucket sizes: 1h/6h→1min, 24h→15min, 7d→1hr, 30d→6hr.

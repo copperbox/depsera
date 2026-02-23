@@ -7,6 +7,12 @@ interface SuggestionsInboxProps {
   suggestions: UseSuggestionsReturn;
 }
 
+function getConfidenceLevel(score: number): 'high' | 'medium' | 'low' {
+  if (score >= 70) return 'high';
+  if (score >= 40) return 'medium';
+  return 'low';
+}
+
 function SuggestionsInbox({ suggestions }: SuggestionsInboxProps) {
   const {
     filtered,
@@ -88,76 +94,106 @@ function SuggestionsInbox({ suggestions }: SuggestionsInboxProps) {
         )}
       </div>
 
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th className={styles.checkboxCell}>
+      <div className={styles.toolbar}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+          <input
+            type="checkbox"
+            checked={selectedIds.size === filtered.length && filtered.length > 0}
+            onChange={() =>
+              selectedIds.size === filtered.length ? clearSelection() : selectAll()
+            }
+            aria-label="Select all"
+          />
+          Select all
+        </label>
+      </div>
+
+      <div className={styles.cardGrid}>
+        {filtered.map((s) => {
+          const level = s.confidence_score !== null ? getConfidenceLevel(s.confidence_score) : null;
+          const isSelected = selectedIds.has(s.id);
+
+          return (
+            <div
+              key={s.id}
+              className={`${styles.card} ${isSelected ? styles.cardSelected : ''}`}
+            >
+              <div className={styles.cardTop}>
                 <input
                   type="checkbox"
-                  checked={selectedIds.size === filtered.length && filtered.length > 0}
-                  onChange={() =>
-                    selectedIds.size === filtered.length ? clearSelection() : selectAll()
-                  }
-                  aria-label="Select all"
+                  className={styles.cardCheckbox}
+                  checked={isSelected}
+                  onChange={() => toggleSelected(s.id)}
+                  aria-label={`Select ${s.dependency_name}`}
                 />
-              </th>
-              <th>Dependency</th>
-              <th>Source Service</th>
-              <th>Linked Service</th>
-              <th>Type</th>
-              <th>Confidence</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s) => (
-              <tr key={s.id}>
-                <td className={styles.checkboxCell}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(s.id)}
-                    onChange={() => toggleSelected(s.id)}
-                    aria-label={`Select ${s.dependency_name}`}
-                  />
-                </td>
-                <td className={styles.nameCell}>{s.dependency_name}</td>
-                <td>{s.service_name}</td>
-                <td>{s.linked_service_name}</td>
-                <td>
-                  <span className={styles.typeBadge}>
-                    {ASSOCIATION_TYPE_LABELS[s.association_type]}
-                  </span>
-                </td>
-                <td className={styles.confidenceCell}>
-                  {s.confidence_score !== null
-                    ? `${Math.round(s.confidence_score * 100)}%`
-                    : '-'}
-                </td>
-                <td className={styles.actionsCell}>
+                <div className={styles.cardContent}>
+                  <div className={styles.depName}>{s.dependency_name}</div>
+                  <div className={styles.serviceFlow}>
+                    <span className={styles.serviceName}>{s.service_name}</span>
+                    <span className={styles.arrow}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 8h10M9 4l4 4-4 4" />
+                      </svg>
+                    </span>
+                    <span className={styles.serviceName}>{s.linked_service_name}</span>
+                  </div>
+                  <div className={styles.cardMeta}>
+                    <span className={styles.typeBadge}>
+                      {ASSOCIATION_TYPE_LABELS[s.association_type]}
+                    </span>
+                    {s.confidence_score !== null && level && (
+                      <div className={styles.confidenceWrapper}>
+                        <div className={styles.confidenceBar}>
+                          <div
+                            className={`${styles.confidenceFill} ${
+                              level === 'high'
+                                ? styles.confidenceHigh
+                                : level === 'medium'
+                                  ? styles.confidenceMedium
+                                  : styles.confidenceLow
+                            }`}
+                            style={{ width: `${Math.round(s.confidence_score)}%` }}
+                          />
+                        </div>
+                        <span className={styles.confidenceLabel}>
+                          {Math.round(s.confidence_score)}%
+                        </span>
+                      </div>
+                    )}
+                    {s.confidence_score === null && (
+                      <span className={styles.confidenceLabel}>-</span>
+                    )}
+                    {s.match_reason && (
+                      <span className={styles.matchReason}>{s.match_reason}</span>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.cardActions}>
                   <button
                     className={styles.acceptButton}
                     onClick={() => accept(s.id)}
                     title="Accept"
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 8l3.5 3.5L13 5" />
                     </svg>
+                    Accept
                   </button>
                   <button
                     className={styles.dismissButton}
                     onClick={() => dismiss(s.id)}
                     title="Dismiss"
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M4 4l8 8M12 4l-8 8" />
                     </svg>
+                    Dismiss
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

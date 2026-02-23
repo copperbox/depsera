@@ -319,7 +319,7 @@ describe('ServiceForm', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
       // Guided fields should not be visible in default mode
-      expect(screen.queryByLabelText(/Path to checks array/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
     });
 
     it('shows guided form when Custom schema is selected', () => {
@@ -327,7 +327,7 @@ describe('ServiceForm', () => {
 
       fireEvent.click(screen.getByText('Custom schema'));
 
-      expect(screen.getByLabelText(/Path to checks array/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
       expect(screen.getByLabelText(/Name field/)).toBeInTheDocument();
       expect(screen.getByLabelText(/Healthy field/)).toBeInTheDocument();
       expect(screen.getByLabelText(/Healthy equals value/)).toBeInTheDocument();
@@ -340,10 +340,10 @@ describe('ServiceForm', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
       fireEvent.click(screen.getByText('Custom schema'));
-      expect(screen.getByLabelText(/Path to checks array/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
 
       fireEvent.click(screen.getByText('proactive-deps (default)'));
-      expect(screen.queryByLabelText(/Path to checks array/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
     });
 
     it('includes schema_config in create request when custom schema is configured', async () => {
@@ -360,7 +360,7 @@ describe('ServiceForm', () => {
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Fill schema fields
-      fireEvent.change(screen.getByLabelText(/Path to checks array/), { target: { value: 'checks' } });
+      fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
       fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'checkName' } });
       fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'status' } });
       fireEvent.change(screen.getByLabelText(/Healthy equals value/), { target: { value: 'UP' } });
@@ -422,7 +422,7 @@ describe('ServiceForm', () => {
       render(<ServiceForm teams={mockTeams} service={serviceWithSchema} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
       // Should show custom schema mode with populated fields
-      expect(screen.getByLabelText(/Path to checks array/)).toHaveValue('data.checks');
+      expect(screen.getByLabelText(/Path to dependencies/)).toHaveValue('data.checks');
       expect(screen.getByLabelText(/Name field/)).toHaveValue('serviceName');
       expect(screen.getByLabelText(/Healthy field/)).toHaveValue('status');
       expect(screen.getByLabelText(/Healthy equals value/)).toHaveValue('UP');
@@ -433,7 +433,7 @@ describe('ServiceForm', () => {
       render(<ServiceForm teams={mockTeams} service={mockService} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
       // Should not show guided fields
-      expect(screen.queryByLabelText(/Path to checks array/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
     });
 
     it('shows Test mapping button when in custom schema mode', () => {
@@ -459,19 +459,19 @@ describe('ServiceForm', () => {
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Should show guided form by default
-      expect(screen.getByLabelText(/Path to checks array/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
 
       // Switch to advanced mode
       fireEvent.click(screen.getByText('Advanced (JSON)'));
 
       // Should show JSON editor
       expect(screen.getByLabelText(/Raw JSON/)).toBeInTheDocument();
-      expect(screen.queryByLabelText(/Path to checks array/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
 
       // Switch back to guided
       fireEvent.click(screen.getByText('Guided form'));
 
-      expect(screen.getByLabelText(/Path to checks array/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
       expect(screen.queryByLabelText(/Raw JSON/)).not.toBeInTheDocument();
     });
 
@@ -494,7 +494,7 @@ describe('ServiceForm', () => {
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Fill schema fields
-      fireEvent.change(screen.getByLabelText(/Path to checks array/), { target: { value: 'checks' } });
+      fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
       fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
       fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'healthy' } });
 
@@ -518,7 +518,7 @@ describe('ServiceForm', () => {
       fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/health' } });
       fireEvent.click(screen.getByText('Custom schema'));
 
-      fireEvent.change(screen.getByLabelText(/Path to checks array/), { target: { value: 'checks' } });
+      fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
       fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
       fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'healthy' } });
 
@@ -540,7 +540,7 @@ describe('ServiceForm', () => {
 
       fireEvent.click(screen.getByText('Custom schema'));
 
-      fireEvent.change(screen.getByLabelText(/Path to checks array/), { target: { value: 'checks' } });
+      fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
       fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
       fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'isHealthy' } });
       // Don't fill "Healthy equals value" — should use simple string mapping

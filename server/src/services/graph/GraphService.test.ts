@@ -407,6 +407,8 @@ function createService(id: string, name: string): ServiceWithTeam {
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,
+    is_external: 0,
+    description: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   };

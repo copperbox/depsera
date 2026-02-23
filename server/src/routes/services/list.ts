@@ -11,7 +11,7 @@ export function listServices(req: Request, res: Response): void {
     const stores = getStores();
     const user = req.user!;
 
-    const options: ServiceListOptions = {};
+    const options: ServiceListOptions = { isExternal: false };
 
     if (orderBy && typeof orderBy === 'string') {
       // findAllWithTeam uses aliased columns (s.name, s.created_at, etc.)

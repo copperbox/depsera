@@ -16,6 +16,8 @@ describe('DependencyGraphBuilder', () => {
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,
+    is_external: 0,
+    description: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
@@ -113,6 +115,25 @@ describe('DependencyGraphBuilder', () => {
       const graph = builder.build();
 
       expect(graph.nodes[0].data.serviceType).toBe('database');
+    });
+
+    it('should set isExternal for external services', () => {
+      const service = createService('svc-1', 'External DB');
+      service.is_external = 1;
+
+      builder.addServiceNode(service, []);
+      const graph = builder.build();
+
+      expect(graph.nodes[0].data.isExternal).toBe(true);
+    });
+
+    it('should not set isExternal for tracked services', () => {
+      const service = createService('svc-1', 'Tracked Service');
+
+      builder.addServiceNode(service, []);
+      const graph = builder.build();
+
+      expect(graph.nodes[0].data.isExternal).toBeUndefined();
     });
   });
 

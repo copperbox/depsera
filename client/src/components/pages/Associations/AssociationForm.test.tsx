@@ -2,12 +2,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 jest.mock('../../../api/services');
 jest.mock('../../../api/associations');
+jest.mock('../../../api/external-services');
 
 import { fetchServices } from './../../../api/services';
+import { fetchExternalServices } from './../../../api/external-services';
 import { createAssociation } from './../../../api/associations';
 import AssociationForm from './AssociationForm';
 
 const mockFetchServices = fetchServices as jest.MockedFunction<typeof fetchServices>;
+const mockFetchExternalServices = fetchExternalServices as jest.MockedFunction<typeof fetchExternalServices>;
 const mockCreateAssociation = createAssociation as jest.MockedFunction<typeof createAssociation>;
 
 function makeService(overrides = {}) {
@@ -34,13 +37,16 @@ function makeService(overrides = {}) {
 
 beforeEach(() => {
   mockFetchServices.mockReset();
+  mockFetchExternalServices.mockReset();
   mockCreateAssociation.mockReset();
   mockFetchServices.mockResolvedValue([makeService()]);
+  mockFetchExternalServices.mockResolvedValue([]);
 });
 
 describe('AssociationForm', () => {
   it('renders loading state initially', () => {
     mockFetchServices.mockReturnValue(new Promise(() => {}));
+    mockFetchExternalServices.mockReturnValue(new Promise(() => {}));
     render(<AssociationForm />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });

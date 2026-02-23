@@ -277,6 +277,86 @@ export function validateServiceUpdate(
 }
 
 // ============================================================================
+// External Service Validation
+// ============================================================================
+
+export interface ValidatedExternalServiceInput {
+  name: string;
+  team_id: string;
+  description: string | null;
+}
+
+export interface ValidatedExternalServiceUpdateInput {
+  name?: string;
+  description?: string | null;
+}
+
+/**
+ * Validate external service creation input
+ * @throws ValidationError if validation fails
+ */
+export function validateExternalServiceCreate(
+  input: Record<string, unknown>
+): ValidatedExternalServiceInput {
+  // Required: name
+  if (!isNonEmptyString(input.name)) {
+    throw new ValidationError('name is required and must be a non-empty string', 'name');
+  }
+
+  // Required: team_id
+  if (!isString(input.team_id) || !input.team_id) {
+    throw new ValidationError('team_id is required', 'team_id');
+  }
+
+  // Optional: description
+  let description: string | null = null;
+  if (input.description !== undefined && input.description !== null) {
+    if (!isString(input.description)) {
+      throw new ValidationError('description must be a string', 'description');
+    }
+    description = input.description || null;
+  }
+
+  return {
+    name: input.name.trim(),
+    team_id: input.team_id,
+    description,
+  };
+}
+
+/**
+ * Validate external service update input
+ * @throws ValidationError if validation fails
+ * @returns null if no valid fields to update
+ */
+export function validateExternalServiceUpdate(
+  input: Record<string, unknown>
+): ValidatedExternalServiceUpdateInput | null {
+  const result: ValidatedExternalServiceUpdateInput = {};
+  let hasUpdates = false;
+
+  // Optional: name
+  if (input.name !== undefined) {
+    if (!isNonEmptyString(input.name)) {
+      throw new ValidationError('name must be a non-empty string', 'name');
+    }
+    result.name = input.name.trim();
+    hasUpdates = true;
+  }
+
+  // Optional: description
+  if (input.description !== undefined) {
+    if (input.description !== null && !isString(input.description)) {
+      throw new ValidationError('description must be a string', 'description');
+    }
+    result.description = input.description as string | null;
+    hasUpdates = true;
+  }
+
+  return hasUpdates ? result : null;
+}
+
+// ============================================================================
 // Association Validation
 // ============================================================================
 

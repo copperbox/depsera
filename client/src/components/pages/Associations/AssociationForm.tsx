@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { fetchServices } from '../../../api/services';
+import { fetchExternalServices } from '../../../api/external-services';
 import { createAssociation } from '../../../api/associations';
 import type { ServiceWithDependencies } from '../../../types/service';
+import type { ExternalService } from '../../../types/external-service';
 import type { AssociationType, CreateAssociationInput } from '../../../types/association';
 import { ASSOCIATION_TYPE_LABELS } from '../../../types/association';
 import SearchableSelect from '../../common/SearchableSelect';
@@ -16,6 +18,7 @@ interface AssociationFormProps {
 
 function AssociationForm({ dependencyId, onSuccess, onCancel }: AssociationFormProps) {
   const [services, setServices] = useState<ServiceWithDependencies[]>([]);
+  const [externalServices, setExternalServices] = useState<ExternalService[]>([]);
   const [selectedDependencyId, setSelectedDependencyId] = useState(dependencyId || '');
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [associationType, setAssociationType] = useState<AssociationType>('api_call');
@@ -26,8 +29,12 @@ function AssociationForm({ dependencyId, onSuccess, onCancel }: AssociationFormP
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await fetchServices();
+        const [data, extData] = await Promise.all([
+          fetchServices(),
+          fetchExternalServices(),
+        ]);
         setServices(data);
+        setExternalServices(extData);
       } catch {
         setError('Failed to load services');
       } finally {
@@ -45,11 +52,18 @@ function AssociationForm({ dependencyId, onSuccess, onCancel }: AssociationFormP
     })),
   );
 
-  const serviceOptions: SelectOption[] = services.map((svc) => ({
-    value: svc.id,
-    label: svc.name,
-    group: svc.team.name,
-  }));
+  const serviceOptions: SelectOption[] = [
+    ...services.map((svc) => ({
+      value: svc.id,
+      label: svc.name,
+      group: svc.team.name,
+    })),
+    ...externalServices.map((svc) => ({
+      value: svc.id,
+      label: svc.name,
+      group: `${svc.team.name} (External)`,
+    })),
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

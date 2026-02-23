@@ -55,6 +55,7 @@ export class DependencyGraphBuilder {
         lastPollSuccess: service.last_poll_success === null ? null : service.last_poll_success === 1,
         lastPollError: service.last_poll_error ?? null,
         serviceType,
+        ...(service.is_external === 1 && { isExternal: true }),
       },
     });
 

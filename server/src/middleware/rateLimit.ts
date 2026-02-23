@@ -23,7 +23,7 @@ export function parseRateLimitConfig(): {
 
 export function createGlobalRateLimit(config?: Partial<RateLimitConfig>) {
   const defaults = parseRateLimitConfig().global;
-  const isDev = process.env.NODE_ENV !== 'production';
+  const isDev = process.env.NODE_ENV === 'development';
   return rateLimit({
     windowMs: config?.windowMs ?? defaults.windowMs,
     max: config?.max ?? defaults.max,
@@ -36,7 +36,7 @@ export function createGlobalRateLimit(config?: Partial<RateLimitConfig>) {
 
 export function createAuthRateLimit(config?: Partial<RateLimitConfig>) {
   const defaults = parseRateLimitConfig().auth;
-  const isDev = process.env.NODE_ENV !== 'production';
+  const isDev = process.env.NODE_ENV === 'development';
   return rateLimit({
     windowMs: config?.windowMs ?? defaults.windowMs,
     max: config?.max ?? defaults.max,

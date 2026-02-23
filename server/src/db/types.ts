@@ -89,6 +89,8 @@ export interface Service {
   schema_config: string | null; // JSON string of SchemaMapping
   poll_interval_ms: number;
   is_active: number; // SQLite boolean
+  is_external: number; // SQLite boolean
+  description: string | null;
   last_poll_success: number | null; // SQLite boolean (0/1)
   last_poll_error: string | null;
   created_at: string;
@@ -198,6 +200,7 @@ export interface DependencyAssociation {
   is_auto_suggested: number; // SQLite boolean
   confidence_score: number | null;
   is_dismissed: number; // SQLite boolean
+  match_reason: string | null;
   created_at: string;
 }
 
@@ -325,9 +328,12 @@ export type AuditAction =
   | 'service.created'
   | 'service.updated'
   | 'service.deleted'
+  | 'external_service.created'
+  | 'external_service.updated'
+  | 'external_service.deleted'
   | 'settings.updated';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'settings';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings';
 
 export interface AuditLogEntry {
   id: string;

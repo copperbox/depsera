@@ -98,11 +98,11 @@ export class ServiceStore implements IServiceStore {
   }
 
   findActive(): Service[] {
-    return this.findAll({ isActive: true });
+    return this.findAll({ isActive: true, isExternal: false });
   }
 
   findActiveWithTeam(): ServiceWithTeam[] {
-    return this.findAllWithTeam({ isActive: true });
+    return this.findAllWithTeam({ isActive: true, isExternal: false });
   }
 
   findByTeamId(teamId: string): Service[] {
@@ -112,11 +112,12 @@ export class ServiceStore implements IServiceStore {
   create(input: ServiceCreateInput): Service {
     const id = randomUUID();
     const now = new Date().toISOString();
+    const isExternal = input.is_external ? 1 : 0;
 
     this.db
       .prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, schema_config, poll_interval_ms, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, schema_config, poll_interval_ms, is_active, is_external, description, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
       `)
       .run(
         id,
@@ -126,6 +127,8 @@ export class ServiceStore implements IServiceStore {
         input.metrics_endpoint ?? null,
         input.schema_config ?? null,
         input.poll_interval_ms ?? 30000,
+        isExternal,
+        input.description ?? null,
         now,
         now
       );
@@ -170,6 +173,10 @@ export class ServiceStore implements IServiceStore {
     if (input.is_active !== undefined) {
       updates.push('is_active = ?');
       params.push(input.is_active ? 1 : 0);
+    }
+    if (input.description !== undefined) {
+      updates.push('description = ?');
+      params.push(input.description);
     }
 
     if (updates.length === 0) {
@@ -235,6 +242,11 @@ export class ServiceStore implements IServiceStore {
     if (options?.isActive !== undefined) {
       conditions.push(`${prefix}is_active = ?`);
       params.push(options.isActive ? 1 : 0);
+    }
+
+    if (options?.isExternal !== undefined) {
+      conditions.push(`${prefix}is_external = ?`);
+      params.push(options.isExternal ? 1 : 0);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

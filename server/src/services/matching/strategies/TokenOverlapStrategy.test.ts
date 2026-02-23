@@ -36,6 +36,8 @@ describe('TokenOverlapStrategy', () => {
     last_poll_success: null,
     last_poll_error: null,
     is_active: 1,
+    is_external: 0,
+    description: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });

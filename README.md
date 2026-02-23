@@ -39,6 +39,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Organize services by team with lead/member roles
 - Team-scoped service access — non-admin users see only their team's services
 - Association engine automatically suggests links between dependencies and services
+- External service registry for unmonitored third-party dependencies (shown in graph and association dropdowns)
 
 **Alerting**
 - Slack notifications with Block Kit formatting and deep links
@@ -262,7 +263,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
-| `/associations` | Suggestions inbox, manual association creation, existing associations browser, and alias management |
+| `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
@@ -276,6 +277,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Health | `GET /api/health` |
 | Auth | `GET /api/auth/mode`, `/login`, `/callback`, `/me`; `POST /api/auth/login` (local), `/logout` |
 | Services | CRUD on `/api/services` (team-scoped), `POST /:id/poll`, `POST /test-schema` |
+| External Services | CRUD on `/api/external-services` (team-scoped) — unmonitored service entries for association targets |
 | Teams | CRUD on `/api/teams`, member management via `/:id/members` |
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |

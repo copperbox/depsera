@@ -36,6 +36,8 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     schema_config: row.schema_config ?? null,
     poll_interval_ms: row.poll_interval_ms,
     is_active: row.is_active,
+    is_external: row.is_external,
+    description: row.description ?? null,
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
     created_at: row.created_at,

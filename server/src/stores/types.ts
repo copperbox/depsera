@@ -27,6 +27,7 @@ export interface ServiceListOptions extends ListOptions {
   teamId?: string;
   teamIds?: string[];
   isActive?: boolean;
+  isExternal?: boolean;
 }
 
 // Dependency-specific filter options
@@ -135,6 +136,8 @@ export interface ServiceCreateInput {
   metrics_endpoint?: string | null;
   schema_config?: string | null;
   poll_interval_ms?: number;
+  is_external?: boolean;
+  description?: string | null;
 }
 
 export interface ServiceUpdateInput {
@@ -145,6 +148,7 @@ export interface ServiceUpdateInput {
   schema_config?: string | null;
   poll_interval_ms?: number;
   is_active?: boolean;
+  description?: string | null;
 }
 
 export interface TeamCreateInput {
@@ -195,4 +199,5 @@ export interface AssociationCreateInput {
   association_type: AssociationType;
   is_auto_suggested?: boolean;
   confidence_score?: number | null;
+  match_reason?: string | null;
 }

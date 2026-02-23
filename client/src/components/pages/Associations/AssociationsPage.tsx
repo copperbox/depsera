@@ -1,23 +1,19 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSuggestions } from '../../../hooks/useSuggestions';
-import { useAssociations } from '../../../hooks/useAssociations';
 import { fetchServices } from '../../../api/services';
 import type { ServiceWithDependencies } from '../../../types/service';
 import SuggestionsInbox from './SuggestionsInbox';
-import AssociationForm from './AssociationForm';
-import AssociationsList from './AssociationsList';
+import ManageAssociations from './ManageAssociations';
 import AliasesManager from './AliasesManager';
+import ExternalServicesManager from './ExternalServicesManager';
 import styles from './AssociationsPage.module.css';
 
-type Tab = 'suggestions' | 'create' | 'existing' | 'aliases';
+type Tab = 'suggestions' | 'manage' | 'aliases' | 'external';
 
 function AssociationsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('suggestions');
   const [services, setServices] = useState<ServiceWithDependencies[]>([]);
-  const [selectedDepId, setSelectedDepId] = useState('');
   const suggestions = useSuggestions();
-  const { associations, isLoading: assocLoading, loadAssociations, removeAssociation } =
-    useAssociations(selectedDepId || undefined);
 
   useEffect(() => {
     suggestions.loadSuggestions();
@@ -29,23 +25,6 @@ function AssociationsPage() {
       console.error('Failed to fetch services:', err);
     });
   }, []);
-
-  useEffect(() => {
-    if (selectedDepId) {
-      loadAssociations();
-    }
-  }, [selectedDepId, loadAssociations]);
-
-  const handleFormSuccess = useCallback(() => {
-    if (selectedDepId) loadAssociations();
-  }, [selectedDepId, loadAssociations]);
-
-  const dependencyOptions = services.flatMap((svc) =>
-    svc.dependencies.map((dep) => ({
-      id: dep.id,
-      label: `${dep.name} (${svc.name})`,
-    })),
-  );
 
   const aliasDependencyOptions = useMemo(
     () => services.flatMap((svc) =>
@@ -75,22 +54,22 @@ function AssociationsPage() {
           )}
         </button>
         <button
-          className={`${styles.tab} ${activeTab === 'create' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('create')}
+          className={`${styles.tab} ${activeTab === 'manage' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('manage')}
         >
-          Create
-        </button>
-        <button
-          className={`${styles.tab} ${activeTab === 'existing' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('existing')}
-        >
-          Existing
+          Manage
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'aliases' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('aliases')}
         >
           Aliases
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'external' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('external')}
+        >
+          External Services
         </button>
       </div>
 
@@ -99,41 +78,11 @@ function AssociationsPage() {
           <SuggestionsInbox suggestions={suggestions} />
         )}
 
-        {activeTab === 'create' && (
-          <AssociationForm onSuccess={handleFormSuccess} />
-        )}
+        {activeTab === 'manage' && <ManageAssociations />}
 
         {activeTab === 'aliases' && <AliasesManager dependencyOptions={aliasDependencyOptions} />}
 
-        {activeTab === 'existing' && (
-          <div>
-            <div className={styles.depSelector}>
-              <label className={styles.depLabel} htmlFor="dep-select">
-                Dependency
-              </label>
-              <select
-                id="dep-select"
-                className={styles.depSelect}
-                value={selectedDepId}
-                onChange={(e) => setSelectedDepId(e.target.value)}
-              >
-                <option value="">Select a dependency...</option>
-                {dependencyOptions.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {selectedDepId && (
-              <AssociationsList
-                associations={associations}
-                isLoading={assocLoading}
-                onDelete={removeAssociation}
-              />
-            )}
-          </div>
-        )}
+        {activeTab === 'external' && <ExternalServicesManager />}
       </div>
     </div>
   );

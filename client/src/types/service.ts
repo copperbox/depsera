@@ -70,6 +70,8 @@ export interface Service {
   metrics_endpoint: string | null;
   schema_config: string | null;
   is_active: number;
+  is_external?: number;
+  description?: string | null;
   last_poll_success: number | null;
   last_poll_error: string | null;
   created_at: string;

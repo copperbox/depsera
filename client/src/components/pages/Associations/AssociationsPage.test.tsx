@@ -3,9 +3,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 jest.mock('../../../api/associations');
 jest.mock('../../../api/services');
 jest.mock('./SuggestionsInbox', () => ({ __esModule: true, default: () => <div data-testid="suggestions-inbox" /> }));
-jest.mock('./AssociationForm', () => ({ __esModule: true, default: () => <div data-testid="association-form" /> }));
-jest.mock('./AssociationsList', () => ({ __esModule: true, default: () => <div data-testid="associations-list" /> }));
+jest.mock('./ManageAssociations', () => ({ __esModule: true, default: () => <div data-testid="manage-associations" /> }));
 jest.mock('./AliasesManager', () => ({ __esModule: true, default: () => <div data-testid="aliases-manager" /> }));
+jest.mock('./ExternalServicesManager', () => ({ __esModule: true, default: () => <div data-testid="external-services-manager" /> }));
 
 import { fetchSuggestions } from './../../../api/associations';
 import { fetchServices } from './../../../api/services';
@@ -22,12 +22,20 @@ beforeEach(() => {
 });
 
 describe('AssociationsPage', () => {
-  it('renders with title and tabs', async () => {
+  it('renders with title and 4 tabs', async () => {
     render(<AssociationsPage />);
     await waitFor(() => expect(screen.getByText('Associations')).toBeInTheDocument());
     expect(screen.getByText('Suggestions')).toBeInTheDocument();
-    expect(screen.getByText('Create')).toBeInTheDocument();
-    expect(screen.getByText('Existing')).toBeInTheDocument();
+    expect(screen.getByText('Manage')).toBeInTheDocument();
+    expect(screen.getByText('Aliases')).toBeInTheDocument();
+    expect(screen.getByText('External Services')).toBeInTheDocument();
+  });
+
+  it('does not render old Create or Existing tabs', async () => {
+    render(<AssociationsPage />);
+    await waitFor(() => expect(screen.getByText('Associations')).toBeInTheDocument());
+    expect(screen.queryByText('Create')).not.toBeInTheDocument();
+    expect(screen.queryByText('Existing')).not.toBeInTheDocument();
   });
 
   it('shows suggestions tab by default', async () => {
@@ -35,18 +43,11 @@ describe('AssociationsPage', () => {
     await waitFor(() => expect(screen.getByTestId('suggestions-inbox')).toBeInTheDocument());
   });
 
-  it('switches to create tab', async () => {
+  it('switches to manage tab', async () => {
     render(<AssociationsPage />);
-    await waitFor(() => expect(screen.getByText('Create')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Create'));
-    expect(screen.getByTestId('association-form')).toBeInTheDocument();
-  });
-
-  it('switches to existing tab', async () => {
-    render(<AssociationsPage />);
-    await waitFor(() => expect(screen.getByText('Existing')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Existing'));
-    expect(screen.getByText('Select a dependency...')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Manage')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Manage'));
+    expect(screen.getByTestId('manage-associations')).toBeInTheDocument();
   });
 
   it('switches to aliases tab', async () => {
@@ -54,6 +55,13 @@ describe('AssociationsPage', () => {
     await waitFor(() => expect(screen.getByText('Aliases')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Aliases'));
     expect(screen.getByTestId('aliases-manager')).toBeInTheDocument();
+  });
+
+  it('switches to external services tab', async () => {
+    render(<AssociationsPage />);
+    await waitFor(() => expect(screen.getByText('External Services')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('External Services'));
+    expect(screen.getByTestId('external-services-manager')).toBeInTheDocument();
   });
 
   it('handles fetchServices error gracefully', async () => {
@@ -74,8 +82,9 @@ describe('AssociationsPage', () => {
         linked_service_id: 'ls1',
         association_type: 'api_call',
         is_auto_suggested: 1,
-        confidence_score: 0.85,
+        confidence_score: 85,
         is_dismissed: 0,
+        match_reason: null,
         created_at: '2025-01-01',
         dependency_name: 'dep-1',
         service_name: 'Service A',
@@ -85,68 +94,5 @@ describe('AssociationsPage', () => {
 
     render(<AssociationsPage />);
     await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument());
-  });
-
-  it('loads dependency options for existing tab', async () => {
-    mockFetchServices.mockResolvedValue([
-      {
-        id: 'svc-1',
-        name: 'Service Alpha',
-        team_id: 'team-1',
-        health_endpoint: 'https://example.com/health',
-        metrics_endpoint: null,
-        is_active: 1,
-        last_poll_success: 1,
-        last_poll_error: null,
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
-        health: { status: 'healthy' as const, healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0, last_report: null },
-        dependencies: [
-          { id: 'dep-1', service_id: 'svc-1', name: 'Database', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0 as const, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
-        ],
-        dependent_reports: [],
-      },
-    ]);
-
-    render(<AssociationsPage />);
-    await waitFor(() => expect(screen.getByText('Existing')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Existing'));
-
-    await waitFor(() => expect(screen.getByText('Database (Service Alpha)')).toBeInTheDocument());
-  });
-
-  it('selects dependency in existing tab and shows associations list', async () => {
-    mockFetchServices.mockResolvedValue([
-      {
-        id: 'svc-1',
-        name: 'Service Alpha',
-        team_id: 'team-1',
-        health_endpoint: 'https://example.com/health',
-        metrics_endpoint: null,
-        is_active: 1,
-        last_poll_success: 1,
-        last_poll_error: null,
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
-        health: { status: 'healthy' as const, healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0, last_report: null },
-        dependencies: [
-          { id: 'dep-1', service_id: 'svc-1', name: 'Database', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0 as const, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
-        ],
-        dependent_reports: [],
-      },
-    ]);
-
-    render(<AssociationsPage />);
-    await waitFor(() => expect(screen.getByText('Existing')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Existing'));
-
-    await waitFor(() => expect(screen.getByLabelText('Dependency')).toBeInTheDocument());
-
-    // Select dependency
-    fireEvent.change(screen.getByLabelText('Dependency'), { target: { value: 'dep-1' } });
-
-    await waitFor(() => expect(screen.getByTestId('associations-list')).toBeInTheDocument());
   });
 });
