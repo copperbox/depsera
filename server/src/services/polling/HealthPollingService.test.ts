@@ -1038,6 +1038,75 @@ describe('HealthPollingService - host rate limiting', () => {
     logSpy.mockRestore();
   });
 
+  it('should prioritize least-recently-polled services to prevent starvation', async () => {
+    // 4 services on the same host, rate limit of 2 per host
+    // After first cycle polls svc-1 and svc-2, the second cycle should
+    // prioritize svc-3 and svc-4 (lastPolled=0) over svc-1/svc-2 (recently polled)
+    const svc1 = createService('svc-1', 'service-a', {
+      health_endpoint: 'http://example.com/a/deps',
+    });
+    const svc2 = createService('svc-2', 'service-b', {
+      health_endpoint: 'http://example.com/b/deps',
+    });
+    const svc3 = createService('svc-3', 'service-c', {
+      health_endpoint: 'http://example.com/c/deps',
+    });
+    const svc4 = createService('svc-4', 'service-d', {
+      health_endpoint: 'http://example.com/d/deps',
+    });
+    const { instance, pollers, syncServices, pollCache, stateManager } =
+      createPollingService([svc1, svc2, svc3, svc4]);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+    // Set host rate limit to 2
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
+    (instance as any).hostRateLimiter = new (require('./HostRateLimiter').HostRateLimiter)(2);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
+
+    syncServices();
+
+    const pollResult = {
+      success: true,
+      dependenciesUpdated: 1,
+      statusChanges: [],
+      latencyMs: 50,
+    };
+
+    const pollMocks = new Map<string, jest.Mock>();
+    for (const id of ['svc-1', 'svc-2', 'svc-3', 'svc-4']) {
+      const mock = jest.fn().mockResolvedValue(pollResult);
+      pollMocks.set(id, mock);
+      pollers.set(id, { poll: mock } as unknown as ReturnType<typeof pollers.get>);
+    }
+
+    // Simulate svc-1 and svc-2 were polled recently (lastPolled > 0)
+    const state1 = stateManager.getState('svc-1')!;
+    const state2 = stateManager.getState('svc-2')!;
+    state1.lastPolled = Date.now();
+    state2.lastPolled = Date.now();
+
+    // svc-3 and svc-4 have never been polled (lastPolled = 0)
+    // Invalidate all caches so all 4 want to poll
+    for (const id of ['svc-1', 'svc-2', 'svc-3', 'svc-4']) {
+      pollCache.invalidate(id);
+    }
+
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    await (instance as any).runPollCycle();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    // With the fairness sort, svc-3 and svc-4 (lastPolled=0) should be polled
+    // over svc-1 and svc-2 (recently polled)
+    expect(pollMocks.get('svc-3')!).toHaveBeenCalled();
+    expect(pollMocks.get('svc-4')!).toHaveBeenCalled();
+    expect(pollMocks.get('svc-1')!).not.toHaveBeenCalled();
+    expect(pollMocks.get('svc-2')!).not.toHaveBeenCalled();
+
+    await instance.shutdown();
+    logSpy.mockRestore();
+  });
+
   it('should clean up host rate limiter and deduplicator on shutdown', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, hostRateLimiter, pollDeduplicator } = createPollingService([svc1]);

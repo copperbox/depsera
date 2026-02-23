@@ -111,7 +111,9 @@ describe('HostRateLimiter', () => {
 
     const limiter = new HostRateLimiter();
 
-    // Default is 3
+    // Default is 5
+    expect(limiter.acquire('example.com')).toBe(true);
+    expect(limiter.acquire('example.com')).toBe(true);
     expect(limiter.acquire('example.com')).toBe(true);
     expect(limiter.acquire('example.com')).toBe(true);
     expect(limiter.acquire('example.com')).toBe(true);

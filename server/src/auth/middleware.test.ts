@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from 'express';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'crypto';
@@ -188,7 +189,7 @@ describe('Auth Middleware', () => {
 
     it('should return 401 when user not found', () => {
       const req = createMockRequest({
-        session: { userId: 'non-existent-user-id', destroy: jest.fn() } as unknown,
+        session: { userId: 'non-existent-user-id', destroy: jest.fn() } as any,
       });
       const res = createMockResponse();
       const next = jest.fn();
@@ -204,7 +205,7 @@ describe('Auth Middleware', () => {
 
     it('should return 401 when user is inactive', () => {
       const req = createMockRequest({
-        session: { userId: inactiveUserId, destroy: jest.fn() } as unknown,
+        session: { userId: inactiveUserId, destroy: jest.fn() } as any,
       });
       const res = createMockResponse();
       const next = jest.fn();
@@ -219,7 +220,7 @@ describe('Auth Middleware', () => {
 
     it('should call next and set req.user when authenticated', () => {
       const req = createMockRequest({
-        session: { userId: regularUserId } as unknown,
+        session: { userId: regularUserId } as any,
       });
       const res = createMockResponse();
       const next = jest.fn();
@@ -246,7 +247,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not admin', () => {
       const req = createMockRequest({
-        session: { userId: regularUserId } as unknown,
+        session: { userId: regularUserId } as any,
       });
       const res = createMockResponse();
       const next = jest.fn();
@@ -259,7 +260,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is admin', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
       });
       const res = createMockResponse();
       const next = jest.fn();
@@ -283,7 +284,7 @@ describe('Auth Middleware', () => {
 
     it('should return 400 when no team ID', () => {
       const req = createMockRequest({
-        session: { userId: regularUserId } as unknown,
+        session: { userId: regularUserId } as any,
         params: {},
       });
       const res = createMockResponse();
@@ -297,7 +298,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not a team member', () => {
       const req = createMockRequest({
-        session: { userId: regularUserId } as unknown,
+        session: { userId: regularUserId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -311,7 +312,7 @@ describe('Auth Middleware', () => {
 
     it('should call next and set membership when user is a team member', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -326,7 +327,7 @@ describe('Auth Middleware', () => {
 
     it('should allow admin without setting membership', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -340,7 +341,7 @@ describe('Auth Middleware', () => {
 
     it('should use teamId param as fallback', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { teamId: teamId },
       });
       const res = createMockResponse();
@@ -365,7 +366,7 @@ describe('Auth Middleware', () => {
 
     it('should return 400 when no team ID', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: {},
       });
       const res = createMockResponse();
@@ -379,7 +380,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not a team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -395,7 +396,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is a team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -409,7 +410,7 @@ describe('Auth Middleware', () => {
 
     it('should allow admin access', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
         params: { id: teamId },
       });
       const res = createMockResponse();
@@ -422,7 +423,7 @@ describe('Auth Middleware', () => {
 
     it('should use teamId param as fallback', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: { teamId: teamId },
       });
       const res = createMockResponse();
@@ -447,7 +448,7 @@ describe('Auth Middleware', () => {
 
     it('should return 400 when no service ID', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: {},
       });
       const res = createMockResponse();
@@ -461,7 +462,7 @@ describe('Auth Middleware', () => {
 
     it('should return 404 when service not found', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: { id: 'non-existent-service' },
       });
       const res = createMockResponse();
@@ -475,7 +476,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -488,7 +489,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -501,7 +502,7 @@ describe('Auth Middleware', () => {
 
     it('should allow admin access', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -526,7 +527,7 @@ describe('Auth Middleware', () => {
 
     it('should return 400 when no service ID', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: {},
       });
       const res = createMockResponse();
@@ -540,7 +541,7 @@ describe('Auth Middleware', () => {
 
     it('should return 404 when service not found', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { id: 'non-existent-service' },
       });
       const res = createMockResponse();
@@ -554,7 +555,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not a member of the service team', () => {
       const req = createMockRequest({
-        session: { userId: regularUserId } as unknown,
+        session: { userId: regularUserId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -567,7 +568,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is a team member (not lead)', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -581,7 +582,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is a team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -595,7 +596,7 @@ describe('Auth Middleware', () => {
 
     it('should allow admin access', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
         params: { id: serviceId },
       });
       const res = createMockResponse();
@@ -620,7 +621,7 @@ describe('Auth Middleware', () => {
 
     it('should return 400 when no team_id in body', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         body: {},
       });
       const res = createMockResponse();
@@ -636,7 +637,7 @@ describe('Auth Middleware', () => {
 
     it('should return 403 when user is not team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamMemberId } as unknown,
+        session: { userId: teamMemberId } as any,
         body: { team_id: teamId },
       });
       const res = createMockResponse();
@@ -649,7 +650,7 @@ describe('Auth Middleware', () => {
 
     it('should call next when user is team lead', () => {
       const req = createMockRequest({
-        session: { userId: teamLeadId } as unknown,
+        session: { userId: teamLeadId } as any,
         body: { team_id: teamId },
       });
       const res = createMockResponse();
@@ -663,7 +664,7 @@ describe('Auth Middleware', () => {
 
     it('should allow admin access', () => {
       const req = createMockRequest({
-        session: { userId: adminId } as unknown,
+        session: { userId: adminId } as any,
         body: { team_id: teamId },
       });
       const res = createMockResponse();

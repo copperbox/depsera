@@ -474,7 +474,7 @@ Monitor the polling system's behavior through logs and the service detail page:
 
 **Exponential backoff:** On poll failure, the retry delay increases exponentially (1s → 2s → 4s → ... → 5min max). Resets to normal interval on success.
 
-**Host concurrency:** Each target hostname is limited to 3 concurrent polls (configurable via `POLL_MAX_CONCURRENT_PER_HOST`) to prevent overwhelming target services. Services that can't acquire a slot are retried on the next 5-second tick.
+**Host concurrency:** Each target hostname is limited to 5 concurrent polls (configurable via `POLL_MAX_CONCURRENT_PER_HOST`) to prevent overwhelming target services. Services that can't acquire a slot are retried on the next 5-second tick.
 
 **Poll deduplication:** If multiple services share the same health endpoint URL, only one HTTP request is made per poll cycle.
 
@@ -533,7 +533,7 @@ The circuit breaker will automatically retry after 5 minutes. You can also trigg
 **Polls are slow or timing out**
 - Default HTTP timeout for polls is 10 seconds
 - Check network connectivity between Depsera and the target service
-- If many services share a hostname, the per-host concurrency limit (default 3) may cause queuing
+- If many services share a hostname, the per-host concurrency limit (default 5) may cause queuing
 
 ### Alerts not sending
 

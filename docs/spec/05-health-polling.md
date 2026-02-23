@@ -95,13 +95,15 @@ In-memory `Map<serviceId, { expiresAt: number }>`.
 
 Per-hostname concurrency semaphore preventing DDoS amplification.
 
-- **Max concurrent per host:** 3 (configurable via `POLL_MAX_CONCURRENT_PER_HOST`)
+- **Max concurrent per host:** 5 (configurable via `POLL_MAX_CONCURRENT_PER_HOST`)
 - **Mechanism:** `Map<hostname, number>` tracking active poll count
 - `acquire(hostname)` → increments count if < max, returns boolean
 - `release(hostname)` → decrements count; removes entry if ≤ 0
 - **Hostname extraction:** `new URL(url).hostname`
 
 Services that cannot acquire a slot are skipped this tick and automatically retried on the next 5-second tick. There is no explicit retry queue.
+
+**Fairness sort:** Before host rate limiting is applied each tick, eligible services are sorted by `lastPolled` ascending. This guarantees that least-recently-polled services (including never-polled services with `lastPolled=0`) acquire host slots first, preventing starvation when many services share a hostname.
 
 ## 5.6 Poll Deduplication
 
@@ -152,4 +154,4 @@ When a poll succeeds, the health endpoint response is parsed (proactive-deps for
 | Default poll interval | 30,000ms | services table default |
 | Min poll interval | 5,000ms | API validation |
 | Max poll interval | 3,600,000ms (1 hr) | API validation |
-| Host concurrency limit | 3 | HostRateLimiter (env: `POLL_MAX_CONCURRENT_PER_HOST`) |
+| Host concurrency limit | 5 | HostRateLimiter (env: `POLL_MAX_CONCURRENT_PER_HOST`) |

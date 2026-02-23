@@ -384,6 +384,11 @@ export class HealthPollingService extends EventEmitter {
 
     if (toPoll.length === 0) return;
 
+    // Sort by lastPolled ascending so least-recently-polled services get priority.
+    // This prevents starvation when many services share a hostname — without this,
+    // Map insertion order would deterministically starve services at the tail.
+    toPoll.sort((a, b) => a.lastPolled - b.lastPolled);
+
     // Apply host rate limiting — skip services whose host is at capacity
     const eligible: ServicePollState[] = [];
     const acquiredHosts: Map<string, string[]> = new Map(); // hostname -> serviceIds

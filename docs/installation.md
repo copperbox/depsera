@@ -400,7 +400,7 @@ The global rate limiter runs before session middleware to reject abusive request
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent health polls per target hostname. Prevents the polling service from being used as a DDoS amplifier. |
+| `POLL_MAX_CONCURRENT_PER_HOST` | `5` | Max concurrent health polls per target hostname. Prevents the polling service from being used as a DDoS amplifier. |
 | `DEFAULT_POLL_INTERVAL_MS` | `30000` | Default polling interval for new services (milliseconds). Per-service intervals can be configured individually (range: 5,000–3,600,000 ms). |
 
 ### Alerting
