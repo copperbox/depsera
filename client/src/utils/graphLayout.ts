@@ -7,7 +7,7 @@ import {
   ServiceNodeData,
   GraphEdgeData,
 } from '../types/graph';
-import { computeEdgeRoutes } from './edgeRouter';
+import { adjustLayerSpacing, computeEdgeRoutes } from './edgeRouter';
 
 export type AppNode = Node<ServiceNodeData, 'service'>;
 export type AppEdge = Edge<GraphEdgeData, 'custom'>;
@@ -48,11 +48,11 @@ export async function getLayoutedElements(
       'elk.direction': elkDirection,
       // Node spacing within the same layer (user-controlled)
       'elk.spacing.nodeNode': String(nodeSpacing),
-      // Spacing between layers (tiers) — fixed; extra room for routing lanes
-      'elk.layered.spacing.nodeNodeBetweenLayers': '220',
-      // Edge spacing — push edges further apart
+      // Base spacing between layers — adjusted dynamically after layout
+      'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+      // Edge spacing
       'elk.spacing.edgeNode': '70',
-      'elk.spacing.edgeEdge': '60',
+      'elk.spacing.edgeEdge': '50',
       // Edge spacing between layers
       'elk.layered.spacing.edgeEdgeBetweenLayers': '30',
       'elk.layered.spacing.edgeNodeBetweenLayers': '30',
@@ -93,8 +93,11 @@ export async function getLayoutedElements(
     };
   });
 
-  // Compute orthogonal routing lanes for edges
-  const routingLanes = computeEdgeRoutes(layoutedNodes, edges, direction);
+  // Adjust inter-layer spacing per gap based on edge density
+  const adjustedNodes = adjustLayerSpacing(layoutedNodes, edges, direction);
+
+  // Compute orthogonal routing lanes on the adjusted positions
+  const routingLanes = computeEdgeRoutes(adjustedNodes, edges, direction);
 
   const layoutedEdges: AppEdge[] = edges.map((edge) => ({
     ...edge,
@@ -105,7 +108,7 @@ export async function getLayoutedElements(
     },
   }));
 
-  return { nodes: layoutedNodes, edges: layoutedEdges };
+  return { nodes: adjustedNodes, edges: layoutedEdges };
 }
 
 /**

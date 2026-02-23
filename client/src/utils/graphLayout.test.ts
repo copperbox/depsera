@@ -107,7 +107,8 @@ describe('getLayoutedElements', () => {
     expect(result.nodes[0].position.x).toBe(0);
     expect(result.nodes[0].position.y).toBe(0);
     expect(result.nodes[1].position.x).toBe(200);
-    expect(result.nodes[1].position.y).toBe(150);
+    // ELK places at y=150, adjustLayerSpacing moves to y=200 (NODE_HEIGHT + MIN_LAYER_GAP)
+    expect(result.nodes[1].position.y).toBe(200);
 
     // Edges should have routing data attached
     expect(result.edges).toHaveLength(1);

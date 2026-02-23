@@ -246,7 +246,9 @@ function DependencyGraphInner() {
       if (hoveredRelatedEdgeIds) {
         return edges.map((edge) => {
           const isHoverRelated = hoveredRelatedEdgeIds.has(edge.id);
-          return processEdge(edge, false, false, isHoverRelated ? 1 : 0.15);
+          return isHoverRelated
+            ? processEdge(edge, false, false, 1)
+            : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
         });
       }
       return edges.map((edge) => processEdge(edge, false, false, 1));
@@ -255,7 +257,9 @@ function DependencyGraphInner() {
     return edges.map((edge) => {
       const isRelated = relatedEdgeIds.has(edge.id);
       const isSelected = edge.id === selectedEdgeId;
-      return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
+      return isRelated
+        ? processEdge(edge, isSelected, !isSelected, 1)
+        : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
     });
   }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency, hoveredRelatedEdgeIds]);
 
