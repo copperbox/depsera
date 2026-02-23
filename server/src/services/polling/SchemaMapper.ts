@@ -1,4 +1,4 @@
-import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES } from '../../db/types';
+import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType } from '../../db/types';
 import logger from '../../utils/logger';
 
 /**
@@ -139,7 +139,7 @@ export class SchemaMapper {
     const description = typeof descriptionRaw === 'string' ? descriptionRaw : undefined;
 
     const typeRaw = fields.type ? this.resolveMapping(item, fields.type) : undefined;
-    const type: DependencyType = (typeof typeRaw === 'string' && DEPENDENCY_TYPES.includes(typeRaw as DependencyType))
+    const type = (typeof typeRaw === 'string' && typeRaw.trim() !== '')
       ? typeRaw as DependencyType
       : 'other';
 

@@ -455,7 +455,7 @@ describe('SchemaMapper', () => {
       expect(result[2].type).toBe('cache');
     });
 
-    it('should default type to other when mapped value is invalid', () => {
+    it('should pass through arbitrary string type values', () => {
       const schema: SchemaMapping = {
         root: 'checks',
         fields: {
@@ -467,9 +467,31 @@ describe('SchemaMapper', () => {
       const mapper = new SchemaMapper(schema);
       const data = {
         checks: [
-          { name: 'dep1', ok: true, category: 'invalid-type' },
-          { name: 'dep2', ok: true, category: 42 },
-          { name: 'dep3', ok: true },
+          { name: 'dep1', ok: true, category: 'redis' },
+          { name: 'dep2', ok: true, category: 'kafka' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+      expect(result[0].type).toBe('redis');
+      expect(result[1].type).toBe('kafka');
+    });
+
+    it('should default type to other when mapped value is non-string or missing', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          type: 'category',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'dep1', ok: true, category: 42 },
+          { name: 'dep2', ok: true },
+          { name: 'dep3', ok: true, category: '  ' },
         ],
       };
 
