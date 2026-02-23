@@ -55,7 +55,7 @@ function CustomEdgeComponent({
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
   const isHighLatency = data?.isHighLatency ?? false;
-  const opacity = style?.opacity ?? 1;
+  const opacity = Number(style?.opacity ?? 1);
 
   // Determine edge class: high latency takes precedence over healthy/unhealthy for styling
   let edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
@@ -88,7 +88,7 @@ function CustomEdgeComponent({
         markerEnd="url(#arrow-dependency)"
         style={style}
       />
-      {label && (
+      {label && opacity >= 0.5 && (
         <EdgeLabelRenderer>
           <div
             className={labelClass}

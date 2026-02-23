@@ -14,11 +14,11 @@ export type AppEdge = Edge<GraphEdgeData, 'custom'>;
 export type LayoutDirection = 'TB' | 'LR';
 
 export const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
-export const TIER_SPACING_KEY = 'graph-tier-spacing';
+export const NODE_SPACING_KEY = 'graph-node-spacing';
 export const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-export const DEFAULT_TIER_SPACING = 180;
-export const MIN_TIER_SPACING = 80;
-export const MAX_TIER_SPACING = 400;
+export const DEFAULT_NODE_SPACING = 100;
+export const MIN_NODE_SPACING = 50;
+export const MAX_NODE_SPACING = 400;
 export const DEFAULT_LATENCY_THRESHOLD = 50;
 export const MIN_LATENCY_THRESHOLD = 10;
 export const MAX_LATENCY_THRESHOLD = 200;
@@ -35,7 +35,7 @@ export async function getLayoutedElements(
   nodes: AppNode[],
   edges: AppEdge[],
   direction: LayoutDirection = 'TB',
-  tierSpacing: number = DEFAULT_TIER_SPACING
+  nodeSpacing: number = DEFAULT_NODE_SPACING
 ): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
   // ELK uses 'DOWN' for top-to-bottom and 'RIGHT' for left-to-right
   const elkDirection = direction === 'TB' ? 'DOWN' : 'RIGHT';
@@ -45,19 +45,24 @@ export async function getLayoutedElements(
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': elkDirection,
-      // Node spacing within the same layer
-      'elk.spacing.nodeNode': '100',
-      // Spacing between layers (tiers)
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(tierSpacing),
-      // Edge spacing
-      'elk.spacing.edgeNode': '50',
-      'elk.spacing.edgeEdge': '30',
+      // Node spacing within the same layer (user-controlled)
+      'elk.spacing.nodeNode': String(nodeSpacing),
+      // Spacing between layers (tiers) — fixed
+      'elk.layered.spacing.nodeNodeBetweenLayers': '180',
+      // Edge spacing — push edges further apart
+      'elk.spacing.edgeNode': '70',
+      'elk.spacing.edgeEdge': '50',
+      // Edge spacing between layers
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '30',
+      'elk.layered.spacing.edgeNodeBetweenLayers': '30',
       // Minimize edge crossings
       'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
       // Consider node size for spacing
       'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
       // Better edge routing
       'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      // More layout optimization iterations
+      'elk.layered.thoroughness': '15',
       // Separate connected components
       'elk.separateConnectedComponents': 'true',
       'elk.spacing.componentComponent': '150',
@@ -96,7 +101,7 @@ export async function getLayoutedElements(
 export async function transformGraphData(
   data: GraphResponse,
   direction: LayoutDirection = 'TB',
-  tierSpacing: number = DEFAULT_TIER_SPACING
+  nodeSpacing: number = DEFAULT_NODE_SPACING
 ): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
   // Calculate reported health for each node based on incoming edges
   // (edges where the node is the SOURCE, meaning other services depend on it)
@@ -141,5 +146,5 @@ export async function transformGraphData(
     animated: true,
   }));
 
-  return await getLayoutedElements(nodes, edges, direction, tierSpacing);
+  return await getLayoutedElements(nodes, edges, direction, nodeSpacing);
 }

@@ -3,12 +3,12 @@ import {
   transformGraphData,
   NODE_WIDTH,
   NODE_HEIGHT,
-  DEFAULT_TIER_SPACING,
+  DEFAULT_NODE_SPACING,
   LAYOUT_DIRECTION_KEY,
-  TIER_SPACING_KEY,
+  NODE_SPACING_KEY,
   LATENCY_THRESHOLD_KEY,
-  MIN_TIER_SPACING,
-  MAX_TIER_SPACING,
+  MIN_NODE_SPACING,
+  MAX_NODE_SPACING,
   DEFAULT_LATENCY_THRESHOLD,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
@@ -36,14 +36,14 @@ describe('constants', () => {
   it('exports expected constants', () => {
     expect(NODE_WIDTH).toBe(180);
     expect(NODE_HEIGHT).toBe(100);
-    expect(DEFAULT_TIER_SPACING).toBe(180);
-    expect(MIN_TIER_SPACING).toBe(80);
-    expect(MAX_TIER_SPACING).toBe(400);
+    expect(DEFAULT_NODE_SPACING).toBe(100);
+    expect(MIN_NODE_SPACING).toBe(50);
+    expect(MAX_NODE_SPACING).toBe(400);
     expect(DEFAULT_LATENCY_THRESHOLD).toBe(50);
     expect(MIN_LATENCY_THRESHOLD).toBe(10);
     expect(MAX_LATENCY_THRESHOLD).toBe(200);
     expect(LAYOUT_DIRECTION_KEY).toBe('graph-layout-direction');
-    expect(TIER_SPACING_KEY).toBe('graph-tier-spacing');
+    expect(NODE_SPACING_KEY).toBe('graph-node-spacing');
     expect(LATENCY_THRESHOLD_KEY).toBe('graph-latency-threshold');
   });
 });

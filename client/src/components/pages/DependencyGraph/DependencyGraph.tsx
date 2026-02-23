@@ -1,4 +1,5 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -7,6 +8,7 @@ import {
   Background,
   useOnSelectionChange,
   type EdgeMouseHandler,
+  type NodeMouseHandler,
   BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -23,8 +25,8 @@ import {
   type AppNode,
   type AppEdge,
   type LayoutDirection,
-  MIN_TIER_SPACING,
-  MAX_TIER_SPACING,
+  MIN_NODE_SPACING,
+  MAX_NODE_SPACING,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
 } from '../../../utils/graphLayout';
@@ -59,6 +61,16 @@ const edgeTypes = {
    (graphTraversal, graphLayout) have comprehensive unit test coverage. */
 function DependencyGraphInner() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dependencyParam = searchParams.get('dependency');
+
+  // Clear query param after reading so it doesn't persist on refresh
+  useEffect(() => {
+    if (dependencyParam) {
+      setSearchParams({}, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const {
     nodes,
     edges,
@@ -75,8 +87,8 @@ function DependencyGraphInner() {
     setSelectedEdgeId,
     layoutDirection,
     setLayoutDirection,
-    tierSpacing,
-    setTierSpacing,
+    nodeSpacing,
+    setNodeSpacing,
     latencyThreshold,
     setLatencyThreshold,
     isLoading,
@@ -84,12 +96,14 @@ function DependencyGraphInner() {
     error,
     loadData,
     resetLayout,
-  } = useGraphState({ userId: user?.id });
+  } = useGraphState({ userId: user?.id, initialDependencyId: dependencyParam });
+
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   // Initial load and team/direction/spacing change
   useEffect(() => {
     loadData();
-  }, [selectedTeam, layoutDirection, tierSpacing]);
+  }, [selectedTeam, layoutDirection, nodeSpacing]);
 
   // Polling hook
   const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
@@ -107,9 +121,9 @@ function DependencyGraphInner() {
     setLayoutDirection(direction);
   };
 
-  const handleTierSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNodeSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSpacing = parseInt(e.target.value, 10);
-    setTierSpacing(newSpacing);
+    setNodeSpacing(newSpacing);
   };
 
   const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,6 +153,17 @@ function DependencyGraphInner() {
     if (!selectedNodeId && !selectedEdgeId) return null;
     return getRelatedEdgeIds(selectedNodeId, selectedEdgeId, edges);
   }, [selectedNodeId, selectedEdgeId, edges]);
+
+  // Get hovered node's related nodes/edges (only when nothing is selected)
+  const hoveredRelatedNodeIds = useMemo(() => {
+    if (!hoveredNodeId || selectedNodeId || selectedEdgeId) return null;
+    return getRelatedNodeIds(hoveredNodeId, edges);
+  }, [hoveredNodeId, selectedNodeId, selectedEdgeId, edges]);
+
+  const hoveredRelatedEdgeIds = useMemo(() => {
+    if (!hoveredNodeId || selectedNodeId || selectedEdgeId) return null;
+    return getRelatedEdgeIds(hoveredNodeId, null, edges);
+  }, [hoveredNodeId, selectedNodeId, selectedEdgeId, edges]);
 
   // Filter nodes based on search query and selection
   const filteredNodes = useMemo(() => {
@@ -180,8 +205,18 @@ function DependencyGraphInner() {
       }));
     }
 
+    // Apply hover highlighting (only when nothing is selected)
+    if (hoveredRelatedNodeIds) {
+      result = result.map((node) => ({
+        ...node,
+        style: hoveredRelatedNodeIds.has(node.id)
+          ? { ...(node.style || {}), opacity: 1 }
+          : { ...(node.style || {}), opacity: 0.15 },
+      }));
+    }
+
     return result;
-  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId]);
+  }, [nodes, searchQuery, relatedNodeIds, selectedNodeId, hoveredRelatedNodeIds]);
 
   // Compute whether an edge has high latency
   const computeIsHighLatency = useCallback((latencyMs: number | null | undefined, avgLatencyMs24h: number | null | undefined): boolean => {
@@ -207,6 +242,13 @@ function DependencyGraphInner() {
     };
 
     if (!relatedEdgeIds) {
+      // Apply hover highlighting if active (no selection)
+      if (hoveredRelatedEdgeIds) {
+        return edges.map((edge) => {
+          const isHoverRelated = hoveredRelatedEdgeIds.has(edge.id);
+          return processEdge(edge, false, false, isHoverRelated ? 1 : 0.15);
+        });
+      }
       return edges.map((edge) => processEdge(edge, false, false, 1));
     }
 
@@ -215,7 +257,7 @@ function DependencyGraphInner() {
       const isSelected = edge.id === selectedEdgeId;
       return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency, hoveredRelatedEdgeIds]);
 
   // Get the selected edge's data for the details panel
   const selectedEdge = useMemo(() => {
@@ -240,6 +282,15 @@ function DependencyGraphInner() {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
   }, [setSelectedEdgeId, setSelectedNodeId]);
+
+  // Handle node hover (highlight connections when nothing is selected)
+  const handleNodeMouseEnter: NodeMouseHandler<AppNode> = useCallback((_, node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const handleNodeMouseLeave: NodeMouseHandler<AppNode> = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
 
   // Handle pane click (deselect all)
   const handlePaneClick = useCallback(() => {
@@ -354,18 +405,18 @@ function DependencyGraphInner() {
         </div>
 
         <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>Tier spacing:</label>
+          <label className={styles.toolbarLabel}>Node spacing:</label>
           <input
             type="range"
-            className={styles.tierSpacingSlider}
-            min={MIN_TIER_SPACING}
-            max={MAX_TIER_SPACING}
+            className={styles.nodeSpacingSlider}
+            min={MIN_NODE_SPACING}
+            max={MAX_NODE_SPACING}
             step={10}
-            value={tierSpacing}
-            onChange={handleTierSpacingChange}
-            title={`${tierSpacing}px`}
+            value={nodeSpacing}
+            onChange={handleNodeSpacingChange}
+            title={`${nodeSpacing}px`}
           />
-          <span className={styles.tierSpacingValue}>{tierSpacing}px</span>
+          <span className={styles.nodeSpacingValue}>{nodeSpacing}px</span>
         </div>
 
         <div className={styles.toolbarGroup}>
@@ -466,6 +517,8 @@ function DependencyGraphInner() {
               onEdgesChange={onEdgesChange}
               onEdgeClick={handleEdgeClick}
               onPaneClick={handlePaneClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView
