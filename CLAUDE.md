@@ -127,7 +127,8 @@ The health polling system uses cache-TTL-driven per-service scheduling with resi
 - **Exponential backoff:** On failure, poll delay increases exponentially (base 1s, max 5min, 2x multiplier)
 - **Circuit breaker:** After 10 consecutive failures, circuit opens for 5min cooldown. After cooldown, a single probe is allowed (half-open). Success closes the circuit; failure re-opens it.
 - **PollCache:** In-memory TTL cache that tracks when each service was last polled. Services are only polled when their cache entry expires.
-- **Host rate limiting:** Per-hostname concurrency semaphore (default max 3, env: `POLL_MAX_CONCURRENT_PER_HOST`) prevents using the polling service as a DDoS amplifier. Services that can't acquire a slot are skipped this tick and retried next tick.
+- **Host rate limiting:** Per-hostname concurrency semaphore (default max 5, env: `POLL_MAX_CONCURRENT_PER_HOST`) prevents using the polling service as a DDoS amplifier. Services that can't acquire a slot are skipped this tick and retried next tick.
+- **Fairness sort:** Each tick, eligible services are sorted by `lastPolled` ascending before host rate limiting is applied. This ensures least-recently-polled services get priority for host slots, preventing starvation when many services share a hostname.
 - **Poll deduplication:** Promise coalescing for services sharing the same health endpoint URL. Only one HTTP request is made per unique URL per poll cycle; all services sharing that URL receive the same result but maintain independent circuit breaker and backoff state.
 
 ## Security

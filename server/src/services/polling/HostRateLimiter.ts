@@ -1,4 +1,4 @@
-const DEFAULT_MAX_CONCURRENT_PER_HOST = 3;
+const DEFAULT_MAX_CONCURRENT_PER_HOST = 5;
 
 export class HostRateLimiter {
   private activeCounts: Map<string, number> = new Map();

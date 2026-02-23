@@ -179,7 +179,7 @@ cp server/.env.example server/.env
 |----------|---------|-------------|
 | `DATA_RETENTION_DAYS` | `365` | Days to keep latency, error, and audit log history |
 | `RETENTION_CLEANUP_TIME` | `02:00` | Daily cleanup time (HH:MM, local time) |
-| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls per target hostname |
+| `POLL_MAX_CONCURRENT_PER_HOST` | `5` | Max concurrent polls per target hostname |
 | `LOG_LEVEL` | `info` | Log level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | `APP_BASE_URL` | — | Base URL for deep links in alert messages |
 

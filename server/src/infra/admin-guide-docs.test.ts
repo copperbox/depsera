@@ -401,7 +401,7 @@ describe('Admin guide documentation', () => {
 
     it('documents host concurrency limit', () => {
       expect(adminGuide).toContain('POLL_MAX_CONCURRENT_PER_HOST');
-      expect(adminGuide).toContain('3 concurrent');
+      expect(adminGuide).toContain('5 concurrent');
     });
 
     it('documents poll deduplication', () => {

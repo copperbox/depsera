@@ -45,7 +45,7 @@ All configuration is via environment variables on the server (set in `server/.en
 
 | Variable | Default | Description |
 |---|---|---|
-| `POLL_MAX_CONCURRENT_PER_HOST` | `3` | Max concurrent polls per target hostname |
+| `POLL_MAX_CONCURRENT_PER_HOST` | `5` | Max concurrent polls per target hostname |
 
 ## 11.6 Alerting
 
