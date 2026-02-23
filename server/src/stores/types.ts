@@ -195,4 +195,5 @@ export interface AssociationCreateInput {
   association_type: AssociationType;
   is_auto_suggested?: boolean;
   confidence_score?: number | null;
+  match_reason?: string | null;
 }

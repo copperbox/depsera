@@ -198,6 +198,7 @@ export interface DependencyAssociation {
   is_auto_suggested: number; // SQLite boolean
   confidence_score: number | null;
   is_dismissed: number; // SQLite boolean
+  match_reason: string | null;
   created_at: string;
 }
 

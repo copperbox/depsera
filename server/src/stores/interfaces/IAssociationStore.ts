@@ -43,6 +43,12 @@ export interface IAssociationStore {
   dismissSuggestion(id: string): boolean;
 
   /**
+   * Dismiss all pending auto-suggestions for a dependency
+   * Returns the number of suggestions dismissed
+   */
+  dismissAllForDependency(dependencyId: string): number;
+
+  /**
    * Reactivate a dismissed association with a new type
    */
   reactivateDismissed(id: string, associationType: AssociationType): boolean;

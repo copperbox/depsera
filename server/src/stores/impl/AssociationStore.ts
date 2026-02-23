@@ -50,18 +50,22 @@ export class AssociationStore implements IAssociationStore {
   findPendingSuggestions(): AssociationWithContext[] {
     return this.db
       .prepare(`
-        SELECT
-          da.*,
-          d.name as dependency_name,
-          s.name as service_name,
-          ls.name as linked_service_name
-        FROM dependency_associations da
-        JOIN dependencies d ON da.dependency_id = d.id
-        JOIN services s ON d.service_id = s.id
-        JOIN services ls ON da.linked_service_id = ls.id
-        WHERE da.is_auto_suggested = 1
-          AND da.is_dismissed = 0
-        ORDER BY da.confidence_score DESC
+        WITH ranked AS (
+          SELECT
+            da.*,
+            d.name as dependency_name,
+            s.name as service_name,
+            ls.name as linked_service_name,
+            ROW_NUMBER() OVER (PARTITION BY da.dependency_id ORDER BY da.confidence_score DESC) AS rn
+          FROM dependency_associations da
+          JOIN dependencies d ON da.dependency_id = d.id
+          JOIN services s ON d.service_id = s.id
+          JOIN services ls ON da.linked_service_id = ls.id
+          WHERE da.is_auto_suggested = 1
+            AND da.is_dismissed = 0
+        )
+        SELECT * FROM ranked WHERE rn = 1
+        ORDER BY confidence_score DESC
       `)
       .all() as AssociationWithContext[];
   }
@@ -83,8 +87,8 @@ export class AssociationStore implements IAssociationStore {
       .prepare(`
         INSERT INTO dependency_associations (
           id, dependency_id, linked_service_id, association_type,
-          is_auto_suggested, confidence_score, is_dismissed, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+          is_auto_suggested, confidence_score, is_dismissed, match_reason, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
       `)
       .run(
         id,
@@ -93,6 +97,7 @@ export class AssociationStore implements IAssociationStore {
         input.association_type,
         input.is_auto_suggested ? 1 : 0,
         input.confidence_score ?? null,
+        input.match_reason ?? null,
         now
       );
 
@@ -133,6 +138,17 @@ export class AssociationStore implements IAssociationStore {
       `)
       .run(id);
     return result.changes > 0;
+  }
+
+  dismissAllForDependency(dependencyId: string): number {
+    const result = this.db
+      .prepare(`
+        UPDATE dependency_associations
+        SET is_dismissed = 1
+        WHERE dependency_id = ? AND is_auto_suggested = 1 AND is_dismissed = 0
+      `)
+      .run(dependencyId);
+    return result.changes;
   }
 
   reactivateDismissed(id: string, associationType: AssociationType): boolean {

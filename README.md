@@ -262,7 +262,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
-| `/associations` | Suggestions inbox, manual association creation, existing associations browser, and alias management |
+| `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), and alias management |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |

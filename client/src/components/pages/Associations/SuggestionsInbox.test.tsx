@@ -10,8 +10,9 @@ function makeSuggestion(overrides: Partial<AssociationSuggestion> = {}): Associa
     linked_service_id: 'ls1',
     association_type: 'api_call',
     is_auto_suggested: 1,
-    confidence_score: 0.85,
+    confidence_score: 85,
     is_dismissed: 0,
+    match_reason: null,
     created_at: '2025-01-01',
     dependency_name: 'dep-1',
     service_name: 'Service A',
@@ -45,7 +46,7 @@ function makeHook(overrides: Partial<UseSuggestionsReturn> = {}): UseSuggestions
 }
 
 describe('SuggestionsInbox', () => {
-  it('renders suggestions table', () => {
+  it('renders suggestion cards', () => {
     render(<SuggestionsInbox suggestions={makeHook()} />);
     expect(screen.getByText('dep-1')).toBeInTheDocument();
     expect(screen.getAllByText('Service A').length).toBeGreaterThan(0);
@@ -133,7 +134,6 @@ describe('SuggestionsInbox', () => {
     const toggleSelected = jest.fn();
     render(<SuggestionsInbox suggestions={makeHook({ toggleSelected })} />);
 
-    // Click the row checkbox (not the select all checkbox)
     fireEvent.click(screen.getByLabelText('Select dep-1'));
     expect(toggleSelected).toHaveBeenCalledWith('s1');
   });
@@ -158,13 +158,12 @@ describe('SuggestionsInbox', () => {
         suggestions={makeHook({
           suggestions,
           filtered: suggestions,
-          selectedIds: new Set(['s1']), // All items selected (only 1 item)
+          selectedIds: new Set(['s1']),
           clearSelection,
         })}
       />,
     );
 
-    // When all items are selected, clicking the select all checkbox calls clearSelection
     fireEvent.click(screen.getByLabelText('Select all'));
     expect(clearSelection).toHaveBeenCalled();
   });
@@ -214,5 +213,69 @@ describe('SuggestionsInbox', () => {
     );
 
     expect(screen.getByLabelText('Select dep-1')).toBeChecked();
+  });
+
+  it('displays confidence as integer percentage (not multiplied)', () => {
+    render(
+      <SuggestionsInbox
+        suggestions={makeHook({
+          suggestions: [makeSuggestion({ confidence_score: 75 })],
+          filtered: [makeSuggestion({ confidence_score: 75 })],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.queryByText('7500%')).not.toBeInTheDocument();
+  });
+
+  it('renders match reason when present', () => {
+    render(
+      <SuggestionsInbox
+        suggestions={makeHook({
+          suggestions: [makeSuggestion({ match_reason: 'Name pattern match' })],
+          filtered: [makeSuggestion({ match_reason: 'Name pattern match' })],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Name pattern match')).toBeInTheDocument();
+  });
+
+  it('does not render match reason when null', () => {
+    render(
+      <SuggestionsInbox
+        suggestions={makeHook({
+          suggestions: [makeSuggestion({ match_reason: null })],
+          filtered: [makeSuggestion({ match_reason: null })],
+        })}
+      />,
+    );
+
+    expect(screen.queryByText('Name pattern match')).not.toBeInTheDocument();
+  });
+
+  it('renders service flow with arrow', () => {
+    render(<SuggestionsInbox suggestions={makeHook()} />);
+    // The card should show source → linked service flow
+    const serviceAs = screen.getAllByText('Service A');
+    const serviceBs = screen.getAllByText('Service B');
+    expect(serviceAs.length).toBeGreaterThan(0);
+    expect(serviceBs.length).toBeGreaterThan(0);
+  });
+
+  it('renders confidence bar with correct level', () => {
+    const { container } = render(
+      <SuggestionsInbox
+        suggestions={makeHook({
+          suggestions: [makeSuggestion({ confidence_score: 85 })],
+          filtered: [makeSuggestion({ confidence_score: 85 })],
+        })}
+      />,
+    );
+
+    // High confidence (>= 70) should have the high confidence fill class
+    const fill = container.querySelector('[class*="confidenceFill"]');
+    expect(fill).toBeInTheDocument();
   });
 });

@@ -30,6 +30,7 @@ describe('dependencyFormatter', () => {
     is_auto_suggested: 0,
     confidence_score: null,
     is_dismissed: 0,
+    match_reason: null,
     created_at: '2024-01-01T00:00:00.000Z',
   };
 

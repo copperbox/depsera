@@ -34,6 +34,7 @@ export function getAssociations(req: Request, res: Response): void {
           is_auto_suggested: row.is_auto_suggested,
           confidence_score: row.confidence_score,
           is_dismissed: row.is_dismissed,
+          match_reason: row.match_reason ?? null,
           created_at: row.created_at,
           linked_service: linkedService!,
         };

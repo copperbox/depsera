@@ -94,6 +94,7 @@ export class AssociationMatcher {
         association_type: match.associationType,
         is_auto_suggested: true,
         confidence_score: match.confidenceScore,
+        match_reason: match.matchReason,
       });
 
       suggestions.push({
