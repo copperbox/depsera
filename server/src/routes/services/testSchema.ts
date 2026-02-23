@@ -115,6 +115,9 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
     if (!schemaConfig.fields.description) {
       warnings.push('No description field mapping configured — description data will not be captured');
     }
+    if (!schemaConfig.fields.checkDetails) {
+      warnings.push('No checkDetails field mapping configured — check details data will not be captured');
+    }
 
     // Check for entries with missing optional data
     for (const dep of dependencies) {
@@ -135,6 +138,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
         latency_ms: dep.health.latency,
         impact: dep.impact || null,
         description: dep.description || null,
+        check_details: dep.checkDetails || null,
         type: dep.type || 'other',
       })),
       warnings,

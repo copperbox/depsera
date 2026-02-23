@@ -536,7 +536,7 @@ export function validateDependencyType(type: unknown): DependencyType {
 // Schema Config Validation
 // ============================================================================
 
-const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description'] as const;
+const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'checkDetails'] as const;
 const REQUIRED_SCHEMA_FIELDS: (keyof SchemaMapping['fields'])[] = ['name', 'healthy'];
 
 /**
@@ -625,6 +625,7 @@ export function validateSchemaConfig(value: unknown): string {
 
   // Validate all field mappings
   const validatedFields: Record<string, FieldMapping> = {};
+  let validatedCheckDetails: string | undefined;
   for (const key of Object.keys(fields)) {
     if (!VALID_SCHEMA_FIELDS.includes(key as typeof VALID_SCHEMA_FIELDS[number])) {
       throw new ValidationError(
@@ -632,7 +633,24 @@ export function validateSchemaConfig(value: unknown): string {
         'schema_config'
       );
     }
-    validatedFields[key] = validateFieldMapping(fields[key], key);
+    if (key === 'checkDetails') {
+      // checkDetails is a simple string path, not a FieldMapping (no BooleanComparison)
+      if (!isNonEmptyString(fields[key])) {
+        throw new ValidationError(
+          'schema_config.fields.checkDetails must be a non-empty string path',
+          'schema_config'
+        );
+      }
+      if (fields[key] === '$key') {
+        throw new ValidationError(
+          'schema_config.fields.checkDetails cannot use "$key" — it is only valid for the name field',
+          'schema_config'
+        );
+      }
+      validatedCheckDetails = fields[key] as string;
+    } else {
+      validatedFields[key] = validateFieldMapping(fields[key], key);
+    }
   }
 
   // Restrict $key sentinel to name field only
@@ -655,6 +673,7 @@ export function validateSchemaConfig(value: unknown): string {
       ...(validatedFields.latency !== undefined && { latency: validatedFields.latency }),
       ...(validatedFields.impact !== undefined && { impact: validatedFields.impact }),
       ...(validatedFields.description !== undefined && { description: validatedFields.description }),
+      ...(validatedCheckDetails !== undefined && { checkDetails: validatedCheckDetails }),
     },
   };
 

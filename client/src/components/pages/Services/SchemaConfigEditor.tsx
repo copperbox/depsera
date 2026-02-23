@@ -26,6 +26,7 @@ interface GuidedFormState {
   latencyField: string;
   impactField: string;
   descriptionField: string;
+  checkDetailsField: string;
 }
 
 interface FormErrors {
@@ -50,6 +51,7 @@ function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
     latencyField: mapping.fields.latency ? (typeof mapping.fields.latency === 'string' ? mapping.fields.latency : mapping.fields.latency.field) : '',
     impactField: mapping.fields.impact ? (typeof mapping.fields.impact === 'string' ? mapping.fields.impact : mapping.fields.impact.field) : '',
     descriptionField: mapping.fields.description ? (typeof mapping.fields.description === 'string' ? mapping.fields.description : mapping.fields.description.field) : '',
+    checkDetailsField: mapping.fields.checkDetails || '',
   };
 }
 
@@ -75,6 +77,9 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
   if (state.descriptionField.trim()) {
     mapping.fields.description = state.descriptionField;
   }
+  if (state.checkDetailsField.trim()) {
+    mapping.fields.checkDetails = state.checkDetailsField;
+  }
 
   return mapping;
 }
@@ -88,6 +93,7 @@ const emptyFormState: GuidedFormState = {
   latencyField: '',
   impactField: '',
   descriptionField: '',
+  checkDetailsField: '',
 };
 
 function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: SchemaConfigEditorProps) {
@@ -342,6 +348,22 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                     disabled={disabled}
                   />
                 </div>
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="schema-checkDetails" className={styles.label}>
+                  Check details field
+                </label>
+                <input
+                  id="schema-checkDetails"
+                  type="text"
+                  value={formState.checkDetailsField}
+                  onChange={(e) => handleFieldChange('checkDetailsField', e.target.value)}
+                  className={styles.input}
+                  placeholder="details"
+                  disabled={disabled}
+                />
+                <span className={styles.hint}>Path to an arbitrary metadata object (e.g., database version, validation query details)</span>
               </div>
             </div>
           )}

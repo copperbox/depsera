@@ -159,7 +159,7 @@ Key files in `/server/src/services/polling/`:
 - `ServicePoller.ts` — Executes individual service polls
 - `HostRateLimiter.ts` — Per-hostname concurrency semaphore for poll DDoS protection
 - `PollDeduplicator.ts` — Promise coalescing for concurrent polls to the same URL
-- `SchemaMapper.ts` — Maps custom health endpoint responses using `SchemaMapping` config (dot-notation path resolution, `BooleanComparison` healthy field). Auto-detects array vs object-keyed root; supports `$key` sentinel in `fields.name` to use object keys as dependency names (for Spring Boot Actuator, ASP.NET Health Checks, etc.)
+- `SchemaMapper.ts` — Maps custom health endpoint responses using `SchemaMapping` config (dot-notation path resolution, `BooleanComparison` healthy field, `checkDetails` object capture). Auto-detects array vs object-keyed root; supports `$key` sentinel in `fields.name` to use object keys as dependency names (for Spring Boot Actuator, ASP.NET Health Checks, etc.)
 - `DependencyParser.ts` — Parses health responses; delegates to `SchemaMapper` when a `SchemaMapping` is provided, otherwise uses default proactive-deps format
 
 ## Alert Dispatch Engine
@@ -185,7 +185,7 @@ Key files in `/server/src/services/alerts/`:
 ## Schema Mapping Form UI
 
 `SchemaConfigEditor` component (`/client/src/components/pages/Services/SchemaConfigEditor.tsx`) provides a "Health Endpoint Format" section on the service create/edit form. Allows toggling between "proactive-deps (default)" and "Custom schema" modes. Custom schema mode provides:
-- **Guided form:** Fields for root path, name, healthy (with optional equals value for `BooleanComparison`), latency, impact, description
+- **Guided form:** Fields for root path, name, healthy (with optional equals value for `BooleanComparison`), latency, impact, description, checkDetails
 - **Raw JSON editor:** Advanced toggle for power users to edit the `SchemaMapping` JSON directly
 - **Test mapping button:** Calls `POST /api/services/test-schema` to preview parsed results from a live endpoint
 - **Preview table:** Shows parsed dependencies with health status, latency, and impact

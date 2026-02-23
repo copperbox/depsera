@@ -138,6 +138,14 @@ export class SchemaMapper {
       : undefined;
     const description = typeof descriptionRaw === 'string' ? descriptionRaw : undefined;
 
+    // Extract optional checkDetails (must resolve to a non-null object)
+    const checkDetailsRaw = fields.checkDetails
+      ? resolveFieldPath(item, fields.checkDetails)
+      : undefined;
+    const checkDetails = (typeof checkDetailsRaw === 'object' && checkDetailsRaw !== null && !Array.isArray(checkDetailsRaw))
+      ? checkDetailsRaw as Record<string, unknown>
+      : undefined;
+
     return {
       name: name.trim(),
       description,
@@ -150,6 +158,7 @@ export class SchemaMapper {
         latency,
       },
       lastChecked: new Date().toISOString(),
+      ...(checkDetails !== undefined && { checkDetails }),
     };
   }
 

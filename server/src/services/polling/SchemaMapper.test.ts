@@ -531,6 +531,121 @@ describe('SchemaMapper', () => {
       expect(result[2].healthy).toBe(false);
     });
 
+    it('should extract checkDetails when mapped and value is an object', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          checkDetails: 'details',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          {
+            name: 'db',
+            ok: true,
+            details: { database: 'PostgreSQL', version: '15.2', validationQuery: 'isValid()' },
+          },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].checkDetails).toEqual({
+        database: 'PostgreSQL',
+        version: '15.2',
+        validationQuery: 'isValid()',
+      });
+    });
+
+    it('should skip checkDetails when resolved value is not an object', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          checkDetails: 'details',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'dep1', ok: true, details: 'just-a-string' },
+          { name: 'dep2', ok: true, details: 42 },
+          { name: 'dep3', ok: true, details: null },
+          { name: 'dep4', ok: true, details: [1, 2, 3] },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(4);
+      expect(result[0].checkDetails).toBeUndefined();
+      expect(result[1].checkDetails).toBeUndefined();
+      expect(result[2].checkDetails).toBeUndefined();
+      expect(result[3].checkDetails).toBeUndefined();
+    });
+
+    it('should skip checkDetails when path does not exist', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          checkDetails: 'nonexistent.path',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [{ name: 'dep1', ok: true }],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].checkDetails).toBeUndefined();
+    });
+
+    it('should not include checkDetails when not mapped', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [{ name: 'dep1', ok: true, details: { foo: 'bar' } }],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].checkDetails).toBeUndefined();
+    });
+
+    it('should resolve nested checkDetails path', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          checkDetails: 'meta.info',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: true, meta: { info: { type: 'postgres', port: 5432 } } },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].checkDetails).toEqual({ type: 'postgres', port: 5432 });
+    });
+
     it('should handle impact and description with non-string values gracefully', () => {
       const schema: SchemaMapping = {
         root: 'checks',

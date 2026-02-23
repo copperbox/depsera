@@ -712,6 +712,52 @@ describe('Schema Config Validation', () => {
         fields: { name: 'n', healthy: 'h', description: '$key' },
       })).toThrow(/schema_config\.fields\.description cannot use "\$key"/);
     });
+
+    it('should accept checkDetails as a simple string path', () => {
+      const result = validateSchemaConfig({
+        root: 'checks',
+        fields: { name: 'n', healthy: 'h', checkDetails: 'details' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.checkDetails).toBe('details');
+    });
+
+    it('should accept checkDetails with dot-notation path', () => {
+      const result = validateSchemaConfig({
+        root: 'checks',
+        fields: { name: 'n', healthy: 'h', checkDetails: 'meta.info' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.checkDetails).toBe('meta.info');
+    });
+
+    it('should reject $key for checkDetails field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', checkDetails: '$key' },
+      })).toThrow(/schema_config\.fields\.checkDetails cannot use "\$key"/);
+    });
+
+    it('should reject BooleanComparison object for checkDetails field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', checkDetails: { field: 'details', equals: 'ok' } },
+      })).toThrow(/schema_config\.fields\.checkDetails must be a non-empty string path/);
+    });
+
+    it('should reject empty string for checkDetails field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', checkDetails: '' },
+      })).toThrow(/schema_config\.fields\.checkDetails must be a non-empty string path/);
+    });
+
+    it('should reject number for checkDetails field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', checkDetails: 123 },
+      })).toThrow(/schema_config\.fields\.checkDetails must be a non-empty string path/);
+    });
   });
 
   describe('validateServiceCreate with schema_config', () => {
