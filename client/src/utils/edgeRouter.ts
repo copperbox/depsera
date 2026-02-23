@@ -1,7 +1,7 @@
 import type { Node, Edge } from '@xyflow/react';
 import type { LayoutDirection } from '../types/graph';
 
-export const DEFAULT_LANE_SPACING = 10;
+export const DEFAULT_LANE_SPACING = 15;
 export const DEFAULT_LANE_PADDING = 30;
 export const MIN_LAYER_GAP = 100;
 

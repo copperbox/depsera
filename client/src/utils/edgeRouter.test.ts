@@ -26,7 +26,7 @@ function makeEdge(id: string, source: string, target: string): Edge {
 
 describe('constants', () => {
   it('exports DEFAULT_LANE_SPACING', () => {
-    expect(DEFAULT_LANE_SPACING).toBe(10);
+    expect(DEFAULT_LANE_SPACING).toBe(15);
   });
 
   it('exports DEFAULT_LANE_PADDING', () => {
@@ -80,9 +80,9 @@ describe('computeEdgeRoutes', () => {
     const edges = [makeEdge('e1', 'a', 'b'), makeEdge('e2', 'a', 'c')];
     const result = computeEdgeRoutes(nodes, edges, 'TB');
 
-    // lane[0] = 190 - 5 = 185, lane[1] = 190 + 5 = 195
-    expect(result.get('e1')).toBe(185);
-    expect(result.get('e2')).toBe(195);
+    // lane[0] = 190 - 7.5 = 182.5, lane[1] = 190 + 7.5 = 197.5
+    expect(result.get('e1')).toBe(182.5);
+    expect(result.get('e2')).toBe(197.5);
   });
 
   it('globally deduplicates lanes for edges from different sources in same layer (TB)', () => {
@@ -95,8 +95,8 @@ describe('computeEdgeRoutes', () => {
     const edges = [makeEdge('e1', 'a', 'b'), makeEdge('e2', 'd', 'c')];
     const result = computeEdgeRoutes(nodes, edges, 'TB');
 
-    expect(result.get('e1')).toBe(185);
-    expect(result.get('e2')).toBe(195);
+    expect(result.get('e1')).toBe(182.5);
+    expect(result.get('e2')).toBe(197.5);
     expect(result.get('e1')).not.toBe(result.get('e2'));
   });
 
@@ -171,8 +171,8 @@ describe('computeEdgeRoutes', () => {
     const result = computeEdgeRoutes(nodes, edges, 'LR');
 
     // Gap center = (0 + 180 + 400) / 2 = 290
-    expect(result.get('e1')).toBe(285);
-    expect(result.get('e2')).toBe(295);
+    expect(result.get('e1')).toBe(282.5);
+    expect(result.get('e2')).toBe(297.5);
   });
 
   it('assigns single lane at gap center for LR direction', () => {
@@ -302,7 +302,7 @@ describe('adjustLayerSpacing', () => {
   });
 
   it('expands gap when many edges need space (TB)', () => {
-    // 10 edges: requiredGap = max(100, 10*10 + 60) = 160
+    // 10 edges: requiredGap = max(100, 10*15 + 60) = 210
     const nodes = [makeNode('src', 0, 0)];
     const edges: Edge[] = [];
     for (let i = 0; i < 10; i++) {
@@ -312,13 +312,13 @@ describe('adjustLayerSpacing', () => {
 
     const result = adjustLayerSpacing(nodes, edges, 'TB');
 
-    // Layer 1 should be at y = NODE_HEIGHT + 160 = 260
+    // Layer 1 should be at y = NODE_HEIGHT + 210 = 310
     const targetNode = result.find((n) => n.id === 't0')!;
-    expect(targetNode.position.y).toBe(NODE_HEIGHT + 160);
+    expect(targetNode.position.y).toBe(NODE_HEIGHT + 210);
   });
 
   it('applies per-gap spacing — different gaps get different sizes (TB)', () => {
-    // Gap 0: 1 edge → 100px, Gap 1: 5 edges → max(100, 50+60) = 110px
+    // Gap 0: 1 edge → 100px, Gap 1: 5 edges → max(100, 5*15+60) = 135px
     const nodes = [
       makeNode('a', 0, 0),
       makeNode('b', 0, 500),
@@ -341,11 +341,11 @@ describe('adjustLayerSpacing', () => {
 
     // Layer 0 at y=0
     // Layer 1 at y = 0 + 100 + 100 = 200 (gap 0: 1 edge → 100px min)
-    // Layer 2 at y = 200 + 100 + 110 = 410 (gap 1: 5 edges → 110px)
+    // Layer 2 at y = 200 + 100 + 135 = 435 (gap 1: 5 edges → 135px)
     const nodeB = result.find((n) => n.id === 'b')!;
     const nodeC0 = result.find((n) => n.id === 'c0')!;
     expect(nodeB.position.y).toBe(200);
-    expect(nodeC0.position.y).toBe(410);
+    expect(nodeC0.position.y).toBe(435);
   });
 
   it('preserves cross-axis positions (TB)', () => {
