@@ -24,8 +24,8 @@ import {
   type AppNode,
   type AppEdge,
   type LayoutDirection,
-  MIN_TIER_SPACING,
-  MAX_TIER_SPACING,
+  MIN_NODE_SPACING,
+  MAX_NODE_SPACING,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
 } from '../../../utils/graphLayout';
@@ -76,8 +76,8 @@ function DependencyGraphInner() {
     setSelectedEdgeId,
     layoutDirection,
     setLayoutDirection,
-    tierSpacing,
-    setTierSpacing,
+    nodeSpacing,
+    setNodeSpacing,
     latencyThreshold,
     setLatencyThreshold,
     isLoading,
@@ -92,7 +92,7 @@ function DependencyGraphInner() {
   // Initial load and team/direction/spacing change
   useEffect(() => {
     loadData();
-  }, [selectedTeam, layoutDirection, tierSpacing]);
+  }, [selectedTeam, layoutDirection, nodeSpacing]);
 
   // Polling hook
   const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
@@ -110,9 +110,9 @@ function DependencyGraphInner() {
     setLayoutDirection(direction);
   };
 
-  const handleTierSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNodeSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSpacing = parseInt(e.target.value, 10);
-    setTierSpacing(newSpacing);
+    setNodeSpacing(newSpacing);
   };
 
   const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -394,18 +394,18 @@ function DependencyGraphInner() {
         </div>
 
         <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>Tier spacing:</label>
+          <label className={styles.toolbarLabel}>Node spacing:</label>
           <input
             type="range"
-            className={styles.tierSpacingSlider}
-            min={MIN_TIER_SPACING}
-            max={MAX_TIER_SPACING}
+            className={styles.nodeSpacingSlider}
+            min={MIN_NODE_SPACING}
+            max={MAX_NODE_SPACING}
             step={10}
-            value={tierSpacing}
-            onChange={handleTierSpacingChange}
-            title={`${tierSpacing}px`}
+            value={nodeSpacing}
+            onChange={handleNodeSpacingChange}
+            title={`${nodeSpacing}px`}
           />
-          <span className={styles.tierSpacingValue}>{tierSpacing}px</span>
+          <span className={styles.nodeSpacingValue}>{nodeSpacing}px</span>
         </div>
 
         <div className={styles.toolbarGroup}>

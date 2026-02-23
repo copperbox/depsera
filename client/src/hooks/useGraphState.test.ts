@@ -33,11 +33,11 @@ jest.mock('../api/teams', () => ({
 
 jest.mock('../utils/graphLayout', () => ({
   LAYOUT_DIRECTION_KEY: 'graph-layout-direction',
-  TIER_SPACING_KEY: 'graph-tier-spacing',
+  NODE_SPACING_KEY: 'graph-node-spacing',
   LATENCY_THRESHOLD_KEY: 'graph-latency-threshold',
-  DEFAULT_TIER_SPACING: 150,
-  MIN_TIER_SPACING: 50,
-  MAX_TIER_SPACING: 400,
+  DEFAULT_NODE_SPACING: 100,
+  MIN_NODE_SPACING: 50,
+  MAX_NODE_SPACING: 400,
   DEFAULT_LATENCY_THRESHOLD: 50,
   MIN_LATENCY_THRESHOLD: 10,
   MAX_LATENCY_THRESHOLD: 200,
@@ -170,22 +170,22 @@ describe('useGraphState', () => {
     expect(result.current.layoutDirection).toBe('TB');
   });
 
-  it('reads valid tier spacing from localStorage', () => {
-    localStorage.setItem('graph-tier-spacing', '200');
+  it('reads valid node spacing from localStorage', () => {
+    localStorage.setItem('graph-node-spacing', '200');
     const { result } = renderHook(() => useGraphState());
-    expect(result.current.tierSpacing).toBe(200);
+    expect(result.current.nodeSpacing).toBe(200);
   });
 
-  it('uses default tier spacing for invalid value', () => {
-    localStorage.setItem('graph-tier-spacing', 'invalid');
+  it('uses default node spacing for invalid value', () => {
+    localStorage.setItem('graph-node-spacing', 'invalid');
     const { result } = renderHook(() => useGraphState());
-    expect(result.current.tierSpacing).toBe(150); // DEFAULT_TIER_SPACING
+    expect(result.current.nodeSpacing).toBe(100); // DEFAULT_NODE_SPACING
   });
 
-  it('uses default tier spacing for out-of-range value', () => {
-    localStorage.setItem('graph-tier-spacing', '1000');
+  it('uses default node spacing for out-of-range value', () => {
+    localStorage.setItem('graph-node-spacing', '1000');
     const { result } = renderHook(() => useGraphState());
-    expect(result.current.tierSpacing).toBe(150); // DEFAULT_TIER_SPACING
+    expect(result.current.nodeSpacing).toBe(100); // DEFAULT_NODE_SPACING
   });
 
   it('reads valid latency threshold from localStorage', () => {
@@ -217,15 +217,15 @@ describe('useGraphState', () => {
     expect(result.current.layoutDirection).toBe('LR');
   });
 
-  it('persists tier spacing to localStorage', () => {
+  it('persists node spacing to localStorage', () => {
     const { result } = renderHook(() => useGraphState());
 
     act(() => {
-      result.current.setTierSpacing(250);
+      result.current.setNodeSpacing(250);
     });
 
-    expect(localStorage.getItem('graph-tier-spacing')).toBe('250');
-    expect(result.current.tierSpacing).toBe(250);
+    expect(localStorage.getItem('graph-node-spacing')).toBe('250');
+    expect(result.current.nodeSpacing).toBe(250);
   });
 
   it('persists latency threshold to localStorage', () => {

@@ -6,11 +6,11 @@ import {
   type AppEdge,
   type LayoutDirection,
   LAYOUT_DIRECTION_KEY,
-  TIER_SPACING_KEY,
+  NODE_SPACING_KEY,
   LATENCY_THRESHOLD_KEY,
-  DEFAULT_TIER_SPACING,
-  MIN_TIER_SPACING,
-  MAX_TIER_SPACING,
+  DEFAULT_NODE_SPACING,
+  MIN_NODE_SPACING,
+  MAX_NODE_SPACING,
   DEFAULT_LATENCY_THRESHOLD,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
@@ -52,8 +52,8 @@ export interface UseGraphStateReturn {
   // Layout state
   layoutDirection: LayoutDirection;
   setLayoutDirection: (direction: LayoutDirection) => void;
-  tierSpacing: number;
-  setTierSpacing: (spacing: number) => void;
+  nodeSpacing: number;
+  setNodeSpacing: (spacing: number) => void;
   latencyThreshold: number;
   setLatencyThreshold: (threshold: number) => void;
 
@@ -69,7 +69,7 @@ export interface UseGraphStateReturn {
   // Refs for polling
   selectedTeamRef: React.MutableRefObject<string>;
   layoutDirectionRef: React.MutableRefObject<LayoutDirection>;
-  tierSpacingRef: React.MutableRefObject<number>;
+  nodeSpacingRef: React.MutableRefObject<number>;
 }
 
 export interface UseGraphStateOptions {
@@ -93,15 +93,15 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
   });
 
-  const [tierSpacing, setTierSpacingState] = useState(() => {
-    const stored = localStorage.getItem(TIER_SPACING_KEY);
+  const [nodeSpacing, setNodeSpacingState] = useState(() => {
+    const stored = localStorage.getItem(NODE_SPACING_KEY);
     if (stored) {
       const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_TIER_SPACING && parsed <= MAX_TIER_SPACING) {
+      if (!isNaN(parsed) && parsed >= MIN_NODE_SPACING && parsed <= MAX_NODE_SPACING) {
         return parsed;
       }
     }
-    return DEFAULT_TIER_SPACING;
+    return DEFAULT_NODE_SPACING;
   });
 
   const [latencyThreshold, setLatencyThresholdState] = useState(() => {
@@ -120,7 +120,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   // Refs for polling callback to access current state
   const selectedTeamRef = useRef(selectedTeam);
   const layoutDirectionRef = useRef(layoutDirection);
-  const tierSpacingRef = useRef(tierSpacing);
+  const nodeSpacingRef = useRef(nodeSpacing);
   const selectedNodeIdRef = useRef(selectedNodeId);
   const selectedEdgeIdRef = useRef(selectedEdgeId);
 
@@ -134,8 +134,8 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   }, [layoutDirection]);
 
   useEffect(() => {
-    tierSpacingRef.current = tierSpacing;
-  }, [tierSpacing]);
+    nodeSpacingRef.current = nodeSpacing;
+  }, [nodeSpacing]);
 
   useEffect(() => {
     selectedNodeIdRef.current = selectedNodeId;
@@ -192,9 +192,9 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
   }, []);
 
-  const setTierSpacing = useCallback((spacing: number) => {
-    setTierSpacingState(spacing);
-    localStorage.setItem(TIER_SPACING_KEY, String(spacing));
+  const setNodeSpacing = useCallback((spacing: number) => {
+    setNodeSpacingState(spacing);
+    localStorage.setItem(NODE_SPACING_KEY, String(spacing));
   }, []);
 
   const setLatencyThreshold = useCallback((threshold: number) => {
@@ -205,7 +205,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
     const teamId = selectedTeamRef.current || undefined;
     const direction = layoutDirectionRef.current;
-    const spacing = tierSpacingRef.current;
+    const spacing = nodeSpacingRef.current;
 
     if (!isBackgroundRefresh) {
       setIsLoading(true);
@@ -319,8 +319,8 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setSelectedEdgeId,
     layoutDirection,
     setLayoutDirection,
-    tierSpacing,
-    setTierSpacing,
+    nodeSpacing,
+    setNodeSpacing,
     latencyThreshold,
     setLatencyThreshold,
     isLoading,
@@ -330,6 +330,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     resetLayout,
     selectedTeamRef,
     layoutDirectionRef,
-    tierSpacingRef,
+    nodeSpacingRef,
   };
 }
