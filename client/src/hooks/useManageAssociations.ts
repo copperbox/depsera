@@ -18,6 +18,7 @@ export interface UseManageAssociationsReturn {
   associationCache: Map<string, Association[]>;
   addAssociation: (dependencyId: string, input: CreateAssociationInput) => Promise<void>;
   removeAssociation: (dependencyId: string, serviceId: string) => Promise<void>;
+  refreshAssociations: (dependencyId: string) => Promise<void>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   statusFilter: StatusFilter;
@@ -164,6 +165,7 @@ export function useManageAssociations(): UseManageAssociationsReturn {
     associationCache,
     addAssociation,
     removeAssociation,
+    refreshAssociations: loadAssociationsForDep,
     searchQuery,
     setSearchQuery,
     statusFilter,

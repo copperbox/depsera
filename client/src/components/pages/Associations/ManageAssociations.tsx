@@ -20,6 +20,7 @@ function ManageAssociations() {
     toggleDependency,
     associationCache,
     removeAssociation,
+    refreshAssociations,
     searchQuery,
     setSearchQuery,
     statusFilter,
@@ -62,13 +63,7 @@ function ManageAssociations() {
 
   const handleAddSuccess = (depId: string) => {
     setAddingForDepId(null);
-    // Re-toggle to refresh associations if they were loaded
-    // The form's createAssociation call will refresh the cache via addAssociation
-    // But since we use AssociationForm directly (which calls createAssociation itself),
-    // we need to manually reload. Toggle dependency closed and open to trigger reload.
-    toggleDependency(depId);
-    // Small delay to allow state update, then re-expand
-    setTimeout(() => toggleDependency(depId), 0);
+    refreshAssociations(depId);
   };
 
   const handleAliasSubmit = async (depName: string) => {
