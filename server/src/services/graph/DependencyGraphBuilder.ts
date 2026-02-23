@@ -91,7 +91,8 @@ export class DependencyGraphBuilder {
     // If no target_service_id, try to resolve via external node map
     /* istanbul ignore if -- External node map resolution; tested via GraphService */
     if (!sourceId && this.externalNodeMap) {
-      const normalized = ExternalNodeBuilder.normalizeDepName(dep.name);
+      const displayName = dep.canonical_name ?? dep.name;
+      const normalized = ExternalNodeBuilder.normalizeDepName(displayName);
       sourceId = this.externalNodeMap.get(normalized) ?? null;
     }
 
@@ -168,7 +169,7 @@ export class DependencyGraphBuilder {
     return {
       relationship: 'depends_on',
       dependencyType: dep.type,
-      dependencyName: dep.name,
+      dependencyName: dep.canonical_name ?? dep.name,
       dependencyId: dep.id,
       healthy: dep.healthy === null ? null : dep.healthy === 1,
       latencyMs: dep.latency_ms,
