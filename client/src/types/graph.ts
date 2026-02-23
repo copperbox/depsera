@@ -44,12 +44,6 @@ export interface GraphEdgeData {
   confidenceScore?: number | null;
   isSelected?: boolean;
   isHighlighted?: boolean;
-  // Fan-out data: position of this edge among edges sharing the same source/target node
-  sourceIndex?: number;
-  sourceCount?: number;
-  targetIndex?: number;
-  targetCount?: number;
-  layoutDirection?: LayoutDirection;
   checkDetails?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string | null;

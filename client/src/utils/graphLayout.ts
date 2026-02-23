@@ -29,62 +29,6 @@ export const NODE_HEIGHT = 100;
 const elk = new ELK();
 
 /**
- * Compute fan-out indices for edges sharing the same source or target node.
- * Returns a new array of edges with sourceIndex/sourceCount/targetIndex/targetCount
- * set on edge.data, enabling the CustomEdge component to offset overlapping edges.
- */
-export function computeEdgeFanOutData(
-  edges: AppEdge[],
-  direction: LayoutDirection
-): AppEdge[] {
-  // Group edges by source node
-  const bySource = new Map<string, AppEdge[]>();
-  // Group edges by target node
-  const byTarget = new Map<string, AppEdge[]>();
-
-  for (const edge of edges) {
-    if (!bySource.has(edge.source)) bySource.set(edge.source, []);
-    bySource.get(edge.source)!.push(edge);
-
-    if (!byTarget.has(edge.target)) byTarget.set(edge.target, []);
-    byTarget.get(edge.target)!.push(edge);
-  }
-
-  // Build lookup maps for index/count
-  const sourceData = new Map<string, { index: number; count: number }>();
-  const targetData = new Map<string, { index: number; count: number }>();
-
-  for (const group of bySource.values()) {
-    for (let i = 0; i < group.length; i++) {
-      sourceData.set(group[i].id, { index: i, count: group.length });
-    }
-  }
-
-  for (const group of byTarget.values()) {
-    for (let i = 0; i < group.length; i++) {
-      targetData.set(group[i].id, { index: i, count: group.length });
-    }
-  }
-
-  return edges.map((edge) => {
-    const src = sourceData.get(edge.id) ?? { index: 0, count: 1 };
-    const tgt = targetData.get(edge.id) ?? { index: 0, count: 1 };
-
-    return {
-      ...edge,
-      data: {
-        ...edge.data!,
-        sourceIndex: src.index,
-        sourceCount: src.count,
-        targetIndex: tgt.index,
-        targetCount: tgt.count,
-        layoutDirection: direction,
-      },
-    };
-  });
-}
-
-/**
  * Calculate layout positions for nodes using ELK layout algorithm.
  */
 export async function getLayoutedElements(
@@ -148,10 +92,7 @@ export async function getLayoutedElements(
     };
   });
 
-  // Compute fan-out data for edge separation
-  const layoutedEdges = computeEdgeFanOutData(edges, direction);
-
-  return { nodes: layoutedNodes, edges: layoutedEdges };
+  return { nodes: layoutedNodes, edges };
 }
 
 /**
