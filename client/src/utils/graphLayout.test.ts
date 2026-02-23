@@ -108,14 +108,20 @@ describe('getLayoutedElements', () => {
     expect(result.nodes[0].position.y).toBe(0);
     expect(result.nodes[1].position.x).toBe(200);
     expect(result.nodes[1].position.y).toBe(150);
-    expect(result.edges).toEqual(edges);
+
+    // Edges should have routing data attached
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].data!.routingLane).toEqual(expect.any(Number));
+    expect(result.edges[0].data!.layoutDirection).toBe('TB');
   });
 
   it('applies layout with LR direction', async () => {
     const result = await getLayoutedElements(nodes, edges, 'LR');
 
     expect(result.nodes).toHaveLength(2);
-    expect(result.edges).toEqual(edges);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].data!.routingLane).toEqual(expect.any(Number));
+    expect(result.edges[0].data!.layoutDirection).toBe('LR');
   });
 
   it('applies layout with custom tier spacing', async () => {

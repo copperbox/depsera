@@ -44,6 +44,8 @@ export interface GraphEdgeData {
   confidenceScore?: number | null;
   isSelected?: boolean;
   isHighlighted?: boolean;
+  routingLane?: number | null;
+  layoutDirection?: LayoutDirection;
   checkDetails?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string | null;

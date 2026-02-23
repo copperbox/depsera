@@ -7,6 +7,7 @@ import {
   ServiceNodeData,
   GraphEdgeData,
 } from '../types/graph';
+import { computeEdgeRoutes } from './edgeRouter';
 
 export type AppNode = Node<ServiceNodeData, 'service'>;
 export type AppEdge = Edge<GraphEdgeData, 'custom'>;
@@ -47,11 +48,11 @@ export async function getLayoutedElements(
       'elk.direction': elkDirection,
       // Node spacing within the same layer (user-controlled)
       'elk.spacing.nodeNode': String(nodeSpacing),
-      // Spacing between layers (tiers) — fixed
-      'elk.layered.spacing.nodeNodeBetweenLayers': '180',
+      // Spacing between layers (tiers) — fixed; extra room for routing lanes
+      'elk.layered.spacing.nodeNodeBetweenLayers': '220',
       // Edge spacing — push edges further apart
       'elk.spacing.edgeNode': '70',
-      'elk.spacing.edgeEdge': '50',
+      'elk.spacing.edgeEdge': '60',
       // Edge spacing between layers
       'elk.layered.spacing.edgeEdgeBetweenLayers': '30',
       'elk.layered.spacing.edgeNodeBetweenLayers': '30',
@@ -92,7 +93,19 @@ export async function getLayoutedElements(
     };
   });
 
-  return { nodes: layoutedNodes, edges };
+  // Compute orthogonal routing lanes for edges
+  const routingLanes = computeEdgeRoutes(layoutedNodes, edges, direction);
+
+  const layoutedEdges: AppEdge[] = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data!,
+      routingLane: routingLanes.get(edge.id) ?? null,
+      layoutDirection: direction,
+    },
+  }));
+
+  return { nodes: layoutedNodes, edges: layoutedEdges };
 }
 
 /**
