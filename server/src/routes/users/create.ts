@@ -62,6 +62,7 @@ export function createUser(req: Request, res: Response): void {
     });
 
     // Return user without password_hash
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password_hash: _hash, ...safeUser } = user;
     res.status(201).json(safeUser);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {

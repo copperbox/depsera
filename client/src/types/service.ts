@@ -59,6 +59,7 @@ export interface SchemaMapping {
     latency?: FieldMapping;
     impact?: FieldMapping;
     description?: FieldMapping;
+    checkDetails?: string;
   };
 }
 
@@ -132,5 +133,6 @@ export interface TestSchemaDependency {
   latency_ms: number;
   impact: string | null;
   description: string | null;
+  check_details: Record<string, unknown> | null;
   type: string;
 }

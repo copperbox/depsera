@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import { AssociationMatcher } from './AssociationMatcher';
-import { StoreRegistry } from '../../stores';
 
 // Mock the stores module to use test database
 const testDb = new Database(':memory:');

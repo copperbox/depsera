@@ -198,7 +198,7 @@ describe('HealthPollingService - syncServices', () => {
 
   it('should clean up circuit breakers and backoffs on service removal', () => {
     const svc1 = createService('svc-1', 'service-a');
-    const { stateManager, pollers, syncServices, circuitBreakers, backoffs, mockServiceStore } =
+    const { stateManager, syncServices, circuitBreakers, backoffs, mockServiceStore } =
       createPollingService([svc1]);
 
     syncServices();
@@ -959,15 +959,15 @@ describe('HealthPollingService - host rate limiting', () => {
     const svc3 = createService('svc-3', 'service-c', {
       health_endpoint: 'http://example.com/c/dependencies',
     });
-    const { instance, pollers, syncServices, pollCache, hostRateLimiter } =
+    const { instance, pollers, syncServices, pollCache } =
       createPollingService([svc1, svc2, svc3]);
 
     const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Set host rate limit to 2
-    /* eslint-disable @typescript-eslint/no-explicit-any */
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
     (instance as any).hostRateLimiter = new (require('./HostRateLimiter').HostRateLimiter)(2);
-    /* eslint-enable @typescript-eslint/no-explicit-any */
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
 
     syncServices();
     pollCache.invalidate('svc-1');

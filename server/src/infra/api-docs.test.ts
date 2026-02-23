@@ -6,13 +6,8 @@ const docsDir = path.join(repoRoot, 'docs');
 
 describe('API reference documentation', () => {
   let apiDoc: string;
-  let readme: string;
-  let claudeMd: string;
-
   beforeAll(() => {
     apiDoc = fs.readFileSync(path.join(docsDir, 'api-reference.md'), 'utf-8');
-    readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8');
-    claudeMd = fs.readFileSync(path.join(repoRoot, 'CLAUDE.md'), 'utf-8');
   });
 
   describe('api-reference.md exists and has required sections', () => {

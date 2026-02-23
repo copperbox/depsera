@@ -1,4 +1,4 @@
-import { Service, Team } from '../../db/types';
+import { Service } from '../../db/types';
 import {
   ServiceWithTeam,
   ServiceListOptions,

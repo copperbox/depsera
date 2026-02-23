@@ -3,6 +3,8 @@ import { AlertService } from './AlertService';
 import { IAlertSender, AlertEvent, SendResult } from './types';
 import { PollingEventType, StatusChangeEvent } from '../polling/types';
 import { AlertChannel, AlertRule, Service } from '../../db/types';
+import type { StoreRegistry } from '../../stores';
+import type { SettingsService } from '../settings/SettingsService';
 
 // Mock logger to suppress output during tests
 jest.mock('../../utils/logger', () => ({
@@ -72,7 +74,7 @@ function createMockStores() {
       ]),
     },
     settings: {},
-  } as any;
+  };
 }
 
 function createMockSettings() {
@@ -84,7 +86,7 @@ function createMockSettings() {
         default: return undefined;
       }
     }),
-  } as any;
+  };
 }
 
 function createMockSender(result: SendResult = { success: true }): IAlertSender {
@@ -108,7 +110,10 @@ describe('AlertService', () => {
     mockSettings = createMockSettings();
     mockSender = createMockSender();
 
-    service = new AlertService(mockStores, mockSettings);
+    service = new AlertService(
+      mockStores as unknown as StoreRegistry,
+      mockSettings as unknown as SettingsService,
+    );
     service.registerSender('slack', mockSender);
     service.start(pollingEmitter);
   });
@@ -483,7 +488,7 @@ describe('AlertService', () => {
       });
 
       const calls = mockStores.alertHistory.create.mock.calls;
-      const statuses = calls.map((c: any[]) => c[0].status);
+      const statuses = calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).status);
       expect(statuses).toContain('sent');
       expect(statuses).toContain('suppressed');
     });
@@ -537,7 +542,7 @@ describe('AlertService', () => {
       await jest.advanceTimersByTimeAsync(30_000);
 
       const calls = mockStores.alertHistory.create.mock.calls;
-      const statuses = calls.map((c: any[]) => c[0].status);
+      const statuses = calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).status);
       expect(statuses).toContain('failed');
       expect(statuses).toContain('sent');
     });

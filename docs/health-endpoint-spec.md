@@ -184,6 +184,7 @@ A schema mapping has two parts: a **root path** pointing to the array or object 
 | `fields.latency` | string or object | No | Path to the latency/response time field |
 | `fields.impact` | string or object | No | Path to the impact/severity field |
 | `fields.description` | string or object | No | Path to the description field |
+| `fields.checkDetails` | string | No | Path to an arbitrary metadata object (captured as-is) |
 
 ### Field Mappings
 
@@ -313,7 +314,7 @@ This produces three dependencies named `"db"`, `"redis"`, and `"diskSpace"`.
 
 **Rules:**
 
-- `"$key"` is only valid for the `name` field. Using it for `healthy`, `latency`, `impact`, or `description` will be rejected.
+- `"$key"` is only valid for the `name` field. Using it for `healthy`, `latency`, `impact`, `description`, or `checkDetails` will be rejected.
 - You can also use a regular field path for `name` if each object value contains a name field (e.g., `"name": "displayName"`). The object key is ignored in this case.
 - Non-object values in the root object (strings, numbers, null) are silently skipped.
 - An empty object produces an empty dependency list.
@@ -515,6 +516,7 @@ Before saving a schema mapping to a service, you can test it against a live endp
    - **Latency field** — (optional) path to response time (e.g., `responseTimeMs`)
    - **Impact field** — (optional) path to severity (e.g., `severity`)
    - **Description field** — (optional) path to description
+   - **Check details field** — (optional) path to an arbitrary metadata object (e.g., `details`)
 4. Enter the health endpoint URL in the **Health Endpoint** field.
 5. Click **Test mapping** to fetch the endpoint and preview parsed results.
 6. Review the preview table showing each parsed dependency with its health status, latency, and impact.

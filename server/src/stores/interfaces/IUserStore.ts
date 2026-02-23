@@ -1,4 +1,4 @@
-import { User, UserRole } from '../../db/types';
+import { User } from '../../db/types';
 import { UserCreateInput, UserUpdateInput, ListOptions } from '../types';
 
 /**

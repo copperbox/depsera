@@ -304,6 +304,7 @@ describe('POST /api/services/test-schema', () => {
       latency_ms: 0,
       impact: null,
       description: null,
+      check_details: null,
       type: 'other',
     });
     expect(response.body.dependencies[1]).toEqual({
@@ -312,6 +313,7 @@ describe('POST /api/services/test-schema', () => {
       latency_ms: 0,
       impact: null,
       description: null,
+      check_details: null,
       type: 'other',
     });
   });
@@ -358,6 +360,38 @@ describe('POST /api/services/test-schema', () => {
     expect(response.body.warnings).toContain(
       'No description field mapping configured — description data will not be captured'
     );
+    expect(response.body.warnings).toContain(
+      'No checkDetails field mapping configured — check details data will not be captured'
+    );
+  });
+
+  it('should include check_details in response when checkDetails is mapped', async () => {
+    const schemaWithCheckDetails = {
+      root: 'checks',
+      fields: {
+        name: 'checkName',
+        healthy: { field: 'status', equals: 'ok' },
+        checkDetails: 'details',
+      },
+    };
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        checks: [
+          { checkName: 'database', status: 'ok', details: { type: 'postgres', version: '15' } },
+          { checkName: 'cache', status: 'error', details: { type: 'redis' } },
+        ],
+      }),
+    });
+
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, schema_config: schemaWithCheckDetails });
+
+    expect(response.status).toBe(200);
+    expect(response.body.dependencies[0].check_details).toEqual({ type: 'postgres', version: '15' });
+    expect(response.body.dependencies[1].check_details).toEqual({ type: 'redis' });
   });
 
   it('should warn when no dependencies are parsed', async () => {

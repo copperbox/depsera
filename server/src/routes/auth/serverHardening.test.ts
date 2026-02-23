@@ -172,6 +172,7 @@ describe('Server-side hardening (PRO-95)', () => {
       });
 
       // Import logout handler directly
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { logout } = require('./logout');
       failApp.post('/api/auth/logout', logout);
 

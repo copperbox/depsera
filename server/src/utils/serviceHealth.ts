@@ -1,5 +1,4 @@
 import { getStores, StoreRegistry } from '../stores';
-import type { IDependencyStore } from '../stores/interfaces';
 import { DependentReport } from '../stores/types';
 import { Dependency } from '../db/types';
 

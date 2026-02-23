@@ -11,7 +11,7 @@ function createApp(opts: { requireHttps?: string; trustProxy?: boolean } = {}) {
 
   // Re-import to pick up the current env
   jest.resetModules();
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   const { createHttpsRedirect } = require('./httpsRedirect');
 
   const app = express();

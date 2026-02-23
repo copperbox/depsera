@@ -414,7 +414,7 @@ export class HealthPollingService extends EventEmitter {
 
     // Release host rate limiter slots
     for (const [hostname, serviceIds] of acquiredHosts) {
-      for (const _id of serviceIds) {
+      for (let i = 0; i < serviceIds.length; i++) {
         this.hostRateLimiter.release(hostname);
       }
     }

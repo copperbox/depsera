@@ -1,4 +1,4 @@
-import { Team, TeamMember, User, TeamMemberRole } from '../../db/types';
+import { Team, TeamMember, TeamMemberRole } from '../../db/types';
 import { TeamCreateInput, TeamUpdateInput, TeamMemberListOptions } from '../types';
 
 /**

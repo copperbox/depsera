@@ -35,10 +35,10 @@ interface MockOIDCConfig {
   serverMetadata: () => Record<string, string>;
 }
 
-let testProviderUrl = '';
 let testCallbackUri = '';
 
 jest.mock('openid-client', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const cryptoMod = require('crypto');
 
   return {
@@ -283,8 +283,6 @@ describe('OIDC Integration Tests', () => {
     provider = await createTestProvider({
       callbackUri: testCallbackUri,
     });
-    testProviderUrl = provider.url;
-
     process.env.OIDC_ISSUER_URL = provider.url;
     process.env.OIDC_CLIENT_ID = 'test-client';
     process.env.OIDC_CLIENT_SECRET = 'test-secret';

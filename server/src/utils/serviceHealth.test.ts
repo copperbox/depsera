@@ -11,7 +11,6 @@ import {
   getDependentReports,
   calculateAggregatedHealth,
   HEALTH_THRESHOLDS,
-  AggregatedHealthStatus,
 } from './serviceHealth';
 import { Dependency } from '../db/types';
 import { StoreRegistry } from '../stores';

@@ -8,7 +8,6 @@ jest.mock('../db', () => ({
 }));
 
 import { withTransaction, withTransactionAsync } from './transaction';
-import { StoreRegistry } from './index';
 
 describe('transaction', () => {
   beforeAll(() => {

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { GraphService, getGraphService, GraphResponse } from '../../services/graph';
+import { getGraphService, GraphResponse } from '../../services/graph';
 import { sendErrorResponse } from '../../utils/errors';
 
 /**
