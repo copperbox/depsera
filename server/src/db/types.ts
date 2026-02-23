@@ -126,17 +126,7 @@ export interface ServiceWithDependencies extends Service {
 // Dependency types
 export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
 
-export type DependencyType =
-  | 'database'
-  | 'rest'
-  | 'soap'
-  | 'grpc'
-  | 'graphql'
-  | 'message_queue'
-  | 'cache'
-  | 'file_system'
-  | 'smtp'
-  | 'other';
+export type DependencyType = string;
 
 export const DEPENDENCY_TYPES: DependencyType[] = [
   'database',

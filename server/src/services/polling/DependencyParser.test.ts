@@ -102,12 +102,15 @@ describe('DependencyParser', () => {
       expect(result[0].lastChecked).toBe('2024-01-01T00:00:00Z');
     });
 
-    it('should validate dependency type', () => {
+    it('should pass through any string type value', () => {
       const validResult = parser.parse([{ name: 'db', healthy: true, type: 'database' }]);
       expect(validResult[0].type).toBe('database');
 
-      const invalidResult = parser.parse([{ name: 'test', healthy: true, type: 'invalid_type' }]);
-      expect(invalidResult[0].type).toBe('other');
+      const customResult = parser.parse([{ name: 'test', healthy: true, type: 'redis' }]);
+      expect(customResult[0].type).toBe('redis');
+
+      const missingResult = parser.parse([{ name: 'test', healthy: true }]);
+      expect(missingResult[0].type).toBe('other');
     });
 
     it('should parse checkDetails', () => {

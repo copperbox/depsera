@@ -13,6 +13,7 @@ import * as migration011 from './migrations/011_add_alerts';
 import * as migration012 from './migrations/012_add_schema_config';
 import * as migration013 from './migrations/013_add_external_services';
 import * as migration014 from './migrations/014_add_match_reason';
+import * as migration015 from './migrations/015_relax_dependency_type';
 
 interface Migration {
   id: string;
@@ -105,6 +106,12 @@ const migrations: Migration[] = [
     name: 'add_match_reason',
     up: migration014.up,
     down: migration014.down
+  },
+  {
+    id: '015',
+    name: 'relax_dependency_type',
+    up: migration015.up,
+    down: migration015.down
   }
 ];
 

@@ -505,19 +505,27 @@ describe('Team Member Validation', () => {
 
 describe('Dependency Validation', () => {
   describe('validateDependencyType', () => {
-    it('should validate correct types', () => {
+    it('should validate known types', () => {
       for (const type of DEPENDENCY_TYPES) {
         expect(validateDependencyType(type)).toBe(type);
       }
     });
 
-    it('should throw on invalid type', () => {
-      expect(() => validateDependencyType('invalid')).toThrow(ValidationError);
+    it('should accept arbitrary string types', () => {
+      expect(validateDependencyType('redis')).toBe('redis');
+      expect(validateDependencyType('kafka')).toBe('kafka');
+      expect(validateDependencyType('custom-type')).toBe('custom-type');
     });
 
-    it('should throw on missing type', () => {
+    it('should throw on empty string', () => {
+      expect(() => validateDependencyType('')).toThrow(ValidationError);
+      expect(() => validateDependencyType('  ')).toThrow(ValidationError);
+    });
+
+    it('should throw on non-string type', () => {
       expect(() => validateDependencyType(undefined)).toThrow(ValidationError);
       expect(() => validateDependencyType(null)).toThrow(ValidationError);
+      expect(() => validateDependencyType(42)).toThrow(ValidationError);
     });
   });
 });

@@ -1,16 +1,6 @@
 export type NodeType = 'service';
 export type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
-export type DependencyType =
-  | 'database'
-  | 'rest'
-  | 'soap'
-  | 'grpc'
-  | 'graphql'
-  | 'message_queue'
-  | 'cache'
-  | 'file_system'
-  | 'smtp'
-  | 'other';
+export type DependencyType = string;
 
 export type LayoutDirection = 'TB' | 'LR';
 

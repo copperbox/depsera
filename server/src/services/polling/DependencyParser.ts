@@ -1,4 +1,4 @@
-import { ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES, SchemaMapping } from '../../db/types';
+import { ProactiveDepsStatus, DependencyType, SchemaMapping } from '../../db/types';
 import { SchemaMapper } from './SchemaMapper';
 
 /**
@@ -107,7 +107,7 @@ export class DependencyParser {
    * Parse and validate dependency type.
    */
   private parseType(type: unknown): DependencyType {
-    if (typeof type === 'string' && DEPENDENCY_TYPES.includes(type as DependencyType)) {
+    if (typeof type === 'string' && type.trim() !== '') {
       return type as DependencyType;
     }
     return 'other';
