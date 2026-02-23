@@ -6,16 +6,14 @@ import {
   type AppEdge,
   type LayoutDirection,
   LAYOUT_DIRECTION_KEY,
-  NODE_SPACING_KEY,
+  EDGE_STYLE_KEY,
   LATENCY_THRESHOLD_KEY,
-  DEFAULT_NODE_SPACING,
-  MIN_NODE_SPACING,
-  MAX_NODE_SPACING,
   DEFAULT_LATENCY_THRESHOLD,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
   transformGraphData,
 } from '../utils/graphLayout';
+import type { EdgeStyle } from '../types/graph';
 import { fetchGraph } from '../api/graph';
 import { fetchTeams } from '../api/teams';
 import {
@@ -52,8 +50,8 @@ export interface UseGraphStateReturn {
   // Layout state
   layoutDirection: LayoutDirection;
   setLayoutDirection: (direction: LayoutDirection) => void;
-  nodeSpacing: number;
-  setNodeSpacing: (spacing: number) => void;
+  edgeStyle: EdgeStyle;
+  setEdgeStyle: (style: EdgeStyle) => void;
   latencyThreshold: number;
   setLatencyThreshold: (threshold: number) => void;
 
@@ -69,7 +67,7 @@ export interface UseGraphStateReturn {
   // Refs for polling
   selectedTeamRef: React.MutableRefObject<string>;
   layoutDirectionRef: React.MutableRefObject<LayoutDirection>;
-  nodeSpacingRef: React.MutableRefObject<number>;
+  edgeStyleRef: React.MutableRefObject<EdgeStyle>;
 }
 
 export interface UseGraphStateOptions {
@@ -94,15 +92,9 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     return (stored === 'LR' || stored === 'TB') ? stored : 'TB';
   });
 
-  const [nodeSpacing, setNodeSpacingState] = useState(() => {
-    const stored = localStorage.getItem(NODE_SPACING_KEY);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_NODE_SPACING && parsed <= MAX_NODE_SPACING) {
-        return parsed;
-      }
-    }
-    return DEFAULT_NODE_SPACING;
+  const [edgeStyle, setEdgeStyleState] = useState<EdgeStyle>(() => {
+    const stored = localStorage.getItem(EDGE_STYLE_KEY);
+    return (stored === 'orthogonal' || stored === 'bezier') ? stored : 'orthogonal';
   });
 
   const [latencyThreshold, setLatencyThresholdState] = useState(() => {
@@ -121,7 +113,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   // Refs for polling callback to access current state
   const selectedTeamRef = useRef(selectedTeam);
   const layoutDirectionRef = useRef(layoutDirection);
-  const nodeSpacingRef = useRef(nodeSpacing);
+  const edgeStyleRef = useRef(edgeStyle);
   const selectedNodeIdRef = useRef(selectedNodeId);
   const selectedEdgeIdRef = useRef(selectedEdgeId);
 
@@ -135,8 +127,8 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   }, [layoutDirection]);
 
   useEffect(() => {
-    nodeSpacingRef.current = nodeSpacing;
-  }, [nodeSpacing]);
+    edgeStyleRef.current = edgeStyle;
+  }, [edgeStyle]);
 
   useEffect(() => {
     selectedNodeIdRef.current = selectedNodeId;
@@ -196,9 +188,9 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     localStorage.setItem(LAYOUT_DIRECTION_KEY, direction);
   }, []);
 
-  const setNodeSpacing = useCallback((spacing: number) => {
-    setNodeSpacingState(spacing);
-    localStorage.setItem(NODE_SPACING_KEY, String(spacing));
+  const setEdgeStyle = useCallback((style: EdgeStyle) => {
+    setEdgeStyleState(style);
+    localStorage.setItem(EDGE_STYLE_KEY, style);
   }, []);
 
   const setLatencyThreshold = useCallback((threshold: number) => {
@@ -209,7 +201,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
     const teamId = selectedTeamRef.current || undefined;
     const direction = layoutDirectionRef.current;
-    const spacing = nodeSpacingRef.current;
+    const style = edgeStyleRef.current;
 
     if (!isBackgroundRefresh) {
       setIsLoading(true);
@@ -228,7 +220,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, spacing);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, style);
 
       // Apply saved positions for manually dragged nodes
       const currentNodeIds = new Set(layoutedNodes.map(n => n.id));
@@ -347,8 +339,8 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setSelectedEdgeId,
     layoutDirection,
     setLayoutDirection,
-    nodeSpacing,
-    setNodeSpacing,
+    edgeStyle,
+    setEdgeStyle,
     latencyThreshold,
     setLatencyThreshold,
     isLoading,
@@ -358,6 +350,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     resetLayout,
     selectedTeamRef,
     layoutDirectionRef,
-    nodeSpacingRef,
+    edgeStyleRef,
   };
 }

@@ -2,6 +2,7 @@ import { memo } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
+  getBezierPath,
   getSmoothStepPath,
   type Edge,
   type EdgeProps,
@@ -140,12 +141,22 @@ function CustomEdgeComponent({
 }: CustomEdgeProps) {
   const routingLane = data?.routingLane;
   const direction = data?.layoutDirection;
+  const edgeStyle = data?.edgeStyle ?? 'orthogonal';
 
   let edgePath: string;
   let labelX: number;
   let labelY: number;
 
-  if (routingLane != null && direction) {
+  if (edgeStyle === 'bezier') {
+    [edgePath, labelX, labelY] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
+  } else if (routingLane != null && direction) {
     if (direction === 'TB') {
       ({ path: edgePath, labelX, labelY } = buildOrthogonalPathTB(
         sourceX,

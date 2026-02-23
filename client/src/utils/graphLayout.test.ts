@@ -3,12 +3,9 @@ import {
   transformGraphData,
   NODE_WIDTH,
   NODE_HEIGHT,
-  DEFAULT_NODE_SPACING,
   LAYOUT_DIRECTION_KEY,
-  NODE_SPACING_KEY,
+  EDGE_STYLE_KEY,
   LATENCY_THRESHOLD_KEY,
-  MIN_NODE_SPACING,
-  MAX_NODE_SPACING,
   DEFAULT_LATENCY_THRESHOLD,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
@@ -36,14 +33,11 @@ describe('constants', () => {
   it('exports expected constants', () => {
     expect(NODE_WIDTH).toBe(180);
     expect(NODE_HEIGHT).toBe(100);
-    expect(DEFAULT_NODE_SPACING).toBe(100);
-    expect(MIN_NODE_SPACING).toBe(50);
-    expect(MAX_NODE_SPACING).toBe(400);
     expect(DEFAULT_LATENCY_THRESHOLD).toBe(50);
     expect(MIN_LATENCY_THRESHOLD).toBe(10);
     expect(MAX_LATENCY_THRESHOLD).toBe(200);
     expect(LAYOUT_DIRECTION_KEY).toBe('graph-layout-direction');
-    expect(NODE_SPACING_KEY).toBe('graph-node-spacing');
+    expect(EDGE_STYLE_KEY).toBe('graph-edge-style');
     expect(LATENCY_THRESHOLD_KEY).toBe('graph-latency-threshold');
   });
 });
@@ -114,6 +108,7 @@ describe('getLayoutedElements', () => {
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0].data!.routingLane).toEqual(expect.any(Number));
     expect(result.edges[0].data!.layoutDirection).toBe('TB');
+    expect(result.edges[0].data!.edgeStyle).toBe('orthogonal');
   });
 
   it('applies layout with LR direction', async () => {
@@ -125,10 +120,20 @@ describe('getLayoutedElements', () => {
     expect(result.edges[0].data!.layoutDirection).toBe('LR');
   });
 
-  it('applies layout with custom tier spacing', async () => {
-    const result = await getLayoutedElements(nodes, edges, 'TB', 300);
+  it('applies layout with orthogonal edge style (default)', async () => {
+    const result = await getLayoutedElements(nodes, edges, 'TB', 'orthogonal');
 
     expect(result.nodes).toHaveLength(2);
+    expect(result.edges[0].data!.edgeStyle).toBe('orthogonal');
+    expect(result.edges[0].data!.routingLane).toEqual(expect.any(Number));
+  });
+
+  it('applies layout with bezier edge style (skips routing lanes)', async () => {
+    const result = await getLayoutedElements(nodes, edges, 'TB', 'bezier');
+
+    expect(result.nodes).toHaveLength(2);
+    expect(result.edges[0].data!.edgeStyle).toBe('bezier');
+    expect(result.edges[0].data!.routingLane).toBeNull();
   });
 
   it('handles empty nodes list', async () => {
@@ -266,9 +271,10 @@ describe('transformGraphData', () => {
     expect(node2?.data.reportedUnhealthyCount).toBe(0);
   });
 
-  it('applies custom direction and tier spacing', async () => {
-    const result = await transformGraphData(graphResponse, 'LR', 250);
+  it('applies custom direction and edge style', async () => {
+    const result = await transformGraphData(graphResponse, 'LR', 'bezier');
 
     expect(result.nodes[0].data.layoutDirection).toBe('LR');
+    expect(result.edges[0].data!.edgeStyle).toBe('bezier');
   });
 });

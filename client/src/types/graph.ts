@@ -3,6 +3,7 @@ export type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache
 export type DependencyType = string;
 
 export type LayoutDirection = 'TB' | 'LR';
+export type EdgeStyle = 'orthogonal' | 'bezier';
 
 export interface ServiceNodeData {
   name: string;
@@ -46,6 +47,7 @@ export interface GraphEdgeData {
   isHighlighted?: boolean;
   routingLane?: number | null;
   layoutDirection?: LayoutDirection;
+  edgeStyle?: EdgeStyle;
   checkDetails?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string | null;
