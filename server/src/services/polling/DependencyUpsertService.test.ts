@@ -83,6 +83,7 @@ describe('DependencyUpsertService', () => {
         is_auto_suggested INTEGER NOT NULL DEFAULT 0,
         confidence_score REAL,
         is_dismissed INTEGER NOT NULL DEFAULT 0,
+        match_reason TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
       );

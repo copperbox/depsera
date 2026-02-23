@@ -72,7 +72,7 @@ Core tables:
 - `team_members` - Junction table for user-team membership
 - `services` - Tracked APIs/microservices with health endpoints (has `poll_interval_ms` for per-service poll scheduling, `schema_config` nullable JSON column for custom health endpoint schema mappings, `is_external` flag for external/unmonitored services, `description` nullable text)
 - `dependencies` - Dependency status data from proactive-deps (has `canonical_name` column for alias resolution)
-- `dependency_associations` - Links between dependencies and services
+- `dependency_associations` - Links between dependencies and services (has `match_reason` nullable text for auto-suggestion context)
 - `dependency_aliases` - Maps reported dependency names (alias) to canonical names
 - `dependency_latency_history` - Historical latency data points per dependency
 - `dependency_error_history` - Historical error records per dependency
@@ -82,7 +82,7 @@ Core tables:
 - `alert_rules` - Team-level alert rules with severity filters (critical, warning, all)
 - `alert_history` - Record of sent/failed/suppressed alerts with payload and status
 
-Migrations are in `/server/src/db/migrations/` (001-013). Types are in `/server/src/db/types.ts`.
+Migrations are in `/server/src/db/migrations/` (001-014). Types are in `/server/src/db/types.ts`.
 
 **IMPORTANT:** When adding a new migration file to `/server/src/db/migrations/`, you **must** also register it in `/server/src/db/migrate.ts` — add the import and append an entry to the `migrations` array. The migration runner only executes migrations listed in that array; a migration file that isn't registered will never run.
 
@@ -214,6 +214,17 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 
 `AlertHistory` component (`/client/src/components/pages/Teams/AlertHistory.tsx`) displays the last 50 alerts in reverse chronological order with columns: time, service, dependency, event type, delivery status (sent/failed/suppressed), and channel type. Includes status filter dropdown. Handles missing/malformed payloads gracefully. Uses `useAlertHistory` hook (`/client/src/hooks/useAlertHistory.ts`).
 
+## Associations Page UI
+
+The Associations page (`/client/src/components/pages/Associations/AssociationsPage.tsx`) has 4 tabs: **Suggestions**, **Manage**, **Aliases**, and **External Services**.
+
+- **Suggestions tab** (`SuggestionsInbox.tsx`): Card-based layout showing auto-suggested associations. Displays one suggestion per dependency (highest confidence, deduplicated server-side via window function). Cards show dependency name, source→linked service flow, confidence percentage bar, match reason, and accept/dismiss actions. Bulk accept/dismiss supported. Dismissing cascades to all suggestions for the same dependency. Confidence scores are 0–100 integers displayed directly as percentages.
+- **Manage tab** (`ManageAssociations.tsx`): Accordion-based view for browsing and editing associations. Services expand to show dependencies; dependencies expand to show existing associations and an inline "Add Association" form. Search bar and status filter (All/Linked/Unlinked). Uses `useManageAssociations` hook (`/client/src/hooks/useManageAssociations.ts`) for state management with lazy-loaded associations.
+- **Aliases tab** (`AliasesManager.tsx`): CRUD for dependency name aliases.
+- **External Services tab** (`ExternalServicesManager.tsx`): CRUD for unmonitored external service entries used as association targets.
+
+Key files: `AssociationsPage.tsx` (tab container), `SuggestionsInbox.tsx` (suggestions cards), `ManageAssociations.tsx` (accordion manager), `AliasesManager.tsx` (alias CRUD), `ExternalServicesManager.tsx` (external service CRUD), `AssociationForm.tsx` (reusable form for creating associations, used in Manage tab and ServiceAssociations modal).
+
 ## API Routes
 
 - `/api/auth` - Authentication (OIDC or local). `GET /api/auth/mode` returns `{ mode }`. `POST /api/auth/login` for local credentials.
@@ -223,7 +234,7 @@ Chart colors use CSS custom properties (`--color-chart-min`, `--color-chart-avg`
 - `/api/users` - Admin user management. `POST /api/users` creates a local user and `PUT /api/users/:id/password` resets password (both require `requireAdmin` + `requireLocalAuth`)
 - `/api/aliases` - Dependency alias CRUD (admin only for mutations) + canonical name lookup
 - `/api/dependencies/:id/associations` - Association CRUD (team membership required for mutations)
-- `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss)
+- `/api/associations/suggestions` - Auto-suggestion management (team membership required for accept/dismiss). GET returns deduplicated suggestions (one per dependency, highest confidence). Dismiss cascades to all suggestions for the same dependency.
 - `/api/graph` - Dependency graph data
 - `/api/latency/:id` - Latency history (24h stats + recent data points)
 - `/api/latency/:id/buckets` - Time-bucketed latency data for charts. Query param `range`: `1h`, `6h`, `24h` (default), `7d`, `30d`. Bucket sizes: 1h/6h→1min, 24h→15min, 7d→1hr, 30d→6hr.

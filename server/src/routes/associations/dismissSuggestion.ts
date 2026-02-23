@@ -32,6 +32,9 @@ export function dismissSuggestion(req: Request, res: Response): void {
       return;
     }
 
+    // Cascade: dismiss all other suggestions for the same dependency
+    stores.associations.dismissAllForDependency(suggestion.dependency_id);
+
     res.status(204).send();
   } catch (error) /* istanbul ignore next -- Catch block for unexpected errors */ {
     sendErrorResponse(res, error, 'dismissing suggestion');

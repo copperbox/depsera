@@ -30,6 +30,7 @@ export interface AssociationSuggestion {
   is_auto_suggested: number;
   confidence_score: number | null;
   is_dismissed: number;
+  match_reason: string | null;
   created_at: string;
   dependency_name: string;
   service_name: string;

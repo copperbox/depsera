@@ -12,6 +12,7 @@ import * as migration010 from './migrations/010_add_password_hash';
 import * as migration011 from './migrations/011_add_alerts';
 import * as migration012 from './migrations/012_add_schema_config';
 import * as migration013 from './migrations/013_add_external_services';
+import * as migration014 from './migrations/014_add_match_reason';
 
 interface Migration {
   id: string;
@@ -98,6 +99,12 @@ const migrations: Migration[] = [
     name: 'add_external_services',
     up: migration013.up,
     down: migration013.down
+  },
+  {
+    id: '014',
+    name: 'add_match_reason',
+    up: migration014.up,
+    down: migration014.down
   }
 ];
 

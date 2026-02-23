@@ -112,6 +112,7 @@ describe('Services API', () => {
         is_dismissed INTEGER NOT NULL DEFAULT 0,
         dismissed_by TEXT,
         dismissed_at TEXT,
+        match_reason TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
