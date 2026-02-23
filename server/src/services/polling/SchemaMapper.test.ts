@@ -414,7 +414,7 @@ describe('SchemaMapper', () => {
       expect(result[0].description).toBeUndefined();
     });
 
-    it('should set type to other for all custom schema items', () => {
+    it('should default type to other when no type mapping is provided', () => {
       const schema: SchemaMapping = {
         root: 'checks',
         fields: {
@@ -429,6 +429,54 @@ describe('SchemaMapper', () => {
 
       const result = mapper.parse(data);
       expect(result[0].type).toBe('other');
+    });
+
+    it('should resolve type from mapping when value is a valid DependencyType', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          type: 'category',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'pg', ok: true, category: 'database' },
+          { name: 'api', ok: true, category: 'rest' },
+          { name: 'redis', ok: true, category: 'cache' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+      expect(result[0].type).toBe('database');
+      expect(result[1].type).toBe('rest');
+      expect(result[2].type).toBe('cache');
+    });
+
+    it('should default type to other when mapped value is invalid', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          type: 'category',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'dep1', ok: true, category: 'invalid-type' },
+          { name: 'dep2', ok: true, category: 42 },
+          { name: 'dep3', ok: true },
+        ],
+      };
+
+      const result = mapper.parse(data);
+      expect(result[0].type).toBe('other');
+      expect(result[1].type).toBe('other');
+      expect(result[2].type).toBe('other');
     });
 
     it('should set health code to 200 for healthy and 500 for unhealthy', () => {

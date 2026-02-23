@@ -59,6 +59,7 @@ export interface SchemaMapping {
     latency?: FieldMapping;
     impact?: FieldMapping;
     description?: FieldMapping;
+    type?: FieldMapping;
     checkDetails?: string;
   };
 }

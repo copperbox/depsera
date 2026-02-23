@@ -151,7 +151,7 @@
 .detailValue {
   font-size: 14px;
   color: var(--color-text-primary);
-  word-break: break-all;
+  overflow-wrap: break-word;
 }
 
 .errorMessage {

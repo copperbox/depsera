@@ -26,6 +26,7 @@ interface GuidedFormState {
   latencyField: string;
   impactField: string;
   descriptionField: string;
+  typeField: string;
   checkDetailsField: string;
 }
 
@@ -51,6 +52,7 @@ function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
     latencyField: mapping.fields.latency ? (typeof mapping.fields.latency === 'string' ? mapping.fields.latency : mapping.fields.latency.field) : '',
     impactField: mapping.fields.impact ? (typeof mapping.fields.impact === 'string' ? mapping.fields.impact : mapping.fields.impact.field) : '',
     descriptionField: mapping.fields.description ? (typeof mapping.fields.description === 'string' ? mapping.fields.description : mapping.fields.description.field) : '',
+    typeField: mapping.fields.type ? (typeof mapping.fields.type === 'string' ? mapping.fields.type : mapping.fields.type.field) : '',
     checkDetailsField: mapping.fields.checkDetails || '',
   };
 }
@@ -77,6 +79,9 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
   if (state.descriptionField.trim()) {
     mapping.fields.description = state.descriptionField;
   }
+  if (state.typeField.trim()) {
+    mapping.fields.type = state.typeField;
+  }
   if (state.checkDetailsField.trim()) {
     mapping.fields.checkDetails = state.checkDetailsField;
   }
@@ -93,6 +98,7 @@ const emptyFormState: GuidedFormState = {
   latencyField: '',
   impactField: '',
   descriptionField: '',
+  typeField: '',
   checkDetailsField: '',
 };
 
@@ -350,20 +356,37 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                 </div>
               </div>
 
-              <div className={styles.field}>
-                <label htmlFor="schema-checkDetails" className={styles.label}>
-                  Check details field
-                </label>
-                <input
-                  id="schema-checkDetails"
-                  type="text"
-                  value={formState.checkDetailsField}
-                  onChange={(e) => handleFieldChange('checkDetailsField', e.target.value)}
-                  className={styles.input}
-                  placeholder="details"
-                  disabled={disabled}
-                />
-                <span className={styles.hint}>Path to an arbitrary metadata object (e.g., database version, validation query details)</span>
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label htmlFor="schema-type" className={styles.label}>
+                    Type field
+                  </label>
+                  <input
+                    id="schema-type"
+                    type="text"
+                    value={formState.typeField}
+                    onChange={(e) => handleFieldChange('typeField', e.target.value)}
+                    className={styles.input}
+                    placeholder="type"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>Valid values: database, rest, soap, grpc, graphql, message_queue, cache, file_system, smtp, other</span>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="schema-checkDetails" className={styles.label}>
+                    Check details field
+                  </label>
+                  <input
+                    id="schema-checkDetails"
+                    type="text"
+                    value={formState.checkDetailsField}
+                    onChange={(e) => handleFieldChange('checkDetailsField', e.target.value)}
+                    className={styles.input}
+                    placeholder="details"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>Path to an arbitrary metadata object (e.g., database version, validation query details)</span>
+                </div>
               </div>
             </div>
           )}

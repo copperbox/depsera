@@ -1,4 +1,4 @@
-import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType } from '../../db/types';
+import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES } from '../../db/types';
 import logger from '../../utils/logger';
 
 /**
@@ -138,6 +138,11 @@ export class SchemaMapper {
       : undefined;
     const description = typeof descriptionRaw === 'string' ? descriptionRaw : undefined;
 
+    const typeRaw = fields.type ? this.resolveMapping(item, fields.type) : undefined;
+    const type: DependencyType = (typeof typeRaw === 'string' && DEPENDENCY_TYPES.includes(typeRaw as DependencyType))
+      ? typeRaw as DependencyType
+      : 'other';
+
     // Extract optional checkDetails (must resolve to a non-null object)
     const checkDetailsRaw = fields.checkDetails
       ? resolveFieldPath(item, fields.checkDetails)
@@ -150,7 +155,7 @@ export class SchemaMapper {
       name: name.trim(),
       description,
       impact,
-      type: 'other' as DependencyType,
+      type,
       healthy,
       health: {
         state: healthy ? 0 : 2,
