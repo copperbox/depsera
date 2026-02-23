@@ -205,6 +205,36 @@ describe('DependencyGraphBuilder', () => {
       expect(graph.edges[0].data.avgLatencyMs24h).toBe(45);
       expect(graph.edges[0].data.checkDetails).toEqual({ query: 'SELECT 1' });
     });
+
+    it('should use canonical_name for dependencyName when available', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.name = 'postgres-primary';
+      dep.canonical_name = 'PostgreSQL';
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(graph.edges[0].data.dependencyName).toBe('PostgreSQL');
+    });
+
+    it('should fall back to name when canonical_name is null', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.name = 'redis-cache';
+      dep.canonical_name = null;
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(graph.edges[0].data.dependencyName).toBe('redis-cache');
+    });
   });
 
   describe('hasNode', () => {
@@ -292,6 +322,36 @@ describe('DependencyGraphBuilder', () => {
       const graph = builder.build();
       expect(graph.edges).toHaveLength(1);
       expect(graph.edges[0].source).toBe('external-redis');
+      expect(graph.edges[0].target).toBe('svc-1');
+    });
+
+    it('should resolve external node using canonical_name', () => {
+      const service = createService('svc-1', 'User Service');
+      builder.addServiceNode(service, []);
+      builder.addExternalNode('external-postgresql', {
+        name: 'PostgreSQL',
+        teamId: 'external',
+        teamName: 'External',
+        healthEndpoint: '',
+        isActive: true,
+        dependencyCount: 1,
+        healthyCount: 1,
+        unhealthyCount: 0,
+        lastPollSuccess: null,
+        lastPollError: null,
+        isExternal: true,
+      });
+
+      builder.setExternalNodeMap(new Map([['postgresql', 'external-postgresql']]));
+
+      const dep = createDependency('svc-1', null);
+      dep.name = 'postgres-primary';
+      dep.canonical_name = 'PostgreSQL';
+      builder.addEdge(dep);
+
+      const graph = builder.build();
+      expect(graph.edges).toHaveLength(1);
+      expect(graph.edges[0].source).toBe('external-postgresql');
       expect(graph.edges[0].target).toBe('svc-1');
     });
 

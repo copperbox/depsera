@@ -89,6 +89,47 @@ describe('ExternalNodeBuilder', () => {
       const groups = ExternalNodeBuilder.groupUnassociatedDeps(deps);
       expect(groups.size).toBe(2);
     });
+
+    it('should group deps by canonical_name when available', () => {
+      const dep1 = createDep('svc-1', 'postgres-primary');
+      dep1.canonical_name = 'PostgreSQL';
+      const dep2 = createDep('svc-2', 'postgres-db');
+      dep2.canonical_name = 'PostgreSQL';
+      const dep3 = createDep('svc-3', 'pg-main');
+      dep3.canonical_name = 'PostgreSQL';
+
+      const groups = ExternalNodeBuilder.groupUnassociatedDeps([dep1, dep2, dep3]);
+
+      expect(groups.size).toBe(1);
+      const group = groups.get('postgresql')!;
+      expect(group.deps).toHaveLength(3);
+      expect(group.name).toBe('PostgreSQL');
+    });
+
+    it('should use original name when canonical_name is null', () => {
+      const dep1 = createDep('svc-1', 'Redis');
+      const dep2 = createDep('svc-2', 'redis');
+
+      const groups = ExternalNodeBuilder.groupUnassociatedDeps([dep1, dep2]);
+
+      expect(groups.size).toBe(1);
+      const group = groups.get('redis')!;
+      expect(group.deps).toHaveLength(2);
+      expect(group.name).toBe('Redis');
+    });
+
+    it('should keep deps with different canonical names in separate groups', () => {
+      const dep1 = createDep('svc-1', 'cache-1');
+      dep1.canonical_name = 'Redis';
+      const dep2 = createDep('svc-2', 'cache-2');
+      dep2.canonical_name = 'Memcached';
+
+      const groups = ExternalNodeBuilder.groupUnassociatedDeps([dep1, dep2]);
+
+      expect(groups.size).toBe(2);
+      expect(groups.has('redis')).toBe(true);
+      expect(groups.has('memcached')).toBe(true);
+    });
   });
 
   describe('buildNodeData', () => {

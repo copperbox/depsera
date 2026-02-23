@@ -40,7 +40,8 @@ export class ExternalNodeBuilder {
     for (const dep of deps) {
       if (dep.target_service_id !== null) continue;
 
-      const normalized = this.normalizeDepName(dep.name);
+      const displayName = dep.canonical_name ?? dep.name;
+      const normalized = this.normalizeDepName(displayName);
       const existing = groups.get(normalized);
 
       if (existing) {
@@ -48,7 +49,7 @@ export class ExternalNodeBuilder {
       } else {
         groups.set(normalized, {
           id: this.generateExternalId(normalized),
-          name: dep.name, // Use first occurrence as display name
+          name: displayName,
           deps: [dep],
         });
       }
