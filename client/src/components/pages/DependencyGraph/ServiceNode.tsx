@@ -5,7 +5,7 @@ import styles from './DependencyGraph.module.css';
 
 type ServiceNodeType = Node<ServiceNodeData, 'service'>;
 
-const TYPE_LABELS: Record<DependencyType, string> = {
+const TYPE_LABELS: Record<string, string> = {
   database: 'Database',
   rest: 'REST API',
   soap: 'SOAP',

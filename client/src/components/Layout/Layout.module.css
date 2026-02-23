@@ -1,4 +1,5 @@
 .layout {
+  --app-header-height: 3.75rem;
   min-height: 100vh;
   display: flex;
   flex-direction: column;

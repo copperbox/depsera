@@ -1550,3 +1550,62 @@ curl "http://localhost:3001/api/teams/<team-id>/alert-history?status=failed&limi
   "offset": 0
 }
 ```
+
+---
+
+## Wallboard
+
+### `GET /api/wallboard`
+
+Returns dependency-focused wallboard data. All dependencies across active services, deduplicated by canonical name, with aggregated health status and reporters. Admin sees all dependencies; non-admin users see only dependencies from their teams' services.
+
+**Auth:** Session required
+
+```bash
+curl http://localhost:3001/api/wallboard \
+  -H "Cookie: deps-dashboard.sid=..."
+```
+
+**Response:**
+
+```json
+{
+  "dependencies": [
+    {
+      "canonical_name": "PostgreSQL",
+      "primary_dependency_id": "dep-abc123",
+      "health_status": "healthy",
+      "type": "database",
+      "latency": { "min": 10, "avg": 25, "max": 50 },
+      "last_checked": "2024-01-15T10:30:00.000Z",
+      "error_message": null,
+      "impact": null,
+      "description": "Primary database",
+      "linked_service": { "id": "svc-xyz", "name": "Database Service" },
+      "reporters": [
+        {
+          "dependency_id": "dep-abc123",
+          "service_id": "svc-1",
+          "service_name": "User Service",
+          "service_team_id": "team-1",
+          "service_team_name": "Platform",
+          "healthy": 1,
+          "health_state": 0,
+          "latency_ms": 25,
+          "last_checked": "2024-01-15T10:30:00.000Z"
+        }
+      ],
+      "team_ids": ["team-1"]
+    }
+  ],
+  "teams": [
+    { "id": "team-1", "name": "Platform" }
+  ]
+}
+```
+
+**Health status aggregation:** When multiple services report the same dependency (matched by canonical name), the worst status wins: `critical` > `warning` > `healthy` > `unknown`.
+
+**Latency aggregation:** `min`, `avg`, `max` computed across all reporters' current `latency_ms` values.
+
+**Primary dependency:** The most recently checked dependency in the group, used for chart display (`LatencyChart`, `HealthTimeline`).

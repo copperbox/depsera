@@ -138,6 +138,11 @@ export class SchemaMapper {
       : undefined;
     const description = typeof descriptionRaw === 'string' ? descriptionRaw : undefined;
 
+    const typeRaw = fields.type ? this.resolveMapping(item, fields.type) : undefined;
+    const type = (typeof typeRaw === 'string' && typeRaw.trim() !== '')
+      ? typeRaw as DependencyType
+      : 'other';
+
     // Extract optional checkDetails (must resolve to a non-null object)
     const checkDetailsRaw = fields.checkDetails
       ? resolveFieldPath(item, fields.checkDetails)
@@ -150,7 +155,7 @@ export class SchemaMapper {
       name: name.trim(),
       description,
       impact,
-      type: 'other' as DependencyType,
+      type,
       healthy,
       health: {
         state: healthy ? 0 : 2,

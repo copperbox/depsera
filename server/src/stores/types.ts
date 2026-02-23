@@ -125,6 +125,15 @@ export interface ErrorHistoryEntry {
   recorded_at: string;
 }
 
+/**
+ * Dependency with team and linked service info for wallboard display
+ */
+export interface DependencyForWallboard extends DependencyWithTarget {
+  service_team_id: string;
+  service_team_name: string;
+  linked_service_name: string | null;
+}
+
 // Input types for store operations
 
 export interface ServiceCreateInput {

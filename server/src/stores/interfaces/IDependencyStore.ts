@@ -1,6 +1,7 @@
 import { Dependency } from '../../db/types';
 import {
   DependencyWithTarget,
+  DependencyForWallboard,
   DependencyListOptions,
   DependencyUpsertInput,
   DependentReport,
@@ -46,6 +47,11 @@ export interface IDependencyStore {
    * Used for team-scoped graphs.
    */
   findByServiceIdsWithAssociationsAndLatency(serviceIds: string[]): DependencyWithTarget[];
+
+  /**
+   * Find all dependencies with team and linked service info for wallboard display.
+   */
+  findAllForWallboard(): DependencyForWallboard[];
 
   /**
    * Get existing dependencies for a service (minimal fields for change detection)

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchServices } from '../../../api/services';
-import { fetchExternalServicesWithHealth } from '../../../api/external-services';
+import { fetchWallboardData } from '../../../api/wallboard';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
-import { ServiceDetailPanel } from './ServiceDetailPanel';
-import type { ServiceWithDependencies, HealthStatus } from '../../../types/service';
+import { DependencyDetailPanel } from './DependencyDetailPanel';
+import type { HealthStatus } from '../../../types/service';
+import type { WallboardDependency, WallboardResponse } from '../../../types/wallboard';
 import styles from './Wallboard.module.css';
 
 const FILTER_KEY = 'wallboard-filter-unhealthy';
@@ -36,39 +36,26 @@ function getStatusClass(status: HealthStatus): string {
   }
 }
 
-function computeLatencySummary(
-  reports: ServiceWithDependencies['dependent_reports']
-): { min: number; avg: number; max: number } | null {
-  const values = reports.map((r) => r.latency_ms).filter((v): v is number => v !== null);
-  if (values.length === 0) return null;
-  const min = Math.round(Math.min(...values));
-  const max = Math.round(Math.max(...values));
-  const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-  return { min, avg, max };
-}
-
 function Wallboard() {
-  const [services, setServices] = useState<ServiceWithDependencies[]>([]);
+  const [data, setData] = useState<WallboardResponse>({ dependencies: [], teams: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedDep, setSelectedDep] = useState<WallboardDependency | null>(null);
   const [showUnhealthyOnly, setShowUnhealthyOnly] = useState(() => {
     return localStorage.getItem(FILTER_KEY) === 'true';
   });
   const [selectedTeamId, setSelectedTeamId] = useState(() => {
     return localStorage.getItem(TEAM_FILTER_KEY) || '';
   });
+
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const [tracked, external] = await Promise.all([
-        fetchServices(),
-        fetchExternalServicesWithHealth().catch(() => [] as ServiceWithDependencies[]),
-      ]);
-      setServices([...tracked, ...external]);
+      const result = await fetchWallboardData();
+      setData(result);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load services');
+      setError(err instanceof Error ? err.message : 'Failed to load dependencies');
     } finally {
       if (!silent) setIsLoading(false);
     }
@@ -82,18 +69,6 @@ function Wallboard() {
     storageKey: 'wallboard',
     onPoll: useCallback(() => loadData(true), [loadData]),
   });
-
-  const teams = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of services) {
-      if (s.team && !map.has(s.team.id)) {
-        map.set(s.team.id, s.team.name);
-      }
-    }
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [services]);
 
   const handleFilterChange = () => {
     const newValue = !showUnhealthyOnly;
@@ -111,20 +86,24 @@ function Wallboard() {
     }
   };
 
-  const handleCardClick = (serviceId: string) => {
-    setSelectedServiceId((prev) => (prev === serviceId ? null : serviceId));
+  const handleCardClick = (dep: WallboardDependency) => {
+    setSelectedDep((prev) =>
+      prev?.canonical_name === dep.canonical_name ? null : dep,
+    );
   };
 
   const filtered = useMemo(() => {
-    let result = services;
+    let result = data.dependencies;
     if (selectedTeamId) {
-      result = result.filter((s) => s.team.id === selectedTeamId);
+      result = result.filter((d) => d.team_ids.includes(selectedTeamId));
     }
     if (showUnhealthyOnly) {
-      result = result.filter((s) => s.health.status === 'warning' || s.health.status === 'critical');
+      result = result.filter(
+        (d) => d.health_status === 'warning' || d.health_status === 'critical',
+      );
     }
     return result;
-  }, [services, selectedTeamId, showUnhealthyOnly]);
+  }, [data.dependencies, selectedTeamId, showUnhealthyOnly]);
 
   if (isLoading) {
     return (
@@ -161,7 +140,7 @@ function Wallboard() {
               aria-label="Filter by team"
             >
               <option value="">All teams</option>
-              {teams.map((team) => (
+              {data.teams.map((team) => (
                 <option key={team.id} value={team.id}>
                   {team.name}
                 </option>
@@ -202,97 +181,78 @@ function Wallboard() {
         {filtered.length === 0 ? (
           <div className={styles.emptyState}>
             {showUnhealthyOnly
-              ? 'All services are healthy!'
-              : 'No services found.'}
+              ? 'All dependencies are healthy!'
+              : 'No dependencies found.'}
           </div>
         ) : (
           <div className={styles.grid}>
-            {filtered.map((service) => {
-              const latency = computeLatencySummary(service.dependent_reports);
-              const isCritical = service.health.status === 'critical';
-              const downDeps = isCritical
-                ? service.dependencies.filter((d) => d.healthy === 0 && d.impact !== null)
-                : [];
-
-              return (
-                <div
-                  key={service.id}
-                  className={`${styles.card} ${getCardClass(service.health.status)} ${selectedServiceId === service.id ? styles.cardSelected : ''}`}
-                  onClick={() => handleCardClick(service.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleCardClick(service.id);
-                    }
-                  }}
-                >
-                  <span className={styles.cardName}>
-                    {service.name}
-                    {service.is_external === 1 && (
-                      <span className={styles.externalBadge}>External</span>
-                    )}
-                  </span>
-                  {service.is_external !== 1 && service.last_poll_success === 0 && (
-                    <div className={styles.pollFailure}>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="8" cy="8" r="6" />
-                        <path d="M8 5v3M8 10v1" />
-                      </svg>
-                      Poll failed{service.last_poll_error ? `: ${service.last_poll_error}` : ''}
-                    </div>
-                  )}
-                  <div className={styles.cardMeta}>
-                    <div className={styles.cardMetaRow}>
-                      <span>Status</span>
-                      <span className={`${styles.statusBadge} ${getStatusClass(service.health.status)}`}>
-                        {service.health.status}
-                      </span>
-                    </div>
-                    <div className={styles.cardMetaRow}>
-                      <span>Team</span>
-                      <span>{service.team.name}</span>
-                    </div>
-                    {latency && (
-                      <div className={styles.cardMetaRow}>
-                        <span>Latency</span>
-                        <span>{latency.min} / {latency.avg} / {latency.max} ms</span>
-                      </div>
-                    )}
-                    <div className={styles.cardMetaRow}>
-                      <span>Last report</span>
-                      <span>
-                        {service.health.last_report
-                          ? formatRelativeTime(service.health.last_report)
-                          : 'Never'}
-                      </span>
-                    </div>
+            {filtered.map((dep) => (
+              <div
+                key={dep.canonical_name}
+                className={`${styles.card} ${getCardClass(dep.health_status)} ${selectedDep?.canonical_name === dep.canonical_name ? styles.cardSelected : ''}`}
+                onClick={() => handleCardClick(dep)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardClick(dep);
+                  }
+                }}
+              >
+                <span className={styles.cardName}>
+                  {dep.canonical_name}
+                  <span className={styles.typeBadge}>{dep.type}</span>
+                </span>
+                <div className={styles.cardMeta}>
+                  <div className={styles.cardMetaRow}>
+                    <span>Status</span>
+                    <span className={`${styles.statusBadge} ${getStatusClass(dep.health_status)}`}>
+                      {dep.health_status}
+                    </span>
                   </div>
-                  {downDeps.length > 0 && (
-                    <div className={styles.impactRow}>
-                      <span className={styles.impactLabel}>Impact</span>
-                      <ul className={styles.impactList}>
-                        {downDeps.map((dep) => (
-                          <li key={dep.id}>
-                            <span className={styles.impactDepName}>{dep.name}</span>
-                            {dep.impact}
-                          </li>
-                        ))}
-                      </ul>
+                  <div className={styles.cardMetaRow}>
+                    <span>Reporters</span>
+                    <span className={styles.reporterNames}>
+                      {dep.reporters.map((r) => r.service_name).join(', ')}
+                    </span>
+                  </div>
+                  {dep.latency && (
+                    <div className={styles.cardMetaRow}>
+                      <span>Latency</span>
+                      <span>{dep.latency.min} / {dep.latency.avg} / {dep.latency.max} ms</span>
                     </div>
                   )}
+                  {dep.linked_service && (
+                    <div className={styles.cardMetaRow}>
+                      <span>Linked to</span>
+                      <span className={styles.linkedServiceName}>{dep.linked_service.name}</span>
+                    </div>
+                  )}
+                  <div className={styles.cardMetaRow}>
+                    <span>Last checked</span>
+                    <span>
+                      {dep.last_checked
+                        ? formatRelativeTime(dep.last_checked)
+                        : 'Never'}
+                    </span>
+                  </div>
                 </div>
-              );
-            })}
+                {dep.error_message && (
+                  <div className={styles.errorRow}>
+                    {dep.error_message}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {selectedServiceId && (
-        <ServiceDetailPanel
-          serviceId={selectedServiceId}
-          onClose={() => setSelectedServiceId(null)}
+      {selectedDep && (
+        <DependencyDetailPanel
+          dependency={selectedDep}
+          onClose={() => setSelectedDep(null)}
         />
       )}
     </div>

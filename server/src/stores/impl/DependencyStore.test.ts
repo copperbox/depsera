@@ -521,4 +521,116 @@ describe('DependencyStore', () => {
       expect(store.count({ healthy: true })).toBe(1);
     });
   });
+
+  describe('findAllForWallboard', () => {
+    it('should return dependencies with team and linked service info', () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS teams (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO teams (id, name) VALUES ('team-1', 'Test Team');
+      `);
+
+      store.upsert({
+        service_id: testServiceId,
+        name: 'PostgreSQL',
+        canonical_name: 'postgresql',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 25,
+        last_checked: new Date().toISOString(),
+      });
+
+      const results = store.findAllForWallboard();
+
+      expect(results).toHaveLength(1);
+      expect(results[0].service_name).toBe('Test Service');
+      expect(results[0].service_team_id).toBe('team-1');
+      expect(results[0].service_team_name).toBe('Test Team');
+      expect(results[0].linked_service_name).toBeNull();
+    });
+
+    it('should include linked service name when association exists', () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS teams (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO teams (id, name) VALUES ('team-1', 'Test Team');
+      `);
+
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'OrderAPI',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      // Create an association to the second service
+      db.exec(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type)
+        VALUES ('assoc-1', '${result.dependency.id}', '${testServiceId2}', 'api_call')
+      `);
+
+      const results = store.findAllForWallboard();
+
+      const dep = results.find((d) => d.name === 'OrderAPI');
+      expect(dep).toBeDefined();
+      expect(dep!.target_service_id).toBe(testServiceId2);
+      expect(dep!.linked_service_name).toBe('Test Service 2');
+    });
+
+    it('should exclude inactive services', () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS teams (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT OR IGNORE INTO teams (id, name) VALUES ('team-1', 'Test Team');
+
+        INSERT INTO services (id, name, team_id, health_endpoint, is_active)
+        VALUES ('svc-inactive', 'Inactive Service', 'team-1', 'http://inactive/health', 0);
+      `);
+
+      store.upsert({
+        service_id: 'svc-inactive',
+        name: 'SomeDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 10,
+        last_checked: new Date().toISOString(),
+      });
+
+      store.upsert({
+        service_id: testServiceId,
+        name: 'ActiveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 10,
+        last_checked: new Date().toISOString(),
+      });
+
+      const results = store.findAllForWallboard();
+
+      // Should only include deps from active services
+      expect(results.every((d) => d.service_id !== 'svc-inactive')).toBe(true);
+      expect(results.some((d) => d.name === 'ActiveDep')).toBe(true);
+    });
+  });
 });

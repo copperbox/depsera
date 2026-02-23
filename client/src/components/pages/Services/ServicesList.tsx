@@ -235,17 +235,19 @@ function ServicesList() {
                       size="small"
                     />
                   </td>
-                  <td className={styles.depsCell}>
-                    {service.health.total_reports > 0 ? (
-                      <>
-                        <span className={styles.depsCount}>
-                          {service.health.healthy_reports}/{service.health.total_reports}
-                        </span>
-                        <span className={styles.depsLabel}>healthy reports</span>
-                      </>
-                    ) : (
-                      <span className={styles.depsLabel}>No dependents</span>
-                    )}
+                  <td>
+                    <span className={styles.depsCell}>
+                      {service.health.total_reports > 0 ? (
+                        <>
+                          <span className={styles.depsCount}>
+                            {service.health.healthy_reports}/{service.health.total_reports}
+                          </span>
+                          <span className={styles.depsLabel}>healthy reports</span>
+                        </>
+                      ) : (
+                        <span className={styles.depsLabel}>No dependents</span>
+                      )}
+                    </span>
                   </td>
                   <td className={styles.timeCell}>
                     {formatRelativeTime(service.health.last_report)}

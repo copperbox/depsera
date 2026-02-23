@@ -1,5 +1,5 @@
 import { ValidationError } from './errors';
-import { AssociationType, DependencyType, DEPENDENCY_TYPES, TeamMemberRole, SchemaMapping, FieldMapping } from '../db/types';
+import { AssociationType, DependencyType, TeamMemberRole, SchemaMapping, FieldMapping } from '../db/types';
 import { validateUrlHostname } from './ssrf';
 
 // ============================================================================
@@ -523,9 +523,9 @@ export function validateTeamMemberRoleUpdate(input: Record<string, unknown>): Te
  * @throws ValidationError if validation fails
  */
 export function validateDependencyType(type: unknown): DependencyType {
-  if (!type || !DEPENDENCY_TYPES.includes(type as DependencyType)) {
+  if (typeof type !== 'string' || type.trim() === '') {
     throw new ValidationError(
-      `type must be one of: ${DEPENDENCY_TYPES.join(', ')}`,
+      'type must be a non-empty string',
       'type'
     );
   }
@@ -536,7 +536,7 @@ export function validateDependencyType(type: unknown): DependencyType {
 // Schema Config Validation
 // ============================================================================
 
-const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'checkDetails'] as const;
+const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'type', 'checkDetails'] as const;
 const REQUIRED_SCHEMA_FIELDS: (keyof SchemaMapping['fields'])[] = ['name', 'healthy'];
 
 /**
@@ -673,6 +673,7 @@ export function validateSchemaConfig(value: unknown): string {
       ...(validatedFields.latency !== undefined && { latency: validatedFields.latency }),
       ...(validatedFields.impact !== undefined && { impact: validatedFields.impact }),
       ...(validatedFields.description !== undefined && { description: validatedFields.description }),
+      ...(validatedFields.type !== undefined && { type: validatedFields.type }),
       ...(validatedCheckDetails !== undefined && { checkDetails: validatedCheckDetails }),
     },
   };
