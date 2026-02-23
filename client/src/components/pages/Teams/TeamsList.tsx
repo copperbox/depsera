@@ -158,16 +158,20 @@ function TeamsList() {
                   <td className={styles.descriptionCell}>
                     {team.description || '-'}
                   </td>
-                  <td className={styles.countCell}>
-                    <span className={styles.countValue}>{team.member_count}</span>
-                    <span className={styles.countLabel}>
-                      {team.member_count === 1 ? 'member' : 'members'}
+                  <td>
+                    <span className={styles.countCell}>
+                      <span className={styles.countValue}>{team.member_count}</span>
+                      <span className={styles.countLabel}>
+                        {team.member_count === 1 ? 'member' : 'members'}
+                      </span>
                     </span>
                   </td>
-                  <td className={styles.countCell}>
-                    <span className={styles.countValue}>{team.service_count}</span>
-                    <span className={styles.countLabel}>
-                      {team.service_count === 1 ? 'service' : 'services'}
+                  <td>
+                    <span className={styles.countCell}>
+                      <span className={styles.countValue}>{team.service_count}</span>
+                      <span className={styles.countLabel}>
+                        {team.service_count === 1 ? 'service' : 'services'}
+                      </span>
                     </span>
                   </td>
                 </tr>

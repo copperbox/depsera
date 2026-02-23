@@ -161,7 +161,7 @@
 }
 
 .countCell {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.375rem;
 }
