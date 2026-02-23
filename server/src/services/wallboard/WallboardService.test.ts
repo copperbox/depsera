@@ -86,6 +86,64 @@ describe('WallboardService', () => {
     expect(result.dependencies[0].reporters).toHaveLength(2);
   });
 
+  it('groups dependencies linked to the same service even with different names', () => {
+    mockFindAllForWallboard.mockReturnValue([
+      makeDep({
+        id: 'dep-1', name: 'sso', service_id: 'svc-1', service_name: 'Service Alpha',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Token Service',
+      }),
+      makeDep({
+        id: 'dep-2', name: 'SSO Auth Manager', service_id: 'svc-2', service_name: 'Service Beta',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Token Service',
+      }),
+      makeDep({
+        id: 'dep-3', name: 'SSO Authentication Service', service_id: 'svc-3', service_name: 'Service Gamma',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Token Service',
+      }),
+    ]);
+
+    const result = service.getWallboardData();
+
+    expect(result.dependencies).toHaveLength(1);
+    expect(result.dependencies[0].canonical_name).toBe('SSO Auth Token Service');
+    expect(result.dependencies[0].reporters).toHaveLength(3);
+  });
+
+  it('keeps deps with different linked services as separate cards', () => {
+    mockFindAllForWallboard.mockReturnValue([
+      makeDep({
+        id: 'dep-1', name: 'sso', service_id: 'svc-1',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Service',
+      }),
+      makeDep({
+        id: 'dep-2', name: 'ssoADGroups', service_id: 'svc-2', service_name: 'Service Beta',
+        target_service_id: 'ext-ad', linked_service_name: 'SSO AD Groups',
+      }),
+    ]);
+
+    const result = service.getWallboardData();
+
+    expect(result.dependencies).toHaveLength(2);
+  });
+
+  it('uses linked service name as display name when grouped by linked service', () => {
+    mockFindAllForWallboard.mockReturnValue([
+      makeDep({
+        id: 'dep-1', name: 'auth-token', last_checked: '2025-01-01T14:00:00Z',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Token Service',
+      }),
+      makeDep({
+        id: 'dep-2', name: 'sso', service_id: 'svc-2', service_name: 'Service Beta',
+        last_checked: '2025-01-01T10:00:00Z',
+        target_service_id: 'ext-sso', linked_service_name: 'SSO Auth Token Service',
+      }),
+    ]);
+
+    const result = service.getWallboardData();
+
+    expect(result.dependencies[0].canonical_name).toBe('SSO Auth Token Service');
+  });
+
   it('worst health status wins: critical > warning > healthy > unknown', () => {
     mockFindAllForWallboard.mockReturnValue([
       makeDep({ id: 'dep-1', name: 'DB', healthy: 1, health_state: 0 }),
@@ -162,14 +220,15 @@ describe('WallboardService', () => {
     expect(result.dependencies[0].latency).toBeNull();
   });
 
-  it('resolves linked service from first reporter with association', () => {
+  it('resolves linked service from reporters with association', () => {
     mockFindAllForWallboard.mockReturnValue([
-      makeDep({ id: 'dep-1', name: 'DB', target_service_id: null, linked_service_name: null }),
+      makeDep({ id: 'dep-1', name: 'DB', target_service_id: 'svc-target', linked_service_name: 'Target Service' }),
       makeDep({ id: 'dep-2', name: 'db', target_service_id: 'svc-target', linked_service_name: 'Target Service', service_id: 'svc-2', service_name: 'Service Beta' }),
     ]);
 
     const result = service.getWallboardData();
 
+    expect(result.dependencies).toHaveLength(1);
     expect(result.dependencies[0].linked_service).toEqual({ id: 'svc-target', name: 'Target Service' });
   });
 

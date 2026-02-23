@@ -17,6 +17,18 @@ function normalizeDepName(dep: DependencyForWallboard): string {
 }
 
 /**
+ * Compute the grouping key for deduplication.
+ * Prefers linked service ID (so deps linked to the same service merge),
+ * falls back to normalized canonical name / raw name.
+ */
+function getGroupKey(dep: DependencyForWallboard): string {
+  if (dep.target_service_id) {
+    return `linked:${dep.target_service_id}`;
+  }
+  return `name:${normalizeDepName(dep)}`;
+}
+
+/**
  * Map health_state (0=OK, 1=WARNING, 2=CRITICAL) + healthy flag to WallboardHealthStatus.
  */
 function resolveHealthStatus(dep: DependencyForWallboard): WallboardHealthStatus {
@@ -79,10 +91,10 @@ export class WallboardService {
       rows = rows.filter((r) => teamIdSet.has(r.service_team_id));
     }
 
-    // Group by normalized canonical name
+    // Group by linked service ID (when available) or normalized name
     const groups = new Map<string, DependencyForWallboard[]>();
     for (const row of rows) {
-      const key = normalizeDepName(row);
+      const key = getGroupKey(row);
       const group = groups.get(key);
       if (group) {
         group.push(row);
@@ -171,8 +183,11 @@ export class WallboardService {
       // Unique team IDs across all reporters
       const team_ids = [...new Set(deps.map((d) => d.service_team_id))];
 
-      // Use the original casing from canonical_name or name of the primary
-      const displayName = primary.canonical_name ?? primary.name;
+      // Display name: prefer linked service name (when grouped by linked service),
+      // then canonical_name, then raw name from the primary
+      const displayName = linked_service
+        ? linked_service.name
+        : (primary.canonical_name ?? primary.name);
 
       dependencies.push({
         canonical_name: displayName,
