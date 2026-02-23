@@ -25,9 +25,21 @@ jest.mock('react-router-dom', () => ({
 }));
 
 // Mock AlertChannels, AlertRules, and AlertHistory to isolate TeamDetail tests
-jest.mock('./AlertChannels', () => () => <div data-testid="alert-channels" />);
-jest.mock('./AlertRules', () => () => <div data-testid="alert-rules" />);
-jest.mock('./AlertHistory', () => () => <div data-testid="alert-history" />);
+jest.mock('./AlertChannels', () => {
+  const AlertChannels = () => <div data-testid="alert-channels" />;
+  AlertChannels.displayName = 'AlertChannels';
+  return AlertChannels;
+});
+jest.mock('./AlertRules', () => {
+  const AlertRules = () => <div data-testid="alert-rules" />;
+  AlertRules.displayName = 'AlertRules';
+  return AlertRules;
+});
+jest.mock('./AlertHistory', () => {
+  const AlertHistory = () => <div data-testid="alert-history" />;
+  AlertHistory.displayName = 'AlertHistory';
+  return AlertHistory;
+});
 
 function jsonResponse(data: unknown, status = 200) {
   return {

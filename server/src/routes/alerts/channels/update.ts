@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
-import { NotFoundError, ValidationError, sendErrorResponse } from '../../../utils/errors';
+import { NotFoundError, sendErrorResponse } from '../../../utils/errors';
 import { validateChannelUpdate, validateChannelCreate } from '../validation';
 import { AlertChannelType } from '../../../db/types';
 

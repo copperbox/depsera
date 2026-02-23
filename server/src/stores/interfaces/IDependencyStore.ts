@@ -1,4 +1,4 @@
-import { Dependency, Service, ProactiveDepsStatus } from '../../db/types';
+import { Dependency } from '../../db/types';
 import {
   DependencyWithTarget,
   DependencyListOptions,

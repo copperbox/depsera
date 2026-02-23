@@ -1,5 +1,3 @@
-import { AlertChannelType, AlertStatus } from '../../db/types';
-
 /**
  * Severity levels for alert events.
  * Maps to AlertSeverityFilter for rule matching.

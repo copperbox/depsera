@@ -8,7 +8,6 @@ import {
 } from './ssrf';
 import { clearAllowlistCache } from './ssrf-allowlist';
 import dns from 'dns';
-import net from 'net';
 
 jest.mock('dns', () => ({
   promises: {

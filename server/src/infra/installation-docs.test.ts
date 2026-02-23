@@ -6,17 +6,13 @@ const docsDir = path.join(repoRoot, 'docs');
 
 describe('Installation documentation', () => {
   let installationDoc: string;
-  let envExample: string;
   let dockerfile: string;
-  let dockerCompose: string;
   let packageJson: Record<string, unknown>;
   let serverPackageJson: Record<string, unknown>;
 
   beforeAll(() => {
     installationDoc = fs.readFileSync(path.join(docsDir, 'installation.md'), 'utf-8');
-    envExample = fs.readFileSync(path.join(repoRoot, 'server', '.env.example'), 'utf-8');
     dockerfile = fs.readFileSync(path.join(repoRoot, 'Dockerfile'), 'utf-8');
-    dockerCompose = fs.readFileSync(path.join(repoRoot, 'docker-compose.yml'), 'utf-8');
     packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf-8'));
     serverPackageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'server', 'package.json'), 'utf-8'));
   });

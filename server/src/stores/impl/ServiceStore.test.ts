@@ -265,7 +265,7 @@ describe('ServiceStore', () => {
 
   describe('findActive and findActiveWithTeam', () => {
     beforeEach(() => {
-      const svc = store.create({ name: 'Active', team_id: 'team-1', health_endpoint: 'http://a/health' });
+      store.create({ name: 'Active', team_id: 'team-1', health_endpoint: 'http://a/health' });
       store.create({ name: 'Inactive', team_id: 'team-1', health_endpoint: 'http://b/health' });
       store.update(store.findAll()[1].id, { is_active: false });
     });

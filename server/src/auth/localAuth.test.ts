@@ -139,7 +139,7 @@ describe('localAuth', () => {
 
       bootstrapLocalAdmin();
 
-      const user = testDb.prepare('SELECT * FROM users WHERE email = ?').get('admin@test.com') as any;
+      const user = testDb.prepare('SELECT * FROM users WHERE email = ?').get('admin@test.com') as unknown as Record<string, unknown>;
       expect(user).toBeDefined();
       expect(user.role).toBe('admin');
       expect(user.password_hash).toBeDefined();
@@ -207,7 +207,7 @@ describe('localAuth', () => {
 
       bootstrapLocalAdmin();
 
-      const user = testDb.prepare('SELECT * FROM users WHERE email = ?').get('john.doe@example.com') as any;
+      const user = testDb.prepare('SELECT * FROM users WHERE email = ?').get('john.doe@example.com') as unknown as Record<string, unknown>;
       expect(user.name).toBe('john.doe');
     });
   });

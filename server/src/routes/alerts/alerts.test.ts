@@ -493,7 +493,7 @@ describe('Alert API Routes', () => {
     let channelId: string;
 
     beforeEach(() => {
-      const row = testDb.prepare(`
+      testDb.prepare(`
         INSERT INTO alert_channels (id, team_id, channel_type, config)
         VALUES ('ch-update', 'team-1', 'slack', '{"webhook_url":"https://hooks.slack.com/services/T00/B00/old"}')
       `).run();

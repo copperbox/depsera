@@ -1,5 +1,4 @@
 import { AlertEvent, IAlertSender, SendResult } from '../types';
-import logger from '../../../utils/logger';
 
 const WEBHOOK_TIMEOUT_MS = 10_000;
 

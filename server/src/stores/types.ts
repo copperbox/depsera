@@ -1,8 +1,6 @@
 import { Database } from 'better-sqlite3';
 import {
   Service,
-  Team,
-  User,
   Dependency,
   DependencyAssociation,
   DependencyType,

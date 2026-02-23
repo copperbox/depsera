@@ -9,6 +9,7 @@ import {
   clearAllowlistCache,
 } from './ssrf-allowlist';
 import { SettingsService } from '../services/settings/SettingsService';
+import { ISettingsStore } from '../stores/interfaces/ISettingsStore';
 
 jest.mock('net', () => ({
   isIPv4: (ip: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(ip),
@@ -326,7 +327,7 @@ describe('SSRF Allowlist', () => {
         upsertMany: jest.fn(),
         findByKey: jest.fn(),
       };
-      SettingsService.getInstance(mockStore as any);
+      SettingsService.getInstance(mockStore as unknown as ISettingsStore);
 
       const result = getAllowlist();
       expect(result.hostnames).toEqual(['localhost']);
@@ -340,7 +341,7 @@ describe('SSRF Allowlist', () => {
         upsertMany: jest.fn(),
         findByKey: jest.fn(),
       };
-      SettingsService.getInstance(mockStore as any);
+      SettingsService.getInstance(mockStore as unknown as ISettingsStore);
 
       const result = getAllowlist();
       expect(result.hostnames).toEqual(['from-env']);
@@ -359,7 +360,7 @@ describe('SSRF Allowlist', () => {
         upsertMany: jest.fn().mockReturnValue([]),
         findByKey: jest.fn(),
       };
-      const settings = SettingsService.getInstance(mockStore as any);
+      const settings = SettingsService.getInstance(mockStore as unknown as ISettingsStore);
 
       const result1 = getAllowlist();
       expect(result1.hostnames).toEqual(['localhost']);

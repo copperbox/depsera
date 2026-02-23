@@ -1,4 +1,4 @@
-import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType, DEPENDENCY_TYPES } from '../../db/types';
+import { SchemaMapping, FieldMapping, ProactiveDepsStatus, DependencyType } from '../../db/types';
 import logger from '../../utils/logger';
 
 /**

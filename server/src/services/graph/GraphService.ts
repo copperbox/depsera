@@ -4,10 +4,6 @@ import type {
   IDependencyStore,
   ITeamStore,
 } from '../../stores/interfaces';
-import {
-  ServiceWithTeam as StoreServiceWithTeam,
-  DependencyWithTarget as StoreDependencyWithTarget,
-} from '../../stores/types';
 import { ServiceWithTeam, DependencyWithTarget, GraphResponse } from './types';
 import { ServiceTypeInferencer } from './ServiceTypeInferencer';
 import { DependencyGraphBuilder } from './DependencyGraphBuilder';

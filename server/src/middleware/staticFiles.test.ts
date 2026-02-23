@@ -45,7 +45,7 @@ describe('staticFiles', () => {
       };
       const next = jest.fn();
 
-      spaFallback(req as any, res as any, next);
+      spaFallback(req as unknown, res as unknown, next);
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Cache-Control',

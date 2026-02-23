@@ -292,7 +292,6 @@ describe('UserManagement', () => {
   });
 
   it('handles role update error', async () => {
-    let userCallCount = 0;
     mockFetch.mockImplementation((url: string, _options?: { method?: string }) => {
       if (typeof url === 'string' && url.includes('/api/auth/mode')) {
         return Promise.resolve(jsonResponse({ mode: 'oidc' }));
@@ -301,7 +300,6 @@ describe('UserManagement', () => {
         return Promise.reject(new Error('Failed to update role'));
       }
       if (typeof url === 'string' && url.includes('/api/users')) {
-        userCallCount++;
         return Promise.resolve(jsonResponse(mockUsers));
       }
       return Promise.resolve(jsonResponse({}));
