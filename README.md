@@ -1,6 +1,6 @@
 # Depsera
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)]()
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
