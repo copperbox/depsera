@@ -1,5 +1,7 @@
 import { getStores } from '../../stores';
 import { DependencyForWallboard } from '../../stores/types';
+import { DependencyCanonicalOverride } from '../../db/types';
+import { resolveContact, resolveImpact } from '../../utils/overrideResolver';
 import {
   WallboardDependency,
   WallboardHealthStatus,
@@ -85,6 +87,12 @@ export class WallboardService {
     const stores = getStores();
     let rows = stores.dependencies.findAllForWallboard();
 
+    // Fetch canonical overrides once for efficient resolution
+    const canonicalOverrides = stores.canonicalOverrides.findAll();
+    const canonicalOverrideMap = new Map<string, DependencyCanonicalOverride>(
+      canonicalOverrides.map((o) => [o.canonical_name, o]),
+    );
+
     // Filter by team IDs if provided (for non-admin scoping)
     if (teamIds && teamIds.length > 0) {
       const teamIdSet = new Set(teamIds);
@@ -161,6 +169,23 @@ export class WallboardService {
       // Description: from primary or first non-null
       const description = primary.description ?? deps.find((d) => d.description !== null)?.description ?? null;
 
+      // Resolved overrides: use primary's 3-tier hierarchy
+      const canonicalOverride = primary.canonical_name
+        ? canonicalOverrideMap.get(primary.canonical_name)
+        : undefined;
+
+      const effective_contact = resolveContact(
+        primary.contact,
+        canonicalOverride?.contact_override ?? null,
+        primary.contact_override,
+      );
+
+      const effective_impact = resolveImpact(
+        primary.impact,
+        canonicalOverride?.impact_override ?? null,
+        primary.impact_override,
+      );
+
       // Linked service: from first reporter with an association
       const linkedDep = deps.find((d) => d.target_service_id !== null);
       const linked_service = linkedDep && linkedDep.target_service_id
@@ -199,6 +224,8 @@ export class WallboardService {
         error_message,
         impact,
         description,
+        effective_contact,
+        effective_impact,
         linked_service,
         reporters,
         team_ids,

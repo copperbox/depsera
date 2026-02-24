@@ -515,3 +515,62 @@ Per-instance overrides set contact and/or impact for a specific dependency insta
 **DELETE /api/dependencies/:id/overrides:** Clears both `contact_override` and `impact_override` to null. Returns 204. Does not modify polled data columns.
 
 **Audit actions:** `dependency_override.updated`, `dependency_override.cleared` (resource type: `dependency`).
+
+## 4.14 Wallboard
+
+**[Implemented]** (PRO-48, DPS-16c)
+
+Read-only aggregated view of all tracked dependencies, grouped by canonical name or linked service. Suitable for shared monitors and rapid triage.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/wallboard` | requireAuth | Get aggregated dependency wallboard. Non-admin: scoped to user's teams. |
+
+**GET /api/wallboard response:**
+
+```json
+{
+  "dependencies": [
+    {
+      "canonical_name": "PostgreSQL Primary",
+      "primary_dependency_id": "uuid",
+      "health_status": "healthy",
+      "type": "database",
+      "latency": { "min": 10, "avg": 25, "max": 42 },
+      "last_checked": "2026-02-24T12:00:00.000Z",
+      "error_message": null,
+      "impact": "Critical — primary database",
+      "description": "Main PostgreSQL cluster",
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database",
+      "linked_service": { "id": "uuid", "name": "PostgreSQL Service" },
+      "reporters": [
+        {
+          "dependency_id": "uuid",
+          "service_id": "uuid",
+          "service_name": "Payment Service",
+          "service_team_id": "uuid",
+          "service_team_name": "Platform",
+          "healthy": 1,
+          "health_state": 0,
+          "latency_ms": 25,
+          "last_checked": "2026-02-24T12:00:00.000Z"
+        }
+      ],
+      "team_ids": ["uuid"]
+    }
+  ],
+  "teams": [
+    { "id": "uuid", "name": "Platform" }
+  ]
+}
+```
+
+**Aggregation rules:**
+- Dependencies are grouped by linked service ID (if associated) or normalized canonical name / raw name
+- `health_status`: worst status across all reporters (critical > warning > healthy > unknown)
+- `latency`: min/avg/max across all reporters with latency data (null if none)
+- `impact`, `error_message`, `description`: from primary dependency (most recently checked), with first-non-null fallback across group
+- `effective_contact`, `effective_impact`: resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
+- `type`: most common type across reporters
+- Sorted by health status (worst first), then alphabetically
