@@ -54,7 +54,7 @@ All API modules follow a consistent pattern:
 3. `handleResponse<T>(response)` — throws `Error` with server message if `!response.ok`, otherwise returns parsed JSON
 4. No built-in retry logic — components handle errors via state
 
-**API modules:** `auth.ts`, `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`, `dependencies.ts`
+**API modules:** `auth.ts`, `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`, `dependencies.ts`, `canonicalOverrides.ts`
 
 ## 10.4 Custom Hooks
 
@@ -70,6 +70,7 @@ All API modules follow a consistent pattern:
 | `useAssociations` | CRUD for associations scoped to a single dependency. |
 | `useAliases` | Global alias management — CRUD + canonical names list. |
 | `useSuggestions` | Suggestion inbox — list, filter, multi-select, accept/dismiss (individual and bulk). |
+| `useCanonicalOverrides` | Canonical override CRUD — load all, save (upsert), remove, lookup by canonical name. |
 
 ## 10.5 Client-Side Storage
 
