@@ -282,6 +282,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Teams | CRUD on `/api/teams`, member management via `/:id/members` |
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
+| Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
 | Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline` |

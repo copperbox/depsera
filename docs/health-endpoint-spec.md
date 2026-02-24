@@ -49,6 +49,10 @@ Your health endpoint should return an array at the top level:
     "impact": "critical",
     "type": "database",
     "healthy": true,
+    "contact": {
+      "email": "db-team@example.com",
+      "slack": "#db-support"
+    },
     "health": {
       "state": 0,
       "code": 200,
@@ -87,6 +91,7 @@ Your health endpoint should return an array at the top level:
 | `impact` | string | No | Impact level if this dependency fails (e.g., `"critical"`, `"warning"`) |
 | `type` | string | No | Dependency type (see [Dependency Types](#dependency-types)). Default: `"other"` |
 | `lastChecked` | string | No | ISO-8601 timestamp of the last check. Default: current time |
+| `contact` | object | No | Arbitrary contact info (e.g., `{ "email": "team@example.com", "slack": "#support" }`). Non-object values are silently ignored. |
 | `checkDetails` | object | No | Arbitrary key-value details about the check |
 | `error` | any | No | Error value if the check failed |
 | `errorMessage` | string | No | Human-readable error message |
@@ -184,6 +189,7 @@ A schema mapping has two parts: a **root path** pointing to the array or object 
 | `fields.latency` | string or object | No | Path to the latency/response time field |
 | `fields.impact` | string or object | No | Path to the impact/severity field |
 | `fields.description` | string or object | No | Path to the description field |
+| `fields.contact` | string | No | Path to a contact info object (e.g., `{ "email": "...", "slack": "..." }`) |
 | `fields.checkDetails` | string | No | Path to an arbitrary metadata object (captured as-is) |
 
 ### Field Mappings
@@ -516,6 +522,7 @@ Before saving a schema mapping to a service, you can test it against a live endp
    - **Latency field** — (optional) path to response time (e.g., `responseTimeMs`)
    - **Impact field** — (optional) path to severity (e.g., `severity`)
    - **Description field** — (optional) path to description
+   - **Contact field** — (optional) path to a contact info object (e.g., `contact`)
    - **Check details field** — (optional) path to an arbitrary metadata object (e.g., `details`)
 4. Enter the health endpoint URL in the **Health Endpoint** field.
 5. Click **Test mapping** to fetch the endpoint and preview parsed results.
@@ -558,6 +565,7 @@ curl -X POST http://localhost:3001/api/services/test-schema \
       "latency_ms": 12,
       "impact": null,
       "description": null,
+      "contact": null,
       "type": "other"
     }
   ],

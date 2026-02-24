@@ -245,7 +245,9 @@ curl http://localhost:3001/api/services/<service-id> -b cookies.txt
       "type": "database",
       "is_healthy": true,
       "latency_ms": 12,
-      "error_message": null
+      "error_message": null,
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database"
     }
   ],
   "dependent_reports": [
@@ -393,7 +395,7 @@ curl -X POST http://localhost:3001/api/services/test-schema \
 {
   "success": true,
   "dependencies": [
-    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "type": "other" }
+    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "contact": null, "type": "other" }
   ],
   "warnings": ["No impact field mapping configured — impact data will not be captured"]
 }
@@ -1300,7 +1302,7 @@ curl "http://localhost:3001/api/admin/audit-log?limit=20&action=user.role_change
 }
 ```
 
-**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`
+**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`
 
 ---
 
@@ -1581,6 +1583,8 @@ curl http://localhost:3001/api/wallboard \
       "error_message": null,
       "impact": null,
       "description": "Primary database",
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database",
       "linked_service": { "id": "svc-xyz", "name": "Database Service" },
       "reporters": [
         {
@@ -1609,3 +1613,143 @@ curl http://localhost:3001/api/wallboard \
 **Latency aggregation:** `min`, `avg`, `max` computed across all reporters' current `latency_ms` values.
 
 **Primary dependency:** The most recently checked dependency in the group, used for chart display (`LatencyChart`, `HealthTimeline`).
+
+**Override resolution:** `effective_contact` and `effective_impact` are resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
+
+---
+
+## Canonical Overrides
+
+Canonical overrides set default contact and impact values for all dependencies sharing a canonical name. They sit in the middle of the 3-tier merge hierarchy: instance override > canonical override > polled data.
+
+### `GET /api/canonical-overrides`
+
+List all canonical overrides. Requires authentication.
+
+```bash
+curl http://localhost:3001/api/canonical-overrides -b cookies.txt
+```
+
+**Response (200):** Array of canonical override objects.
+
+```json
+[
+  {
+    "id": "uuid",
+    "canonical_name": "PostgreSQL",
+    "contact_override": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+    "impact_override": "Critical — all downstream services depend on this",
+    "created_at": "2026-02-24T10:00:00.000Z",
+    "updated_at": "2026-02-24T10:00:00.000Z",
+    "updated_by": "user-uuid"
+  }
+]
+```
+
+---
+
+### `GET /api/canonical-overrides/:canonicalName`
+
+Get a single canonical override by name. Requires authentication.
+
+```bash
+curl http://localhost:3001/api/canonical-overrides/PostgreSQL -b cookies.txt
+```
+
+**Response (200):** The canonical override object. Returns `404` if not found.
+
+---
+
+### `PUT /api/canonical-overrides/:canonicalName`
+
+Create or update a canonical override. Requires admin role OR team lead of any team that owns a service with a dependency matching the given canonical name.
+
+```bash
+curl -X PUT http://localhost:3001/api/canonical-overrides/PostgreSQL \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{
+    "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+    "impact_override": "Critical — all downstream services depend on this"
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `contact_override` | object/null | No | Contact info object (set to `null` to clear). Stored as JSON string. |
+| `impact_override` | string/null | No | Impact description (set to `null` to clear). |
+
+At least one field must be provided (400 otherwise).
+
+**Response (200):** The created or updated canonical override object.
+
+**Audit action:** `canonical_override.upserted`
+
+---
+
+### `DELETE /api/canonical-overrides/:canonicalName`
+
+Delete a canonical override. Same permission requirements as PUT.
+
+```bash
+curl -X DELETE http://localhost:3001/api/canonical-overrides/PostgreSQL \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response:** `204 No Content`
+
+**Audit action:** `canonical_override.deleted`
+
+---
+
+## Per-Instance Dependency Overrides
+
+Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the merge hierarchy: instance override > canonical override > polled data.
+
+### `PUT /api/dependencies/:id/overrides`
+
+Set per-instance overrides on a dependency. Requires admin role OR team lead of the team that owns the service reporting this dependency.
+
+```bash
+curl -X PUT http://localhost:3001/api/dependencies/<dep-id>/overrides \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{
+    "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+    "impact_override": "Critical — primary database"
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `contact_override` | object/null | No | Contact info object (set to `null` to clear). Stored as JSON string. |
+| `impact_override` | string/null | No | Impact description (set to `null` to clear). |
+
+At least one field must be provided (400 otherwise).
+
+**Response (200):** The full updated dependency row.
+
+**Audit action:** `dependency_override.updated`
+
+---
+
+### `DELETE /api/dependencies/:id/overrides`
+
+Clear all per-instance overrides on a dependency (sets both `contact_override` and `impact_override` to null). Does not modify polled data columns. Same permission requirements as PUT.
+
+```bash
+curl -X DELETE http://localhost:3001/api/dependencies/<dep-id>/overrides \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response:** `204 No Content`
+
+**Audit action:** `dependency_override.cleared`
