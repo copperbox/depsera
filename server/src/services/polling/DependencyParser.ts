@@ -54,6 +54,9 @@ export class DependencyParser {
     // Parse optional check details
     const checkDetails = this.parseCheckDetails(dep.checkDetails);
 
+    // Parse optional contact object
+    const contact = this.parseContact(dep.contact);
+
     // Parse error fields
     const error = dep.error !== undefined ? dep.error : undefined;
     const errorMessage = typeof dep.errorMessage === 'string' ? dep.errorMessage : undefined;
@@ -67,6 +70,7 @@ export class DependencyParser {
       health,
       lastChecked: typeof dep.lastChecked === 'string' ? dep.lastChecked : new Date().toISOString(),
       checkDetails,
+      contact,
       error,
       errorMessage,
     };
@@ -119,6 +123,17 @@ export class DependencyParser {
   private parseCheckDetails(checkDetails: unknown): Record<string, unknown> | undefined {
     if (checkDetails && typeof checkDetails === 'object') {
       return checkDetails as Record<string, unknown>;
+    }
+    return undefined;
+  }
+
+  /**
+   * Parse contact object if present.
+   * Must be a non-null object; all other types are ignored.
+   */
+  private parseContact(contact: unknown): Record<string, unknown> | undefined {
+    if (contact && typeof contact === 'object') {
+      return contact as Record<string, unknown>;
     }
     return undefined;
   }

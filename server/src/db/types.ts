@@ -245,6 +245,7 @@ export interface ProactiveDepsStatus {
   };
   lastChecked: string;
   checkDetails?: Record<string, unknown>;
+  contact?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string;
 }

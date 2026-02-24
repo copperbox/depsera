@@ -128,6 +128,17 @@ When a poll succeeds, the health endpoint response is parsed (proactive-deps for
 5. **Latency history:** Records data point if `latency_ms > 0`
 6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
 
+### Parsed Fields
+
+The `DependencyParser.parseItem()` method extracts the following optional fields from each dependency object in the proactive-deps response:
+
+| Field | Type | Validation | Notes |
+|---|---|---|---|
+| `checkDetails` | `Record<string, unknown>` | Must be a non-null object | Arbitrary check metadata |
+| `contact` | `Record<string, unknown>` | Must be a non-null object | Arbitrary contact info (e.g., email, Slack channel). Non-object values are silently ignored. |
+
+Both fields follow the same pattern: present and valid → included in `ProactiveDepsStatus`; missing or invalid type → `undefined`.
+
 ## 5.8 Events
 
 | Event | Emitted When | Payload |
