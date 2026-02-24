@@ -59,6 +59,9 @@ describe('Graph API', () => {
         health_state INTEGER,
         health_code INTEGER,
         latency_ms INTEGER,
+        contact TEXT,
+        contact_override TEXT,
+        impact_override TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,
@@ -87,6 +90,16 @@ describe('Graph API', () => {
         dependency_id TEXT NOT NULL,
         latency_ms INTEGER NOT NULL,
         recorded_at TEXT NOT NULL
+      );
+
+      CREATE TABLE dependency_canonical_overrides (
+        id TEXT PRIMARY KEY,
+        canonical_name TEXT NOT NULL UNIQUE,
+        contact_override TEXT,
+        impact_override TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_by TEXT
       );
 
       INSERT INTO teams (id, name) VALUES ('team-1', 'Test Team');

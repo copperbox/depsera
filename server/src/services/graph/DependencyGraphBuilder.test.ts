@@ -207,6 +207,82 @@ describe('DependencyGraphBuilder', () => {
       expect(graph.edges[0].data.healthy).toBe(true);
       expect(graph.edges[0].data.avgLatencyMs24h).toBe(45);
       expect(graph.edges[0].data.checkDetails).toEqual({ query: 'SELECT 1' });
+      expect(graph.edges[0].data.effectiveContact).toBeNull();
+    });
+
+    it('should resolve effective contact from dependency contact field', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.contact = '{"email":"team@example.com","slack":"#team-channel"}';
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(JSON.parse(graph.edges[0].data.effectiveContact!)).toEqual({
+        email: 'team@example.com',
+        slack: '#team-channel',
+      });
+    });
+
+    it('should resolve effective contact with canonical override', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.contact = '{"email":"polled@example.com"}';
+      dep.canonical_name = 'PostgreSQL';
+
+      builder.setCanonicalOverrideMap(new Map([
+        ['PostgreSQL', {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"email":"canonical@example.com","oncall":"pager"}',
+          impact_override: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          updated_by: null,
+        }],
+      ]));
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      const parsed = JSON.parse(graph.edges[0].data.effectiveContact!);
+      expect(parsed.email).toBe('canonical@example.com');
+      expect(parsed.oncall).toBe('pager');
+    });
+
+    it('should resolve effective contact with instance override taking priority', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.contact = '{"email":"polled@example.com"}';
+      dep.contact_override = '{"email":"instance@example.com"}';
+      dep.canonical_name = 'PostgreSQL';
+
+      builder.setCanonicalOverrideMap(new Map([
+        ['PostgreSQL', {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"email":"canonical@example.com"}',
+          impact_override: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          updated_by: null,
+        }],
+      ]));
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      const parsed = JSON.parse(graph.edges[0].data.effectiveContact!);
+      expect(parsed.email).toBe('instance@example.com');
     });
 
     it('should use canonical_name for dependencyName when available', () => {
@@ -375,6 +451,7 @@ describe('DependencyGraphBuilder', () => {
     it('should clear all nodes and edges', () => {
       const service = createService('svc-1', 'User Service');
       builder.addServiceNode(service, []);
+      builder.setCanonicalOverrideMap(new Map());
 
       builder.reset();
       const graph = builder.build();

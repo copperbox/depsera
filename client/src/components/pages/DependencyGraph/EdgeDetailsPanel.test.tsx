@@ -4,10 +4,11 @@ import type { Node } from '@xyflow/react';
 import { EdgeDetailsPanel } from './EdgeDetailsPanel';
 import type { ServiceNodeData, GraphEdgeData } from './../../../types/graph';
 
-jest.mock('../../../api/latency');
-import { fetchLatencyStats } from './../../../api/latency';
-
-const mockFetchLatencyStats = fetchLatencyStats as jest.MockedFunction<typeof fetchLatencyStats>;
+jest.mock('../../Charts/LatencyChart', () => ({
+  LatencyChart: ({ dependencyId }: { dependencyId: string }) => (
+    <div data-testid="latency-chart">Latency Chart: {dependencyId}</div>
+  ),
+}));
 
 type AppNode = Node<ServiceNodeData, 'service'>;
 
@@ -81,19 +82,6 @@ function renderPanel(
     </MemoryRouter>
   );
 }
-
-beforeEach(() => {
-  mockFetchLatencyStats.mockReset();
-  mockFetchLatencyStats.mockResolvedValue({
-    dependencyId: 'd1',
-    currentLatencyMs: 25,
-    avgLatencyMs24h: 20,
-    minLatencyMs24h: 10,
-    maxLatencyMs24h: 50,
-    dataPointCount: 100,
-    dataPoints: [],
-  });
-});
 
 describe('EdgeDetailsPanel', () => {
   it('renders dependency name', async () => {
@@ -185,45 +173,62 @@ describe('EdgeDetailsPanel', () => {
     });
   });
 
-  it('displays latency statistics', async () => {
+  it('renders latency chart when dependencyId is present', async () => {
     renderPanel();
 
-    await waitFor(() => {
-      expect(screen.getByText('25ms')).toBeInTheDocument(); // Current
-      expect(screen.getByText('20ms')).toBeInTheDocument(); // 24h Avg
-    });
-
-    expect(screen.getByText('10ms')).toBeInTheDocument(); // 24h Min
-    expect(screen.getByText('50ms')).toBeInTheDocument(); // 24h Max
+    expect(screen.getByTestId('latency-chart')).toBeInTheDocument();
+    expect(screen.getByText('Latency Chart: d1')).toBeInTheDocument();
   });
 
-  it('displays data point count', async () => {
-    renderPanel();
+  it('does not render latency chart when no dependencyId', async () => {
+    const noIdData = { ...mockEdgeData, dependencyId: undefined };
 
-    await waitFor(() => {
-      expect(screen.getByText(/Based on 100 data points/)).toBeInTheDocument();
-    });
+    renderPanel('e1', noIdData);
+
+    expect(screen.queryByTestId('latency-chart')).not.toBeInTheDocument();
   });
 
-  it('handles latency fetch error gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    mockFetchLatencyStats.mockRejectedValueOnce(new Error('Network error'));
+  it('displays contact section when effectiveContact is present', async () => {
+    const dataWithContact = {
+      ...mockEdgeData,
+      effectiveContact: '{"email":"team@example.com","slack":"#team-channel"}',
+    };
 
-    renderPanel();
+    renderPanel('e1', dataWithContact);
 
-    await waitFor(() => {
-      expect(screen.getByText('Database Connection')).toBeInTheDocument();
-    });
-
-    consoleSpy.mockRestore();
+    expect(screen.getByTestId('contact-section')).toBeInTheDocument();
+    expect(screen.getByText('email')).toBeInTheDocument();
+    expect(screen.getByText('team@example.com')).toBeInTheDocument();
+    expect(screen.getByText('slack')).toBeInTheDocument();
+    expect(screen.getByText('#team-channel')).toBeInTheDocument();
   });
 
-  it('shows loading state for latency stats', async () => {
-    mockFetchLatencyStats.mockImplementation(() => new Promise(() => {}));
-
+  it('does not display contact section when effectiveContact is null', async () => {
     renderPanel();
 
-    expect(screen.getByText('Loading stats...')).toBeInTheDocument();
+    expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
+  });
+
+  it('does not display contact section for invalid JSON', async () => {
+    const dataWithBadContact = {
+      ...mockEdgeData,
+      effectiveContact: 'not valid json',
+    };
+
+    renderPanel('e1', dataWithBadContact);
+
+    expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
+  });
+
+  it('does not display contact section for array JSON', async () => {
+    const dataWithArrayContact = {
+      ...mockEdgeData,
+      effectiveContact: '["email@example.com"]',
+    };
+
+    renderPanel('e1', dataWithArrayContact);
+
+    expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
   });
 
   it('displays impact section when present', async () => {
@@ -425,40 +430,6 @@ describe('EdgeDetailsPanel', () => {
     expect(screen.queryByText('View Service Details')).not.toBeInTheDocument();
   });
 
-  it('formats latency in seconds for large values', async () => {
-    mockFetchLatencyStats.mockResolvedValueOnce({
-      dependencyId: 'd1',
-      currentLatencyMs: 2500,
-      avgLatencyMs24h: 2000,
-      minLatencyMs24h: 1500,
-      maxLatencyMs24h: 3500,
-      dataPointCount: 50,
-      dataPoints: [],
-    });
-
-    const highLatencyData = { ...mockEdgeData, latencyMs: 2500 };
-
-    renderPanel('e1', highLatencyData);
-
-    await waitFor(() => {
-      expect(screen.getByText('2.5s')).toBeInTheDocument();
-      expect(screen.getByText('2.0s')).toBeInTheDocument();
-    });
-  });
-
-  it('shows dash for null latency', async () => {
-    const nullLatencyData = { ...mockEdgeData, latencyMs: null };
-
-    renderPanel('e1', nullLatencyData);
-
-    await waitFor(() => {
-      expect(screen.getByText('Current')).toBeInTheDocument();
-    });
-
-    const dashes = screen.getAllByText('-');
-    expect(dashes.length).toBeGreaterThan(0);
-  });
-
   it('falls back to Connection when no dependency name', async () => {
     const noNameData = { ...mockEdgeData, dependencyName: undefined };
 
@@ -469,48 +440,11 @@ describe('EdgeDetailsPanel', () => {
     expect(connectionElements.length).toBe(2);
   });
 
-  it('displays singular data point text', async () => {
-    mockFetchLatencyStats.mockResolvedValueOnce({
-      dependencyId: 'd1',
-      currentLatencyMs: 20,
-      avgLatencyMs24h: 20,
-      minLatencyMs24h: 20,
-      maxLatencyMs24h: 20,
-      dataPointCount: 1,
-      dataPoints: [],
-    });
-
-    renderPanel();
-
-    await waitFor(() => {
-      expect(screen.getByText(/Based on 1 data point in the last 24 hours/)).toBeInTheDocument();
-    });
-  });
-
-  it('does not fetch stats when no dependencyId', async () => {
-    const noIdData = { ...mockEdgeData, dependencyId: undefined };
-
-    renderPanel('e1', noIdData);
-
-    expect(mockFetchLatencyStats).not.toHaveBeenCalled();
-  });
-
   it('hides error history button when no dependencyId', async () => {
     const noIdData = { ...mockEdgeData, dependencyId: undefined };
 
     renderPanel('e1', noIdData);
 
     expect(screen.queryByText('View Error History (24h)')).not.toBeInTheDocument();
-  });
-
-  it('shows current latency from edge data when stats not loaded yet', async () => {
-    mockFetchLatencyStats.mockImplementation(() => new Promise(() => {}));
-
-    const dataWithLatency = { ...mockEdgeData, latencyMs: 35 };
-
-    renderPanel('e1', dataWithLatency);
-
-    // During loading, only the spinner is shown for stats section
-    expect(screen.getByText('Loading stats...')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { DependencyType } from '../../db/types';
+import { DependencyType, DependencyCanonicalOverride } from '../../db/types';
 import {
   ServiceWithTeam,
   DependencyWithTarget,
@@ -10,6 +10,7 @@ import {
 } from './types';
 import { deduplicateById } from '../../utils/deduplication';
 import { ExternalNodeBuilder } from './ExternalNodeBuilder';
+import { resolveContact } from '../../utils/overrideResolver';
 
 /**
  * Builds a dependency graph with service nodes and dependency edges.
@@ -20,6 +21,7 @@ export class DependencyGraphBuilder {
   private nodeIds = new Set<string>();
   private edgeIds = new Set<string>();
   private externalNodeMap: Map<string, string> | null = null;
+  private canonicalOverrideMap: Map<string, DependencyCanonicalOverride> | null = null;
 
   /**
    * Add a service node to the graph.
@@ -81,6 +83,14 @@ export class DependencyGraphBuilder {
   }
 
   /**
+   * Set the canonical override map for resolving effective contact info.
+   * Map keys are canonical names, values are the override records.
+   */
+  setCanonicalOverrideMap(map: Map<string, DependencyCanonicalOverride>): void {
+    this.canonicalOverrideMap = map;
+  }
+
+  /**
    * Add an edge for a dependency relationship.
    * Edge direction represents data flow: from dependency (provider) to dependent (consumer).
    * @param dep - The dependency with target service info
@@ -139,6 +149,7 @@ export class DependencyGraphBuilder {
     this.nodeIds.clear();
     this.edgeIds.clear();
     this.externalNodeMap = null;
+    this.canonicalOverrideMap = null;
   }
 
   /**
@@ -166,6 +177,17 @@ export class DependencyGraphBuilder {
       }
     }
 
+    // Resolve effective contact from 3-tier hierarchy
+    const canonicalOverride = dep.canonical_name && this.canonicalOverrideMap
+      ? this.canonicalOverrideMap.get(dep.canonical_name)
+      : undefined;
+
+    const effectiveContact = resolveContact(
+      dep.contact,
+      canonicalOverride?.contact_override ?? null,
+      dep.contact_override,
+    );
+
     return {
       relationship: 'depends_on',
       dependencyType: dep.type,
@@ -181,6 +203,7 @@ export class DependencyGraphBuilder {
       error,
       errorMessage: dep.error_message,
       impact: dep.impact,
+      effectiveContact,
     };
   }
 }

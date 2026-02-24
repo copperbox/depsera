@@ -44,10 +44,18 @@ describe('GraphService', () => {
     count: jest.fn(),
   };
 
+  const mockCanonicalOverrideStore = {
+    findAll: jest.fn().mockReturnValue([]),
+    findByCanonicalName: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  };
+
   const mockStores = {
     services: mockServiceStore,
     dependencies: mockDependencyStore,
     teams: mockTeamStore,
+    canonicalOverrides: mockCanonicalOverrideStore,
   } as unknown as StoreRegistry;
 
   beforeEach(() => {
