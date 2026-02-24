@@ -227,7 +227,11 @@ Key-value store for runtime-configurable admin settings.
 
 **Indexes:** `idx_audit_log_user_id`, `idx_audit_log_created_at`, `idx_audit_log_resource` (resource_type, resource_id)
 
-Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD).
+Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD, canonical override management).
+
+**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`
+
+**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`
 
 ### schema_config (on services) **[Implemented]**
 

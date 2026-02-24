@@ -437,3 +437,47 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 - Webhook headers must have string values
 - `severity_filter` must be `critical`, `warning`, or `all`
 - Channel updates verify the channel belongs to the specified team (404 otherwise)
+
+## 4.12 Canonical Overrides
+
+**[Implemented]** (DPS-14b)
+
+Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Merge hierarchy: instance override > canonical override > polled data.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. |
+| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Returns 404 if not found. |
+| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Creates or updates. |
+| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Returns 204. |
+
+**Permissions (mutations):** Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+
+**PUT /api/canonical-overrides/:canonicalName request:**
+
+```json
+{
+  "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+  "impact_override": "Critical — all downstream services depend on this"
+}
+```
+
+- `contact_override`: object or `null` (setting to `null` clears the override). Stored as JSON string.
+- `impact_override`: string or `null` (setting to `null` clears the override). Stored as plain text.
+- At least one field must be provided (400 otherwise).
+
+**PUT /api/canonical-overrides/:canonicalName response:**
+
+```json
+{
+  "id": "uuid",
+  "canonical_name": "PostgreSQL",
+  "contact_override": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+  "impact_override": "Critical — all downstream services depend on this",
+  "created_at": "2026-02-24T10:00:00.000Z",
+  "updated_at": "2026-02-24T10:00:00.000Z",
+  "updated_by": "user-uuid"
+}
+```
+
+**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`).

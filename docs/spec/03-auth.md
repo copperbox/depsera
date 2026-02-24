@@ -136,6 +136,14 @@ Safe methods (GET, HEAD, OPTIONS) are exempt from validation.
 | `requireServiceTeamLead` | User is admin OR lead of the service's owning team (from `req.params.id`) | `req.teamMembership` |
 | `requireBodyTeamLead` | User is admin OR lead of team specified in `req.body.team_id` | `req.teamMembership` |
 
+### Authorization Service Methods
+
+In addition to middleware, the `AuthorizationService` class provides static methods for permission checks invoked inside route handlers:
+
+| Method | Checks |
+|---|---|
+| `checkCanonicalOverrideAccess(user, canonicalName)` | User is admin OR team lead of any team that owns a service with a dependency matching `canonicalName`. **[Implemented]** (DPS-14b). |
+
 ### Permissions Object (returned by /api/auth/me)
 
 ```typescript

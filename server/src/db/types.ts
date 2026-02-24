@@ -338,9 +338,11 @@ export type AuditAction =
   | 'external_service.created'
   | 'external_service.updated'
   | 'external_service.deleted'
-  | 'settings.updated';
+  | 'settings.updated'
+  | 'canonical_override.upserted'
+  | 'canonical_override.deleted';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override';
 
 export interface AuditLogEntry {
   id: string;
