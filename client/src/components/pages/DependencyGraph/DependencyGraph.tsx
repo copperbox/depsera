@@ -25,11 +25,10 @@ import {
   type AppNode,
   type AppEdge,
   type LayoutDirection,
-  MIN_NODE_SPACING,
-  MAX_NODE_SPACING,
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
 } from '../../../utils/graphLayout';
+import type { EdgeStyle } from '../../../types/graph';
 import {
   getRelatedNodeIds,
   getRelatedNodeIdsFromEdge,
@@ -87,8 +86,8 @@ function DependencyGraphInner() {
     setSelectedEdgeId,
     layoutDirection,
     setLayoutDirection,
-    nodeSpacing,
-    setNodeSpacing,
+    edgeStyle,
+    setEdgeStyle,
     latencyThreshold,
     setLatencyThreshold,
     isLoading,
@@ -100,10 +99,10 @@ function DependencyGraphInner() {
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
-  // Initial load and team/direction/spacing change
+  // Initial load and team/direction/edge style change
   useEffect(() => {
     loadData();
-  }, [selectedTeam, layoutDirection, nodeSpacing]);
+  }, [selectedTeam, layoutDirection, edgeStyle]);
 
   // Polling hook
   const { isPollingEnabled, pollingInterval, togglePolling, handleIntervalChange } = usePolling({
@@ -121,9 +120,8 @@ function DependencyGraphInner() {
     setLayoutDirection(direction);
   };
 
-  const handleNodeSpacingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSpacing = parseInt(e.target.value, 10);
-    setNodeSpacing(newSpacing);
+  const handleEdgeStyleChange = (style: EdgeStyle) => {
+    setEdgeStyle(style);
   };
 
   const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,7 +244,9 @@ function DependencyGraphInner() {
       if (hoveredRelatedEdgeIds) {
         return edges.map((edge) => {
           const isHoverRelated = hoveredRelatedEdgeIds.has(edge.id);
-          return processEdge(edge, false, false, isHoverRelated ? 1 : 0.15);
+          return isHoverRelated
+            ? processEdge(edge, false, false, 1)
+            : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
         });
       }
       return edges.map((edge) => processEdge(edge, false, false, 1));
@@ -255,7 +255,9 @@ function DependencyGraphInner() {
     return edges.map((edge) => {
       const isRelated = relatedEdgeIds.has(edge.id);
       const isSelected = edge.id === selectedEdgeId;
-      return processEdge(edge, isSelected, isRelated && !isSelected, isRelated ? 1 : 0.2);
+      return isRelated
+        ? processEdge(edge, isSelected, !isSelected, 1)
+        : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
     });
   }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency, hoveredRelatedEdgeIds]);
 
@@ -405,18 +407,27 @@ function DependencyGraphInner() {
         </div>
 
         <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>Node spacing:</label>
-          <input
-            type="range"
-            className={styles.nodeSpacingSlider}
-            min={MIN_NODE_SPACING}
-            max={MAX_NODE_SPACING}
-            step={10}
-            value={nodeSpacing}
-            onChange={handleNodeSpacingChange}
-            title={`${nodeSpacing}px`}
-          />
-          <span className={styles.nodeSpacingValue}>{nodeSpacing}px</span>
+          <label className={styles.toolbarLabel}>Edges:</label>
+          <div className={styles.directionToggle}>
+            <button
+              className={`${styles.directionButton} ${edgeStyle === 'orthogonal' ? styles.directionActive : ''}`}
+              onClick={() => handleEdgeStyleChange('orthogonal')}
+              title="Orthogonal edges"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M4 4v8h16v8" />
+              </svg>
+            </button>
+            <button
+              className={`${styles.directionButton} ${edgeStyle === 'bezier' ? styles.directionActive : ''}`}
+              onClick={() => handleEdgeStyleChange('bezier')}
+              title="Bezier curve edges"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M4 4c0 12 16 4 16 16" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className={styles.toolbarGroup}>

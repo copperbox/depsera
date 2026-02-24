@@ -6,7 +6,9 @@ import {
   GraphEdge,
   ServiceNodeData,
   GraphEdgeData,
+  type EdgeStyle,
 } from '../types/graph';
+import { adjustLayerSpacing, computeEdgeRoutes } from './edgeRouter';
 
 export type AppNode = Node<ServiceNodeData, 'service'>;
 export type AppEdge = Edge<GraphEdgeData, 'custom'>;
@@ -14,11 +16,8 @@ export type AppEdge = Edge<GraphEdgeData, 'custom'>;
 export type LayoutDirection = 'TB' | 'LR';
 
 export const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
-export const NODE_SPACING_KEY = 'graph-node-spacing';
+export const EDGE_STYLE_KEY = 'graph-edge-style';
 export const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-export const DEFAULT_NODE_SPACING = 100;
-export const MIN_NODE_SPACING = 50;
-export const MAX_NODE_SPACING = 400;
 export const DEFAULT_LATENCY_THRESHOLD = 50;
 export const MIN_LATENCY_THRESHOLD = 10;
 export const MAX_LATENCY_THRESHOLD = 200;
@@ -35,7 +34,7 @@ export async function getLayoutedElements(
   nodes: AppNode[],
   edges: AppEdge[],
   direction: LayoutDirection = 'TB',
-  nodeSpacing: number = DEFAULT_NODE_SPACING
+  edgeStyle: EdgeStyle = 'orthogonal'
 ): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
   // ELK uses 'DOWN' for top-to-bottom and 'RIGHT' for left-to-right
   const elkDirection = direction === 'TB' ? 'DOWN' : 'RIGHT';
@@ -45,11 +44,10 @@ export async function getLayoutedElements(
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': elkDirection,
-      // Node spacing within the same layer (user-controlled)
-      'elk.spacing.nodeNode': String(nodeSpacing),
-      // Spacing between layers (tiers) — fixed
-      'elk.layered.spacing.nodeNodeBetweenLayers': '180',
-      // Edge spacing — push edges further apart
+      'elk.spacing.nodeNode': '100',
+      // Base spacing between layers — adjusted dynamically after layout
+      'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+      // Edge spacing
       'elk.spacing.edgeNode': '70',
       'elk.spacing.edgeEdge': '50',
       // Edge spacing between layers
@@ -92,7 +90,30 @@ export async function getLayoutedElements(
     };
   });
 
-  return { nodes: layoutedNodes, edges };
+  let finalNodes: AppNode[];
+  let routingLanes: Map<string, number>;
+
+  if (edgeStyle === 'orthogonal') {
+    // Adjust inter-layer spacing per gap based on edge density
+    finalNodes = adjustLayerSpacing(layoutedNodes, edges, direction);
+    // Compute orthogonal routing lanes on the adjusted positions
+    routingLanes = computeEdgeRoutes(finalNodes, edges, direction);
+  } else {
+    finalNodes = layoutedNodes;
+    routingLanes = new Map();
+  }
+
+  const layoutedEdges: AppEdge[] = edges.map((edge) => ({
+    ...edge,
+    data: {
+      ...edge.data!,
+      routingLane: routingLanes.get(edge.id) ?? null,
+      layoutDirection: direction,
+      edgeStyle,
+    },
+  }));
+
+  return { nodes: finalNodes, edges: layoutedEdges };
 }
 
 /**
@@ -101,7 +122,7 @@ export async function getLayoutedElements(
 export async function transformGraphData(
   data: GraphResponse,
   direction: LayoutDirection = 'TB',
-  nodeSpacing: number = DEFAULT_NODE_SPACING
+  edgeStyle: EdgeStyle = 'orthogonal'
 ): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> {
   // Calculate reported health for each node based on incoming edges
   // (edges where the node is the SOURCE, meaning other services depend on it)
@@ -146,5 +167,5 @@ export async function transformGraphData(
     animated: true,
   }));
 
-  return await getLayoutedElements(nodes, edges, direction, nodeSpacing);
+  return await getLayoutedElements(nodes, edges, direction, edgeStyle);
 }
