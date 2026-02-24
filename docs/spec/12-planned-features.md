@@ -57,7 +57,7 @@ All items in this section are **[Planned]**. See the [PRD](../PRD-1.0.md) for fu
 
 Support for services that don't use the proactive-deps format:
 
-**Data model:** **[Implemented]** (PRO-78). `schema_config` nullable TEXT column on `services` table (migration 012). Stores a JSON-serialized `SchemaMapping` object. TypeScript types `SchemaMapping`, `FieldMapping`, `BooleanComparison` in `/server/src/db/types.ts`. Validation via `validateSchemaConfig()` in `/server/src/utils/validation.ts` — validates structure, required fields (`name`, `healthy`), optional fields (`latency`, `impact`, `description`), rejects unknown fields. Accepts both JSON strings and objects, returns validated JSON string. Services without a mapping default to proactive-deps format.
+**Data model:** **[Implemented]** (PRO-78). `schema_config` nullable TEXT column on `services` table (migration 012). Stores a JSON-serialized `SchemaMapping` object. TypeScript types `SchemaMapping`, `FieldMapping`, `BooleanComparison` in `/server/src/db/types.ts`. Validation via `validateSchemaConfig()` in `/server/src/utils/validation.ts` — validates structure, required fields (`name`, `healthy`), optional fields (`latency`, `impact`, `description`, `type`, `checkDetails`, `contact`), rejects unknown fields. Accepts both JSON strings and objects, returns validated JSON string. Services without a mapping default to proactive-deps format.
 
 **Schema mapping structure:**
 ```json
@@ -68,7 +68,8 @@ Support for services that don't use the proactive-deps format:
     "healthy": { "field": "status", "equals": "ok" },
     "latency": "responseTimeMs",
     "impact": "severity",
-    "description": "displayName"
+    "description": "displayName",
+    "contact": "metadata.contact_info"
   }
 }
 ```
@@ -77,9 +78,10 @@ Support for services that don't use the proactive-deps format:
 - `fields.name`: Direct field mapping (required)
 - `fields.healthy`: Direct mapping or boolean comparison (`field` + `equals` value match) (required)
 - `fields.latency`, `fields.impact`, `fields.description`: Optional field mappings
+- `fields.checkDetails`, `fields.contact`: Optional dot-notation string paths that must resolve to a non-null object. These are simple string paths only (no BooleanComparison). Non-object, null, or array values are silently ignored.
 - Nested paths supported: `"metrics.responseTime"`
 - Services without a mapping default to proactive-deps
-- **Schema-aware parser:** **[Implemented]** (PRO-79). `DependencyParser.parse()` accepts an optional `SchemaMapping` parameter. When provided, delegates to `SchemaMapper` which resolves the `root` path, maps fields via dot-notation path resolution, and handles `BooleanComparison` for the `healthy` field (case-insensitive string comparison). String healthy values are coerced: `ok`, `healthy`, `up`, `true` → healthy; `error`, `unhealthy`, `down`, `critical`, `false` → unhealthy. Malformed items (missing name, unresolvable healthy) are skipped with logged warnings. `ServicePoller` parses the service's `schema_config` JSON and passes it to the parser. See `/server/src/services/polling/SchemaMapper.ts` and `/server/src/services/polling/DependencyParser.ts`.
+- **Schema-aware parser:** **[Implemented]** (PRO-79). `DependencyParser.parse()` accepts an optional `SchemaMapping` parameter. When provided, delegates to `SchemaMapper` which resolves the `root` path, maps fields via dot-notation path resolution, and handles `BooleanComparison` for the `healthy` field (case-insensitive string comparison). String healthy values are coerced: `ok`, `healthy`, `up`, `true` → healthy; `error`, `unhealthy`, `down`, `critical`, `false` → unhealthy. Optional object fields (`checkDetails`, `contact`) are extracted via dot-notation path and validated as non-null, non-array objects; invalid types are silently ignored. Malformed items (missing name, unresolvable healthy) are skipped with logged warnings. `ServicePoller` parses the service's `schema_config` JSON and passes it to the parser. See `/server/src/services/polling/SchemaMapper.ts` and `/server/src/services/polling/DependencyParser.ts`.
 - Test endpoint: **[Implemented]** (PRO-104). `POST /api/services/test-schema` — authenticated (team lead+ or admin), accepts `{ url, schema_config }`, validates SSRF, fetches URL, applies schema mapping via `DependencyParser`, returns `{ success, dependencies[], warnings[] }`. Does NOT store anything. 10-second timeout. Warnings include missing optional field mappings, empty results, and zero-latency entries. See `/server/src/routes/services/testSchema.ts`.
 - UI: **[Implemented]** (PRO-105). Toggle between "proactive-deps" and "Custom schema" on service form, with guided form + raw JSON editor and test button. See `/client/src/components/pages/Services/SchemaConfigEditor.tsx`.
 - Documentation: **[Implemented]** (PRO-112). `docs/health-endpoint-spec.md` covers proactive-deps default format, custom schema mapping configuration, examples for Spring Boot Actuator and ASP.NET Health Checks, testing guide (UI and API), and troubleshooting. 51 tests validate documentation accuracy.

@@ -78,6 +78,7 @@ export interface SchemaMapping {
     description?: FieldMapping;
     type?: FieldMapping;
     checkDetails?: string;
+    contact?: string;
   };
 }
 

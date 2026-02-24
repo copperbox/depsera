@@ -716,6 +716,120 @@ describe('SchemaMapper', () => {
       expect(result[0].checkDetails).toEqual({ type: 'postgres', port: 5432 });
     });
 
+    it('should extract contact when mapped and value is an object', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          contact: 'contactInfo',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          {
+            name: 'db',
+            ok: true,
+            contactInfo: { email: 'dba@example.com', slack: '#db-team' },
+          },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].contact).toEqual({
+        email: 'dba@example.com',
+        slack: '#db-team',
+      });
+    });
+
+    it('should skip contact when resolved value is not an object', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          contact: 'contactInfo',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'dep1', ok: true, contactInfo: 'just-a-string' },
+          { name: 'dep2', ok: true, contactInfo: 42 },
+          { name: 'dep3', ok: true, contactInfo: null },
+          { name: 'dep4', ok: true, contactInfo: [1, 2, 3] },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(4);
+      expect(result[0].contact).toBeUndefined();
+      expect(result[1].contact).toBeUndefined();
+      expect(result[2].contact).toBeUndefined();
+      expect(result[3].contact).toBeUndefined();
+    });
+
+    it('should skip contact when path does not exist', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          contact: 'nonexistent.path',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [{ name: 'dep1', ok: true }],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].contact).toBeUndefined();
+    });
+
+    it('should not include contact when not mapped', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [{ name: 'dep1', ok: true, contactInfo: { email: 'test@test.com' } }],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].contact).toBeUndefined();
+    });
+
+    it('should resolve nested contact path', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          contact: 'meta.contact',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: true, meta: { contact: { team: 'Platform', oncall: 'pager-123' } } },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].contact).toEqual({ team: 'Platform', oncall: 'pager-123' });
+    });
+
     it('should handle impact and description with non-string values gracefully', () => {
       const schema: SchemaMapping = {
         root: 'checks',

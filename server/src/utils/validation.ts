@@ -536,7 +536,7 @@ export function validateDependencyType(type: unknown): DependencyType {
 // Schema Config Validation
 // ============================================================================
 
-const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'type', 'checkDetails'] as const;
+const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'type', 'checkDetails', 'contact'] as const;
 const REQUIRED_SCHEMA_FIELDS: (keyof SchemaMapping['fields'])[] = ['name', 'healthy'];
 
 /**
@@ -626,6 +626,9 @@ export function validateSchemaConfig(value: unknown): string {
   // Validate all field mappings
   const validatedFields: Record<string, FieldMapping> = {};
   let validatedCheckDetails: string | undefined;
+  let validatedContact: string | undefined;
+  // Fields that use simple string paths (not FieldMapping / BooleanComparison)
+  const STRING_PATH_FIELDS = ['checkDetails', 'contact'] as const;
   for (const key of Object.keys(fields)) {
     if (!VALID_SCHEMA_FIELDS.includes(key as typeof VALID_SCHEMA_FIELDS[number])) {
       throw new ValidationError(
@@ -633,21 +636,25 @@ export function validateSchemaConfig(value: unknown): string {
         'schema_config'
       );
     }
-    if (key === 'checkDetails') {
-      // checkDetails is a simple string path, not a FieldMapping (no BooleanComparison)
+    if (STRING_PATH_FIELDS.includes(key as typeof STRING_PATH_FIELDS[number])) {
+      // checkDetails and contact are simple string paths, not FieldMapping (no BooleanComparison)
       if (!isNonEmptyString(fields[key])) {
         throw new ValidationError(
-          'schema_config.fields.checkDetails must be a non-empty string path',
+          `schema_config.fields.${key} must be a non-empty string path`,
           'schema_config'
         );
       }
       if (fields[key] === '$key') {
         throw new ValidationError(
-          'schema_config.fields.checkDetails cannot use "$key" — it is only valid for the name field',
+          `schema_config.fields.${key} cannot use "$key" — it is only valid for the name field`,
           'schema_config'
         );
       }
-      validatedCheckDetails = fields[key] as string;
+      if (key === 'checkDetails') {
+        validatedCheckDetails = fields[key] as string;
+      } else {
+        validatedContact = fields[key] as string;
+      }
     } else {
       validatedFields[key] = validateFieldMapping(fields[key], key);
     }
@@ -675,6 +682,7 @@ export function validateSchemaConfig(value: unknown): string {
       ...(validatedFields.description !== undefined && { description: validatedFields.description }),
       ...(validatedFields.type !== undefined && { type: validatedFields.type }),
       ...(validatedCheckDetails !== undefined && { checkDetails: validatedCheckDetails }),
+      ...(validatedContact !== undefined && { contact: validatedContact }),
     },
   };
 
