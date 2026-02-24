@@ -143,6 +143,7 @@ In addition to middleware, the `AuthorizationService` class provides static meth
 | Method | Checks |
 |---|---|
 | `checkCanonicalOverrideAccess(user, canonicalName)` | User is admin OR team lead of any team that owns a service with a dependency matching `canonicalName`. **[Implemented]** (DPS-14b). |
+| `checkDependencyTeamLeadAccess(user, dependencyId)` | User is admin OR team lead of the team that owns the service reporting this dependency. **[Implemented]** (DPS-15b). |
 
 ### Permissions Object (returned by /api/auth/me)
 

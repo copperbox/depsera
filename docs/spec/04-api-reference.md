@@ -483,3 +483,35 @@ Manage canonical-level dependency overrides that apply as defaults across all se
 ```
 
 **Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`).
+
+## 4.13 Per-Instance Dependency Overrides
+
+**[Implemented]** (DPS-15b)
+
+Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the merge hierarchy: instance override > canonical override > polled data.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| PUT | `/api/dependencies/:id/overrides` | requireAuth + custom | Set per-instance overrides. |
+| DELETE | `/api/dependencies/:id/overrides` | requireAuth + custom | Clear all per-instance overrides. Returns 204. |
+
+**Permissions:** Admin OR team lead of the team that owns the service reporting this dependency. Checked via `AuthorizationService.checkDependencyTeamLeadAccess()`.
+
+**PUT /api/dependencies/:id/overrides request:**
+
+```json
+{
+  "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+  "impact_override": "Critical — primary database"
+}
+```
+
+- `contact_override`: object or `null` (setting to `null` clears). Stored as JSON string. Optional.
+- `impact_override`: string or `null` (setting to `null` clears). Stored as plain text. Optional.
+- At least one field must be provided (400 otherwise).
+
+**PUT /api/dependencies/:id/overrides response:** Returns the full updated dependency row.
+
+**DELETE /api/dependencies/:id/overrides:** Clears both `contact_override` and `impact_override` to null. Returns 204. Does not modify polled data columns.
+
+**Audit actions:** `dependency_override.updated`, `dependency_override.cleared` (resource type: `dependency`).

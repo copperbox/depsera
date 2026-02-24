@@ -145,6 +145,39 @@ export class AuthorizationService {
   }
 
   /**
+   * Check if a user is a team lead of a dependency's owning service's team (or admin).
+   * Used for per-instance override mutations.
+   */
+  static checkDependencyTeamLeadAccess(user: User, dependencyId: string): AuthorizationResult {
+    if (user.role === 'admin') {
+      return { authorized: true };
+    }
+
+    const stores = getStores();
+    const dependency = stores.dependencies.findById(dependencyId);
+
+    if (!dependency) {
+      return {
+        authorized: false,
+        error: 'Dependency not found',
+        statusCode: 404,
+      };
+    }
+
+    const service = stores.services.findById(dependency.service_id);
+
+    if (!service) {
+      return {
+        authorized: false,
+        error: 'Service not found',
+        statusCode: 404,
+      };
+    }
+
+    return this.checkTeamLeadAccess(user, service.team_id);
+  }
+
+  /**
    * Check if a user can manage a canonical override.
    * Authorized if admin OR team lead of any team that owns a service
    * with a dependency matching the given canonical name.
