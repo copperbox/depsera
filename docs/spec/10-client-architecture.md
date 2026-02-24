@@ -9,7 +9,7 @@
 | `/login` | Login | Public | OIDC redirect or local auth form |
 | `/` | Dashboard | Protected | Health summary overview |
 | `/services` | ServicesList | Protected | Searchable, filterable service list |
-| `/services/:id` | ServiceDetail | Protected | Dependencies, latency, errors, manual poll |
+| `/services/:id` | ServiceDetail | Protected | Dependencies, latency, errors, contact info, override indicators, manual poll |
 | `/teams` | TeamsList | Protected | Team listing with counts |
 | `/teams/:id` | TeamDetail | Protected | Members, roles, owned services |
 | `/graph` | DependencyGraph | Protected | Interactive React Flow visualization |

@@ -72,6 +72,11 @@ const mockService = {
       canonical_name: 'PostgreSQL',
       description: 'Main DB',
       impact: 'Critical',
+      contact: null,
+      contact_override: null,
+      impact_override: null,
+      effective_contact: null,
+      effective_impact: 'Critical',
       health_status: 'healthy',
       latency_ms: 15,
       last_checked: '2024-01-15T10:00:00Z',
@@ -82,6 +87,11 @@ const mockService = {
       canonical_name: null,
       description: null,
       impact: null,
+      contact: null,
+      contact_override: null,
+      impact_override: null,
+      effective_contact: null,
+      effective_impact: null,
       health_status: 'warning',
       latency_ms: null,
       last_checked: null,
@@ -180,7 +190,7 @@ describe('ServiceDetail', () => {
     expect(screen.getByText('Back to Services')).toBeInTheDocument();
   });
 
-  it('displays dependencies table', async () => {
+  it('displays dependencies table with contact column', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockService))
       .mockResolvedValueOnce(jsonResponse(mockTeams))
@@ -192,9 +202,13 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('Dependencies')).toBeInTheDocument();
     });
 
+    // Table headers include Contact column
+    expect(screen.getByText('Contact')).toBeInTheDocument();
+
     expect(screen.getAllByText('PostgreSQL').length).toBeGreaterThan(0);
     expect(screen.getAllByText('database').length).toBeGreaterThan(0);
     expect(screen.getByText('Main DB')).toBeInTheDocument();
+    // Uses effective_impact for display
     expect(screen.getByText('Critical')).toBeInTheDocument();
     expect(screen.getByText('15ms')).toBeInTheDocument();
     expect(screen.getAllByText('cache').length).toBeGreaterThan(0);
@@ -422,6 +436,164 @@ describe('ServiceDetail', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Unknown error/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Contact and Override Display', () => {
+    it('displays effective_contact as key-value pairs', async () => {
+      const serviceWithContact = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            effective_contact: '{"email":"db-team@example.com","slack":"#db-support"}',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithContact))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('db-team@example.com')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('email:')).toBeInTheDocument();
+      expect(screen.getByText('slack:')).toBeInTheDocument();
+      expect(screen.getByText('#db-support')).toBeInTheDocument();
+    });
+
+    it('displays dash when effective_contact is null', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      // Both dependencies have null effective_contact, so dashes appear in contact cells
+      const dashes = screen.getAllByText('-');
+      expect(dashes.length).toBeGreaterThan(0);
+    });
+
+    it('uses effective_impact instead of raw impact', async () => {
+      const serviceWithOverride = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            impact: 'Original impact',
+            effective_impact: 'Overridden impact value',
+            impact_override: 'Overridden impact value',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Overridden impact value')).toBeInTheDocument();
+      });
+
+      // Raw impact should not be displayed
+      expect(screen.queryByText('Original impact')).not.toBeInTheDocument();
+    });
+
+    it('shows override badge when instance impact_override is active', async () => {
+      const serviceWithOverride = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            impact_override: 'Custom impact',
+            effective_impact: 'Custom impact',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Custom impact')).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByText('override');
+      expect(badges.length).toBeGreaterThanOrEqual(1);
+      expect(badges[0]).toHaveAttribute('title', 'Instance override active');
+    });
+
+    it('shows override badge when instance contact_override is active', async () => {
+      const serviceWithOverride = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            contact_override: '{"email":"override@example.com"}',
+            effective_contact: '{"email":"override@example.com"}',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('override@example.com')).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByText('override');
+      expect(badges.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not show override badge when no overrides are active', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('override')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid JSON in effective_contact gracefully', async () => {
+      const serviceWithBadContact = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            effective_contact: 'not-valid-json',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithBadContact))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      // Should show dash instead of crashing
+      expect(screen.queryByText('not-valid-json')).not.toBeInTheDocument();
     });
   });
 

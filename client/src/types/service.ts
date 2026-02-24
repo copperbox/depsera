@@ -89,6 +89,11 @@ export interface Dependency {
   canonical_name: string | null;
   description: string | null;
   impact: string | null;
+  contact: string | null;
+  contact_override: string | null;
+  impact_override: string | null;
+  effective_contact: string | null;
+  effective_impact: string | null;
   healthy: number | null;
   health_state: HealthState | null;
   health_code: number | null;

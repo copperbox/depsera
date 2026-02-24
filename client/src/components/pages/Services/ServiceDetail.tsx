@@ -14,6 +14,30 @@ import { formatRelativeTime } from '../../../utils/formatting';
 import { getHealthBadgeStatus, getHealthStateBadgeStatus } from '../../../utils/statusMapping';
 import styles from './Services.module.css';
 
+/**
+ * Parse a JSON contact string into key-value pairs for display.
+ * Returns null if the string is null/empty or not a valid JSON object.
+ */
+function parseContact(contactJson: string | null): Record<string, string> | null {
+  if (!contactJson) return null;
+  try {
+    const parsed = JSON.parse(contactJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if a dependency has any active instance-level overrides.
+ */
+function hasActiveOverride(dep: Dependency): boolean {
+  return !!(dep.contact_override || dep.impact_override);
+}
+
 function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
@@ -310,6 +334,7 @@ function ServiceDetail() {
                 <th>Name</th>
                 <th>Description</th>
                 <th>Impact</th>
+                <th>Contact</th>
                 <th>Status</th>
                 <th>Latency</th>
                 <th>Last Checked</th>
@@ -317,54 +342,82 @@ function ServiceDetail() {
               </tr>
             </thead>
             <tbody>
-              {service.dependencies.map((dep) => (
-                <tr key={dep.id} className={styles.dependencyRow}>
-                  <td>
-                    {dep.canonical_name ? (
-                      <>
-                        <strong>{dep.canonical_name}</strong>
-                        <br />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                          {dep.name}
+              {service.dependencies.map((dep) => {
+                const contact = parseContact(dep.effective_contact);
+                const overrideActive = hasActiveOverride(dep);
+                return (
+                  <tr key={dep.id} className={styles.dependencyRow}>
+                    <td>
+                      {dep.canonical_name ? (
+                        <>
+                          <strong>{dep.canonical_name}</strong>
+                          <br />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            {dep.name}
+                          </span>
+                        </>
+                      ) : (
+                        dep.name
+                      )}
+                    </td>
+                    <td className={styles.teamCell}>{dep.description || '-'}</td>
+                    <td className={styles.impactCell}>
+                      <span className={styles.impactText} title={dep.effective_impact || undefined}>
+                        {dep.effective_impact || '-'}
+                      </span>
+                      {overrideActive && dep.impact_override && (
+                        <span className={styles.overrideBadge} title="Instance override active">
+                          override
                         </span>
-                      </>
-                    ) : (
-                      dep.name
-                    )}
-                  </td>
-                  <td className={styles.teamCell}>{dep.description || '-'}</td>
-                  <td className={styles.impactCell}>
-                    <span className={styles.impactText} title={dep.impact || undefined}>
-                      {dep.impact || '-'}
-                    </span>
-                  </td>
-                  <td>
-                    <StatusBadge
-                      status={getHealthStateBadgeStatus(dep)}
-                      size="small"
-                      showLabel={true}
-                    />
-                  </td>
-                  <td className={styles.latencyCell}>
-                    {dep.latency_ms !== null ? `${Math.round(dep.latency_ms)}ms` : '-'}
-                  </td>
-                  <td className={styles.timeCell}>
-                    {formatRelativeTime(dep.last_checked)}
-                  </td>
-                  <td className={styles.actionsCell}>
-                    <button
-                      className={styles.historyButton}
-                      onClick={() => setErrorHistoryDep(dep)}
-                      title="View error history"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M8 4v4l2.5 2.5" />
-                        <circle cx="8" cy="8" r="6" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      )}
+                    </td>
+                    <td className={styles.contactCell}>
+                      {contact ? (
+                        <ul className={styles.contactList}>
+                          {Object.entries(contact).map(([key, value]) => (
+                            <li key={key}>
+                              <span className={styles.contactKey}>{key}:</span>{' '}
+                              {String(value)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        '-'
+                      )}
+                      {overrideActive && dep.contact_override && (
+                        <span className={styles.overrideBadge} title="Instance override active">
+                          override
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <StatusBadge
+                        status={getHealthStateBadgeStatus(dep)}
+                        size="small"
+                        showLabel={true}
+                      />
+                    </td>
+                    <td className={styles.latencyCell}>
+                      {dep.latency_ms !== null ? `${Math.round(dep.latency_ms)}ms` : '-'}
+                    </td>
+                    <td className={styles.timeCell}>
+                      {formatRelativeTime(dep.last_checked)}
+                    </td>
+                    <td className={styles.actionsCell}>
+                      <button
+                        className={styles.historyButton}
+                        onClick={() => setErrorHistoryDep(dep)}
+                        title="View error history"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M8 4v4l2.5 2.5" />
+                          <circle cx="8" cy="8" r="6" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
