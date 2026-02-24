@@ -65,6 +65,7 @@ describe('DependencyUpsertService', () => {
         health_state INTEGER,
         health_code INTEGER,
         latency_ms INTEGER,
+        contact TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,

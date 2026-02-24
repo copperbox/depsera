@@ -99,6 +99,7 @@ erDiagram
 | health_state | INTEGER | | NULL |
 | health_code | INTEGER | | NULL |
 | latency_ms | INTEGER | | NULL |
+| contact | TEXT | | NULL |
 | check_details | TEXT | | NULL |
 | error | TEXT | | NULL |
 | error_message | TEXT | | NULL |
@@ -275,5 +276,10 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 009 | add_settings | Creates settings key-value table |
 | 010 | add_password_hash | Adds nullable `password_hash TEXT` column to users |
 | 011 | add_alerts | Creates alert_channels, alert_rules, alert_history tables with indexes |
+| 012 | add_schema_config | Adds nullable `schema_config TEXT` column to services |
+| 013 | add_external_services | Adds `is_external`, `description` columns to services |
+| 014 | add_match_reason | Adds `match_reason TEXT` column to dependency_associations |
+| 015 | relax_dependency_type | Removes CHECK constraint on dependencies.type, allows arbitrary strings |
+| 016 | add_contact_column | Adds nullable `contact TEXT` column to dependencies for storing polled contact JSON |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

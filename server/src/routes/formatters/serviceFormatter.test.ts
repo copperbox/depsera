@@ -64,6 +64,7 @@ describe('serviceFormatter', () => {
     health_state: 0,
     health_code: 200,
     latency_ms: 100,
+    contact: null,
     check_details: null,
     error: null,
     error_message: null,

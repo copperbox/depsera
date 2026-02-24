@@ -153,6 +153,7 @@ export interface Dependency {
   health_state: HealthState | null;
   health_code: number | null;
   latency_ms: number | null;
+  contact: string | null; // JSON string of contact object
   check_details: string | null; // JSON string of check details
   error: string | null; // JSON string of error object
   error_message: string | null;

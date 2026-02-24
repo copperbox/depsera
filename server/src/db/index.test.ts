@@ -127,6 +127,48 @@ describe('Database', () => {
     expect(schemaConfigCol!.notnull).toBe(0); // nullable
   });
 
+  it('should have contact column on dependencies table', () => {
+    const columns = testDb
+      .prepare("PRAGMA table_info('dependencies')")
+      .all() as { name: string; type: string; notnull: number }[];
+
+    const contactCol = columns.find(c => c.name === 'contact');
+    expect(contactCol).toBeDefined();
+    expect(contactCol!.type).toBe('TEXT');
+    expect(contactCol!.notnull).toBe(0); // nullable
+  });
+
+  it('should allow inserting and retrieving contact on dependencies', () => {
+    // Ensure team and service exist
+    testDb.prepare(`
+      INSERT OR IGNORE INTO teams (id, name) VALUES ('team-contact', 'Contact Test Team')
+    `).run();
+    testDb.prepare(`
+      INSERT OR IGNORE INTO services (id, name, team_id, health_endpoint, poll_interval_ms)
+      VALUES ('svc-contact-test', 'Contact Test Service', 'team-contact', 'http://test/health', 30000)
+    `).run();
+
+    const contact = JSON.stringify({ team: 'Platform', email: 'platform@co.com' });
+
+    testDb.prepare(`
+      INSERT INTO dependencies (id, service_id, name, contact, healthy, health_state)
+      VALUES ('dep-contact-1', 'svc-contact-test', 'Test Contact Dep', ?, 1, 0)
+    `).run(contact);
+
+    const dep = testDb.prepare('SELECT contact FROM dependencies WHERE id = ?')
+      .get('dep-contact-1') as { contact: string | null };
+
+    expect(dep.contact).toBe(contact);
+    const parsed = JSON.parse(dep.contact!);
+    expect(parsed.team).toBe('Platform');
+    expect(parsed.email).toBe('platform@co.com');
+
+    // Cleanup
+    testDb.prepare('DELETE FROM dependencies WHERE id = ?').run('dep-contact-1');
+    testDb.prepare('DELETE FROM services WHERE id = ?').run('svc-contact-test');
+    testDb.prepare('DELETE FROM teams WHERE id = ?').run('team-contact');
+  });
+
   it('should allow inserting and retrieving schema_config on services', () => {
     // Ensure team exists
     testDb.prepare(`

@@ -40,6 +40,7 @@ describe('DependencyStore', () => {
         health_state INTEGER,
         health_code INTEGER,
         latency_ms INTEGER,
+        contact TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,
@@ -148,6 +149,96 @@ describe('DependencyStore', () => {
       expect(result.dependency.canonical_name).toBe('canonical-name');
       expect(result.dependency.description).toBe('A test dependency');
       expect(result.dependency.type).toBe('database');
+    });
+
+    it('should store contact as JSON string', () => {
+      const contact = { team: 'Platform', email: 'platform@co.com', slack: '#platform' };
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBe(JSON.stringify(contact));
+      const parsed = JSON.parse(result.dependency.contact!);
+      expect(parsed.team).toBe('Platform');
+      expect(parsed.email).toBe('platform@co.com');
+      expect(parsed.slack).toBe('#platform');
+    });
+
+    it('should store null contact when not provided', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'NoContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBeNull();
+    });
+
+    it('should update contact on subsequent upsert', () => {
+      const initialContact = { team: 'Alpha' };
+      store.upsert({
+        service_id: testServiceId,
+        name: 'UpdateContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: initialContact,
+        last_checked: new Date().toISOString(),
+      });
+
+      const updatedContact = { team: 'Beta', email: 'beta@co.com' };
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'UpdateContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: updatedContact,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.isNew).toBe(false);
+      const parsed = JSON.parse(result.dependency.contact!);
+      expect(parsed.team).toBe('Beta');
+      expect(parsed.email).toBe('beta@co.com');
+    });
+
+    it('should clear contact when upserted without contact', () => {
+      store.upsert({
+        service_id: testServiceId,
+        name: 'ClearContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: { team: 'Original' },
+        last_checked: new Date().toISOString(),
+      });
+
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ClearContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBeNull();
     });
   });
 

@@ -25,6 +25,7 @@ function makeDep(overrides: Partial<DependencyForWallboard> = {}): DependencyFor
     health_state: 0,
     health_code: 200,
     latency_ms: 50,
+    contact: null,
     check_details: null,
     error: null,
     error_message: null,

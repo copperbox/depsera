@@ -14,6 +14,7 @@ import * as migration012 from './migrations/012_add_schema_config';
 import * as migration013 from './migrations/013_add_external_services';
 import * as migration014 from './migrations/014_add_match_reason';
 import * as migration015 from './migrations/015_relax_dependency_type';
+import * as migration016 from './migrations/016_add_contact_column';
 
 interface Migration {
   id: string;
@@ -112,6 +113,12 @@ const migrations: Migration[] = [
     name: 'relax_dependency_type',
     up: migration015.up,
     down: migration015.down
+  },
+  {
+    id: '016',
+    name: 'add_contact_column',
+    up: migration016.up,
+    down: migration016.down
   }
 ];
 

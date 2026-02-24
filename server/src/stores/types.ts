@@ -194,6 +194,7 @@ export interface DependencyUpsertInput {
   health_state: HealthState;
   health_code: number;
   latency_ms: number;
+  contact?: unknown;
   check_details?: unknown;
   error?: unknown;
   error_message?: string | null;

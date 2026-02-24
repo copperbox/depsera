@@ -218,6 +218,7 @@ export class DependencyStore implements IDependencyStore {
       existing.healthy !== null &&
       existing.healthy !== newHealthy;
 
+    const contactJson = input.contact ? JSON.stringify(input.contact) : null;
     const checkDetailsJson = input.check_details ? JSON.stringify(input.check_details) : null;
     const errorJson = input.error !== undefined ? JSON.stringify(input.error) : null;
 
@@ -226,9 +227,9 @@ export class DependencyStore implements IDependencyStore {
         INSERT INTO dependencies (
           id, service_id, name, canonical_name, description, impact, type,
           healthy, health_state, health_code, latency_ms,
-          check_details, error, error_message,
+          contact, check_details, error, error_message,
           last_checked, last_status_change, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(service_id, name) DO UPDATE SET
           canonical_name = excluded.canonical_name,
           description = excluded.description,
@@ -238,6 +239,7 @@ export class DependencyStore implements IDependencyStore {
           health_state = excluded.health_state,
           health_code = excluded.health_code,
           latency_ms = excluded.latency_ms,
+          contact = excluded.contact,
           check_details = excluded.check_details,
           error = excluded.error,
           error_message = excluded.error_message,
@@ -261,6 +263,7 @@ export class DependencyStore implements IDependencyStore {
         input.health_state,
         input.health_code,
         input.latency_ms,
+        contactJson,
         checkDetailsJson,
         errorJson,
         input.error_message ?? null,
