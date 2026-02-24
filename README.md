@@ -33,6 +33,8 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 **Visualization**
 - Interactive dependency graph (React Flow) with team filtering, search, layout controls, and latency thresholds
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
+- Edge selection shows per-dependency latency chart, contact info, impact, and error history
+- Node selection shows aggregate latency chart across all dependents and merged contact info
 - Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down
 - Dashboard with health distribution, services with issues, and team health summaries
 

@@ -62,6 +62,11 @@ export interface ILatencyHistoryStore {
   getLatencyBuckets(dependencyId: string, range: LatencyRange): LatencyBucket[];
 
   /**
+   * Get aggregated time-bucketed latency data across multiple dependencies
+   */
+  getAggregateLatencyBuckets(dependencyIds: string[], range: LatencyRange): LatencyBucket[];
+
+  /**
    * Delete old history entries (for cleanup)
    */
   deleteOlderThan(timestamp: string): number;

@@ -26,6 +26,15 @@ export interface LatencyBucketsResponse {
 }
 
 /**
+ * Response from GET /api/latency/aggregate/buckets
+ */
+export interface AggregateLatencyBucketsResponse {
+  dependencyIds: string[];
+  range: LatencyRange;
+  buckets: LatencyBucket[];
+}
+
+/**
  * Health state transition for timeline visualization
  */
 export interface HealthTransition {
