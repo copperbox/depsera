@@ -12,5 +12,6 @@ All relevant implementation specs can be found in `docs/specs`. These must be ma
   1. Pause and ask for direction
   2. Present the available options with pros/cons
   3. Wait for confirmation before proceeding
+- After implementing changes, always run npm run build to ensure that builds are not broken.
 
 When being asked to handle linear tasks, refer to `LINEAR.md` for general instructions.
