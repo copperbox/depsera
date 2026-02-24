@@ -30,6 +30,25 @@ jest.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// Mock useCanonicalOverrides
+const mockLoadCanonicalOverrides = jest.fn();
+const mockSaveCanonicalOverride = jest.fn();
+const mockRemoveCanonicalOverride = jest.fn();
+const mockGetCanonicalOverride = jest.fn();
+let mockCanonicalOverrides: { id: string; canonical_name: string; contact_override: string | null; impact_override: string | null; created_at: string; updated_at: string; updated_by: string | null }[] = [];
+
+jest.mock('../../../hooks/useCanonicalOverrides', () => ({
+  useCanonicalOverrides: () => ({
+    overrides: mockCanonicalOverrides,
+    isLoading: false,
+    error: null,
+    loadOverrides: mockLoadCanonicalOverrides,
+    saveOverride: mockSaveCanonicalOverride,
+    removeOverride: mockRemoveCanonicalOverride,
+    getOverride: mockGetCanonicalOverride,
+  }),
+}));
+
 // Mock useAliases
 const mockLoadAliases = jest.fn();
 const mockLoadCanonicalNames = jest.fn();
@@ -91,6 +110,11 @@ function makeService(overrides = {}) {
         canonical_name: null,
         description: null,
         impact: null,
+        contact: null,
+        contact_override: null,
+        impact_override: null,
+        effective_contact: null,
+        effective_impact: null,
         healthy: 1,
         health_state: 0 as const,
         health_code: null,
@@ -143,6 +167,33 @@ function makeAssociation(overrides = {}) {
   };
 }
 
+const adminUser = {
+  id: 'user-1',
+  email: 'admin@test.com',
+  name: 'Admin',
+  role: 'admin' as const,
+  is_active: true,
+  teams: [{ team_id: 'team-1', role: 'lead' as const, team: { id: 'team-1', name: 'Team One', description: null } }],
+};
+
+const teamLeadUser = {
+  id: 'user-2',
+  email: 'lead@test.com',
+  name: 'Lead',
+  role: 'user' as const,
+  is_active: true,
+  teams: [{ team_id: 'team-1', role: 'lead' as const, team: { id: 'team-1', name: 'Team One', description: null } }],
+};
+
+const memberUser = {
+  id: 'user-3',
+  email: 'member@test.com',
+  name: 'Member',
+  role: 'user' as const,
+  is_active: true,
+  teams: [{ team_id: 'team-1', role: 'member' as const, team: { id: 'team-1', name: 'Team One', description: null } }],
+};
+
 beforeEach(() => {
   mockFetchServices.mockReset();
   mockFetchAssociations.mockReset();
@@ -151,9 +202,15 @@ beforeEach(() => {
   mockLoadCanonicalNames.mockReset();
   mockAddAlias.mockReset();
   mockRemoveAlias.mockReset();
+  mockLoadCanonicalOverrides.mockReset();
+  mockSaveCanonicalOverride.mockReset();
+  mockRemoveCanonicalOverride.mockReset();
+  mockGetCanonicalOverride.mockReset();
   mockAliases = [];
   mockCanonicalNames = [];
-  mockUseAuth.mockReturnValue({ isAdmin: true });
+  mockCanonicalOverrides = [];
+  mockGetCanonicalOverride.mockReturnValue(undefined);
+  mockUseAuth.mockReturnValue({ user: adminUser, isAdmin: true });
 });
 
 describe('ManageAssociations', () => {
@@ -478,7 +535,7 @@ describe('ManageAssociations', () => {
     });
 
     it('non-admin does not see "+ Add Alias" button', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
+      mockUseAuth.mockReturnValue({ user: memberUser, isAdmin: false });
       await expandDependency();
       expect(screen.queryByText('+ Add Alias')).not.toBeInTheDocument();
     });
@@ -535,7 +592,7 @@ describe('ManageAssociations', () => {
     });
 
     it('non-admin does not see delete button for aliases', async () => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
+      mockUseAuth.mockReturnValue({ user: memberUser, isAdmin: false });
       mockAliases = [
         { id: 'alias-1', alias: 'Redis', canonical_name: 'Primary Cache', created_at: '2024-01-01T00:00:00Z' },
       ];
@@ -545,12 +602,250 @@ describe('ManageAssociations', () => {
       expect(screen.queryByTitle('Delete alias')).not.toBeInTheDocument();
     });
 
-    it('loads aliases and canonical names on mount', () => {
+    it('loads aliases, canonical names, and canonical overrides on mount', () => {
       mockFetchServices.mockResolvedValue([]);
       render(<ManageAssociations />);
 
       expect(mockLoadAliases).toHaveBeenCalled();
       expect(mockLoadCanonicalNames).toHaveBeenCalled();
+      expect(mockLoadCanonicalOverrides).toHaveBeenCalled();
+    });
+  });
+
+  describe('canonical overrides', () => {
+    function makeDep(overrides = {}) {
+      return {
+        id: 'dep-1',
+        service_id: 'svc-1',
+        name: 'Redis',
+        canonical_name: null as string | null,
+        description: null,
+        impact: null,
+        contact: null,
+        contact_override: null,
+        impact_override: null,
+        effective_contact: null,
+        effective_impact: null,
+        healthy: 1,
+        health_state: 0 as const,
+        health_code: null,
+        latency_ms: 5,
+        last_checked: '2024-01-01T00:00:00Z',
+        last_status_change: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        ...overrides,
+      };
+    }
+
+    async function expandDependencyWithCanonical(canonicalName: string | null = null) {
+      mockFetchServices.mockResolvedValue([
+        makeService({ dependencies: [makeDep({ canonical_name: canonicalName })] }),
+      ]);
+      mockFetchAssociations.mockResolvedValue([]);
+      render(<ManageAssociations />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Service Alpha'));
+      fireEvent.click(screen.getByText('Redis'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Canonical Overrides')).toBeInTheDocument();
+      });
+    }
+
+    it('shows "Canonical Overrides" section header when dependency is expanded', async () => {
+      await expandDependencyWithCanonical();
+      expect(screen.getByText('Canonical Overrides')).toBeInTheDocument();
+    });
+
+    it('shows note when dependency has no canonical name', async () => {
+      await expandDependencyWithCanonical(null);
+      expect(
+        screen.getByText(/A canonical name must be established/)
+      ).toBeInTheDocument();
+    });
+
+    it('shows "No canonical override set" when canonical name exists but no override', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+      expect(screen.getByText('No canonical override set.')).toBeInTheDocument();
+    });
+
+    it('shows "+ Add Override" button for admin when no override exists', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+      expect(screen.getByText('+ Add Override')).toBeInTheDocument();
+    });
+
+    it('shows "Edit Override" button when override already exists', async () => {
+      mockGetCanonicalOverride.mockReturnValue({
+        id: 'co-1',
+        canonical_name: 'Primary Cache',
+        contact_override: '{"email":"team@test.com"}',
+        impact_override: 'Critical',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      });
+      await expandDependencyWithCanonical('Primary Cache');
+      expect(screen.getByText('Edit Override')).toBeInTheDocument();
+    });
+
+    it('displays existing canonical override contact and impact values', async () => {
+      mockGetCanonicalOverride.mockReturnValue({
+        id: 'co-1',
+        canonical_name: 'Primary Cache',
+        contact_override: '{"email":"db-team@example.com","slack":"#db-support"}',
+        impact_override: 'Critical database',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      });
+      await expandDependencyWithCanonical('Primary Cache');
+
+      expect(screen.getByText('Canonical override active')).toBeInTheDocument();
+      expect(screen.getByText('email: db-team@example.com')).toBeInTheDocument();
+      expect(screen.getByText('slack: #db-support')).toBeInTheDocument();
+      expect(screen.getByText('Critical database')).toBeInTheDocument();
+    });
+
+    it('does not show edit button for regular team member', async () => {
+      mockUseAuth.mockReturnValue({ user: memberUser, isAdmin: false });
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+      expect(screen.queryByText('+ Add Override')).not.toBeInTheDocument();
+    });
+
+    it('shows edit button for team lead (non-admin)', async () => {
+      mockUseAuth.mockReturnValue({ user: teamLeadUser, isAdmin: false });
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+      expect(screen.getByText('+ Add Override')).toBeInTheDocument();
+    });
+
+    it('opens edit form when "+ Add Override" is clicked', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('+ Add Override'));
+
+      expect(screen.getByPlaceholderText('Impact statement')).toBeInTheDocument();
+      expect(screen.getByText('+ Add Field')).toBeInTheDocument();
+      expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('cancel closes the edit form', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('+ Add Override'));
+      expect(screen.getByPlaceholderText('Impact statement')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Cancel'));
+      expect(screen.queryByPlaceholderText('Impact statement')).not.toBeInTheDocument();
+    });
+
+    it('adds and removes contact entry fields', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('+ Add Override'));
+      fireEvent.click(screen.getByText('+ Add Field'));
+
+      expect(screen.getByPlaceholderText('Key (e.g. email)')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Value')).toBeInTheDocument();
+
+      // Remove the entry
+      fireEvent.click(screen.getByTitle('Remove entry'));
+      expect(screen.queryByPlaceholderText('Key (e.g. email)')).not.toBeInTheDocument();
+    });
+
+    it('saves override with contact and impact', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      mockSaveCanonicalOverride.mockResolvedValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('+ Add Override'));
+
+      // Add a contact field
+      fireEvent.click(screen.getByText('+ Add Field'));
+      fireEvent.change(screen.getByPlaceholderText('Key (e.g. email)'), {
+        target: { value: 'email' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Value'), {
+        target: { value: 'team@test.com' },
+      });
+
+      // Set impact
+      fireEvent.change(screen.getByPlaceholderText('Impact statement'), {
+        target: { value: 'High impact' },
+      });
+
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(mockSaveCanonicalOverride).toHaveBeenCalledWith('Primary Cache', {
+          contact_override: { email: 'team@test.com' },
+          impact_override: 'High impact',
+        });
+      });
+    });
+
+    it('shows error when saving with no values', async () => {
+      mockGetCanonicalOverride.mockReturnValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('+ Add Override'));
+      fireEvent.click(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Provide at least one override/)).toBeInTheDocument();
+      });
+    });
+
+    it('clears override when "Clear Override" is clicked', async () => {
+      mockGetCanonicalOverride.mockReturnValue({
+        id: 'co-1',
+        canonical_name: 'Primary Cache',
+        contact_override: '{"email":"team@test.com"}',
+        impact_override: 'Critical',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      });
+      mockRemoveCanonicalOverride.mockResolvedValue(undefined);
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('Edit Override'));
+      fireEvent.click(screen.getByText('Clear Override'));
+
+      await waitFor(() => {
+        expect(mockRemoveCanonicalOverride).toHaveBeenCalledWith('Primary Cache');
+      });
+    });
+
+    it('populates form with existing override values when editing', async () => {
+      mockGetCanonicalOverride.mockReturnValue({
+        id: 'co-1',
+        canonical_name: 'Primary Cache',
+        contact_override: '{"email":"existing@test.com"}',
+        impact_override: 'Existing impact',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      });
+      await expandDependencyWithCanonical('Primary Cache');
+
+      fireEvent.click(screen.getByText('Edit Override'));
+
+      expect(screen.getByDisplayValue('email')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('existing@test.com')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Existing impact')).toBeInTheDocument();
     });
   });
 });

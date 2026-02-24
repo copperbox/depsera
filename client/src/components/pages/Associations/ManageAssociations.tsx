@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useManageAssociations } from '../../../hooks/useManageAssociations';
 import { useAliases } from '../../../hooks/useAliases';
+import { useCanonicalOverrides } from '../../../hooks/useCanonicalOverrides';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ASSOCIATION_TYPE_LABELS } from '../../../types/association';
 import type { Association } from '../../../types/association';
@@ -8,8 +9,29 @@ import AssociationForm from './AssociationForm';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import styles from './ManageAssociations.module.css';
 
+interface ContactEntry {
+  key: string;
+  value: string;
+}
+
+/**
+ * Parse a JSON contact string into key-value pairs for display.
+ */
+function parseContact(contactJson: string | null): Record<string, string> | null {
+  if (!contactJson) return null;
+  try {
+    const parsed = JSON.parse(contactJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function ManageAssociations() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const {
     filteredServices,
     isLoading,
@@ -34,6 +56,13 @@ function ManageAssociations() {
     addAlias,
     removeAlias,
   } = useAliases();
+  const {
+    overrides: canonicalOverrides,
+    loadOverrides: loadCanonicalOverrides,
+    saveOverride: saveCanonicalOverride,
+    removeOverride: removeCanonicalOverride,
+    getOverride: getCanonicalOverride,
+  } = useCanonicalOverrides();
 
   const [addingForDepId, setAddingForDepId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ depId: string; assoc: Association } | null>(null);
@@ -42,9 +71,18 @@ function ManageAssociations() {
   const [canonicalInput, setCanonicalInput] = useState('');
   const [aliasError, setAliasError] = useState<string | null>(null);
 
+  // Canonical override editing state
+  const [editingOverrideFor, setEditingOverrideFor] = useState<string | null>(null);
+  const [overrideContactEntries, setOverrideContactEntries] = useState<ContactEntry[]>([]);
+  const [overrideImpact, setOverrideImpact] = useState('');
+  const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [isSavingOverride, setIsSavingOverride] = useState(false);
+  const [isClearingOverride, setIsClearingOverride] = useState(false);
+
   useEffect(() => {
     loadAliases();
     loadCanonicalNames();
+    loadCanonicalOverrides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -85,6 +123,228 @@ function ManageAssociations() {
     } catch {
       // error logged in hook
     }
+  };
+
+  /**
+   * Check if the current user can edit canonical overrides for a given service.
+   * Admin or team lead of the service's owning team.
+   */
+  const canEditCanonicalOverride = useCallback((serviceTeamId: string): boolean => {
+    if (isAdmin) return true;
+    if (!user) return false;
+    const membership = user.teams?.find(t => t.team_id === serviceTeamId);
+    return membership?.role === 'lead';
+  }, [isAdmin, user]);
+
+  const openOverrideEdit = useCallback((canonicalName: string) => {
+    const existing = getCanonicalOverride(canonicalName);
+    const existingContact = existing ? parseContact(existing.contact_override) : null;
+    const entries: ContactEntry[] = existingContact
+      ? Object.entries(existingContact).map(([key, value]) => ({ key, value: String(value) }))
+      : [];
+    setOverrideContactEntries(entries);
+    setOverrideImpact(existing?.impact_override || '');
+    setOverrideError(null);
+    setEditingOverrideFor(canonicalName);
+  }, [getCanonicalOverride]);
+
+  const handleOverrideSave = useCallback(async () => {
+    if (!editingOverrideFor) return;
+    setIsSavingOverride(true);
+    setOverrideError(null);
+    try {
+      const validEntries = overrideContactEntries.filter(e => e.key.trim());
+      const contactObj = validEntries.length > 0
+        ? Object.fromEntries(validEntries.map(e => [e.key.trim(), e.value]))
+        : null;
+      const impactVal = overrideImpact.trim() || null;
+
+      if (contactObj === null && impactVal === null) {
+        setOverrideError('Provide at least one override, or use Clear to remove all.');
+        setIsSavingOverride(false);
+        return;
+      }
+
+      await saveCanonicalOverride(editingOverrideFor, {
+        contact_override: contactObj,
+        impact_override: impactVal,
+      });
+      setEditingOverrideFor(null);
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : 'Failed to save override');
+    } finally {
+      setIsSavingOverride(false);
+    }
+  }, [editingOverrideFor, overrideContactEntries, overrideImpact, saveCanonicalOverride]);
+
+  const handleOverrideClear = useCallback(async (canonicalName: string) => {
+    setIsClearingOverride(true);
+    setOverrideError(null);
+    try {
+      await removeCanonicalOverride(canonicalName);
+      setEditingOverrideFor(null);
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : 'Failed to clear override');
+    } finally {
+      setIsClearingOverride(false);
+    }
+  }, [removeCanonicalOverride]);
+
+  const addContactEntry = useCallback(() => {
+    setOverrideContactEntries(prev => [...prev, { key: '', value: '' }]);
+  }, []);
+
+  const removeContactEntry = useCallback((index: number) => {
+    setOverrideContactEntries(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updateContactEntry = useCallback((index: number, field: 'key' | 'value', val: string) => {
+    setOverrideContactEntries(prev =>
+      prev.map((entry, i) => i === index ? { ...entry, [field]: val } : entry)
+    );
+  }, []);
+
+  const renderCanonicalOverrideSection = (dep: { canonical_name: string | null }, serviceTeamId: string) => {
+    const canonicalName = dep.canonical_name;
+    const canEdit = canEditCanonicalOverride(serviceTeamId);
+
+    if (!canonicalName) {
+      return (
+        <div className={styles.canonicalOverrideSection}>
+          <div className={styles.aliasSectionHeader}>Canonical Overrides</div>
+          <div className={styles.canonicalOverrideNote}>
+            A canonical name must be established (via alias) before canonical overrides can be set.
+          </div>
+        </div>
+      );
+    }
+
+    const existing = getCanonicalOverride(canonicalName);
+    const isEditing = editingOverrideFor === canonicalName;
+    const contactData = existing ? parseContact(existing.contact_override) : null;
+
+    return (
+      <div className={styles.canonicalOverrideSection}>
+        <div className={styles.aliasSectionHeader}>Canonical Overrides</div>
+
+        {existing && !isEditing && (
+          <div className={styles.canonicalOverrideDisplay}>
+            <div className={styles.overrideIndicator}>Canonical override active</div>
+            {contactData && (
+              <div className={styles.overrideFieldGroup}>
+                <span className={styles.overrideFieldLabel}>Contact:</span>
+                <div className={styles.overrideContactList}>
+                  {Object.entries(contactData).map(([key, value]) => (
+                    <span key={key} className={styles.overrideContactItem}>
+                      {key}: {value}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {existing.impact_override && (
+              <div className={styles.overrideFieldGroup}>
+                <span className={styles.overrideFieldLabel}>Impact:</span>
+                <span className={styles.overrideFieldValue}>{existing.impact_override}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isEditing && !existing && (
+          <div className={styles.noAssociations}>No canonical override set.</div>
+        )}
+
+        {canEdit && !isEditing && (
+          <button
+            className={styles.addButton}
+            onClick={() => openOverrideEdit(canonicalName)}
+          >
+            {existing ? 'Edit Override' : '+ Add Override'}
+          </button>
+        )}
+
+        {isEditing && (
+          <div className={styles.overrideForm}>
+            <div className={styles.overrideFormGroup}>
+              <label className={styles.overrideFormLabel}>Contact</label>
+              {overrideContactEntries.map((entry, i) => (
+                <div key={i} className={styles.overrideContactEntryRow}>
+                  <input
+                    className={styles.aliasInput}
+                    value={entry.key}
+                    onChange={(e) => updateContactEntry(i, 'key', e.target.value)}
+                    placeholder="Key (e.g. email)"
+                  />
+                  <input
+                    className={styles.aliasInput}
+                    value={entry.value}
+                    onChange={(e) => updateContactEntry(i, 'value', e.target.value)}
+                    placeholder="Value"
+                  />
+                  <button
+                    className={styles.deleteButton}
+                    onClick={() => removeContactEntry(i)}
+                    title="Remove entry"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4l8 8M12 4l-8 8" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              <button
+                className={styles.addButton}
+                onClick={addContactEntry}
+                type="button"
+              >
+                + Add Field
+              </button>
+            </div>
+
+            <div className={styles.overrideFormGroup}>
+              <label className={styles.overrideFormLabel}>Impact</label>
+              <input
+                className={styles.aliasInput}
+                value={overrideImpact}
+                onChange={(e) => setOverrideImpact(e.target.value)}
+                placeholder="Impact statement"
+              />
+            </div>
+
+            {overrideError && <div className={styles.aliasError}>{overrideError}</div>}
+
+            <div className={styles.overrideFormActions}>
+              <button
+                className={styles.addButton}
+                onClick={handleOverrideSave}
+                disabled={isSavingOverride}
+              >
+                {isSavingOverride ? 'Saving...' : 'Save'}
+              </button>
+              {existing && (
+                <button
+                  className={styles.overrideClearButton}
+                  onClick={() => handleOverrideClear(canonicalName)}
+                  disabled={isClearingOverride}
+                >
+                  {isClearingOverride ? 'Clearing...' : 'Clear Override'}
+                </button>
+              )}
+              <button
+                className={styles.addButton}
+                onClick={() => {
+                  setEditingOverrideFor(null);
+                  setOverrideError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderAliasSection = (depId: string, depName: string) => {
@@ -323,6 +583,9 @@ function ManageAssociations() {
 
                                 {/* Aliases section */}
                                 {renderAliasSection(dep.id, dep.name)}
+
+                                {/* Canonical overrides section */}
+                                {renderCanonicalOverrideSection(dep, service.team_id)}
                               </>
                             )}
                           </div>
