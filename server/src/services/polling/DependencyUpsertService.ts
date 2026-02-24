@@ -50,6 +50,7 @@ export class DependencyUpsertService {
         health_state: dep.health.state,
         health_code: dep.health.code,
         latency_ms: dep.health.latency,
+        contact: dep.contact,
         check_details: dep.checkDetails,
         error: dep.error,
         error_message: dep.errorMessage ?? null,

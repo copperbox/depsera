@@ -120,7 +120,7 @@ Promise coalescing for services sharing the same health endpoint URL.
 When a poll succeeds, the health endpoint response is parsed (proactive-deps format) and each dependency is upserted:
 
 1. **Alias resolution:** `aliasStore.resolveAlias(dep.name)` → sets `canonical_name` if alias exists
-2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). Returns whether the dependency is new and whether health changed.
+2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). All parsed fields — including `contact` and `checkDetails` — are serialized with `JSON.stringify()` and persisted. The ON CONFLICT clause updates `contact` from polled data each cycle (`contact = excluded.contact`), so contact reflects the latest poll. Missing contact → `null` in DB. Returns whether the dependency is new and whether health changed.
 3. **Status change detection:** If `healthy` value changed, `last_status_change` is updated and a `STATUS_CHANGE` event is emitted.
 4. **Error history:** Deduplication logic — only records if the error state changed:
    - Healthy → only record if previous entry was an error (records recovery with null error)
