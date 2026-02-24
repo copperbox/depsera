@@ -9,7 +9,7 @@
 | `/login` | Login | Public | OIDC redirect or local auth form |
 | `/` | Dashboard | Protected | Health summary overview |
 | `/services` | ServicesList | Protected | Searchable, filterable service list |
-| `/services/:id` | ServiceDetail | Protected | Dependencies, latency, errors, contact info, override indicators, manual poll |
+| `/services/:id` | ServiceDetail | Protected | Dependencies, latency, errors, contact info, override indicators, inline override editing (team lead+/admin), manual poll |
 | `/teams` | TeamsList | Protected | Team listing with counts |
 | `/teams/:id` | TeamDetail | Protected | Members, roles, owned services |
 | `/graph` | DependencyGraph | Protected | Interactive React Flow visualization |
@@ -54,7 +54,7 @@ All API modules follow a consistent pattern:
 3. `handleResponse<T>(response)` — throws `Error` with server message if `!response.ok`, otherwise returns parsed JSON
 4. No built-in retry logic — components handle errors via state
 
-**API modules:** `auth.ts`, `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`
+**API modules:** `auth.ts`, `services.ts`, `teams.ts`, `users.ts`, `aliases.ts`, `associations.ts`, `graph.ts`, `latency.ts`, `errors.ts`, `dependencies.ts`
 
 ## 10.4 Custom Hooks
 

@@ -110,8 +110,9 @@ const mockService = {
   ],
 };
 
-function renderServiceDetail(id = 's1', isAdmin = false) {
-  mockUseAuth.mockReturnValue({ isAdmin });
+function renderServiceDetail(id = 's1', authOverrides: { isAdmin?: boolean; user?: Record<string, unknown> } = {}) {
+  const { isAdmin = false, user = null } = authOverrides;
+  mockUseAuth.mockReturnValue({ isAdmin, user });
   return render(
     <MemoryRouter initialEntries={[`/services/${id}`]}>
       <Routes>
@@ -287,7 +288,7 @@ describe('ServiceDetail', () => {
       .mockResolvedValueOnce(jsonResponse(mockService))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServiceDetail('s1', true);
+    renderServiceDetail('s1', { isAdmin: true });
 
     await waitFor(() => {
       expect(screen.getByText('Edit')).toBeInTheDocument();
@@ -300,7 +301,7 @@ describe('ServiceDetail', () => {
       .mockResolvedValueOnce(jsonResponse(mockService))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServiceDetail('s1', false);
+    renderServiceDetail('s1', { isAdmin: false });
 
     await waitFor(() => {
       expect(screen.getByText('Test Service')).toBeInTheDocument();
@@ -315,7 +316,7 @@ describe('ServiceDetail', () => {
       .mockResolvedValueOnce(jsonResponse(mockService))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServiceDetail('s1', true);
+    renderServiceDetail('s1', { isAdmin: true });
 
     await waitFor(() => {
       expect(screen.getByText('Edit')).toBeInTheDocument();
@@ -331,7 +332,7 @@ describe('ServiceDetail', () => {
       .mockResolvedValueOnce(jsonResponse(mockService))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
 
-    renderServiceDetail('s1', true);
+    renderServiceDetail('s1', { isAdmin: true });
 
     await waitFor(() => {
       expect(screen.getByText('Delete')).toBeInTheDocument();
@@ -720,6 +721,365 @@ describe('ServiceDetail', () => {
       expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
       expect(screen.getByTestId('latency-chart-d2')).toBeInTheDocument();
       expect(screen.getByTestId('health-timeline-d2')).toBeInTheDocument();
+    });
+  });
+
+  describe('Inline Override Editing', () => {
+    const adminUser = {
+      id: 'u1',
+      email: 'admin@test.com',
+      name: 'Admin',
+      role: 'admin',
+      teams: [],
+    };
+
+    const teamLeadUser = {
+      id: 'u2',
+      email: 'lead@test.com',
+      name: 'Lead',
+      role: 'user',
+      teams: [{ team_id: 't1', role: 'lead', team: { id: 't1', name: 'Team A', description: null } }],
+    };
+
+    const memberUser = {
+      id: 'u3',
+      email: 'member@test.com',
+      name: 'Member',
+      role: 'user',
+      teams: [{ team_id: 't1', role: 'member', team: { id: 't1', name: 'Team A', description: null } }],
+    };
+
+    const noTeamUser = {
+      id: 'u4',
+      email: 'other@test.com',
+      name: 'Other',
+      role: 'user',
+      teams: [{ team_id: 't9', role: 'lead', team: { id: 't9', name: 'Other Team', description: null } }],
+    };
+
+    it('shows edit override buttons for admin users', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      expect(editButtons.length).toBe(2); // one per dependency
+    });
+
+    it('shows edit override buttons for team leads of the service team', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: false, user: teamLeadUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      expect(editButtons.length).toBe(2);
+    });
+
+    it('hides edit override buttons for regular team members', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: false, user: memberUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Edit overrides')).not.toBeInTheDocument();
+    });
+
+    it('hides edit override buttons for leads of other teams', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: false, user: noTeamUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Edit overrides')).not.toBeInTheDocument();
+    });
+
+    it('opens override edit modal when edit button is clicked', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // Modal title includes the dependency name
+      expect(screen.getByText(/Edit Overrides — PostgreSQL/)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('e.g. Critical — primary database')).toBeInTheDocument();
+    });
+
+    it('pre-populates modal with existing overrides', async () => {
+      const serviceWithOverrides = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            contact_override: '{"email":"db@co.com","slack":"#db"}',
+            impact_override: 'Critical override',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithOverrides))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // Impact should be pre-populated
+      const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database') as HTMLInputElement;
+      expect(impactInput.value).toBe('Critical override');
+
+      // Contact entries should be pre-populated
+      const keyInputs = screen.getAllByPlaceholderText('Key (e.g. email)') as HTMLInputElement[];
+      expect(keyInputs.length).toBe(2);
+      expect(keyInputs[0].value).toBe('email');
+      expect(keyInputs[1].value).toBe('slack');
+
+      const valueInputs = screen.getAllByPlaceholderText('Value') as HTMLInputElement[];
+      expect(valueInputs[0].value).toBe('db@co.com');
+      expect(valueInputs[1].value).toBe('#db');
+    });
+
+    it('adds and removes contact entries', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // No contact entries initially
+      expect(screen.queryByPlaceholderText('Key (e.g. email)')).not.toBeInTheDocument();
+
+      // Add a field
+      fireEvent.click(screen.getByText('+ Add Field'));
+      expect(screen.getByPlaceholderText('Key (e.g. email)')).toBeInTheDocument();
+
+      // Add another field
+      fireEvent.click(screen.getByText('+ Add Field'));
+      expect(screen.getAllByPlaceholderText('Key (e.g. email)').length).toBe(2);
+
+      // Remove the first field
+      const removeButtons = screen.getAllByTitle('Remove entry');
+      fireEvent.click(removeButtons[0]);
+      expect(screen.getAllByPlaceholderText('Key (e.g. email)').length).toBe(1);
+    });
+
+    it('saves overrides and refreshes service', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // Fill in impact override
+      const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database');
+      fireEvent.change(impactInput, { target: { value: 'New impact value' } });
+
+      // Add a contact field
+      fireEvent.click(screen.getByText('+ Add Field'));
+      const keyInput = screen.getByPlaceholderText('Key (e.g. email)');
+      const valueInput = screen.getByPlaceholderText('Value');
+      fireEvent.change(keyInput, { target: { value: 'email' } });
+      fireEvent.change(valueInput, { target: { value: 'team@co.com' } });
+
+      // Mock save response + service reload
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ id: 'd1' })) // PUT override
+        .mockResolvedValueOnce(jsonResponse(mockService))   // reload service
+        .mockResolvedValueOnce(jsonResponse(mockTeams));     // reload teams
+
+      fireEvent.click(screen.getByText('Save Overrides'));
+
+      await waitFor(() => {
+        // PUT was called with correct body
+        const putCall = mockFetch.mock.calls.find(
+          (call: [string, RequestInit]) => call[1]?.method === 'PUT' && call[0].includes('/overrides')
+        );
+        expect(putCall).toBeDefined();
+        const body = JSON.parse(putCall![1].body as string);
+        expect(body.contact_override).toEqual({ email: 'team@co.com' });
+        expect(body.impact_override).toBe('New impact value');
+      });
+    });
+
+    it('shows error when saving with empty overrides', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // Try to save without any overrides
+      fireEvent.click(screen.getByText('Save Overrides'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Provide at least one override, or use Clear to remove all.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows clear button only when existing overrides are active', async () => {
+      // No active overrides
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      expect(screen.queryByText('Clear All Overrides')).not.toBeInTheDocument();
+    });
+
+    it('shows clear button when overrides are active and clears them', async () => {
+      const serviceWithOverrides = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            impact_override: 'Active override',
+          },
+        ],
+      };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(serviceWithOverrides))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      expect(screen.getByText('Clear All Overrides')).toBeInTheDocument();
+
+      // Mock clear response + service reload
+      mockFetch
+        .mockResolvedValueOnce({ ok: true, status: 204, json: () => Promise.resolve({}) }) // DELETE
+        .mockResolvedValueOnce(jsonResponse(mockService))   // reload service
+        .mockResolvedValueOnce(jsonResponse(mockTeams));     // reload teams
+
+      fireEvent.click(screen.getByText('Clear All Overrides'));
+
+      await waitFor(() => {
+        const deleteCall = mockFetch.mock.calls.find(
+          (call: [string, RequestInit]) => call[1]?.method === 'DELETE' && call[0].includes('/overrides')
+        );
+        expect(deleteCall).toBeDefined();
+      });
+    });
+
+    it('shows error when save fails', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      // Fill in impact override
+      const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database');
+      fireEvent.change(impactInput, { target: { value: 'New value' } });
+
+      // Mock save failure
+      mockFetch.mockResolvedValueOnce(jsonResponse({ message: 'Permission denied' }, 403));
+
+      fireEvent.click(screen.getByText('Save Overrides'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Permission denied')).toBeInTheDocument();
+      });
+    });
+
+    it('closes modal when cancel is clicked', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit overrides');
+      fireEvent.click(editButtons[0]);
+
+      expect(screen.getByText(/Edit Overrides/)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Cancel'));
+
+      // Modal should close — the override form error/impact elements should not be present
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText('e.g. Critical — primary database')).not.toBeInTheDocument();
+      });
     });
   });
 

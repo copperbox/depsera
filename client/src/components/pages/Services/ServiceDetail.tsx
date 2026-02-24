@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useServiceDetail } from '../../../hooks/useServiceDetail';
 import type { Dependency } from '../../../types/service';
+import { updateDependencyOverrides, clearDependencyOverrides } from '../../../api/dependencies';
 import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
@@ -38,9 +39,14 @@ function hasActiveOverride(dep: Dependency): boolean {
   return !!(dep.contact_override || dep.impact_override);
 }
 
+interface ContactEntry {
+  key: string;
+  value: string;
+}
+
 function ServiceDetail() {
   const { id } = useParams<{ id: string }>();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const {
     service,
@@ -52,12 +58,32 @@ function ServiceDetail() {
     loadService,
     handleDelete,
     handlePoll,
+    setError,
   } = useServiceDetail(id);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [errorHistoryDep, setErrorHistoryDep] = useState<Dependency | null>(null);
   const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set());
+
+  // Override editing state
+  const [overrideEditDep, setOverrideEditDep] = useState<Dependency | null>(null);
+  const [overrideContactEntries, setOverrideContactEntries] = useState<ContactEntry[]>([]);
+  const [overrideImpact, setOverrideImpact] = useState('');
+  const [isSavingOverride, setIsSavingOverride] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [isClearingOverride, setIsClearingOverride] = useState(false);
+
+  /**
+   * Check if the current user can edit overrides for this service.
+   * Admin or team lead of the service's owning team.
+   */
+  const canEditOverrides = useCallback((): boolean => {
+    if (isAdmin) return true;
+    if (!user || !service) return false;
+    const membership = user.teams?.find(t => t.team_id === service.team_id);
+    return membership?.role === 'lead';
+  }, [isAdmin, user, service]);
 
   const toggleChart = useCallback((depId: string) => {
     setExpandedCharts(prev => {
@@ -91,6 +117,66 @@ function ServiceDetail() {
     await handleDelete();
     setIsDeleteDialogOpen(false);
   };
+
+  const openOverrideEdit = useCallback((dep: Dependency) => {
+    // Parse existing contact override into entries
+    const existingContact = parseContact(dep.contact_override);
+    const entries: ContactEntry[] = existingContact
+      ? Object.entries(existingContact).map(([key, value]) => ({ key, value: String(value) }))
+      : [];
+    setOverrideContactEntries(entries);
+    setOverrideImpact(dep.impact_override || '');
+    setOverrideError(null);
+    setOverrideEditDep(dep);
+  }, []);
+
+  const handleOverrideSave = useCallback(async () => {
+    if (!overrideEditDep) return;
+    setIsSavingOverride(true);
+    setOverrideError(null);
+    try {
+      // Build contact override object from entries (skip empty keys)
+      const validEntries = overrideContactEntries.filter(e => e.key.trim());
+      const contactObj = validEntries.length > 0
+        ? Object.fromEntries(validEntries.map(e => [e.key.trim(), e.value]))
+        : null;
+
+      const impactVal = overrideImpact.trim() || null;
+
+      // Must have at least one non-null override
+      if (contactObj === null && impactVal === null) {
+        setOverrideError('Provide at least one override, or use Clear to remove all.');
+        setIsSavingOverride(false);
+        return;
+      }
+
+      await updateDependencyOverrides(overrideEditDep.id, {
+        contact_override: contactObj,
+        impact_override: impactVal,
+      });
+      setOverrideEditDep(null);
+      await loadService();
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : 'Failed to save overrides');
+    } finally {
+      setIsSavingOverride(false);
+    }
+  }, [overrideEditDep, overrideContactEntries, overrideImpact, loadService]);
+
+  const handleOverrideClear = useCallback(async () => {
+    if (!overrideEditDep) return;
+    setIsClearingOverride(true);
+    setOverrideError(null);
+    try {
+      await clearDependencyOverrides(overrideEditDep.id);
+      setOverrideEditDep(null);
+      await loadService();
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : 'Failed to clear overrides');
+    } finally {
+      setIsClearingOverride(false);
+    }
+  }, [overrideEditDep, loadService]);
 
   if (isLoading) {
     return (
@@ -404,16 +490,29 @@ function ServiceDetail() {
                       {formatRelativeTime(dep.last_checked)}
                     </td>
                     <td className={styles.actionsCell}>
-                      <button
-                        className={styles.historyButton}
-                        onClick={() => setErrorHistoryDep(dep)}
-                        title="View error history"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M8 4v4l2.5 2.5" />
-                          <circle cx="8" cy="8" r="6" />
-                        </svg>
-                      </button>
+                      <div className={styles.actionsCellInner}>
+                        {canEditOverrides() && (
+                          <button
+                            className={styles.historyButton}
+                            onClick={() => openOverrideEdit(dep)}
+                            title="Edit overrides"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M11.5 2.5a2.121 2.121 0 0 1 3 3L5 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        )}
+                        <button
+                          className={styles.historyButton}
+                          onClick={() => setErrorHistoryDep(dep)}
+                          title="View error history"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M8 4v4l2.5 2.5" />
+                            <circle cx="8" cy="8" r="6" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -510,6 +609,112 @@ function ServiceDetail() {
               dependencyName={errorHistoryDep.name}
               onBack={() => setErrorHistoryDep(null)}
             />
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={overrideEditDep !== null}
+        onClose={() => setOverrideEditDep(null)}
+        title={`Edit Overrides — ${overrideEditDep?.canonical_name || overrideEditDep?.name || ''}`}
+        size="medium"
+      >
+        {overrideEditDep && (
+          <div className={styles.overrideForm}>
+            {overrideError && (
+              <div className={styles.overrideFormError}>{overrideError}</div>
+            )}
+
+            <div className={styles.overrideFieldGroup}>
+              <label className={styles.overrideLabel}>Impact Override</label>
+              <input
+                type="text"
+                className={styles.overrideInput}
+                value={overrideImpact}
+                onChange={(e) => setOverrideImpact(e.target.value)}
+                placeholder="e.g. Critical — primary database"
+              />
+            </div>
+
+            <div className={styles.overrideFieldGroup}>
+              <label className={styles.overrideLabel}>Contact Override</label>
+              {overrideContactEntries.map((entry, index) => (
+                <div key={index} className={styles.contactEntryRow}>
+                  <input
+                    type="text"
+                    className={styles.contactKeyInput}
+                    value={entry.key}
+                    onChange={(e) => {
+                      const next = [...overrideContactEntries];
+                      next[index] = { ...next[index], key: e.target.value };
+                      setOverrideContactEntries(next);
+                    }}
+                    placeholder="Key (e.g. email)"
+                  />
+                  <input
+                    type="text"
+                    className={styles.contactValueInput}
+                    value={entry.value}
+                    onChange={(e) => {
+                      const next = [...overrideContactEntries];
+                      next[index] = { ...next[index], value: e.target.value };
+                      setOverrideContactEntries(next);
+                    }}
+                    placeholder="Value"
+                  />
+                  <button
+                    type="button"
+                    className={styles.contactRemoveButton}
+                    onClick={() => {
+                      setOverrideContactEntries(overrideContactEntries.filter((_, i) => i !== index));
+                    }}
+                    title="Remove entry"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4l8 8M12 4l-8 8" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className={styles.contactAddButton}
+                onClick={() => setOverrideContactEntries([...overrideContactEntries, { key: '', value: '' }])}
+              >
+                + Add Field
+              </button>
+            </div>
+
+            <div className={styles.overrideActions}>
+              {hasActiveOverride(overrideEditDep) && (
+                <button
+                  type="button"
+                  className={`${styles.actionButton} ${styles.deleteButton}`}
+                  onClick={handleOverrideClear}
+                  disabled={isClearingOverride || isSavingOverride}
+                >
+                  {isClearingOverride ? 'Clearing...' : 'Clear All Overrides'}
+                </button>
+              )}
+              <div className={styles.overrideActionsRight}>
+                <button
+                  type="button"
+                  className={`${styles.actionButton} ${styles.editButton}`}
+                  onClick={() => setOverrideEditDep(null)}
+                  disabled={isSavingOverride || isClearingOverride}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.actionButton} ${styles.pollButton}`}
+                  onClick={handleOverrideSave}
+                  disabled={isSavingOverride || isClearingOverride}
+                >
+                  {isSavingOverride ? 'Saving...' : 'Save Overrides'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </Modal>
