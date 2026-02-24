@@ -20,7 +20,7 @@ import {
   formatUpdatedService,
 } from './serviceFormatter';
 import { Dependency, Service, Team, DependentReport } from '../../db/types';
-import { ServiceWithTeam } from '../../stores/types';
+import { ServiceWithTeam, DependencyWithResolvedOverrides } from '../../stores/types';
 
 describe('serviceFormatter', () => {
   let teamId: string;
@@ -276,13 +276,19 @@ describe('serviceFormatter', () => {
   describe('formatServiceDetail', () => {
     it('should format service for detail endpoint', () => {
       const row = createMockServiceWithTeam();
-      const dependencies = [createMockDependency()];
+      const dependencies: DependencyWithResolvedOverrides[] = [{
+        ...createMockDependency(),
+        effective_contact: null,
+        effective_impact: null,
+      }];
       const dependentReports: DependentReport[] = [];
 
       const result = formatServiceDetail(row, dependencies, dependentReports);
 
       expect(result.id).toBe(serviceId);
       expect(result.dependencies).toHaveLength(1);
+      expect(result.dependencies[0].effective_contact).toBeNull();
+      expect(result.dependencies[0].effective_impact).toBeNull();
       expect(result.dependent_reports).toHaveLength(0);
       expect(result.team).toBeDefined();
       expect(result.health).toBeDefined();

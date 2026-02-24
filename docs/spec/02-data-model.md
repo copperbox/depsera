@@ -186,6 +186,10 @@ Pure utility functions in `server/src/utils/overrideResolver.ts` resolve effecti
 
 Invalid JSON inputs (malformed strings, arrays, primitives) are treated as null and silently skipped during contact merge.
 
+#### Service Detail Integration **[Implemented]**
+
+The batch resolver in `server/src/utils/dependencyOverrideResolver.ts` resolves overrides for a list of dependencies. It fetches all canonical overrides once and builds a lookup map by `canonical_name` for efficient resolution. Each dependency receives `effective_contact` and `effective_impact` computed from its polled data, matching canonical override (if any), and instance overrides. This is applied in `GET /api/services/:id`, `GET /api/services`, and `GET /api/external-services` route handlers before formatting the response. The `DependencyWithResolvedOverrides` type in `server/src/stores/types.ts` extends `Dependency` with these two computed fields.
+
 ### dependency_aliases
 
 | Column | Type | Constraints | Default |

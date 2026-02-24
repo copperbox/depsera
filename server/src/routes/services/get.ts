@@ -4,6 +4,7 @@ import { getDependentReports } from '../../utils/serviceHealth';
 import { formatServiceDetail } from '../formatters';
 import { NotFoundError, formatError, getErrorStatusCode } from '../../utils/errors';
 import { AuthorizationService } from '../../auth/authorizationService';
+import { resolveDependencyOverrides } from '../../utils/dependencyOverrideResolver';
 
 export function getService(req: Request, res: Response): void {
   try {
@@ -26,13 +27,14 @@ export function getService(req: Request, res: Response): void {
       }
     }
 
-    // Get this service's own dependencies (what it depends on)
+    // Get this service's own dependencies with resolved overrides
     const dependencies = stores.dependencies.findByServiceId(id);
+    const resolvedDeps = resolveDependencyOverrides(dependencies);
 
     // Get detailed reports from services that depend on this one
     const dependentReports = getDependentReports(id);
 
-    res.json(formatServiceDetail(service, dependencies, dependentReports));
+    res.json(formatServiceDetail(service, resolvedDeps, dependentReports));
   } catch (error) {
     console.error('Error getting service:', error);
     res.status(getErrorStatusCode(error)).json(formatError(error));

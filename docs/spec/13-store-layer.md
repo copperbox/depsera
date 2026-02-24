@@ -102,6 +102,8 @@ count(options?: DependencyListOptions): number
 
 `DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
 
+`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides()` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses.
+
 ### IAssociationStore
 ```typescript
 findById(id: string): DependencyAssociation | undefined

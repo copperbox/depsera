@@ -61,6 +61,15 @@ export interface ServiceWithTeam extends Service {
 }
 
 /**
+ * Dependency with effective contact/impact resolved from the 3-tier override hierarchy.
+ * Used in service detail and list API responses.
+ */
+export interface DependencyWithResolvedOverrides extends Dependency {
+  effective_contact: string | null;
+  effective_impact: string | null;
+}
+
+/**
  * Dependency with target service info from associations and avg latency
  */
 export interface DependencyWithTarget extends Dependency {

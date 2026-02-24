@@ -1,5 +1,5 @@
 import { Service, Team, Dependency, DependentReport } from '../../db/types';
-import { ServiceWithTeam } from '../../stores/types';
+import { ServiceWithTeam, DependencyWithResolvedOverrides } from '../../stores/types';
 import { calculateAggregatedHealth } from '../../utils/serviceHealth';
 import { getStores } from '../../stores';
 import {
@@ -90,7 +90,7 @@ export function formatServiceListItem(row: ServiceWithTeam): FormattedServiceLis
  */
 export function formatServiceDetail(
   row: ServiceWithTeam,
-  dependencies: Dependency[],
+  dependencies: DependencyWithResolvedOverrides[],
   dependentReports: DependentReport[]
 ): FormattedServiceDetail {
   const aggregatedHealth = calculateAggregatedHealth(row.id, dependencies);

@@ -1,4 +1,5 @@
 import { AggregatedHealth, Team, Service, Dependency, DependentReport } from '../../db/types';
+import { DependencyWithResolvedOverrides } from '../../stores/types';
 
 // Formatted team embedded in service response
 export interface FormattedTeam {
@@ -36,7 +37,7 @@ export interface FormattedServiceListItem {
 
 // Formatted service response for detail endpoint
 export interface FormattedServiceDetail extends FormattedServiceListItem {
-  dependencies: Dependency[];
+  dependencies: DependencyWithResolvedOverrides[];
   dependent_reports: DependentReport[];
 }
 

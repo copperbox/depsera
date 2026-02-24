@@ -27,6 +27,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
 - Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.)
+- Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
 **Visualization**

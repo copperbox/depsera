@@ -4,6 +4,7 @@ import { ServiceListOptions } from '../../stores/types';
 import { sendErrorResponse } from '../../utils/errors';
 import { formatServiceDetail } from '../formatters/serviceFormatter';
 import { getDependentReports } from '../../utils/serviceHealth';
+import { resolveDependencyOverridesWithCanonical } from '../../utils/dependencyOverrideResolver';
 
 export function listExternalServices(req: Request, res: Response): void {
   try {
@@ -37,11 +38,15 @@ export function listExternalServices(req: Request, res: Response): void {
 
     const rows = stores.services.findAllWithTeam(options);
 
+    // Fetch canonical overrides once for efficient resolution across all services
+    const canonicalOverrides = stores.canonicalOverrides.findAll();
+
     // Format with health data (same pattern as GET /api/services)
     const result = rows.map((row) => {
       const dependencies = stores.dependencies.findByServiceId(row.id);
+      const resolvedDeps = resolveDependencyOverridesWithCanonical(dependencies, canonicalOverrides);
       const dependentReports = getDependentReports(row.id);
-      return formatServiceDetail(row, dependencies, dependentReports);
+      return formatServiceDetail(row, resolvedDeps, dependentReports);
     });
 
     res.json(result);

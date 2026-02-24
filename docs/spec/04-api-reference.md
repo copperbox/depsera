@@ -117,7 +117,9 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
       "type": "database",
       "is_healthy": true,
       "latency_ms": 12,
-      "error_message": null
+      "error_message": null,
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database"
     }
   ],
   "dependent_reports": [
