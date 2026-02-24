@@ -14,7 +14,7 @@
 | `/teams/:id` | TeamDetail | Protected | Members, roles, owned services |
 | `/graph` | DependencyGraph | Protected | Interactive React Flow visualization |
 | `/associations` | Associations | Protected | Suggestions inbox, manual creation, aliases, canonical override management (team lead+/admin) |
-| `/wallboard` | Wallboard | Protected | Full-screen status board |
+| `/wallboard` | Wallboard | Protected | Full-screen status board with dependency detail panel showing resolved contact info and impact with override indicators |
 | `/admin/users` | UserManagement | Admin only | User accounts, roles, activation |
 | `/admin/settings` | AdminSettings | Admin only | Application-wide settings management |
 
