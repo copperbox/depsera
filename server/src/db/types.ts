@@ -154,6 +154,8 @@ export interface Dependency {
   health_code: number | null;
   latency_ms: number | null;
   contact: string | null; // JSON string of contact object
+  contact_override: string | null; // JSON string of user-managed contact override
+  impact_override: string | null; // Plain text user-managed impact override
   check_details: string | null; // JSON string of check details
   error: string | null; // JSON string of error object
   error_message: string | null;

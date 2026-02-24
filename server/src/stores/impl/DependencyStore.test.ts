@@ -41,6 +41,8 @@ describe('DependencyStore', () => {
         health_code INTEGER,
         latency_ms INTEGER,
         contact TEXT,
+        contact_override TEXT,
+        impact_override TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,
@@ -239,6 +241,125 @@ describe('DependencyStore', () => {
       });
 
       expect(result.dependency.contact).toBeNull();
+    });
+
+    it('should default override columns to null on new dependency', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'OverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact_override).toBeNull();
+      expect(result.dependency.impact_override).toBeNull();
+    });
+
+    it('should not overwrite contact_override during upsert', () => {
+      // Create dependency
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'OverridePreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      // Manually set override (simulates user action via future override endpoint)
+      const overrideJson = JSON.stringify({ team: 'Override Team', slack: '#override' });
+      db.prepare('UPDATE dependencies SET contact_override = ? WHERE id = ?')
+        .run(overrideJson, result.dependency.id);
+
+      // Re-upsert via polling (should NOT touch contact_override)
+      const updated = store.upsert({
+        service_id: testServiceId,
+        name: 'OverridePreserveDep',
+        healthy: false,
+        health_state: 2,
+        health_code: 500,
+        latency_ms: 100,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(updated.isNew).toBe(false);
+      expect(updated.dependency.healthy).toBe(0);
+      expect(updated.dependency.contact_override).toBe(overrideJson);
+    });
+
+    it('should not overwrite impact_override during upsert', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ImpactOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Low - fallback available',
+        last_checked: new Date().toISOString(),
+      });
+
+      // Manually set impact override
+      db.prepare('UPDATE dependencies SET impact_override = ? WHERE id = ?')
+        .run('Critical - no fallback in production', result.dependency.id);
+
+      // Re-upsert via polling with different polled impact
+      const updated = store.upsert({
+        service_id: testServiceId,
+        name: 'ImpactOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Medium - degraded mode',
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(updated.isNew).toBe(false);
+      // Polled impact should update
+      expect(updated.dependency.impact).toBe('Medium - degraded mode');
+      // Override should be preserved
+      expect(updated.dependency.impact_override).toBe('Critical - no fallback in production');
+    });
+
+    it('should preserve both overrides across multiple upserts', () => {
+      store.upsert({
+        service_id: testServiceId,
+        name: 'BothOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      const dep = store.findByServiceId(testServiceId).find(d => d.name === 'BothOverrideDep')!;
+
+      // Set both overrides manually
+      const contactOverride = JSON.stringify({ oncall: 'alice@co.com' });
+      db.prepare('UPDATE dependencies SET contact_override = ?, impact_override = ? WHERE id = ?')
+        .run(contactOverride, 'Service is critical for payments', dep.id);
+
+      // Upsert multiple times
+      for (let i = 0; i < 3; i++) {
+        store.upsert({
+          service_id: testServiceId,
+          name: 'BothOverrideDep',
+          healthy: i % 2 === 0,
+          health_state: i % 2 === 0 ? 0 : 2,
+          health_code: i % 2 === 0 ? 200 : 500,
+          latency_ms: 50 + i * 10,
+          last_checked: new Date().toISOString(),
+        });
+      }
+
+      const final = store.findById(dep.id)!;
+      expect(final.contact_override).toBe(contactOverride);
+      expect(final.impact_override).toBe('Service is critical for payments');
     });
   });
 

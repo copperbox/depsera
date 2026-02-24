@@ -100,6 +100,8 @@ erDiagram
 | health_code | INTEGER | | NULL |
 | latency_ms | INTEGER | | NULL |
 | contact | TEXT | | NULL |
+| contact_override | TEXT | | NULL |
+| impact_override | TEXT | | NULL |
 | check_details | TEXT | | NULL |
 | error | TEXT | | NULL |
 | error_message | TEXT | | NULL |
@@ -281,5 +283,6 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 014 | add_match_reason | Adds `match_reason TEXT` column to dependency_associations |
 | 015 | relax_dependency_type | Removes CHECK constraint on dependencies.type, allows arbitrary strings |
 | 016 | add_contact_column | Adds nullable `contact TEXT` column to dependencies for storing polled contact JSON |
+| 017 | add_instance_overrides | Adds nullable `contact_override TEXT` and `impact_override TEXT` columns to dependencies for user-managed per-instance overrides |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

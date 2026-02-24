@@ -432,6 +432,8 @@ function createDependency(
     health_code: null,
     latency_ms: null,
     contact: null,
+    contact_override: null,
+    impact_override: null,
     check_details: null,
     error: null,
     error_message: null,
