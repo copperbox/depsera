@@ -305,6 +305,7 @@ describe('POST /api/services/test-schema', () => {
       impact: null,
       description: null,
       check_details: null,
+      contact: null,
       type: 'other',
     });
     expect(response.body.dependencies[1]).toEqual({
@@ -314,6 +315,7 @@ describe('POST /api/services/test-schema', () => {
       impact: null,
       description: null,
       check_details: null,
+      contact: null,
       type: 'other',
     });
   });
@@ -363,6 +365,9 @@ describe('POST /api/services/test-schema', () => {
     expect(response.body.warnings).toContain(
       'No checkDetails field mapping configured — check details data will not be captured'
     );
+    expect(response.body.warnings).toContain(
+      'No contact field mapping configured — contact data will not be captured'
+    );
   });
 
   it('should include check_details in response when checkDetails is mapped', async () => {
@@ -392,6 +397,37 @@ describe('POST /api/services/test-schema', () => {
     expect(response.status).toBe(200);
     expect(response.body.dependencies[0].check_details).toEqual({ type: 'postgres', version: '15' });
     expect(response.body.dependencies[1].check_details).toEqual({ type: 'redis' });
+  });
+
+  it('should include contact in response when contact is mapped', async () => {
+    const schemaWithContact = {
+      root: 'checks',
+      fields: {
+        name: 'checkName',
+        healthy: { field: 'status', equals: 'ok' },
+        contact: 'contactInfo',
+      },
+    };
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        checks: [
+          { checkName: 'database', status: 'ok', contactInfo: { email: 'db@test.com', slack: '#db' } },
+          { checkName: 'cache', status: 'error', contactInfo: { email: 'cache@test.com' } },
+          { checkName: 'api', status: 'ok' },
+        ],
+      }),
+    });
+
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, schema_config: schemaWithContact });
+
+    expect(response.status).toBe(200);
+    expect(response.body.dependencies[0].contact).toEqual({ email: 'db@test.com', slack: '#db' });
+    expect(response.body.dependencies[1].contact).toEqual({ email: 'cache@test.com' });
+    expect(response.body.dependencies[2].contact).toBeNull();
   });
 
   it('should warn when no dependencies are parsed', async () => {

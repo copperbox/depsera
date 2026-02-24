@@ -61,6 +61,7 @@ export interface SchemaMapping {
     description?: FieldMapping;
     type?: FieldMapping;
     checkDetails?: string;
+    contact?: string;
   };
 }
 
@@ -140,5 +141,6 @@ export interface TestSchemaDependency {
   impact: string | null;
   description: string | null;
   check_details: Record<string, unknown> | null;
+  contact: Record<string, unknown> | null;
   type: string;
 }

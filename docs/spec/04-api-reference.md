@@ -72,7 +72,7 @@ Rate limited: 10 requests/minute per IP.
 {
   "success": true,
   "dependencies": [
-    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "type": "other" }
+    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "contact": null, "type": "other" }
   ],
   "warnings": ["No impact field mapping configured — impact data will not be captured"]
 }

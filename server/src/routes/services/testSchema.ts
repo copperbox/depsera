@@ -118,6 +118,9 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
     if (!schemaConfig.fields.checkDetails) {
       warnings.push('No checkDetails field mapping configured — check details data will not be captured');
     }
+    if (!schemaConfig.fields.contact) {
+      warnings.push('No contact field mapping configured — contact data will not be captured');
+    }
 
     // Check for entries with missing optional data
     for (const dep of dependencies) {
@@ -139,6 +142,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
         impact: dep.impact || null,
         description: dep.description || null,
         check_details: dep.checkDetails || null,
+        contact: dep.contact || null,
         type: dep.type || 'other',
       })),
       warnings,
