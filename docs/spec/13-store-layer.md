@@ -93,11 +93,14 @@ findByServiceIdsWithAssociationsAndLatency(serviceIds: string[]): DependencyWith
 findExistingByServiceId(serviceId: string): ExistingDependency[]
 findDependentReports(serviceId: string): DependentReport[]
 upsert(input: DependencyUpsertInput): UpsertResult
+updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined
 delete(id: string): boolean
 deleteByServiceId(serviceId: string): number
 exists(id: string): boolean
 count(options?: DependencyListOptions): number
 ```
+
+`DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
 
 ### IAssociationStore
 ```typescript

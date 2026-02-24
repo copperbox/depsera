@@ -201,6 +201,11 @@ export interface DependencyUpsertInput {
   last_checked: string;
 }
 
+export interface DependencyOverrideInput {
+  contact_override?: string | null;
+  impact_override?: string | null;
+}
+
 export interface AssociationCreateInput {
   dependency_id: string;
   linked_service_id: string;

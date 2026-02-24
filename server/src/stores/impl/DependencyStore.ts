@@ -11,6 +11,7 @@ import {
   DependencyForWallboard,
   DependencyListOptions,
   DependencyUpsertInput,
+  DependencyOverrideInput,
   DependentReport,
 } from '../types';
 import { validateOrderBy } from '../orderByValidator';
@@ -281,6 +282,32 @@ export class DependencyStore implements IDependencyStore {
       healthChanged,
       previousHealthy: existing?.healthy ?? null,
     };
+  }
+
+  updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined {
+    const existing = this.findById(id);
+    if (!existing) return undefined;
+
+    const setClauses: string[] = ['updated_at = ?'];
+    const params: unknown[] = [new Date().toISOString()];
+
+    if ('contact_override' in overrides) {
+      setClauses.push('contact_override = ?');
+      params.push(overrides.contact_override ?? null);
+    }
+
+    if ('impact_override' in overrides) {
+      setClauses.push('impact_override = ?');
+      params.push(overrides.impact_override ?? null);
+    }
+
+    params.push(id);
+
+    this.db
+      .prepare(`UPDATE dependencies SET ${setClauses.join(', ')} WHERE id = ?`)
+      .run(...params);
+
+    return this.findById(id)!;
   }
 
   delete(id: string): boolean {
