@@ -24,6 +24,8 @@ erDiagram
     dependencies ||--o{ dependency_associations : "linked from"
     services ||--o{ dependency_associations : "linked to"
     dependency_aliases }o..o{ dependencies : "resolves name"
+    dependency_canonical_overrides }o..o{ dependencies : "overrides by canonical_name"
+    users ||--o{ dependency_canonical_overrides : "updated_by"
 ```
 
 ## Table Definitions
@@ -160,6 +162,20 @@ erDiagram
 
 **Indexes:** `idx_error_history_dependency`, `idx_error_history_time`
 
+### dependency_canonical_overrides
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| canonical_name | TEXT | NOT NULL, UNIQUE | |
+| contact_override | TEXT | | NULL |
+| impact_override | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_by | TEXT | FK → users.id | NULL |
+
+Stores canonical-level overrides keyed by dependency canonical name. The merge hierarchy is: instance override > canonical override > polled data. `contact_override` is a JSON string (arbitrary contact object). `impact_override` is plain text. `updated_by` tracks who last modified the override for audit purposes.
+
 ### dependency_aliases
 
 | Column | Type | Constraints | Default |
@@ -284,5 +300,6 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 015 | relax_dependency_type | Removes CHECK constraint on dependencies.type, allows arbitrary strings |
 | 016 | add_contact_column | Adds nullable `contact TEXT` column to dependencies for storing polled contact JSON |
 | 017 | add_instance_overrides | Adds nullable `contact_override TEXT` and `impact_override TEXT` columns to dependencies for user-managed per-instance overrides |
+| 018 | add_canonical_overrides | Creates `dependency_canonical_overrides` table keyed by `canonical_name` (unique) with `contact_override`, `impact_override`, and `updated_by` FK to users |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

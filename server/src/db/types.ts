@@ -219,6 +219,17 @@ export interface DependencyAlias {
   created_at: string;
 }
 
+// Canonical override types
+export interface DependencyCanonicalOverride {
+  id: string;
+  canonical_name: string;
+  contact_override: string | null; // JSON string of contact object
+  impact_override: string | null; // Plain text impact statement
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null; // FK → users(id)
+}
+
 // proactive-deps response format
 export interface ProactiveDepsStatus {
   name: string;
