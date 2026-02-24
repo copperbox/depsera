@@ -35,6 +35,8 @@ function makeDep(overrides: Partial<WallboardDependency> = {}): WallboardDepende
     error_message: null,
     impact: null,
     description: null,
+    effective_contact: null,
+    effective_impact: null,
     linked_service: null,
     reporters: [
       {

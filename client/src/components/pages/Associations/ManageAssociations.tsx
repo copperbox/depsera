@@ -57,7 +57,6 @@ function ManageAssociations() {
     removeAlias,
   } = useAliases();
   const {
-    overrides: canonicalOverrides,
     loadOverrides: loadCanonicalOverrides,
     saveOverride: saveCanonicalOverride,
     removeOverride: removeCanonicalOverride,

@@ -58,7 +58,6 @@ function ServiceDetail() {
     loadService,
     handleDelete,
     handlePoll,
-    setError,
   } = useServiceDetail(id);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
