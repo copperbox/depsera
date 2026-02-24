@@ -2,7 +2,7 @@
 
 ## StoreRegistry
 
-Central singleton providing access to all 10 stores:
+Central singleton providing access to all 11 stores:
 
 ```typescript
 class StoreRegistry {
@@ -16,6 +16,7 @@ class StoreRegistry {
   public readonly aliases: IDependencyAliasStore;
   public readonly auditLog: IAuditLogStore;
   public readonly settings: ISettingsStore;
+  public readonly canonicalOverrides: ICanonicalOverrideStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -165,3 +166,13 @@ upsert(key: string, value: string | null, updatedBy: string): Setting
 upsertMany(entries: Array<{ key: string; value: string | null }>, updatedBy: string): Setting[]
 delete(key: string): boolean
 ```
+
+### ICanonicalOverrideStore
+```typescript
+findAll(): DependencyCanonicalOverride[]
+findByCanonicalName(canonicalName: string): DependencyCanonicalOverride | undefined
+upsert(input: CanonicalOverrideUpsertInput): DependencyCanonicalOverride
+delete(canonicalName: string): boolean
+```
+
+`CanonicalOverrideUpsertInput`: `{ canonical_name: string; contact_override?: string | null; impact_override?: string | null; updated_by: string }`. Upsert uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` to update override values and audit fields while preserving the original `created_at`.

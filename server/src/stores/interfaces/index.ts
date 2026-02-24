@@ -11,3 +11,4 @@ export type { ISettingsStore } from './ISettingsStore';
 export type { IAlertChannelStore } from './IAlertChannelStore';
 export type { IAlertRuleStore } from './IAlertRuleStore';
 export type { IAlertHistoryStore, AlertHistoryListOptions } from './IAlertHistoryStore';
+export type { ICanonicalOverrideStore, CanonicalOverrideUpsertInput } from './ICanonicalOverrideStore';

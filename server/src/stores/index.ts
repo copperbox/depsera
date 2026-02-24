@@ -15,6 +15,7 @@ import type { ISettingsStore } from './interfaces/ISettingsStore';
 import type { IAlertChannelStore } from './interfaces/IAlertChannelStore';
 import type { IAlertRuleStore } from './interfaces/IAlertRuleStore';
 import type { IAlertHistoryStore } from './interfaces/IAlertHistoryStore';
+import type { ICanonicalOverrideStore } from './interfaces/ICanonicalOverrideStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -30,6 +31,7 @@ import { SettingsStore } from './impl/SettingsStore';
 import { AlertChannelStore } from './impl/AlertChannelStore';
 import { AlertRuleStore } from './impl/AlertRuleStore';
 import { AlertHistoryStore } from './impl/AlertHistoryStore';
+import { CanonicalOverrideStore } from './impl/CanonicalOverrideStore';
 
 /**
  * Central registry providing access to all stores.
@@ -51,6 +53,7 @@ export class StoreRegistry {
   public readonly alertChannels: IAlertChannelStore;
   public readonly alertRules: IAlertRuleStore;
   public readonly alertHistory: IAlertHistoryStore;
+  public readonly canonicalOverrides: ICanonicalOverrideStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -66,6 +69,7 @@ export class StoreRegistry {
     this.alertChannels = new AlertChannelStore(database);
     this.alertRules = new AlertRuleStore(database);
     this.alertHistory = new AlertHistoryStore(database);
+    this.canonicalOverrides = new CanonicalOverrideStore(database);
   }
 
   /**
