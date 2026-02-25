@@ -86,6 +86,7 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .depName {
@@ -102,6 +103,25 @@
   border-radius: 9999px;
   background-color: var(--color-accent-bg, rgba(59, 130, 246, 0.08));
   color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.assocBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.assocBadge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
   white-space: nowrap;
 }
 

@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useAssociations } from '../../../hooks/useAssociations';
 import { useAliases } from '../../../hooks/useAliases';
-import { generateServiceSuggestions, fetchSuggestions } from '../../../api/associations';
+import {
+  fetchAssociations,
+  generateServiceSuggestions,
+  fetchSuggestions,
+  deleteAssociation,
+  acceptSuggestion,
+  dismissSuggestion,
+} from '../../../api/associations';
 import type { Dependency } from '../../../types/service';
 import type { DependencyAlias } from '../../../types/alias';
-import type { AssociationSuggestion } from '../../../types/association';
+import type { Association, AssociationSuggestion } from '../../../types/association';
 import { ASSOCIATION_TYPE_LABELS } from '../../../types/association';
-import { acceptSuggestion, dismissSuggestion } from '../../../api/associations';
 import Modal from '../../common/Modal';
 import AssociationForm from '../Associations/AssociationForm';
 import styles from './ServiceAssociations.module.css';
@@ -26,17 +31,14 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // All associations keyed by dependency ID
+  const [assocMap, setAssocMap] = useState<Record<string, Association[]>>({});
+  const [isLoadingAssocs, setIsLoadingAssocs] = useState(false);
+
   // Alias editing state
   const [editingAliasDep, setEditingAliasDep] = useState<string | null>(null);
   const [aliasInput, setAliasInput] = useState('');
   const [isSavingAlias, setIsSavingAlias] = useState(false);
-
-  const {
-    associations,
-    isLoading,
-    loadAssociations,
-    removeAssociation,
-  } = useAssociations(selectedDepId || undefined);
 
   const {
     aliases,
@@ -48,12 +50,45 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
     removeAlias,
   } = useAliases();
 
-  // Load aliases on mount
+  // Load all associations for every dependency
+  const loadAllAssociations = useCallback(async () => {
+    if (dependencies.length === 0) return;
+    setIsLoadingAssocs(true);
+    try {
+      const results = await Promise.all(
+        dependencies.map(async (dep) => {
+          const assocs = await fetchAssociations(dep.id);
+          return [dep.id, assocs] as const;
+        }),
+      );
+      setAssocMap(Object.fromEntries(results));
+    } catch {
+      // Non-critical — badges just won't show
+    } finally {
+      setIsLoadingAssocs(false);
+    }
+  }, [dependencies]);
+
+  // Reload associations for a single dependency (after add/remove)
+  const reloadDepAssociations = useCallback(async (depId: string) => {
+    try {
+      const assocs = await fetchAssociations(depId);
+      setAssocMap((prev) => ({ ...prev, [depId]: assocs }));
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
+  // Load aliases and associations on mount
   useEffect(() => {
     loadAliases();
     loadCanonicalNames();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadAllAssociations();
+  }, [loadAllAssociations]);
 
   /** Find alias record for a dependency name */
   const findAliasForDep = useCallback(
@@ -77,12 +112,6 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
     loadPendingSuggestions();
   }, [loadPendingSuggestions]);
 
-  useEffect(() => {
-    if (selectedDepId) {
-      loadAssociations();
-    }
-  }, [selectedDepId, loadAssociations]);
-
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
@@ -98,9 +127,10 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
 
   const handleAccept = async (id: string) => {
     try {
+      const suggestion = pendingSuggestions.find((s) => s.id === id);
       await acceptSuggestion(id);
       setPendingSuggestions((prev) => prev.filter((s) => s.id !== id));
-      if (selectedDepId) loadAssociations();
+      if (suggestion) await reloadDepAssociations(suggestion.dependency_id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to accept suggestion');
     }
@@ -115,6 +145,19 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
     }
   };
 
+  const handleRemoveAssociation = async (depId: string, linkedServiceId: string) => {
+    setError(null);
+    try {
+      await deleteAssociation(depId, linkedServiceId);
+      setAssocMap((prev) => ({
+        ...prev,
+        [depId]: (prev[depId] || []).filter((a) => a.linked_service_id !== linkedServiceId),
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete association');
+    }
+  };
+
   const openForm = (depId: string) => {
     setFormDepId(depId);
     setIsFormOpen(true);
@@ -125,7 +168,7 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
      Testing requires HTMLDialogElement mocking. Integration tests preferred. */
   const handleFormSuccess = () => {
     setIsFormOpen(false);
-    if (selectedDepId) loadAssociations();
+    if (formDepId) reloadDepAssociations(formDepId);
   };
 
   const startAliasEdit = (dep: Dependency) => {
@@ -254,6 +297,7 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
       <div className={styles.depList}>
         {dependencies.map((dep) => {
           const depAlias = findAliasForDep(dep.name);
+          const depAssocs = assocMap[dep.id] || [];
           const isEditingThis = editingAliasDep === dep.id;
 
           return (
@@ -264,6 +308,19 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
                   {depAlias && !isEditingThis && (
                     <span className={styles.aliasBadge} title={`Alias: ${dep.name} → ${depAlias.canonical_name}`}>
                       {depAlias.canonical_name}
+                    </span>
+                  )}
+                  {depAssocs.length > 0 && (
+                    <span className={styles.assocBadges}>
+                      {depAssocs.map((a) => (
+                        <span
+                          key={a.id}
+                          className={styles.assocBadge}
+                          title={`${ASSOCIATION_TYPE_LABELS[a.association_type]}: ${a.linked_service.name}`}
+                        >
+                          {a.linked_service.name}
+                        </span>
+                      ))}
                     </span>
                   )}
                 </div>
@@ -342,9 +399,9 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
 
               {selectedDepId === dep.id && (
                 <div className={styles.assocList}>
-                  {isLoading ? (
+                  {isLoadingAssocs ? (
                     <div className={styles.loading}>Loading...</div>
-                  ) : associations.length === 0 ? (
+                  ) : depAssocs.length === 0 ? (
                     <div className={styles.empty}>No associations for this dependency.</div>
                   ) : (
                     <div className={styles.tableWrapper}>
@@ -357,7 +414,7 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
                           </tr>
                         </thead>
                         <tbody>
-                          {associations.map((a) => (
+                          {depAssocs.map((a) => (
                             <tr key={a.id}>
                               <td className={styles.nameCell}>{a.linked_service.name}</td>
                               <td>
@@ -368,7 +425,7 @@ function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsPro
                               <td className={styles.actionsCell}>
                                 <button
                                   className={styles.dismissButton}
-                                  onClick={() => removeAssociation(a.linked_service_id)}
+                                  onClick={() => handleRemoveAssociation(dep.id, a.linked_service_id)}
                                   title="Remove"
                                 >
                                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">

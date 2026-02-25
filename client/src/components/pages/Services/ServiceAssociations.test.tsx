@@ -187,13 +187,12 @@ describe('ServiceAssociations', () => {
     mockFetchAssociations.mockReturnValue(new Promise(() => {}));
     render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
 
-    await waitFor(() => expect(screen.getByText('View Associations')).toBeInTheDocument());
     fireEvent.click(screen.getByText('View Associations'));
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows associations list when loaded', async () => {
+  it('shows association badges in header when loaded', async () => {
     mockFetchAssociations.mockResolvedValue([
       {
         id: 'a1',
@@ -223,10 +222,46 @@ describe('ServiceAssociations', () => {
 
     render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
 
-    await waitFor(() => expect(screen.getByText('View Associations')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('View Associations'));
+    // Badge should appear without clicking "View Associations"
+    await waitFor(() => expect(screen.getByText('Alpha Target')).toBeInTheDocument());
+  });
+
+  it('shows associations table when expanded', async () => {
+    mockFetchAssociations.mockResolvedValue([
+      {
+        id: 'a1',
+        dependency_id: 'dep-1',
+        linked_service_id: 's1',
+        association_type: 'api_call',
+        is_auto_suggested: 0,
+        confidence_score: null,
+        is_dismissed: 0,
+        created_at: '2025-01-01',
+        linked_service: {
+          id: 's1',
+          name: 'Alpha Target',
+          team_id: 't1',
+          health_endpoint: 'https://example.com',
+          metrics_endpoint: null,
+          is_active: 1,
+          last_poll_success: 1,
+          last_poll_error: null,
+          created_at: '',
+          updated_at: '',
+          team: { id: 't1', name: 'Team', description: null, created_at: '', updated_at: '' },
+          health: { status: 'healthy' as const, healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0, last_report: null },
+        },
+      },
+    ] as never);
+
+    render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
 
     await waitFor(() => expect(screen.getByText('Alpha Target')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('View Associations'));
+
+    // Table headers should appear
+    expect(screen.getByText('Linked Service')).toBeInTheDocument();
+    expect(screen.getByText('API Call')).toBeInTheDocument();
   });
 
   it('shows null confidence as dash', async () => {
@@ -437,10 +472,9 @@ describe('ServiceAssociations', () => {
 
     render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
 
-    await waitFor(() => expect(screen.getByText('View Associations')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('View Associations'));
-
+    // Badge appears first, then expand to get remove button
     await waitFor(() => expect(screen.getByText('Beta Target')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('View Associations'));
     fireEvent.click(screen.getByTitle('Remove'));
 
     await waitFor(() => expect(mockDeleteAssociation).toHaveBeenCalledWith('dep-1', 's1'));
