@@ -119,4 +119,68 @@ describe('Activity API', () => {
       expect(response.body).toHaveLength(10);
     });
   });
+
+  describe('GET /api/activity/unstable', () => {
+    it('should return empty array when no events', async () => {
+      const response = await request(app).get('/api/activity/unstable');
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([]);
+    });
+
+    it('should return dependencies ranked by change count', async () => {
+      const now = new Date();
+      // Insert 3 events for "Database"
+      for (let i = 0; i < 3; i++) {
+        const t = new Date(now.getTime() - i * 60000).toISOString();
+        testDb.exec(`
+          INSERT INTO status_change_events (id, service_id, service_name, dependency_name, previous_healthy, current_healthy, recorded_at)
+          VALUES ('u-db-${i}', 'svc-1', 'Service A', 'Database', 1, 0, '${t}')
+        `);
+      }
+      // Insert 1 event for "Cache"
+      const t = new Date(now.getTime() - 120000).toISOString();
+      testDb.exec(`
+        INSERT INTO status_change_events (id, service_id, service_name, dependency_name, previous_healthy, current_healthy, recorded_at)
+        VALUES ('u-cache-1', 'svc-2', 'Service B', 'Cache', 1, 0, '${t}')
+      `);
+
+      const response = await request(app).get('/api/activity/unstable?hours=24&limit=5');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(2);
+      expect(response.body[0].dependency_name).toBe('Database');
+      expect(response.body[0].change_count).toBe(3);
+      expect(response.body[0].current_healthy).toBe(false);
+      expect(response.body[0].service_id).toBe('svc-1');
+      expect(response.body[1].dependency_name).toBe('Cache');
+      expect(response.body[1].change_count).toBe(1);
+    });
+
+    it('should respect limit parameter', async () => {
+      const now = new Date();
+      for (let i = 0; i < 10; i++) {
+        const t = new Date(now.getTime() - i * 60000).toISOString();
+        testDb.exec(`
+          INSERT INTO status_change_events (id, service_id, service_name, dependency_name, previous_healthy, current_healthy, recorded_at)
+          VALUES ('u-lim-${i}', 'svc-1', 'Service', 'Dep-${i}', 1, 0, '${t}')
+        `);
+      }
+
+      const response = await request(app).get('/api/activity/unstable?limit=3');
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(3);
+    });
+
+    it('should convert current_healthy to boolean', async () => {
+      const now = new Date().toISOString();
+      testDb.exec(`
+        INSERT INTO status_change_events (id, service_id, service_name, dependency_name, previous_healthy, current_healthy, recorded_at)
+        VALUES ('u-bool-1', 'svc-1', 'Service', 'API', 0, 1, '${now}')
+      `);
+
+      const response = await request(app).get('/api/activity/unstable');
+      expect(response.status).toBe(200);
+      expect(response.body[0].current_healthy).toBe(true);
+    });
+  });
 });

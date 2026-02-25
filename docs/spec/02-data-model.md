@@ -216,7 +216,7 @@ No foreign keys. Links to `dependencies.canonical_name` by convention.
 
 **Indexes:** `idx_status_change_events_time` on (recorded_at), `idx_status_change_events_service` on (service_id)
 
-Records dependency health status transitions detected during polling. `previous_healthy` is NULL for newly discovered dependencies. Used by the dashboard "Recent Activity" panel. Subject to data retention cleanup.
+Records dependency health status transitions detected during polling. `previous_healthy` is NULL for newly discovered dependencies. Used by the dashboard "Recent Activity" and "Most Unstable Dependencies" panels. Subject to data retention cleanup.
 
 ## Type Enumerations
 

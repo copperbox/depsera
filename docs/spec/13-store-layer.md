@@ -187,5 +187,8 @@ delete(canonicalName: string): boolean
 ```typescript
 record(serviceId: string, serviceName: string, dependencyName: string, previousHealthy: boolean | null, currentHealthy: boolean, timestamp: string): StatusChangeEventRow
 getRecent(limit: number): StatusChangeEventRow[]
+getUnstable(hours: number, limit: number): UnstableDependencyRow[]
 deleteOlderThan(timestamp: string): number
 ```
+
+`UnstableDependencyRow`: `{ dependency_name, service_name, service_id, change_count, current_healthy, last_change_at }`. Aggregates status changes within the time window grouped by dependency name. Returns the service from the most recent event for each dependency.

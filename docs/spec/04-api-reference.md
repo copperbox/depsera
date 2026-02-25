@@ -523,6 +523,7 @@ Per-instance overrides set contact and/or impact for a specific dependency insta
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/api/activity/recent` | requireAuth | Recent status change events. Query: `limit` (optional, default 10, max 50). |
+| GET | `/api/activity/unstable` | requireAuth | Most unstable dependencies. Query: `hours` (default 24, max 168), `limit` (default 5, max 20). |
 
 **GET /api/activity/recent response:**
 
@@ -541,6 +542,23 @@ Per-instance overrides set contact and/or impact for a specific dependency insta
 ```
 
 `previous_healthy` is `null` for newly discovered dependencies. Events are sorted by `recorded_at` descending (most recent first). Subject to data retention cleanup.
+
+**GET /api/activity/unstable response:**
+
+```json
+[
+  {
+    "dependency_name": "postgres-main",
+    "service_name": "Payment Service",
+    "service_id": "uuid",
+    "change_count": 7,
+    "current_healthy": false,
+    "last_change_at": "2024-06-01T12:00:00.000Z"
+  }
+]
+```
+
+Returns dependencies with the most status changes within the specified time window, sorted by `change_count` descending. Used by the dashboard "Most Unstable" panel. When multiple services report on the same dependency name, the service from the most recent event is returned.
 
 ## 4.15 Wallboard
 

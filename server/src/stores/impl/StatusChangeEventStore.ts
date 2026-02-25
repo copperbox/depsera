@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { Database } from 'better-sqlite3';
 import { StatusChangeEventRow } from '../../db/types';
-import { IStatusChangeEventStore } from '../interfaces/IStatusChangeEventStore';
+import { IStatusChangeEventStore, UnstableDependencyRow } from '../interfaces/IStatusChangeEventStore';
 
 export class StatusChangeEventStore implements IStatusChangeEventStore {
   constructor(private db: Database) {}
@@ -39,6 +39,31 @@ export class StatusChangeEventStore implements IStatusChangeEventStore {
         LIMIT ?
       `)
       .all(limit) as StatusChangeEventRow[];
+  }
+
+  getUnstable(hours: number, limit: number): UnstableDependencyRow[] {
+    return this.db
+      .prepare(`
+        SELECT
+          dependency_name,
+          COUNT(*) as change_count,
+          (SELECT e2.service_name FROM status_change_events e2
+           WHERE e2.dependency_name = e.dependency_name
+           ORDER BY e2.recorded_at DESC LIMIT 1) as service_name,
+          (SELECT e2.service_id FROM status_change_events e2
+           WHERE e2.dependency_name = e.dependency_name
+           ORDER BY e2.recorded_at DESC LIMIT 1) as service_id,
+          (SELECT e2.current_healthy FROM status_change_events e2
+           WHERE e2.dependency_name = e.dependency_name
+           ORDER BY e2.recorded_at DESC LIMIT 1) as current_healthy,
+          MAX(recorded_at) as last_change_at
+        FROM status_change_events e
+        WHERE recorded_at >= datetime('now', ?)
+        GROUP BY dependency_name
+        ORDER BY change_count DESC, last_change_at DESC
+        LIMIT ?
+      `)
+      .all(`-${hours} hours`, limit) as UnstableDependencyRow[];
   }
 
   deleteOlderThan(timestamp: string): number {

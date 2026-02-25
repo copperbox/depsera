@@ -525,35 +525,101 @@
   margin-top: 0.125rem;
 }
 
-/* Mini Graph Preview */
-.graphPreview {
-  height: 200px;
+/* Unstable Dependencies */
+.unstableList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.unstableItem {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background-color: var(--color-bg-hover);
-  cursor: pointer;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
   transition: background-color 0.15s;
 }
 
-.graphPreview:hover {
-  background-color: var(--color-bg-active);
+.unstableItem:last-child {
+  border-bottom: none;
 }
 
-.graphPlaceholder {
+.unstableItem:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.unstableInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.unstableDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.unstableDot.healthy {
+  background-color: var(--color-success);
+}
+
+.unstableDot.critical {
+  background-color: var(--color-error);
+}
+
+.unstableText {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
+  min-width: 0;
+}
+
+.unstableName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unstableName:hover {
+  text-decoration: underline;
+}
+
+.unstableService {
+  font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
-.graphIcon {
-  opacity: 0.5;
+.unstableBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 40%;
+  flex-shrink: 0;
 }
 
-.graphText {
-  font-size: 0.875rem;
+.unstableBarFill {
+  height: 0.375rem;
+  background-color: var(--color-warning);
+  border-radius: 0.1875rem;
+  flex: 1;
+  transition: width 0.3s ease;
+}
+
+.unstableCount {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  min-width: 1.5rem;
+  text-align: right;
 }
 
 /* Empty State */

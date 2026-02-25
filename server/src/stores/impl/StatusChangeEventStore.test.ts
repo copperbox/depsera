@@ -91,6 +91,68 @@ describe('StatusChangeEventStore', () => {
     });
   });
 
+  describe('getUnstable', () => {
+    it('should return dependencies grouped by name with change count', () => {
+      const now = new Date();
+      const recent = (minutesAgo: number) =>
+        new Date(now.getTime() - minutesAgo * 60000).toISOString();
+
+      // "Database" changes 3 times
+      store.record('svc-1', 'Service A', 'Database', true, false, recent(10));
+      store.record('svc-1', 'Service A', 'Database', false, true, recent(5));
+      store.record('svc-1', 'Service A', 'Database', true, false, recent(1));
+
+      // "Cache" changes 1 time
+      store.record('svc-2', 'Service B', 'Cache', true, false, recent(3));
+
+      const result = store.getUnstable(24, 5);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].dependency_name).toBe('Database');
+      expect(result[0].change_count).toBe(3);
+      expect(result[0].current_healthy).toBe(0);
+      expect(result[0].service_name).toBe('Service A');
+      expect(result[1].dependency_name).toBe('Cache');
+      expect(result[1].change_count).toBe(1);
+    });
+
+    it('should exclude events older than the time window', () => {
+      const old = '2020-01-01T00:00:00.000Z';
+      store.record('svc-1', 'Service A', 'Database', true, false, old);
+
+      const result = store.getUnstable(24, 5);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should respect the limit parameter', () => {
+      const now = new Date();
+      for (let i = 0; i < 10; i++) {
+        const t = new Date(now.getTime() - i * 60000).toISOString();
+        store.record('svc-1', 'Service', `Dep-${i}`, true, false, t);
+      }
+
+      const result = store.getUnstable(24, 3);
+      expect(result).toHaveLength(3);
+    });
+
+    it('should return empty array when no events in window', () => {
+      const result = store.getUnstable(24, 5);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should pick current_healthy from the most recent event', () => {
+      const now = new Date();
+      // Goes unhealthy, then recovers
+      store.record('svc-1', 'Service A', 'API', true, false,
+        new Date(now.getTime() - 60000).toISOString());
+      store.record('svc-1', 'Service A', 'API', false, true,
+        new Date(now.getTime() - 30000).toISOString());
+
+      const result = store.getUnstable(24, 5);
+      expect(result[0].current_healthy).toBe(1);
+    });
+  });
+
   describe('deleteOlderThan', () => {
     it('should delete old records and return count', () => {
       store.record('svc-1', 'Service', 'DB', true, false, '2020-01-01T00:00:00.000Z');

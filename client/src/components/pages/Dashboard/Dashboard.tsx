@@ -18,6 +18,7 @@ function Dashboard() {
     stats,
     servicesWithIssues,
     recentActivity,
+    unstableDependencies,
     teamHealthSummary,
     loadData,
   } = useDashboard();
@@ -323,37 +324,47 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Mini Graph Preview */}
+        {/* Most Unstable Dependencies */}
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Dependency Graph</h2>
-            <Link to="/graph" className={styles.sectionLink}>
-              View full graph
-            </Link>
+            <h2 className={styles.sectionTitle}>Most Unstable (24h)</h2>
           </div>
-          <div
-            className={styles.graphPreview}
-            onClick={() => navigate('/graph')}
-          >
-            <div className={styles.graphPlaceholder}>
-              <svg
-                className={styles.graphIcon}
-                width="48"
-                height="48"
-                viewBox="0 0 48 48"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="24" r="4" />
-                <circle cx="36" cy="12" r="4" />
-                <circle cx="36" cy="36" r="4" />
-                <path d="M16 24h12M28 20l8-6M28 28l8 6" />
-              </svg>
-              <span className={styles.graphText}>
-                Click to view dependency graph
-              </span>
-            </div>
+          <div className={styles.sectionContent}>
+            {unstableDependencies.length > 0 ? (
+              <ul className={styles.unstableList}>
+                {unstableDependencies.map(dep => {
+                  const maxCount = unstableDependencies[0].change_count;
+                  const barWidth = maxCount > 0 ? (dep.change_count / maxCount) * 100 : 0;
+                  return (
+                    <li key={dep.dependency_name} className={styles.unstableItem}>
+                      <div className={styles.unstableInfo}>
+                        <span className={`${styles.unstableDot} ${dep.current_healthy ? styles.healthy : styles.critical}`} />
+                        <div className={styles.unstableText}>
+                          <Link to={`/services/${dep.service_id}`} className={styles.unstableName}>
+                            {dep.dependency_name}
+                          </Link>
+                          <span className={styles.unstableService}>{dep.service_name}</span>
+                        </div>
+                      </div>
+                      <div className={styles.unstableBar}>
+                        <div
+                          className={styles.unstableBarFill}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                        <span className={styles.unstableCount}>{dep.change_count}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className={styles.emptySection}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: '0.5rem' }}>
+                  <path d="M16.7 5.3l-8.4 8.4-4-4" />
+                </svg>
+                <div>All dependencies stable</div>
+              </div>
+            )}
           </div>
         </div>
       </div>
