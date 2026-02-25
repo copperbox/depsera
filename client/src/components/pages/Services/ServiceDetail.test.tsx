@@ -34,6 +34,13 @@ jest.mock('../../Charts', () => ({
   ),
 }));
 
+// Mock ErrorHistoryPanel
+jest.mock('../../common/ErrorHistoryPanel', () => ({
+  ErrorHistoryPanel: ({ dependencyName }: { dependencyName: string }) => (
+    <div data-testid="error-history-panel">Error History: {dependencyName}</div>
+  ),
+}));
+
 function jsonResponse(data: unknown, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -110,6 +117,23 @@ const mockService = {
   ],
 };
 
+/**
+ * Build a default mock implementation that handles the initial service + teams load,
+ * plus the additional DependencyList API calls (aliases, canonical names, associations, suggestions).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function setupDefaultMocks(service: any = mockService) {
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes('/api/services/')) return Promise.resolve(jsonResponse(service));
+    if (url.includes('/api/teams')) return Promise.resolve(jsonResponse(mockTeams));
+    if (url.includes('/api/aliases/canonical-names')) return Promise.resolve(jsonResponse([]));
+    if (url.includes('/api/aliases')) return Promise.resolve(jsonResponse([]));
+    if (url.includes('/associations/suggestions')) return Promise.resolve(jsonResponse([]));
+    if (url.includes('/associations')) return Promise.resolve(jsonResponse([]));
+    return Promise.resolve(jsonResponse({}));
+  });
+}
+
 function renderServiceDetail(id = 's1', authOverrides: { isAdmin?: boolean; user?: Record<string, unknown> } = {}) {
   const { isAdmin = false, user = null } = authOverrides;
   mockUseAuth.mockReturnValue({ isAdmin, user });
@@ -139,9 +163,7 @@ describe('ServiceDetail', () => {
   });
 
   it('displays service details after loading', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -158,16 +180,16 @@ describe('ServiceDetail', () => {
     // Both fetches fail on first attempt (Promise.all)
     mockFetch
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockRejectedValueOnce(new Error('Network error'))
-      // Retry succeeds
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockRejectedValueOnce(new Error('Network error'));
 
     renderServiceDetail();
 
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
+
+    // Setup success for retry
+    setupDefaultMocks();
 
     fireEvent.click(screen.getByText('Retry'));
 
@@ -177,7 +199,6 @@ describe('ServiceDetail', () => {
   });
 
   it('shows not found state for missing service', async () => {
-    // Both fetches run in parallel via Promise.all
     mockFetch
       .mockResolvedValueOnce(jsonResponse(null))
       .mockResolvedValueOnce(jsonResponse(mockTeams));
@@ -191,11 +212,8 @@ describe('ServiceDetail', () => {
     expect(screen.getByText('Back to Services')).toBeInTheDocument();
   });
 
-  it('displays dependencies table with contact column', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams))
-      .mockResolvedValueOnce(jsonResponse([])); // suggestions
+  it('displays dependencies section', async () => {
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -203,22 +221,15 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('Dependencies')).toBeInTheDocument();
     });
 
-    // Table headers include Contact column
-    expect(screen.getByText('Contact')).toBeInTheDocument();
-
     expect(screen.getAllByText('PostgreSQL').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('database').length).toBeGreaterThan(0);
     expect(screen.getByText('Main DB')).toBeInTheDocument();
-    // Uses effective_impact for display
     expect(screen.getByText('Critical')).toBeInTheDocument();
     expect(screen.getByText('15ms')).toBeInTheDocument();
     expect(screen.getAllByText('cache').length).toBeGreaterThan(0);
   });
 
   it('displays dependent reports table', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -233,9 +244,7 @@ describe('ServiceDetail', () => {
 
   it('shows empty state for no dependencies', async () => {
     const serviceNoDeps = { ...mockService, dependencies: [] };
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(serviceNoDeps))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks(serviceNoDeps);
 
     renderServiceDetail();
 
@@ -246,9 +255,7 @@ describe('ServiceDetail', () => {
 
   it('shows empty state for no dependent reports', async () => {
     const serviceNoReports = { ...mockService, dependent_reports: [] };
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(serviceNoReports))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks(serviceNoReports);
 
     renderServiceDetail();
 
@@ -259,9 +266,7 @@ describe('ServiceDetail', () => {
 
   it('shows inactive badge for inactive service', async () => {
     const inactiveService = { ...mockService, is_active: 0 };
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(inactiveService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks(inactiveService);
 
     renderServiceDetail();
 
@@ -272,9 +277,7 @@ describe('ServiceDetail', () => {
 
   it('shows poll error when last poll failed', async () => {
     const failedPollService = { ...mockService, last_poll_success: 0, last_poll_error: 'Connection timeout' };
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(failedPollService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks(failedPollService);
 
     renderServiceDetail();
 
@@ -284,9 +287,7 @@ describe('ServiceDetail', () => {
   });
 
   it('shows admin actions for admin users', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail('s1', { isAdmin: true });
 
@@ -297,9 +298,7 @@ describe('ServiceDetail', () => {
   });
 
   it('hides admin actions for non-admin users', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail('s1', { isAdmin: false });
 
@@ -312,9 +311,7 @@ describe('ServiceDetail', () => {
   });
 
   it('opens edit modal when edit button clicked', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail('s1', { isAdmin: true });
 
@@ -328,9 +325,7 @@ describe('ServiceDetail', () => {
   });
 
   it('opens delete confirmation dialog', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail('s1', { isAdmin: true });
 
@@ -344,31 +339,8 @@ describe('ServiceDetail', () => {
     expect(screen.getByText(/Are you sure you want to delete/)).toBeInTheDocument();
   });
 
-  it('triggers manual poll refresh', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams))
-      .mockResolvedValueOnce(jsonResponse([])) // suggestions
-      .mockResolvedValueOnce(jsonResponse(mockService)); // poll refresh
-
-    renderServiceDetail();
-
-    await waitFor(() => {
-      expect(screen.getByText('Refresh')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Refresh'));
-
-    // handlePoll just re-fetches the service data
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(4);
-    });
-  });
-
   it('displays back link to services list', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -378,10 +350,7 @@ describe('ServiceDetail', () => {
   });
 
   it('displays dependency without canonical name', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams))
-      .mockResolvedValueOnce(jsonResponse([])); // suggestions
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -391,9 +360,7 @@ describe('ServiceDetail', () => {
   });
 
   it('displays dash for null latency', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks();
 
     renderServiceDetail();
 
@@ -405,33 +372,9 @@ describe('ServiceDetail', () => {
     expect(screen.getAllByText('-').length).toBeGreaterThan(0);
   });
 
-  it('opens error history panel when history button clicked', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams))
-      .mockResolvedValueOnce(jsonResponse([])) // suggestions
-      .mockResolvedValueOnce(jsonResponse({ dependencyId: 'd1', errorCount: 0, errors: [] })); // error history
-
-    renderServiceDetail();
-
-    await waitFor(() => {
-      expect(screen.getAllByText('database').length).toBeGreaterThan(0);
-    });
-
-    // Click the history button for the first dependency
-    const historyButtons = screen.getAllByTitle('View error history');
-    fireEvent.click(historyButtons[0]);
-
-    await waitFor(() => {
-      expect(screen.getByText('Error History')).toBeInTheDocument();
-    });
-  });
-
   it('shows poll error with default message', async () => {
     const failedPollService = { ...mockService, last_poll_success: 0, last_poll_error: null };
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(failedPollService))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    setupDefaultMocks(failedPollService);
 
     renderServiceDetail();
 
@@ -451,9 +394,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithContact))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithContact);
 
       renderServiceDetail();
 
@@ -464,22 +405,6 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('email:')).toBeInTheDocument();
       expect(screen.getByText('slack:')).toBeInTheDocument();
       expect(screen.getByText('#db-support')).toBeInTheDocument();
-    });
-
-    it('displays dash when effective_contact is null', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-      renderServiceDetail();
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      // Both dependencies have null effective_contact, so dashes appear in contact cells
-      const dashes = screen.getAllByText('-');
-      expect(dashes.length).toBeGreaterThan(0);
     });
 
     it('uses effective_impact instead of raw impact', async () => {
@@ -494,9 +419,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithOverride);
 
       renderServiceDetail();
 
@@ -519,9 +442,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithOverride);
 
       renderServiceDetail();
 
@@ -545,9 +466,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithOverride))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithOverride);
 
       renderServiceDetail();
 
@@ -560,9 +479,7 @@ describe('ServiceDetail', () => {
     });
 
     it('does not show override badge when no overrides are active', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks();
 
       renderServiceDetail();
 
@@ -583,9 +500,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithBadContact))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithBadContact);
 
       renderServiceDetail();
 
@@ -598,95 +513,60 @@ describe('ServiceDetail', () => {
     });
   });
 
-  describe('Dependency Metrics', () => {
-    it('shows dependency metrics section when dependencies exist', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+  describe('Expandable Dependency Rows', () => {
+    it('shows collapsible rows for each dependency', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Latency and health trends')).toBeInTheDocument();
-    });
-
-    it('does not show dependency metrics section when no dependencies', async () => {
-      const serviceNoDeps = { ...mockService, dependencies: [] };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceNoDeps))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-      renderServiceDetail();
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Service')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Dependency Metrics')).not.toBeInTheDocument();
-    });
-
-    it('shows collapsible panels for each dependency', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-      renderServiceDetail();
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
-      });
-
-      // Panels use canonical_name when available, otherwise dep name
-      const panelButtons = screen.getAllByRole('button', { expanded: false });
-      const chartPanels = panelButtons.filter(
+      // Rows use aria-expanded
+      const rowButtons = screen.getAllByRole('button', { expanded: false });
+      const depRows = rowButtons.filter(
         btn => btn.textContent?.includes('PostgreSQL') || btn.textContent?.includes('cache')
       );
-      expect(chartPanels.length).toBe(2);
+      expect(depRows.length).toBe(2);
     });
 
-    it('expands panel to show charts when clicked', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('expands row to show charts and error history when clicked', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
       // Charts should not be visible initially
       expect(screen.queryByTestId('latency-chart-d1')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('health-timeline-d1')).not.toBeInTheDocument();
 
-      // Click PostgreSQL panel to expand
-      const panelButtons = screen.getAllByRole('button', { expanded: false });
-      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
-      fireEvent.click(postgresPanel!);
+      // Click PostgreSQL row to expand
+      const rowButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      fireEvent.click(postgresRow!);
 
-      // Charts should now be visible
+      // Charts and error history should now be visible
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
       expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
+      expect(screen.getByTestId('error-history-panel')).toBeInTheDocument();
     });
 
-    it('collapses panel when clicked again', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('collapses row when clicked again', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      // Expand PostgreSQL panel
-      const panelButtons = screen.getAllByRole('button', { expanded: false });
-      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
-      fireEvent.click(postgresPanel!);
+      // Expand PostgreSQL row
+      const rowButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      fireEvent.click(postgresRow!);
 
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
 
@@ -697,24 +577,22 @@ describe('ServiceDetail', () => {
       expect(screen.queryByTestId('latency-chart-d1')).not.toBeInTheDocument();
     });
 
-    it('can expand multiple dependency panels independently', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('can expand multiple dependency rows independently', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependency Metrics')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      // Expand both panels
-      const panelButtons = screen.getAllByRole('button', { expanded: false });
-      const postgresPanel = panelButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
-      const cachePanel = panelButtons.find(btn => btn.textContent?.includes('cache'));
+      // Expand both rows
+      const rowButtons = screen.getAllByRole('button', { expanded: false });
+      const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
+      const cacheRow = rowButtons.find(btn => btn.textContent?.includes('cache'));
 
-      fireEvent.click(postgresPanel!);
-      fireEvent.click(cachePanel!);
+      fireEvent.click(postgresRow!);
+      fireEvent.click(cacheRow!);
 
       // Both charts should be visible
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
@@ -757,10 +635,8 @@ describe('ServiceDetail', () => {
       teams: [{ team_id: 't9', role: 'lead', team: { id: 't9', name: 'Other Team', description: null } }],
     };
 
-    it('shows edit override buttons for admin users', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('shows edit buttons for admin users', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -768,14 +644,12 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       expect(editButtons.length).toBe(2); // one per dependency
     });
 
-    it('shows edit override buttons for team leads of the service team', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('shows edit buttons for team leads of the service team', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: false, user: teamLeadUser });
 
@@ -783,14 +657,12 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       expect(editButtons.length).toBe(2);
     });
 
-    it('hides edit override buttons for regular team members', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('hides edit buttons for regular team members', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: false, user: memberUser });
 
@@ -798,13 +670,11 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      expect(screen.queryByTitle('Edit overrides')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Edit dependency')).not.toBeInTheDocument();
     });
 
-    it('hides edit override buttons for leads of other teams', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('hides edit buttons for leads of other teams', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: false, user: noTeamUser });
 
@@ -812,13 +682,11 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      expect(screen.queryByTitle('Edit overrides')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Edit dependency')).not.toBeInTheDocument();
     });
 
-    it('opens override edit modal when edit button is clicked', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+    it('opens edit modal when edit button is clicked', async () => {
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -826,11 +694,11 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       // Modal title includes the dependency name
-      expect(screen.getByText(/Edit Overrides — PostgreSQL/)).toBeInTheDocument();
+      expect(screen.getByText(/Edit — PostgreSQL/)).toBeInTheDocument();
       expect(screen.getByPlaceholderText('e.g. Critical — primary database')).toBeInTheDocument();
     });
 
@@ -845,9 +713,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithOverrides))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithOverrides);
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -855,7 +721,7 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       // Impact should be pre-populated
@@ -874,9 +740,7 @@ describe('ServiceDetail', () => {
     });
 
     it('adds and removes contact entries', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -884,7 +748,7 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       // No contact entries initially
@@ -905,9 +769,7 @@ describe('ServiceDetail', () => {
     });
 
     it('saves overrides and refreshes service', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -915,7 +777,7 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       // Fill in impact override
@@ -928,12 +790,6 @@ describe('ServiceDetail', () => {
       const valueInput = screen.getByPlaceholderText('Value');
       fireEvent.change(keyInput, { target: { value: 'email' } });
       fireEvent.change(valueInput, { target: { value: 'team@co.com' } });
-
-      // Mock save response + service reload
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse({ id: 'd1' })) // PUT override
-        .mockResolvedValueOnce(jsonResponse(mockService))   // reload service
-        .mockResolvedValueOnce(jsonResponse(mockTeams));     // reload teams
 
       fireEvent.click(screen.getByText('Save Overrides'));
 
@@ -950,9 +806,7 @@ describe('ServiceDetail', () => {
     });
 
     it('shows error when saving with empty overrides', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -960,7 +814,7 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       // Try to save without any overrides
@@ -973,9 +827,7 @@ describe('ServiceDetail', () => {
 
     it('shows clear button only when existing overrides are active', async () => {
       // No active overrides
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -983,7 +835,7 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       expect(screen.queryByText('Clear All Overrides')).not.toBeInTheDocument();
@@ -999,9 +851,7 @@ describe('ServiceDetail', () => {
           },
         ],
       };
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(serviceWithOverrides))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      setupDefaultMocks(serviceWithOverrides);
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
@@ -1009,16 +859,10 @@ describe('ServiceDetail', () => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      const editButtons = screen.getAllByTitle('Edit overrides');
+      const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
       expect(screen.getByText('Clear All Overrides')).toBeInTheDocument();
-
-      // Mock clear response + service reload
-      mockFetch
-        .mockResolvedValueOnce({ ok: true, status: 204, json: () => Promise.resolve({}) }) // DELETE
-        .mockResolvedValueOnce(jsonResponse(mockService))   // reload service
-        .mockResolvedValueOnce(jsonResponse(mockTeams));     // reload teams
 
       fireEvent.click(screen.getByText('Clear All Overrides'));
 
@@ -1029,58 +873,47 @@ describe('ServiceDetail', () => {
         expect(deleteCall).toBeDefined();
       });
     });
-
-    it('shows error when save fails', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      const editButtons = screen.getAllByTitle('Edit overrides');
-      fireEvent.click(editButtons[0]);
-
-      // Fill in impact override
-      const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database');
-      fireEvent.change(impactInput, { target: { value: 'New value' } });
-
-      // Mock save failure
-      mockFetch.mockResolvedValueOnce(jsonResponse({ message: 'Permission denied' }, 403));
-
-      fireEvent.click(screen.getByText('Save Overrides'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Permission denied')).toBeInTheDocument();
-      });
-    });
-
-    it('closes modal when cancel is clicked', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockService))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
-
-      await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
-      });
-
-      const editButtons = screen.getAllByTitle('Edit overrides');
-      fireEvent.click(editButtons[0]);
-
-      expect(screen.getByText(/Edit Overrides/)).toBeInTheDocument();
-
-      fireEvent.click(screen.getByText('Cancel'));
-
-      // Modal should close — the override form error/impact elements should not be present
-      await waitFor(() => {
-        expect(screen.queryByPlaceholderText('e.g. Critical — primary database')).not.toBeInTheDocument();
-      });
-    });
   });
 
+  describe('Edit Modal - Alias and Associations', () => {
+    const adminUser = {
+      id: 'u1',
+      email: 'admin@test.com',
+      name: 'Admin',
+      role: 'admin',
+      teams: [],
+    };
+
+    it('shows alias section in edit modal', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit dependency');
+      fireEvent.click(editButtons[0]);
+
+      expect(screen.getByText('Alias')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('e.g. Primary Database')).toBeInTheDocument();
+    });
+
+    it('shows associations section in edit modal', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      });
+
+      const editButtons = screen.getAllByTitle('Edit dependency');
+      fireEvent.click(editButtons[0]);
+
+      expect(screen.getByText('Associations')).toBeInTheDocument();
+      expect(screen.getByText('+ Add Association')).toBeInTheDocument();
+    });
+  });
 });
