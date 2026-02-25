@@ -29,6 +29,7 @@ describe('SchemaConfigEditor', () => {
     expect(screen.getByLabelText(/Impact field/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Type field/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Check details field/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Contact field/)).toBeInTheDocument();
   });
 
   it('renders type field input that updates state', () => {
@@ -79,5 +80,54 @@ describe('SchemaConfigEditor', () => {
 
     const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
     expect(lastCall.fields.type).toBeUndefined();
+  });
+
+  it('renders contact field input that updates state', () => {
+    const onChange = jest.fn();
+    render(<SchemaConfigEditor {...defaultProps} onChange={onChange} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    const contactInput = screen.getByLabelText(/Contact field/);
+    expect(contactInput).toHaveValue('');
+
+    // Fill required fields first to trigger onChange
+    fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
+    fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
+    fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'ok' } });
+
+    fireEvent.change(contactInput, { target: { value: 'metadata.contact_info' } });
+
+    expect(contactInput).toHaveValue('metadata.contact_info');
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
+    expect(lastCall.fields.contact).toBe('metadata.contact_info');
+  });
+
+  it('populates contact field from existing schema value', () => {
+    const schema: SchemaMapping = {
+      root: 'checks',
+      fields: {
+        name: 'name',
+        healthy: 'ok',
+        contact: 'owner_info',
+      },
+    };
+
+    render(<SchemaConfigEditor {...defaultProps} value={schema} />);
+
+    const contactInput = screen.getByLabelText(/Contact field/);
+    expect(contactInput).toHaveValue('owner_info');
+  });
+
+  it('does not include contact in schema when contact field is empty', () => {
+    const onChange = jest.fn();
+    render(<SchemaConfigEditor {...defaultProps} onChange={onChange} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
+    fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
+    fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'ok' } });
+
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
+    expect(lastCall.fields.contact).toBeUndefined();
   });
 });

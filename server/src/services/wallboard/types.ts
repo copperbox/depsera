@@ -22,6 +22,8 @@ export interface WallboardDependency {
   error_message: string | null;
   impact: string | null;
   description: string | null;
+  effective_contact: string | null;
+  effective_impact: string | null;
   linked_service: { id: string; name: string } | null;
   reporters: WallboardReporter[];
   team_ids: string[];

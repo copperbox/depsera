@@ -120,13 +120,24 @@ Promise coalescing for services sharing the same health endpoint URL.
 When a poll succeeds, the health endpoint response is parsed (proactive-deps format) and each dependency is upserted:
 
 1. **Alias resolution:** `aliasStore.resolveAlias(dep.name)` → sets `canonical_name` if alias exists
-2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). Returns whether the dependency is new and whether health changed.
+2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). All parsed fields — including `contact` and `checkDetails` — are serialized with `JSON.stringify()` and persisted. The ON CONFLICT clause updates `contact` from polled data each cycle (`contact = excluded.contact`), so contact reflects the latest poll. Missing contact → `null` in DB. Returns whether the dependency is new and whether health changed.
 3. **Status change detection:** If `healthy` value changed, `last_status_change` is updated and a `STATUS_CHANGE` event is emitted.
 4. **Error history:** Deduplication logic — only records if the error state changed:
    - Healthy → only record if previous entry was an error (records recovery with null error)
    - Unhealthy → only record if no previous entry, previous was recovery, or error JSON changed
 5. **Latency history:** Records data point if `latency_ms > 0`
 6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
+
+### Parsed Fields
+
+The `DependencyParser.parseItem()` method extracts the following optional fields from each dependency object in the proactive-deps response:
+
+| Field | Type | Validation | Notes |
+|---|---|---|---|
+| `checkDetails` | `Record<string, unknown>` | Must be a non-null object | Arbitrary check metadata |
+| `contact` | `Record<string, unknown>` | Must be a non-null object | Arbitrary contact info (e.g., email, Slack channel). Non-object values are silently ignored. |
+
+Both fields follow the same pattern: present and valid → included in `ProactiveDepsStatus`; missing or invalid type → `undefined`.
 
 ## 5.8 Events
 

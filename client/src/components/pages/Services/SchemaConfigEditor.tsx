@@ -28,6 +28,7 @@ interface GuidedFormState {
   descriptionField: string;
   typeField: string;
   checkDetailsField: string;
+  contactField: string;
 }
 
 interface FormErrors {
@@ -54,6 +55,7 @@ function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
     descriptionField: mapping.fields.description ? (typeof mapping.fields.description === 'string' ? mapping.fields.description : mapping.fields.description.field) : '',
     typeField: mapping.fields.type ? (typeof mapping.fields.type === 'string' ? mapping.fields.type : mapping.fields.type.field) : '',
     checkDetailsField: mapping.fields.checkDetails || '',
+    contactField: mapping.fields.contact || '',
   };
 }
 
@@ -85,6 +87,9 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
   if (state.checkDetailsField.trim()) {
     mapping.fields.checkDetails = state.checkDetailsField;
   }
+  if (state.contactField.trim()) {
+    mapping.fields.contact = state.contactField;
+  }
 
   return mapping;
 }
@@ -100,6 +105,7 @@ const emptyFormState: GuidedFormState = {
   descriptionField: '',
   typeField: '',
   checkDetailsField: '',
+  contactField: '',
 };
 
 function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: SchemaConfigEditorProps) {
@@ -388,6 +394,24 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                   <span className={styles.hint}>Path to an arbitrary metadata object (e.g., database version, validation query details)</span>
                 </div>
               </div>
+
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label htmlFor="schema-contact" className={styles.label}>
+                    Contact field
+                  </label>
+                  <input
+                    id="schema-contact"
+                    type="text"
+                    value={formState.contactField}
+                    onChange={(e) => handleFieldChange('contactField', e.target.value)}
+                    className={styles.input}
+                    placeholder="contact"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>Path to a contact info object (e.g., team email, Slack channel)</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -452,6 +476,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                       <th>Healthy</th>
                       <th>Latency</th>
                       <th>Impact</th>
+                      <th>Contact</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -465,6 +490,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                         </td>
                         <td>{dep.latency_ms != null ? `${dep.latency_ms}ms` : '-'}</td>
                         <td>{dep.impact ?? '-'}</td>
+                        <td>{dep.contact ? Object.entries(dep.contact).map(([k, v]) => `${k}: ${v}`).join(', ') : '-'}</td>
                       </tr>
                     ))}
                   </tbody>

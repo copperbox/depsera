@@ -157,6 +157,18 @@ describe('Services API - Team-scoped Authorization', () => {
         UNIQUE(dependency_id, linked_service_id)
       )
     `);
+
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS dependency_canonical_overrides (
+        id TEXT PRIMARY KEY,
+        canonical_name TEXT NOT NULL UNIQUE,
+        contact_override TEXT,
+        impact_override TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_by TEXT
+      )
+    `);
   });
 
   beforeEach(() => {

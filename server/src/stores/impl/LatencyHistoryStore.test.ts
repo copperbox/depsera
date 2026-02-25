@@ -204,6 +204,70 @@ describe('LatencyHistoryStore', () => {
     });
   });
 
+  describe('getAggregateLatencyBuckets', () => {
+    const depId1 = 'dep-aaa';
+    const depId2 = 'dep-bbb';
+
+    it('should aggregate across multiple dependency IDs', () => {
+      const now = new Date();
+      store.record(depId1, 10, now.toISOString());
+      store.record(depId1, 30, now.toISOString());
+      store.record(depId2, 20, now.toISOString());
+      store.record(depId2, 40, now.toISOString());
+
+      const buckets = store.getAggregateLatencyBuckets([depId1, depId2], '1h');
+
+      expect(buckets).toHaveLength(1);
+      expect(buckets[0].min).toBe(10);
+      expect(buckets[0].max).toBe(40);
+      expect(buckets[0].avg).toBe(25);
+      expect(buckets[0].count).toBe(4);
+    });
+
+    it('should return empty array for empty dependency IDs', () => {
+      const buckets = store.getAggregateLatencyBuckets([], '24h');
+      expect(buckets).toHaveLength(0);
+    });
+
+    it('should return empty array when no data exists', () => {
+      const buckets = store.getAggregateLatencyBuckets(['nonexistent'], '24h');
+      expect(buckets).toHaveLength(0);
+    });
+
+    it('should work with a single dependency ID', () => {
+      const now = new Date();
+      store.record(depId1, 50, now.toISOString());
+
+      const buckets = store.getAggregateLatencyBuckets([depId1], '1h');
+
+      expect(buckets).toHaveLength(1);
+      expect(buckets[0].min).toBe(50);
+      expect(buckets[0].avg).toBe(50);
+      expect(buckets[0].max).toBe(50);
+      expect(buckets[0].count).toBe(1);
+    });
+
+    it('should exclude data outside the range', () => {
+      const old = new Date('2020-01-01');
+      store.record(depId1, 50, old.toISOString());
+
+      const buckets = store.getAggregateLatencyBuckets([depId1], '1h');
+      expect(buckets).toHaveLength(0);
+    });
+
+    it('should work with all valid range values', () => {
+      const now = new Date();
+      store.record(depId1, 42, now.toISOString());
+      store.record(depId2, 58, now.toISOString());
+
+      for (const range of ['1h', '6h', '24h', '7d', '30d'] as const) {
+        const buckets = store.getAggregateLatencyBuckets([depId1, depId2], range);
+        expect(buckets.length).toBeGreaterThanOrEqual(1);
+        expect(buckets[0].avg).toBe(50);
+      }
+    });
+  });
+
   describe('deleteOlderThan', () => {
     it('should delete old records', () => {
       const old = new Date('2020-01-01').toISOString();

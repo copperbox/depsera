@@ -151,6 +151,14 @@ export class SchemaMapper {
       ? checkDetailsRaw as Record<string, unknown>
       : undefined;
 
+    // Extract optional contact (must resolve to a non-null object, same as checkDetails)
+    const contactRaw = fields.contact
+      ? resolveFieldPath(item, fields.contact)
+      : undefined;
+    const contact = (typeof contactRaw === 'object' && contactRaw !== null && !Array.isArray(contactRaw))
+      ? contactRaw as Record<string, unknown>
+      : undefined;
+
     return {
       name: name.trim(),
       description,
@@ -164,6 +172,7 @@ export class SchemaMapper {
       },
       lastChecked: new Date().toISOString(),
       ...(checkDetails !== undefined && { checkDetails }),
+      ...(contact !== undefined && { contact }),
     };
   }
 

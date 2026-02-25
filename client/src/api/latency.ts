@@ -1,4 +1,4 @@
-import { LatencyBucketsResponse, LatencyRange } from '../types/chart';
+import { AggregateLatencyBucketsResponse, LatencyBucketsResponse, LatencyRange } from '../types/chart';
 import { LatencyStatsResponse } from '../types/graph';
 import { handleResponse } from './common';
 
@@ -16,4 +16,18 @@ export async function fetchLatencyBuckets(
     credentials: 'include',
   });
   return handleResponse<LatencyBucketsResponse>(response);
+}
+
+export async function fetchAggregateLatencyBuckets(
+  dependencyIds: string[],
+  range: LatencyRange = '24h'
+): Promise<AggregateLatencyBucketsResponse> {
+  const params = new URLSearchParams({
+    dependencyIds: dependencyIds.join(','),
+    range,
+  });
+  const response = await fetch(`/api/latency/aggregate/buckets?${params}`, {
+    credentials: 'include',
+  });
+  return handleResponse<AggregateLatencyBucketsResponse>(response);
 }

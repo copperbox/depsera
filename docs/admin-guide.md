@@ -25,6 +25,10 @@ This guide covers day-to-day administration of Depsera: first-run setup, user an
   - [Alert Rules](#alert-rules)
   - [Alert History](#alert-history)
   - [Flap Protection and Rate Limiting](#flap-protection-and-rate-limiting)
+- [Override Management](#override-management)
+  - [Override Hierarchy](#override-hierarchy)
+  - [Canonical Overrides](#canonical-overrides)
+  - [Per-Instance Overrides](#per-instance-overrides)
 - [Admin Settings](#admin-settings)
   - [Data Retention](#data-retention)
   - [Polling Defaults](#polling-defaults)
@@ -286,6 +290,60 @@ Both values are configurable via [Admin Settings](#alerts).
 
 ---
 
+## Override Management
+
+Depsera supports a 3-tier override system for dependency contact information and impact descriptions. This lets you enrich dependency metadata beyond what's provided by health endpoints.
+
+### Override Hierarchy
+
+Overrides are resolved with the following precedence (highest wins):
+
+1. **Per-instance override** — set on a specific dependency instance (service-dependency pair)
+2. **Canonical override** — set by canonical name, applies as default across all services reporting that dependency
+3. **Polled data** — the original data from the health endpoint
+
+**Contact** uses field-level merge: each tier's keys override lower-tier keys, but lower-tier keys not present in higher tiers are preserved. For example, if polled data provides `{ "email": "...", "pager": "..." }` and a canonical override provides `{ "email": "new@...", "slack": "#channel" }`, the effective contact is `{ "email": "new@...", "pager": "...", "slack": "#channel" }`.
+
+**Impact** uses first-non-null precedence: the instance override wins if set, otherwise canonical, otherwise polled.
+
+### Canonical Overrides
+
+Canonical overrides apply to all dependencies that share the same canonical name. Use these to set organization-wide defaults for common dependencies (e.g., "PostgreSQL", "Redis").
+
+**Managing canonical overrides:**
+
+1. Navigate to the **Associations** page (`/associations`)
+2. Switch to the **Manage** tab
+3. Expand a dependency in the accordion
+4. In the **Canonical Overrides** section, set contact (key-value pairs) and/or impact (text)
+5. Click **Save**
+
+**Requirements:**
+- The dependency must have a canonical name (established via alias mapping). Dependencies without a canonical name show a note explaining this prerequisite.
+- **Permissions:** Admin, or team lead of any team that owns a service with a dependency matching the canonical name.
+
+**Clearing overrides:** Click the **Clear** button to remove the canonical override entirely.
+
+### Per-Instance Overrides
+
+Per-instance overrides apply to a single dependency on a single service. Use these when one service's dependency needs different contact or impact information than the canonical default.
+
+**Managing per-instance overrides:**
+
+1. Navigate to a **Service Detail** page (`/services/:id`)
+2. In the dependency table, click the **Edit Overrides** button (pencil icon) on a dependency row
+3. In the override modal, set contact (key-value pairs) and/or impact (text)
+4. Click **Save**
+
+**Requirements:**
+- **Permissions:** Admin, or team lead of the team that owns the service.
+
+**Clearing overrides:** Click the **Clear Overrides** button to reset both contact and impact overrides to null, reverting to canonical or polled values.
+
+**Visual indicators:** Dependencies with active overrides show an indicator in the service detail table, so you can tell at a glance which values come from overrides vs. polled data.
+
+---
+
 ## Admin Settings
 
 The admin settings page (`/admin/settings`) allows runtime configuration without restarting the server. Changes take effect immediately.
@@ -397,6 +455,8 @@ All admin actions are automatically recorded in the audit log for accountability
 - Team creation, updates, and deletion
 - Team member additions, role changes, and removals
 - Service creation, updates, and deletion
+- Canonical override creation, updates, and deletion
+- Per-instance dependency override updates and clears
 - Admin settings changes (includes which keys were updated)
 
 Each entry records: the acting user, action type, affected resource, IP address, and a JSON details object.
@@ -420,7 +480,7 @@ curl "https://depsera.example.com/api/admin/audit-log?resourceType=team"
 curl "https://depsera.example.com/api/admin/audit-log?limit=100&offset=50"
 ```
 
-Available filters: `startDate`, `endDate` (ISO-8601), `userId`, `action`, `resourceType` (`user`, `team`, `service`, `settings`). Max `limit` is 250.
+Available filters: `startDate`, `endDate` (ISO-8601), `userId`, `action`, `resourceType` (`user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`). Max `limit` is 250.
 
 Audit log entries are subject to data retention cleanup.
 

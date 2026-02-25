@@ -123,6 +123,55 @@ describe('DependencyParser', () => {
       expect(result[0].checkDetails).toEqual({ query: 'SELECT 1', rows: 1 });
     });
 
+    it('should parse contact when present as object', () => {
+      const result = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+        contact: { email: 'team@example.com', slack: '#db-team' },
+      }]);
+
+      expect(result[0].contact).toEqual({ email: 'team@example.com', slack: '#db-team' });
+    });
+
+    it('should return undefined contact when missing', () => {
+      const result = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+      }]);
+
+      expect(result[0].contact).toBeUndefined();
+    });
+
+    it('should ignore contact when not an object', () => {
+      const stringResult = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+        contact: 'not-an-object',
+      }]);
+      expect(stringResult[0].contact).toBeUndefined();
+
+      const numberResult = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+        contact: 42,
+      }]);
+      expect(numberResult[0].contact).toBeUndefined();
+
+      const nullResult = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+        contact: null,
+      }]);
+      expect(nullResult[0].contact).toBeUndefined();
+
+      const boolResult = parser.parse([{
+        name: 'test-dep',
+        healthy: true,
+        contact: true,
+      }]);
+      expect(boolResult[0].contact).toBeUndefined();
+    });
+
     it('should parse error fields', () => {
       const result = parser.parse([{
         name: 'test-dep',

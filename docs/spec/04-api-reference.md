@@ -72,7 +72,7 @@ Rate limited: 10 requests/minute per IP.
 {
   "success": true,
   "dependencies": [
-    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "type": "other" }
+    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "contact": null, "type": "other" }
   ],
   "warnings": ["No impact field mapping configured — impact data will not be captured"]
 }
@@ -117,7 +117,9 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
       "type": "database",
       "is_healthy": true,
       "latency_ms": 12,
-      "error_message": null
+      "error_message": null,
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database"
     }
   ],
   "dependent_reports": [
@@ -437,3 +439,138 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 - Webhook headers must have string values
 - `severity_filter` must be `critical`, `warning`, or `all`
 - Channel updates verify the channel belongs to the specified team (404 otherwise)
+
+## 4.12 Canonical Overrides
+
+**[Implemented]** (DPS-14b)
+
+Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Merge hierarchy: instance override > canonical override > polled data.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. |
+| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Returns 404 if not found. |
+| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Creates or updates. |
+| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Returns 204. |
+
+**Permissions (mutations):** Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+
+**PUT /api/canonical-overrides/:canonicalName request:**
+
+```json
+{
+  "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+  "impact_override": "Critical — all downstream services depend on this"
+}
+```
+
+- `contact_override`: object or `null` (setting to `null` clears the override). Stored as JSON string.
+- `impact_override`: string or `null` (setting to `null` clears the override). Stored as plain text.
+- At least one field must be provided (400 otherwise).
+
+**PUT /api/canonical-overrides/:canonicalName response:**
+
+```json
+{
+  "id": "uuid",
+  "canonical_name": "PostgreSQL",
+  "contact_override": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+  "impact_override": "Critical — all downstream services depend on this",
+  "created_at": "2026-02-24T10:00:00.000Z",
+  "updated_at": "2026-02-24T10:00:00.000Z",
+  "updated_by": "user-uuid"
+}
+```
+
+**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`).
+
+## 4.13 Per-Instance Dependency Overrides
+
+**[Implemented]** (DPS-15b)
+
+Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the merge hierarchy: instance override > canonical override > polled data.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| PUT | `/api/dependencies/:id/overrides` | requireAuth + custom | Set per-instance overrides. |
+| DELETE | `/api/dependencies/:id/overrides` | requireAuth + custom | Clear all per-instance overrides. Returns 204. |
+
+**Permissions:** Admin OR team lead of the team that owns the service reporting this dependency. Checked via `AuthorizationService.checkDependencyTeamLeadAccess()`.
+
+**PUT /api/dependencies/:id/overrides request:**
+
+```json
+{
+  "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
+  "impact_override": "Critical — primary database"
+}
+```
+
+- `contact_override`: object or `null` (setting to `null` clears). Stored as JSON string. Optional.
+- `impact_override`: string or `null` (setting to `null` clears). Stored as plain text. Optional.
+- At least one field must be provided (400 otherwise).
+
+**PUT /api/dependencies/:id/overrides response:** Returns the full updated dependency row.
+
+**DELETE /api/dependencies/:id/overrides:** Clears both `contact_override` and `impact_override` to null. Returns 204. Does not modify polled data columns.
+
+**Audit actions:** `dependency_override.updated`, `dependency_override.cleared` (resource type: `dependency`).
+
+## 4.14 Wallboard
+
+**[Implemented]** (PRO-48, DPS-16c)
+
+Read-only aggregated view of all tracked dependencies, grouped by canonical name or linked service. Suitable for shared monitors and rapid triage.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/wallboard` | requireAuth | Get aggregated dependency wallboard. Non-admin: scoped to user's teams. |
+
+**GET /api/wallboard response:**
+
+```json
+{
+  "dependencies": [
+    {
+      "canonical_name": "PostgreSQL Primary",
+      "primary_dependency_id": "uuid",
+      "health_status": "healthy",
+      "type": "database",
+      "latency": { "min": 10, "avg": 25, "max": 42 },
+      "last_checked": "2026-02-24T12:00:00.000Z",
+      "error_message": null,
+      "impact": "Critical — primary database",
+      "description": "Main PostgreSQL cluster",
+      "effective_contact": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
+      "effective_impact": "Critical — primary database",
+      "linked_service": { "id": "uuid", "name": "PostgreSQL Service" },
+      "reporters": [
+        {
+          "dependency_id": "uuid",
+          "service_id": "uuid",
+          "service_name": "Payment Service",
+          "service_team_id": "uuid",
+          "service_team_name": "Platform",
+          "healthy": 1,
+          "health_state": 0,
+          "latency_ms": 25,
+          "last_checked": "2026-02-24T12:00:00.000Z"
+        }
+      ],
+      "team_ids": ["uuid"]
+    }
+  ],
+  "teams": [
+    { "id": "uuid", "name": "Platform" }
+  ]
+}
+```
+
+**Aggregation rules:**
+- Dependencies are grouped by linked service ID (if associated) or normalized canonical name / raw name
+- `health_status`: worst status across all reporters (critical > warning > healthy > unknown)
+- `latency`: min/avg/max across all reporters with latency data (null if none)
+- `impact`, `error_message`, `description`: from primary dependency (most recently checked), with first-non-null fallback across group
+- `effective_contact`, `effective_impact`: resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
+- `type`: most common type across reporters
+- Sorted by health status (worst first), then alphabetically

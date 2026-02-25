@@ -2,7 +2,7 @@
 
 ## StoreRegistry
 
-Central singleton providing access to all 10 stores:
+Central singleton providing access to all 11 stores:
 
 ```typescript
 class StoreRegistry {
@@ -16,6 +16,7 @@ class StoreRegistry {
   public readonly aliases: IDependencyAliasStore;
   public readonly auditLog: IAuditLogStore;
   public readonly settings: ISettingsStore;
+  public readonly canonicalOverrides: ICanonicalOverrideStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -92,11 +93,16 @@ findByServiceIdsWithAssociationsAndLatency(serviceIds: string[]): DependencyWith
 findExistingByServiceId(serviceId: string): ExistingDependency[]
 findDependentReports(serviceId: string): DependentReport[]
 upsert(input: DependencyUpsertInput): UpsertResult
+updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined
 delete(id: string): boolean
 deleteByServiceId(serviceId: string): number
 exists(id: string): boolean
 count(options?: DependencyListOptions): number
 ```
+
+`DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
+
+`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides()` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses.
 
 ### IAssociationStore
 ```typescript
@@ -165,3 +171,13 @@ upsert(key: string, value: string | null, updatedBy: string): Setting
 upsertMany(entries: Array<{ key: string; value: string | null }>, updatedBy: string): Setting[]
 delete(key: string): boolean
 ```
+
+### ICanonicalOverrideStore
+```typescript
+findAll(): DependencyCanonicalOverride[]
+findByCanonicalName(canonicalName: string): DependencyCanonicalOverride | undefined
+upsert(input: CanonicalOverrideUpsertInput): DependencyCanonicalOverride
+delete(canonicalName: string): boolean
+```
+
+`CanonicalOverrideUpsertInput`: `{ canonical_name: string; contact_override?: string | null; impact_override?: string | null; updated_by: string }`. Upsert uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` to update override values and audit fields while preserving the original `created_at`.

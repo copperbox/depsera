@@ -766,6 +766,52 @@ describe('Schema Config Validation', () => {
         fields: { name: 'n', healthy: 'h', checkDetails: 123 },
       })).toThrow(/schema_config\.fields\.checkDetails must be a non-empty string path/);
     });
+
+    it('should accept contact as a simple string path', () => {
+      const result = validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: 'contactInfo' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.contact).toBe('contactInfo');
+    });
+
+    it('should accept contact with dot-notation path', () => {
+      const result = validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: 'meta.contact' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.contact).toBe('meta.contact');
+    });
+
+    it('should reject $key for contact field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: '$key' },
+      })).toThrow(/schema_config\.fields\.contact cannot use "\$key"/);
+    });
+
+    it('should reject BooleanComparison object for contact field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: { field: 'contact', equals: 'ok' } },
+      })).toThrow(/schema_config\.fields\.contact must be a non-empty string path/);
+    });
+
+    it('should reject empty string for contact field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: '' },
+      })).toThrow(/schema_config\.fields\.contact must be a non-empty string path/);
+    });
+
+    it('should reject number for contact field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', contact: 123 },
+      })).toThrow(/schema_config\.fields\.contact must be a non-empty string path/);
+    });
   });
 
   describe('validateServiceCreate with schema_config', () => {

@@ -52,6 +52,7 @@ export interface GraphEdgeData {
   error?: unknown;
   errorMessage?: string | null;
   impact?: string | null;
+  effectiveContact?: string | null;
   [key: string]: unknown;
 }
 

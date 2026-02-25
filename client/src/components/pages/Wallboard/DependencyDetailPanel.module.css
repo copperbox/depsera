@@ -321,6 +321,58 @@
   color: var(--color-text-primary);
 }
 
+.overrideBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  vertical-align: middle;
+}
+
+.contactList {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contactItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--color-bg-hover);
+  border-radius: 6px;
+}
+
+.contactKey {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.contactKey::after {
+  content: ':';
+}
+
+.contactValue {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  margin: 0;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
 @media (max-width: 768px) {
   .panel {
     width: 100%;

@@ -3,11 +3,15 @@ import { DependencyForWallboard } from '../../stores/types';
 
 // Mock getStores
 const mockFindAllForWallboard = jest.fn();
+const mockFindAllCanonicalOverrides = jest.fn();
 
 jest.mock('../../stores', () => ({
   getStores: () => ({
     dependencies: {
       findAllForWallboard: mockFindAllForWallboard,
+    },
+    canonicalOverrides: {
+      findAll: mockFindAllCanonicalOverrides,
     },
   }),
 }));
@@ -25,6 +29,9 @@ function makeDep(overrides: Partial<DependencyForWallboard> = {}): DependencyFor
     health_state: 0,
     health_code: 200,
     latency_ms: 50,
+    contact: null,
+    contact_override: null,
+    impact_override: null,
     check_details: null,
     error: null,
     error_message: null,
@@ -50,6 +57,8 @@ describe('WallboardService', () => {
 
   beforeEach(() => {
     mockFindAllForWallboard.mockReset();
+    mockFindAllCanonicalOverrides.mockReset();
+    mockFindAllCanonicalOverrides.mockReturnValue([]);
     service = new WallboardService();
   });
 
@@ -334,5 +343,190 @@ describe('WallboardService', () => {
 
     // Primary is dep-1 (most recently checked), uses its canonical_name
     expect(result.dependencies[0].canonical_name).toBe('PostgreSQL');
+  });
+
+  describe('effective_contact and effective_impact resolution', () => {
+    it('returns null effective fields when no override data exists', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({ id: 'dep-1', name: 'DB', contact: null, contact_override: null, impact_override: null, impact: null }),
+      ]);
+
+      const result = service.getWallboardData();
+
+      expect(result.dependencies[0].effective_contact).toBeNull();
+      expect(result.dependencies[0].effective_impact).toBeNull();
+    });
+
+    it('uses polled contact and impact when no overrides exist', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-1',
+          name: 'DB',
+          contact: '{"email":"polled@example.com"}',
+          impact: 'Critical database',
+        }),
+      ]);
+
+      const result = service.getWallboardData();
+
+      expect(result.dependencies[0].effective_contact).toBe('{"email":"polled@example.com"}');
+      expect(result.dependencies[0].effective_impact).toBe('Critical database');
+    });
+
+    it('applies canonical override over polled data', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-1',
+          name: 'DB',
+          canonical_name: 'PostgreSQL',
+          contact: '{"email":"polled@example.com"}',
+          impact: 'Polled impact',
+        }),
+      ]);
+      mockFindAllCanonicalOverrides.mockReturnValue([
+        {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"email":"canonical@example.com","slack":"#db"}',
+          impact_override: 'Canonical impact',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          updated_by: 'user-1',
+        },
+      ]);
+
+      const result = service.getWallboardData();
+
+      expect(JSON.parse(result.dependencies[0].effective_contact!)).toEqual({
+        email: 'canonical@example.com',
+        slack: '#db',
+      });
+      expect(result.dependencies[0].effective_impact).toBe('Canonical impact');
+    });
+
+    it('applies instance override over canonical override', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-1',
+          name: 'DB',
+          canonical_name: 'PostgreSQL',
+          contact: '{"email":"polled@example.com"}',
+          contact_override: '{"email":"instance@example.com","pager":"555-0100"}',
+          impact: 'Polled impact',
+          impact_override: 'Instance impact',
+        }),
+      ]);
+      mockFindAllCanonicalOverrides.mockReturnValue([
+        {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"email":"canonical@example.com","slack":"#db"}',
+          impact_override: 'Canonical impact',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          updated_by: 'user-1',
+        },
+      ]);
+
+      const result = service.getWallboardData();
+
+      // Contact: field-level merge — instance keys win
+      expect(JSON.parse(result.dependencies[0].effective_contact!)).toEqual({
+        email: 'instance@example.com',
+        slack: '#db',
+        pager: '555-0100',
+      });
+      // Impact: first-non-null — instance wins
+      expect(result.dependencies[0].effective_impact).toBe('Instance impact');
+    });
+
+    it('uses primary dependency for override resolution in a group', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-old',
+          name: 'DB',
+          last_checked: '2025-01-01T10:00:00Z',
+          contact_override: '{"email":"old@example.com"}',
+          impact_override: 'Old impact',
+        }),
+        makeDep({
+          id: 'dep-new',
+          name: 'db',
+          service_id: 'svc-2',
+          service_name: 'Service Beta',
+          last_checked: '2025-01-01T14:00:00Z',
+          contact_override: '{"email":"new@example.com"}',
+          impact_override: 'New impact',
+        }),
+      ]);
+
+      const result = service.getWallboardData();
+
+      // dep-new is primary (most recently checked)
+      expect(result.dependencies[0].effective_contact).toBe('{"email":"new@example.com"}');
+      expect(result.dependencies[0].effective_impact).toBe('New impact');
+    });
+
+    it('does not apply canonical override when dep has no canonical_name', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-1',
+          name: 'custom-db',
+          canonical_name: null,
+          contact: '{"email":"polled@example.com"}',
+          impact: 'Polled impact',
+        }),
+      ]);
+      mockFindAllCanonicalOverrides.mockReturnValue([
+        {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"email":"canonical@example.com"}',
+          impact_override: 'Canonical impact',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          updated_by: 'user-1',
+        },
+      ]);
+
+      const result = service.getWallboardData();
+
+      // Should use polled data only — canonical override doesn't match
+      expect(result.dependencies[0].effective_contact).toBe('{"email":"polled@example.com"}');
+      expect(result.dependencies[0].effective_impact).toBe('Polled impact');
+    });
+
+    it('field-level merges contact across all three tiers', () => {
+      mockFindAllForWallboard.mockReturnValue([
+        makeDep({
+          id: 'dep-1',
+          name: 'DB',
+          canonical_name: 'PostgreSQL',
+          contact: '{"email":"polled@example.com","oncall":"polled-team"}',
+          contact_override: '{"pager":"555-0100"}',
+        }),
+      ]);
+      mockFindAllCanonicalOverrides.mockReturnValue([
+        {
+          id: 'co-1',
+          canonical_name: 'PostgreSQL',
+          contact_override: '{"slack":"#db-canonical","oncall":"canonical-team"}',
+          impact_override: null,
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          updated_by: 'user-1',
+        },
+      ]);
+
+      const result = service.getWallboardData();
+
+      // polled: email, oncall → canonical: slack, oncall (wins) → instance: pager
+      expect(JSON.parse(result.dependencies[0].effective_contact!)).toEqual({
+        email: 'polled@example.com',
+        oncall: 'canonical-team',
+        slack: '#db-canonical',
+        pager: '555-0100',
+      });
+    });
   });
 });

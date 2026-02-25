@@ -6,3 +6,4 @@ export { AssociationStore } from './AssociationStore';
 export { LatencyHistoryStore } from './LatencyHistoryStore';
 export { ErrorHistoryStore } from './ErrorHistoryStore';
 export { DependencyAliasStore } from './DependencyAliasStore';
+export { CanonicalOverrideStore } from './CanonicalOverrideStore';

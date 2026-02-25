@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { type Node, type Edge } from '@xyflow/react';
 import { ServiceNodeData, GraphEdgeData, getServiceHealthStatus, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
+import { AggregateLatencyChart } from '../../Charts/AggregateLatencyChart';
 import styles from './NodeDetailsPanel.module.css';
 
 type AppNode = Node<ServiceNodeData, 'service'>;
@@ -31,6 +32,44 @@ interface DependencyInfo {
   isHighLatency?: boolean;
 }
 
+/**
+ * Parse a JSON contact string into key-value pairs.
+ * Returns null if the string is null/empty or not a valid JSON object.
+ */
+function parseContact(contactJson: string | null | undefined): Record<string, string> | null {
+  if (!contactJson) return null;
+  try {
+    const parsed = JSON.parse(contactJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge contact records from multiple edges. For each key, the first non-null value wins.
+ */
+function mergeContacts(edges: AppEdge[]): Record<string, string> | null {
+  const merged: Record<string, string> = {};
+  let hasAny = false;
+
+  for (const edge of edges) {
+    const contact = parseContact(edge.data?.effectiveContact);
+    if (!contact) continue;
+    for (const [key, value] of Object.entries(contact)) {
+      if (!(key in merged)) {
+        merged[key] = String(value);
+        hasAny = true;
+      }
+    }
+  }
+
+  return hasAny ? merged : null;
+}
+
 function formatLatency(latencyMs: number | null | undefined): string {
   if (latencyMs === null || latencyMs === undefined) {
     return '';
@@ -54,19 +93,32 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
     return map;
   }, [nodes]);
 
-  // Dependents: services that depend on THIS node (edges where this node is the source)
+  // Dependent edges: edges where this node is the source (services that depend on THIS node)
+  const dependentEdges = useMemo(
+    () => edges.filter((edge) => edge.source === nodeId),
+    [edges, nodeId]
+  );
+
+  // Dependents: services that depend on THIS node
   const dependents = useMemo((): DependencyInfo[] => {
-    return edges
-      .filter((edge) => edge.source === nodeId)
-      .map((edge) => ({
-        id: edge.target,
-        name: nodeNameMap.get(edge.target) || edge.target,
-        healthStatus: getEdgeHealthStatus(edge.data!),
-        latencyMs: edge.data?.latencyMs,
-        avgLatencyMs24h: edge.data?.avgLatencyMs24h,
-        isHighLatency: edge.data?.isHighLatency,
-      }));
-  }, [edges, nodeId, nodeNameMap]);
+    return dependentEdges.map((edge) => ({
+      id: edge.target,
+      name: nodeNameMap.get(edge.target) || edge.target,
+      healthStatus: getEdgeHealthStatus(edge.data!),
+      latencyMs: edge.data?.latencyMs,
+      avgLatencyMs24h: edge.data?.avgLatencyMs24h,
+      isHighLatency: edge.data?.isHighLatency,
+    }));
+  }, [dependentEdges, nodeNameMap]);
+
+  // Merged contact info from dependent edges (first value per key wins)
+  const contact = useMemo(() => mergeContacts(dependentEdges), [dependentEdges]);
+
+  // Dependency IDs from dependent edges for aggregate latency chart
+  const dependentDepIds = useMemo(
+    () => dependentEdges.map((e) => e.data?.dependencyId).filter((id): id is string => !!id),
+    [dependentEdges]
+  );
 
   // Dependencies: services THIS node depends on (edges where this node is the target)
   const dependencies = useMemo((): DependencyInfo[] => {
@@ -96,100 +148,73 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
         </button>
       </div>
 
-      <div className={styles.statusSection}>
-        <div className={`${styles.statusBadge} ${styles[healthStatus]}`}>
-          <span className={styles.statusDot} />
-          {healthStatusLabels[healthStatus]}
-        </div>
-        {!isExternal && data.lastPollSuccess === false && (
-          <div className={styles.pollFailure}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="8" cy="8" r="6" />
-              <path d="M8 5v3M8 10v1" />
-            </svg>
-            Poll failed{data.lastPollError ? `: ${data.lastPollError}` : ''}
+      <div className={styles.scrollContent}>
+        <div className={styles.statusSection}>
+          <div className={`${styles.statusBadge} ${styles[healthStatus]}`}>
+            <span className={styles.statusDot} />
+            {healthStatusLabels[healthStatus]}
           </div>
-        )}
-        {isExternal && (
-          <p className={styles.externalDescription}>External dependency not tracked as a service</p>
-        )}
-      </div>
-
-      <div className={styles.section}>
-        <h4 className={styles.sectionTitle}>Details</h4>
-        <div className={styles.detailsGrid}>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>Team</span>
-            <span className={styles.detailValue}>{data.teamName}</span>
-          </div>
-          {!isExternal && data.healthEndpoint && (
-            <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>Health Endpoint</span>
-              <a
-                href={data.healthEndpoint}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.detailLink}
-              >
-                {data.healthEndpoint}
-              </a>
+          {!isExternal && data.lastPollSuccess === false && (
+            <div className={styles.pollFailure}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3M8 10v1" />
+              </svg>
+              Poll failed{data.lastPollError ? `: ${data.lastPollError}` : ''}
             </div>
           )}
+          {isExternal && (
+            <p className={styles.externalDescription}>External dependency not tracked as a service</p>
+          )}
         </div>
-      </div>
 
-      {dependents.length > 0 && (
         <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>
-            {isExternal ? `Reporting Services (${dependents.length})` : `Dependents (${dependents.length})`}
-          </h4>
-          <p className={styles.sectionDescription}>
-            {isExternal ? 'Services that report on this dependency' : 'Services that depend on this service'}
-          </p>
-          <ul className={styles.serviceList}>
-            {dependents.map((dep) => (
-              <li key={dep.id} className={styles.serviceListItem}>
-                <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
-                <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
-                  {dep.name}
-                </Link>
-                {formatLatency(dep.latencyMs) && (
-                  <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
-                    {formatLatency(dep.latencyMs)}
-                    {dep.isHighLatency && (
-                      <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
-                      </svg>
-                    )}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {!isExternal && (
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Dependencies Report</h4>
-          <p className={styles.sectionDescription}>What this service reports about its dependencies</p>
-          <div className={styles.statsGrid}>
-            <div className={styles.statItem}>
-              <span className={styles.statValue}>{data.dependencyCount}</span>
-              <span className={styles.statLabel}>Total</span>
+          <h4 className={styles.sectionTitle}>Details</h4>
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>Team</span>
+              <span className={styles.detailValue}>{data.teamName}</span>
             </div>
-            <div className={`${styles.statItem} ${styles.healthy}`}>
-              <span className={styles.statValue}>{data.healthyCount}</span>
-              <span className={styles.statLabel}>Healthy</span>
-            </div>
-            <div className={`${styles.statItem} ${styles.critical}`}>
-              <span className={styles.statValue}>{data.unhealthyCount}</span>
-              <span className={styles.statLabel}>Unhealthy</span>
-            </div>
+            {!isExternal && data.healthEndpoint && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>Health Endpoint</span>
+                <a
+                  href={data.healthEndpoint}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.detailLink}
+                >
+                  {data.healthEndpoint}
+                </a>
+              </div>
+            )}
           </div>
-          {dependencies.length > 0 && (
+        </div>
+
+        {dependents.length > 0 && contact && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Contact</h4>
+            <dl className={styles.contactList}>
+              {Object.entries(contact).map(([key, value]) => (
+                <div key={key} className={styles.contactItem}>
+                  <dt className={styles.contactKey}>{key}</dt>
+                  <dd className={styles.contactValue}>{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+
+        {dependents.length > 0 && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>
+              {isExternal ? `Reporting Services (${dependents.length})` : `Dependents (${dependents.length})`}
+            </h4>
+            <p className={styles.sectionDescription}>
+              {isExternal ? 'Services that report on this dependency' : 'Services that depend on this service'}
+            </p>
             <ul className={styles.serviceList}>
-              {dependencies.map((dep) => (
+              {dependents.map((dep) => (
                 <li key={dep.id} className={styles.serviceListItem}>
                   <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
                   <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
@@ -208,9 +233,61 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose }: Node
                 </li>
               ))}
             </ul>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+
+        {dependentDepIds.length > 0 && (
+          <div className={styles.chartSection}>
+            <AggregateLatencyChart
+              dependencyIds={dependentDepIds}
+              storageKey={`graph-node-latency-${nodeId}`}
+            />
+          </div>
+        )}
+
+        {!isExternal && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Dependencies Report</h4>
+            <p className={styles.sectionDescription}>What this service reports about its dependencies</p>
+            <div className={styles.statsGrid}>
+              <div className={styles.statItem}>
+                <span className={styles.statValue}>{data.dependencyCount}</span>
+                <span className={styles.statLabel}>Total</span>
+              </div>
+              <div className={`${styles.statItem} ${styles.healthy}`}>
+                <span className={styles.statValue}>{data.healthyCount}</span>
+                <span className={styles.statLabel}>Healthy</span>
+              </div>
+              <div className={`${styles.statItem} ${styles.critical}`}>
+                <span className={styles.statValue}>{data.unhealthyCount}</span>
+                <span className={styles.statLabel}>Unhealthy</span>
+              </div>
+            </div>
+            {dependencies.length > 0 && (
+              <ul className={styles.serviceList}>
+                {dependencies.map((dep) => (
+                  <li key={dep.id} className={styles.serviceListItem}>
+                    <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
+                    <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
+                      {dep.name}
+                    </Link>
+                    {formatLatency(dep.latencyMs) && (
+                      <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
+                        {formatLatency(dep.latencyMs)}
+                        {dep.isHighLatency && (
+                          <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
+                          </svg>
+                        )}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
 
       {!isExternal && (
         <div className={styles.actions}>

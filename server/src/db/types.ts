@@ -78,6 +78,7 @@ export interface SchemaMapping {
     description?: FieldMapping;
     type?: FieldMapping;
     checkDetails?: string;
+    contact?: string;
   };
 }
 
@@ -153,6 +154,9 @@ export interface Dependency {
   health_state: HealthState | null;
   health_code: number | null;
   latency_ms: number | null;
+  contact: string | null; // JSON string of contact object
+  contact_override: string | null; // JSON string of user-managed contact override
+  impact_override: string | null; // Plain text user-managed impact override
   check_details: string | null; // JSON string of check details
   error: string | null; // JSON string of error object
   error_message: string | null;
@@ -216,6 +220,17 @@ export interface DependencyAlias {
   created_at: string;
 }
 
+// Canonical override types
+export interface DependencyCanonicalOverride {
+  id: string;
+  canonical_name: string;
+  contact_override: string | null; // JSON string of contact object
+  impact_override: string | null; // Plain text impact statement
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null; // FK → users(id)
+}
+
 // proactive-deps response format
 export interface ProactiveDepsStatus {
   name: string;
@@ -231,6 +246,7 @@ export interface ProactiveDepsStatus {
   };
   lastChecked: string;
   checkDetails?: Record<string, unknown>;
+  contact?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string;
 }
@@ -323,9 +339,13 @@ export type AuditAction =
   | 'external_service.created'
   | 'external_service.updated'
   | 'external_service.deleted'
-  | 'settings.updated';
+  | 'settings.updated'
+  | 'canonical_override.upserted'
+  | 'canonical_override.deleted'
+  | 'dependency_override.updated'
+  | 'dependency_override.cleared';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency';
 
 export interface AuditLogEntry {
   id: string;

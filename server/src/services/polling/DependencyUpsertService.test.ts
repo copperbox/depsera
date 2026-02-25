@@ -65,6 +65,7 @@ describe('DependencyUpsertService', () => {
         health_state INTEGER,
         health_code INTEGER,
         latency_ms INTEGER,
+        contact TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,
@@ -285,6 +286,73 @@ describe('DependencyUpsertService', () => {
       const stored = stores.dependencies.findByServiceId('svc-1');
       expect(stored[0].description).toBeNull();
       expect(stored[0].impact).toBeNull();
+    });
+
+    it('should persist contact through poll→store round-trip', () => {
+      const service = createService();
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+      const contact = { email: 'team@example.com', slack: '#platform-alerts' };
+
+      upsertService.upsert(service, [
+        createDepStatus({ contact }),
+      ]);
+
+      const stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).toBe(JSON.stringify(contact));
+    });
+
+    it('should store null contact when contact is missing', () => {
+      const service = createService();
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+
+      upsertService.upsert(service, [
+        createDepStatus({ contact: undefined }),
+      ]);
+
+      const stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).toBeNull();
+    });
+
+    it('should update contact on subsequent polls', () => {
+      const service = createService();
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+
+      // First poll with contact
+      upsertService.upsert(service, [
+        createDepStatus({ contact: { email: 'old@example.com' } }),
+      ]);
+
+      let stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).toBe(JSON.stringify({ email: 'old@example.com' }));
+
+      // Second poll with updated contact
+      upsertService.upsert(service, [
+        createDepStatus({ contact: { email: 'new@example.com', slack: '#new-channel' } }),
+      ]);
+
+      stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).toBe(JSON.stringify({ email: 'new@example.com', slack: '#new-channel' }));
+    });
+
+    it('should clear contact when poll no longer includes it', () => {
+      const service = createService();
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+
+      // First poll with contact
+      upsertService.upsert(service, [
+        createDepStatus({ contact: { email: 'team@example.com' } }),
+      ]);
+
+      let stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).not.toBeNull();
+
+      // Second poll without contact
+      upsertService.upsert(service, [
+        createDepStatus({ contact: undefined }),
+      ]);
+
+      stored = stores.dependencies.findByServiceId('svc-1');
+      expect(stored[0].contact).toBeNull();
     });
   });
 });

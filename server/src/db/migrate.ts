@@ -14,6 +14,9 @@ import * as migration012 from './migrations/012_add_schema_config';
 import * as migration013 from './migrations/013_add_external_services';
 import * as migration014 from './migrations/014_add_match_reason';
 import * as migration015 from './migrations/015_relax_dependency_type';
+import * as migration016 from './migrations/016_add_contact_column';
+import * as migration017 from './migrations/017_add_instance_overrides';
+import * as migration018 from './migrations/018_add_canonical_overrides';
 
 interface Migration {
   id: string;
@@ -112,6 +115,24 @@ const migrations: Migration[] = [
     name: 'relax_dependency_type',
     up: migration015.up,
     down: migration015.down
+  },
+  {
+    id: '016',
+    name: 'add_contact_column',
+    up: migration016.up,
+    down: migration016.down
+  },
+  {
+    id: '017',
+    name: 'add_instance_overrides',
+    up: migration017.up,
+    down: migration017.down
+  },
+  {
+    id: '018',
+    name: 'add_canonical_overrides',
+    up: migration018.up,
+    down: migration018.down
   }
 ];
 

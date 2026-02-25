@@ -1,6 +1,6 @@
 # Depsera
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)]()
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
@@ -27,11 +27,14 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
 - Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.)
+- Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
 **Visualization**
 - Interactive dependency graph (React Flow) with team filtering, search, layout controls, and latency thresholds
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
+- Edge selection shows per-dependency latency chart, contact info, impact, and error history
+- Node selection shows aggregate latency chart across all dependents and merged contact info
 - Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down
 - Dashboard with health distribution, services with issues, and team health summaries
 
@@ -281,6 +284,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Teams | CRUD on `/api/teams`, member management via `/:id/members` |
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
+| Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
 | Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline` |

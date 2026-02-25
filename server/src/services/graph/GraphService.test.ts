@@ -44,10 +44,18 @@ describe('GraphService', () => {
     count: jest.fn(),
   };
 
+  const mockCanonicalOverrideStore = {
+    findAll: jest.fn().mockReturnValue([]),
+    findByCanonicalName: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  };
+
   const mockStores = {
     services: mockServiceStore,
     dependencies: mockDependencyStore,
     teams: mockTeamStore,
+    canonicalOverrides: mockCanonicalOverrideStore,
   } as unknown as StoreRegistry;
 
   beforeEach(() => {
@@ -431,6 +439,9 @@ function createDependency(
     health_state: null,
     health_code: null,
     latency_ms: null,
+    contact: null,
+    contact_override: null,
+    impact_override: null,
     check_details: null,
     error: null,
     error_message: null,

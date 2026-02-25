@@ -4,6 +4,7 @@ import {
   DependencyForWallboard,
   DependencyListOptions,
   DependencyUpsertInput,
+  DependencyOverrideInput,
   DependentReport,
 } from '../types';
 
@@ -66,6 +67,7 @@ export interface IDependencyStore {
 
   // Write operations
   upsert(input: DependencyUpsertInput): UpsertResult;
+  updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined;
   delete(id: string): boolean;
   deleteByServiceId(serviceId: string): number;
 

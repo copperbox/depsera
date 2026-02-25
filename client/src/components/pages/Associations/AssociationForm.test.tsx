@@ -20,6 +20,7 @@ function makeService(overrides = {}) {
     team_id: 'team-1',
     health_endpoint: 'https://example.com/health',
     metrics_endpoint: null,
+    schema_config: null,
     is_active: 1,
     last_poll_success: 1,
     last_poll_error: null,
@@ -28,7 +29,7 @@ function makeService(overrides = {}) {
     team: { id: 'team-1', name: 'Team One', description: null, created_at: '2025-01-01', updated_at: '2025-01-01' },
     health: { status: 'healthy' as const, healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null },
     dependencies: [
-      { id: 'dep-1', service_id: 'svc-1', name: 'DB Connection', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0 as const, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
+      { id: 'dep-1', service_id: 'svc-1', name: 'DB Connection', canonical_name: null, description: null, impact: null, contact: null, contact_override: null, impact_override: null, effective_contact: null, effective_impact: null, healthy: 1, health_state: 0 as const, health_code: null, latency_ms: null, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
     ],
     dependent_reports: [],
     ...overrides,

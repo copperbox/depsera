@@ -1,8 +1,8 @@
 import { memo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { type Node } from '@xyflow/react';
-import { ServiceNodeData, GraphEdgeData, getEdgeHealthStatus, HealthStatus, LatencyStatsResponse } from '../../../types/graph';
-import { fetchLatencyStats } from '../../../api/latency';
+import { ServiceNodeData, GraphEdgeData, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
+import { LatencyChart } from '../../Charts/LatencyChart';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
 import styles from './EdgeDetailsPanel.module.css';
 
@@ -25,25 +25,30 @@ const healthStatusLabels: Record<HealthStatus, string> = {
   unknown: 'Unknown',
 };
 
-function formatLatency(latencyMs: number | null | undefined): string {
-  if (latencyMs === null || latencyMs === undefined) {
-    return '-';
-  }
-  if (latencyMs >= 1000) {
-    return `${(latencyMs / 1000).toFixed(1)}s`;
-  }
-  return `${Math.round(latencyMs)}ms`;
-}
-
 function formatCheckDetailValue(value: unknown): string {
   if (value === null || value === undefined) return '-';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 
+/**
+ * Parse a JSON contact string into key-value pairs for display.
+ * Returns null if the string is null/empty or not a valid JSON object.
+ */
+function parseContact(contactJson: string | null | undefined): Record<string, string> | null {
+  if (!contactJson) return null;
+  try {
+    const parsed = JSON.parse(contactJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: EdgeDetailsPanelProps) {
-  const [latencyStats, setLatencyStats] = useState<LatencyStatsResponse | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [currentView, setCurrentView] = useState<PanelView>('details');
 
@@ -51,19 +56,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
   const isHighLatency = data.isHighLatency ?? false;
   const hasError = data.error !== undefined || data.errorMessage;
   const hasCheckDetails = data.checkDetails && Object.keys(data.checkDetails).length > 0;
-
-  // Fetch latency stats when panel opens
-  useEffect(() => {
-    if (data.dependencyId) {
-      setIsLoadingStats(true);
-      fetchLatencyStats(data.dependencyId)
-        .then(setLatencyStats)
-        .catch((error) => {
-          console.error('Failed to fetch latency stats:', error);
-        })
-        .finally(() => setIsLoadingStats(false));
-    }
-  }, [data.dependencyId]);
+  const contact = parseContact(data.effectiveContact);
 
   // Reset view when dependency changes
   useEffect(() => {
@@ -183,45 +176,28 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
           </div>
         </div>
 
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Latency Statistics</h4>
-          {isLoadingStats ? (
-            <div className={styles.loadingStats}>
-              <div className={styles.spinner} />
-              <span>Loading stats...</span>
-            </div>
-          ) : (
-            <div className={styles.statsGrid}>
-              <div className={`${styles.statItem} ${isHighLatency ? styles.highLatencyStat : ''}`}>
-                <span className={styles.statValue}>{formatLatency(data.latencyMs)}</span>
-                <span className={styles.statLabel}>Current</span>
-              </div>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>
-                  {latencyStats ? formatLatency(latencyStats.avgLatencyMs24h) : formatLatency(data.avgLatencyMs24h)}
-                </span>
-                <span className={styles.statLabel}>24h Avg</span>
-              </div>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>
-                  {latencyStats ? formatLatency(latencyStats.minLatencyMs24h) : '-'}
-                </span>
-                <span className={styles.statLabel}>24h Min</span>
-              </div>
-              <div className={styles.statItem}>
-                <span className={styles.statValue}>
-                  {latencyStats ? formatLatency(latencyStats.maxLatencyMs24h) : '-'}
-                </span>
-                <span className={styles.statLabel}>24h Max</span>
-              </div>
-            </div>
-          )}
-          {latencyStats && latencyStats.dataPointCount > 0 && (
-            <div className={styles.dataPointInfo}>
-              Based on {latencyStats.dataPointCount} data point{latencyStats.dataPointCount !== 1 ? 's' : ''} in the last 24 hours
-            </div>
-          )}
-        </div>
+        {contact && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Contact</h4>
+            <dl className={styles.contactList} data-testid="contact-section">
+              {Object.entries(contact).map(([key, value]) => (
+                <div key={key} className={styles.contactItem}>
+                  <dt className={styles.contactKey}>{key}</dt>
+                  <dd className={styles.contactValue}>{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+
+        {data.dependencyId && (
+          <div className={styles.chartSection}>
+            <LatencyChart
+              dependencyId={data.dependencyId}
+              storageKey={`graph-latency-${data.dependencyId}`}
+            />
+          </div>
+        )}
 
         {data.impact && (
           <div className={styles.section}>

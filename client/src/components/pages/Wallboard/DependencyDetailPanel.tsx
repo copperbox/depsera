@@ -12,6 +12,34 @@ interface DependencyDetailPanelProps {
   onClose: () => void;
 }
 
+/**
+ * Parse a JSON contact string into key-value pairs for display.
+ * Returns null if the string is null/empty or not a valid JSON object.
+ */
+function parseContact(contactJson: string | null): Record<string, string> | null {
+  if (!contactJson) return null;
+  try {
+    const parsed = JSON.parse(contactJson);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, string>;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check whether the resolved impact differs from the raw polled impact,
+ * indicating an override is active.
+ */
+function isImpactOverridden(dependency: WallboardDependency): boolean {
+  return (
+    dependency.effective_impact !== null &&
+    dependency.effective_impact !== dependency.impact
+  );
+}
+
 const healthStatusLabels: Record<HealthStatus, string> = {
   healthy: 'Healthy',
   warning: 'Warning',
@@ -45,6 +73,9 @@ function formatLatency(ms: number | null): string {
 
 function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetailPanelProps) {
   const healthClass = getHealthClass(dependency.health_status);
+  const contact = parseContact(dependency.effective_contact);
+  const impactOverridden = isImpactOverridden(dependency);
+  const effectiveImpact = dependency.effective_impact ?? dependency.impact;
 
   return (
     <div className={styles.panel} data-testid="dependency-detail-panel">
@@ -86,10 +117,15 @@ function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetai
                 <span className={styles.detailValue}>{dependency.description}</span>
               </div>
             )}
-            {dependency.impact && (
+            {effectiveImpact && (
               <div className={styles.detailItem}>
-                <span className={styles.detailLabel}>Impact</span>
-                <span className={styles.detailValue}>{dependency.impact}</span>
+                <span className={styles.detailLabel}>
+                  Impact
+                  {impactOverridden && (
+                    <span className={styles.overrideBadge} data-testid="impact-override-badge">override</span>
+                  )}
+                </span>
+                <span className={styles.detailValue}>{effectiveImpact}</span>
               </div>
             )}
           </div>
@@ -99,6 +135,20 @@ function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetai
             </div>
           )}
         </div>
+
+        {contact && (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Contact</h4>
+            <dl className={styles.contactList} data-testid="contact-section">
+              {Object.entries(contact).map(([key, value]) => (
+                <div key={key} className={styles.contactItem}>
+                  <dt className={styles.contactKey}>{key}</dt>
+                  <dd className={styles.contactValue}>{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
 
         <div className={styles.section}>
           <h4 className={styles.sectionTitle}>

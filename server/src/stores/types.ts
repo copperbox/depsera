@@ -61,6 +61,15 @@ export interface ServiceWithTeam extends Service {
 }
 
 /**
+ * Dependency with effective contact/impact resolved from the 3-tier override hierarchy.
+ * Used in service detail and list API responses.
+ */
+export interface DependencyWithResolvedOverrides extends Dependency {
+  effective_contact: string | null;
+  effective_impact: string | null;
+}
+
+/**
  * Dependency with target service info from associations and avg latency
  */
 export interface DependencyWithTarget extends Dependency {
@@ -194,10 +203,16 @@ export interface DependencyUpsertInput {
   health_state: HealthState;
   health_code: number;
   latency_ms: number;
+  contact?: unknown;
   check_details?: unknown;
   error?: unknown;
   error_message?: string | null;
   last_checked: string;
+}
+
+export interface DependencyOverrideInput {
+  contact_override?: string | null;
+  impact_override?: string | null;
 }
 
 export interface AssociationCreateInput {

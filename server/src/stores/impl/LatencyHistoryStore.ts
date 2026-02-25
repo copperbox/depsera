@@ -166,6 +166,31 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
     return rows;
   }
 
+  getAggregateLatencyBuckets(dependencyIds: string[], range: LatencyRange): LatencyBucket[] {
+    if (dependencyIds.length === 0) return [];
+
+    const config = RANGE_CONFIG[range];
+    const placeholders = dependencyIds.map(() => '?').join(', ');
+
+    const rows = this.db
+      .prepare(`
+        SELECT
+          ${config.bucketExpr} as timestamp,
+          MIN(latency_ms) as min,
+          ROUND(AVG(latency_ms)) as avg,
+          MAX(latency_ms) as max,
+          COUNT(*) as count
+        FROM dependency_latency_history
+        WHERE dependency_id IN (${placeholders})
+          AND recorded_at >= datetime('now', '${config.offset}')
+        GROUP BY timestamp
+        ORDER BY timestamp ASC
+      `)
+      .all(...dependencyIds) as LatencyBucket[];
+
+    return rows;
+  }
+
   deleteOlderThan(timestamp: string): number {
     const result = this.db
       .prepare('DELETE FROM dependency_latency_history WHERE recorded_at < ?')

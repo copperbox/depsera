@@ -40,6 +40,9 @@ describe('DependencyStore', () => {
         health_state INTEGER,
         health_code INTEGER,
         latency_ms INTEGER,
+        contact TEXT,
+        contact_override TEXT,
+        impact_override TEXT,
         check_details TEXT,
         error TEXT,
         error_message TEXT,
@@ -148,6 +151,371 @@ describe('DependencyStore', () => {
       expect(result.dependency.canonical_name).toBe('canonical-name');
       expect(result.dependency.description).toBe('A test dependency');
       expect(result.dependency.type).toBe('database');
+    });
+
+    it('should store contact as JSON string', () => {
+      const contact = { team: 'Platform', email: 'platform@co.com', slack: '#platform' };
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBe(JSON.stringify(contact));
+      const parsed = JSON.parse(result.dependency.contact!);
+      expect(parsed.team).toBe('Platform');
+      expect(parsed.email).toBe('platform@co.com');
+      expect(parsed.slack).toBe('#platform');
+    });
+
+    it('should store null contact when not provided', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'NoContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBeNull();
+    });
+
+    it('should update contact on subsequent upsert', () => {
+      const initialContact = { team: 'Alpha' };
+      store.upsert({
+        service_id: testServiceId,
+        name: 'UpdateContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: initialContact,
+        last_checked: new Date().toISOString(),
+      });
+
+      const updatedContact = { team: 'Beta', email: 'beta@co.com' };
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'UpdateContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: updatedContact,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.isNew).toBe(false);
+      const parsed = JSON.parse(result.dependency.contact!);
+      expect(parsed.team).toBe('Beta');
+      expect(parsed.email).toBe('beta@co.com');
+    });
+
+    it('should clear contact when upserted without contact', () => {
+      store.upsert({
+        service_id: testServiceId,
+        name: 'ClearContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        contact: { team: 'Original' },
+        last_checked: new Date().toISOString(),
+      });
+
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ClearContactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact).toBeNull();
+    });
+
+    it('should default override columns to null on new dependency', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'OverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.contact_override).toBeNull();
+      expect(result.dependency.impact_override).toBeNull();
+    });
+
+    it('should not overwrite contact_override during upsert', () => {
+      // Create dependency
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'OverridePreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      // Manually set override (simulates user action via future override endpoint)
+      const overrideJson = JSON.stringify({ team: 'Override Team', slack: '#override' });
+      db.prepare('UPDATE dependencies SET contact_override = ? WHERE id = ?')
+        .run(overrideJson, result.dependency.id);
+
+      // Re-upsert via polling (should NOT touch contact_override)
+      const updated = store.upsert({
+        service_id: testServiceId,
+        name: 'OverridePreserveDep',
+        healthy: false,
+        health_state: 2,
+        health_code: 500,
+        latency_ms: 100,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(updated.isNew).toBe(false);
+      expect(updated.dependency.healthy).toBe(0);
+      expect(updated.dependency.contact_override).toBe(overrideJson);
+    });
+
+    it('should not overwrite impact_override during upsert', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ImpactOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Low - fallback available',
+        last_checked: new Date().toISOString(),
+      });
+
+      // Manually set impact override
+      db.prepare('UPDATE dependencies SET impact_override = ? WHERE id = ?')
+        .run('Critical - no fallback in production', result.dependency.id);
+
+      // Re-upsert via polling with different polled impact
+      const updated = store.upsert({
+        service_id: testServiceId,
+        name: 'ImpactOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Medium - degraded mode',
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(updated.isNew).toBe(false);
+      // Polled impact should update
+      expect(updated.dependency.impact).toBe('Medium - degraded mode');
+      // Override should be preserved
+      expect(updated.dependency.impact_override).toBe('Critical - no fallback in production');
+    });
+
+    it('should preserve both overrides across multiple upserts', () => {
+      store.upsert({
+        service_id: testServiceId,
+        name: 'BothOverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      const dep = store.findByServiceId(testServiceId).find(d => d.name === 'BothOverrideDep')!;
+
+      // Set both overrides manually
+      const contactOverride = JSON.stringify({ oncall: 'alice@co.com' });
+      db.prepare('UPDATE dependencies SET contact_override = ?, impact_override = ? WHERE id = ?')
+        .run(contactOverride, 'Service is critical for payments', dep.id);
+
+      // Upsert multiple times
+      for (let i = 0; i < 3; i++) {
+        store.upsert({
+          service_id: testServiceId,
+          name: 'BothOverrideDep',
+          healthy: i % 2 === 0,
+          health_state: i % 2 === 0 ? 0 : 2,
+          health_code: i % 2 === 0 ? 200 : 500,
+          latency_ms: 50 + i * 10,
+          last_checked: new Date().toISOString(),
+        });
+      }
+
+      const final = store.findById(dep.id)!;
+      expect(final.contact_override).toBe(contactOverride);
+      expect(final.impact_override).toBe('Service is critical for payments');
+    });
+  });
+
+  describe('updateOverrides', () => {
+    it('should set contact_override on an existing dependency', () => {
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'OverrideDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      const contactOverride = JSON.stringify({ team: 'Ops', slack: '#ops-alerts' });
+      const updated = store.updateOverrides(created.dependency.id, {
+        contact_override: contactOverride,
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.contact_override).toBe(contactOverride);
+      expect(updated!.impact_override).toBeNull();
+    });
+
+    it('should set impact_override on an existing dependency', () => {
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'ImpactDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Low',
+        last_checked: new Date().toISOString(),
+      });
+
+      const updated = store.updateOverrides(created.dependency.id, {
+        impact_override: 'Critical - no fallback',
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.impact_override).toBe('Critical - no fallback');
+      // Polled impact should be untouched
+      expect(updated!.impact).toBe('Low');
+    });
+
+    it('should set both overrides at once', () => {
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'BothDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      const contactOverride = JSON.stringify({ oncall: 'alice@co.com' });
+      const updated = store.updateOverrides(created.dependency.id, {
+        contact_override: contactOverride,
+        impact_override: 'High - payments affected',
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.contact_override).toBe(contactOverride);
+      expect(updated!.impact_override).toBe('High - payments affected');
+    });
+
+    it('should clear an override by setting it to null', () => {
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'ClearDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      // Set overrides
+      store.updateOverrides(created.dependency.id, {
+        contact_override: JSON.stringify({ team: 'Ops' }),
+        impact_override: 'High',
+      });
+
+      // Clear contact_override only
+      const updated = store.updateOverrides(created.dependency.id, {
+        contact_override: null,
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.contact_override).toBeNull();
+      expect(updated!.impact_override).toBe('High');
+    });
+
+    it('should return undefined for non-existent dependency', () => {
+      const result = store.updateOverrides('non-existent', {
+        impact_override: 'Critical',
+      });
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should not modify polled data columns', () => {
+      const contact = { team: 'Platform' };
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'PolledDataDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        impact: 'Medium',
+        contact,
+        description: 'A dependency',
+        last_checked: new Date().toISOString(),
+      });
+
+      const updated = store.updateOverrides(created.dependency.id, {
+        contact_override: JSON.stringify({ team: 'Override' }),
+        impact_override: 'Critical override',
+      });
+
+      expect(updated).toBeDefined();
+      // Polled data should be unchanged
+      expect(updated!.healthy).toBe(1);
+      expect(updated!.health_state).toBe(0);
+      expect(updated!.latency_ms).toBe(50);
+      expect(updated!.impact).toBe('Medium');
+      expect(updated!.contact).toBe(JSON.stringify(contact));
+      expect(updated!.description).toBe('A dependency');
+    });
+
+    it('should update updated_at timestamp', () => {
+      // Insert with a backdated updated_at so the updateOverrides timestamp is guaranteed different
+      const created = store.upsert({
+        service_id: testServiceId,
+        name: 'TimestampDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      const pastTimestamp = '2020-01-01T00:00:00.000Z';
+      db.prepare('UPDATE dependencies SET updated_at = ? WHERE id = ?')
+        .run(pastTimestamp, created.dependency.id);
+
+      const updated = store.updateOverrides(created.dependency.id, {
+        impact_override: 'New impact',
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated!.updated_at).not.toBe(pastTimestamp);
     });
   });
 

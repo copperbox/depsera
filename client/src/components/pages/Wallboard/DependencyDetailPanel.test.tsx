@@ -28,6 +28,8 @@ function makeDep(overrides: Partial<WallboardDependency> = {}): WallboardDepende
     error_message: null,
     impact: null,
     description: null,
+    effective_contact: null,
+    effective_impact: null,
     linked_service: null,
     reporters: [
       {
@@ -224,5 +226,118 @@ describe('DependencyDetailPanel', () => {
     }));
 
     expect(screen.getByText('250ms')).toBeInTheDocument();
+  });
+
+  describe('contact display', () => {
+    it('renders contact section with key-value pairs when effective_contact is valid JSON', () => {
+      renderPanel(makeDep({
+        effective_contact: '{"email":"db-team@example.com","slack":"#db-support"}',
+      }));
+
+      const contactSection = screen.getByTestId('contact-section');
+      expect(contactSection).toBeInTheDocument();
+      expect(screen.getByText('email')).toBeInTheDocument();
+      expect(screen.getByText('db-team@example.com')).toBeInTheDocument();
+      expect(screen.getByText('slack')).toBeInTheDocument();
+      expect(screen.getByText('#db-support')).toBeInTheDocument();
+    });
+
+    it('renders Contact section title when contact data exists', () => {
+      renderPanel(makeDep({
+        effective_contact: '{"email":"test@example.com"}',
+      }));
+
+      expect(screen.getByText('Contact')).toBeInTheDocument();
+    });
+
+    it('does not render contact section when effective_contact is null', () => {
+      renderPanel(makeDep({ effective_contact: null }));
+
+      expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
+      expect(screen.queryByText('Contact')).not.toBeInTheDocument();
+    });
+
+    it('does not render contact section when effective_contact is invalid JSON', () => {
+      renderPanel(makeDep({ effective_contact: 'not-json' }));
+
+      expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
+    });
+
+    it('does not render contact section when effective_contact is a JSON array', () => {
+      renderPanel(makeDep({ effective_contact: '["a","b"]' }));
+
+      expect(screen.queryByTestId('contact-section')).not.toBeInTheDocument();
+    });
+
+    it('renders multiple contact entries', () => {
+      renderPanel(makeDep({
+        effective_contact: '{"email":"a@b.com","slack":"#chan","pager":"555-1234"}',
+      }));
+
+      expect(screen.getByText('email')).toBeInTheDocument();
+      expect(screen.getByText('a@b.com')).toBeInTheDocument();
+      expect(screen.getByText('slack')).toBeInTheDocument();
+      expect(screen.getByText('#chan')).toBeInTheDocument();
+      expect(screen.getByText('pager')).toBeInTheDocument();
+      expect(screen.getByText('555-1234')).toBeInTheDocument();
+    });
+  });
+
+  describe('effective impact display', () => {
+    it('renders effective_impact when present', () => {
+      renderPanel(makeDep({
+        effective_impact: 'Critical — primary database',
+      }));
+
+      expect(screen.getByText('Critical — primary database')).toBeInTheDocument();
+    });
+
+    it('falls back to raw impact when effective_impact is null', () => {
+      renderPanel(makeDep({
+        impact: 'Polled impact',
+        effective_impact: null,
+      }));
+
+      expect(screen.getByText('Polled impact')).toBeInTheDocument();
+    });
+
+    it('does not render impact when both effective_impact and impact are null', () => {
+      renderPanel(makeDep({
+        impact: null,
+        effective_impact: null,
+      }));
+
+      expect(screen.queryByText('Impact')).not.toBeInTheDocument();
+    });
+
+    it('shows override badge when effective_impact differs from raw impact', () => {
+      renderPanel(makeDep({
+        impact: 'Polled impact',
+        effective_impact: 'Overridden impact',
+      }));
+
+      expect(screen.getByText('Overridden impact')).toBeInTheDocument();
+      expect(screen.getByTestId('impact-override-badge')).toBeInTheDocument();
+      expect(screen.getByText('override')).toBeInTheDocument();
+    });
+
+    it('does not show override badge when effective_impact matches raw impact', () => {
+      renderPanel(makeDep({
+        impact: 'Same impact',
+        effective_impact: 'Same impact',
+      }));
+
+      expect(screen.getByText('Same impact')).toBeInTheDocument();
+      expect(screen.queryByTestId('impact-override-badge')).not.toBeInTheDocument();
+    });
+
+    it('does not show override badge when effective_impact is null', () => {
+      renderPanel(makeDep({
+        impact: 'Some impact',
+        effective_impact: null,
+      }));
+
+      expect(screen.queryByTestId('impact-override-badge')).not.toBeInTheDocument();
+    });
   });
 });

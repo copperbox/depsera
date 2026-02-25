@@ -24,6 +24,8 @@ erDiagram
     dependencies ||--o{ dependency_associations : "linked from"
     services ||--o{ dependency_associations : "linked to"
     dependency_aliases }o..o{ dependencies : "resolves name"
+    dependency_canonical_overrides }o..o{ dependencies : "overrides by canonical_name"
+    users ||--o{ dependency_canonical_overrides : "updated_by"
 ```
 
 ## Table Definitions
@@ -99,6 +101,9 @@ erDiagram
 | health_state | INTEGER | | NULL |
 | health_code | INTEGER | | NULL |
 | latency_ms | INTEGER | | NULL |
+| contact | TEXT | | NULL |
+| contact_override | TEXT | | NULL |
+| impact_override | TEXT | | NULL |
 | check_details | TEXT | | NULL |
 | error | TEXT | | NULL |
 | error_message | TEXT | | NULL |
@@ -157,6 +162,34 @@ erDiagram
 
 **Indexes:** `idx_error_history_dependency`, `idx_error_history_time`
 
+### dependency_canonical_overrides
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| canonical_name | TEXT | NOT NULL, UNIQUE | |
+| contact_override | TEXT | | NULL |
+| impact_override | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_by | TEXT | FK → users.id | NULL |
+
+Stores canonical-level overrides keyed by dependency canonical name. The merge hierarchy is: instance override > canonical override > polled data. `contact_override` is a JSON string (arbitrary contact object). `impact_override` is plain text. `updated_by` tracks who last modified the override for audit purposes.
+
+#### Override Resolution **[Implemented]**
+
+Pure utility functions in `server/src/utils/overrideResolver.ts` resolve effective values from the 3-tier hierarchy. Used by API response layers to compute `effective_contact` and `effective_impact` for each dependency.
+
+**`resolveContact(polled, canonicalOverride, instanceOverride)`** — Field-level merge. Each input is a JSON string (or null). Parses each tier into an object, then spreads: `{ ...polled, ...canonical, ...instance }`. Instance keys win over canonical, which win over polled. Returns merged JSON string, or `null` if all inputs are null/invalid.
+
+**`resolveImpact(polled, canonicalOverride, instanceOverride)`** — First non-null precedence. Returns `instanceOverride` if non-null, else `canonicalOverride` if non-null, else `polled`. Returns `null` if all are null.
+
+Invalid JSON inputs (malformed strings, arrays, primitives) are treated as null and silently skipped during contact merge.
+
+#### Service Detail Integration **[Implemented]**
+
+The batch resolver in `server/src/utils/dependencyOverrideResolver.ts` resolves overrides for a list of dependencies. It fetches all canonical overrides once and builds a lookup map by `canonical_name` for efficient resolution. Each dependency receives `effective_contact` and `effective_impact` computed from its polled data, matching canonical override (if any), and instance overrides. This is applied in `GET /api/services/:id`, `GET /api/services`, and `GET /api/external-services` route handlers before formatting the response. The `DependencyWithResolvedOverrides` type in `server/src/stores/types.ts` extends `Dependency` with these two computed fields.
+
 ### dependency_aliases
 
 | Column | Type | Constraints | Default |
@@ -208,7 +241,11 @@ Key-value store for runtime-configurable admin settings.
 
 **Indexes:** `idx_audit_log_user_id`, `idx_audit_log_created_at`, `idx_audit_log_resource` (resource_type, resource_id)
 
-Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD).
+Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD, canonical override management, per-instance override management).
+
+**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`
+
+**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`
 
 ### schema_config (on services) **[Implemented]**
 
@@ -275,5 +312,12 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 009 | add_settings | Creates settings key-value table |
 | 010 | add_password_hash | Adds nullable `password_hash TEXT` column to users |
 | 011 | add_alerts | Creates alert_channels, alert_rules, alert_history tables with indexes |
+| 012 | add_schema_config | Adds nullable `schema_config TEXT` column to services |
+| 013 | add_external_services | Adds `is_external`, `description` columns to services |
+| 014 | add_match_reason | Adds `match_reason TEXT` column to dependency_associations |
+| 015 | relax_dependency_type | Removes CHECK constraint on dependencies.type, allows arbitrary strings |
+| 016 | add_contact_column | Adds nullable `contact TEXT` column to dependencies for storing polled contact JSON |
+| 017 | add_instance_overrides | Adds nullable `contact_override TEXT` and `impact_override TEXT` columns to dependencies for user-managed per-instance overrides |
+| 018 | add_canonical_overrides | Creates `dependency_canonical_overrides` table keyed by `canonical_name` (unique) with `contact_override`, `impact_override`, and `updated_by` FK to users |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

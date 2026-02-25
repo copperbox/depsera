@@ -3,7 +3,9 @@ import type {
   IServiceStore,
   IDependencyStore,
   ITeamStore,
+  ICanonicalOverrideStore,
 } from '../../stores/interfaces';
+import { DependencyCanonicalOverride } from '../../db/types';
 import { ServiceWithTeam, DependencyWithTarget, GraphResponse } from './types';
 import { ServiceTypeInferencer } from './ServiceTypeInferencer';
 import { DependencyGraphBuilder } from './DependencyGraphBuilder';
@@ -19,6 +21,7 @@ export class GraphService {
   private serviceStore: IServiceStore;
   private dependencyStore: IDependencyStore;
   private teamStore: ITeamStore;
+  private canonicalOverrideStore: ICanonicalOverrideStore;
 
   constructor(typeInferencer?: ServiceTypeInferencer, stores?: StoreRegistry) {
     const storeRegistry = stores || getStores();
@@ -26,6 +29,7 @@ export class GraphService {
     this.serviceStore = storeRegistry.services;
     this.dependencyStore = storeRegistry.dependencies;
     this.teamStore = storeRegistry.teams;
+    this.canonicalOverrideStore = storeRegistry.canonicalOverrides;
   }
 
   /**
@@ -67,6 +71,7 @@ export class GraphService {
 
     // Build initial graph with team services
     const builder = new DependencyGraphBuilder();
+    builder.setCanonicalOverrideMap(this.getCanonicalOverrideMap());
     const depsByService = groupByKey(dependencies, 'service_id');
     const serviceTypes = this.typeInferencer.compute(dependencies);
 
@@ -97,6 +102,7 @@ export class GraphService {
    */
   getServiceSubgraph(serviceId: string): GraphResponse {
     const builder = new DependencyGraphBuilder();
+    builder.setCanonicalOverrideMap(this.getCanonicalOverrideMap());
     const allDependencies: DependencyWithTarget[] = [];
     const serviceData: { service: ServiceWithTeam; deps: DependencyWithTarget[] }[] = [];
     const visitedServices = new Set<string>();
@@ -139,6 +145,14 @@ export class GraphService {
   }
 
   /**
+   * Fetch canonical overrides and return as a map keyed by canonical_name.
+   */
+  private getCanonicalOverrideMap(): Map<string, DependencyCanonicalOverride> {
+    const overrides = this.canonicalOverrideStore.findAll();
+    return new Map(overrides.map(o => [o.canonical_name, o]));
+  }
+
+  /**
    * Build a graph from services and dependencies.
    */
   private buildGraph(
@@ -146,6 +160,7 @@ export class GraphService {
     dependencies: DependencyWithTarget[]
   ): GraphResponse {
     const builder = new DependencyGraphBuilder();
+    builder.setCanonicalOverrideMap(this.getCanonicalOverrideMap());
     const depsByService = groupByKey(dependencies, 'service_id');
     const serviceTypes = this.typeInferencer.compute(dependencies);
 
