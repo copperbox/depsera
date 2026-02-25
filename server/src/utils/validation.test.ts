@@ -812,6 +812,48 @@ describe('Schema Config Validation', () => {
         fields: { name: 'n', healthy: 'h', contact: 123 },
       })).toThrow(/schema_config\.fields\.contact must be a non-empty string path/);
     });
+
+    it('should accept error as a simple string path', () => {
+      const result = validateSchemaConfig({
+        root: 'checks',
+        fields: { name: 'n', healthy: 'h', error: 'err' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.error).toBe('err');
+    });
+
+    it('should accept errorMessage as a simple string path', () => {
+      const result = validateSchemaConfig({
+        root: 'checks',
+        fields: { name: 'n', healthy: 'h', errorMessage: 'failureReason' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.errorMessage).toBe('failureReason');
+    });
+
+    it('should accept error and errorMessage with dot-notation paths', () => {
+      const result = validateSchemaConfig({
+        root: 'checks',
+        fields: { name: 'n', healthy: 'h', error: 'status.error', errorMessage: 'status.message' },
+      });
+      const parsed = JSON.parse(result);
+      expect(parsed.fields.error).toBe('status.error');
+      expect(parsed.fields.errorMessage).toBe('status.message');
+    });
+
+    it('should reject empty string for error field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', error: '' },
+      })).toThrow(/schema_config\.fields\.error must be a non-empty string path/);
+    });
+
+    it('should reject non-string for errorMessage field', () => {
+      expect(() => validateSchemaConfig({
+        root: 'data',
+        fields: { name: 'n', healthy: 'h', errorMessage: 42 },
+      })).toThrow(/schema_config\.fields\.errorMessage must be a non-empty string path/);
+    });
   });
 
   describe('validateServiceCreate with schema_config', () => {
