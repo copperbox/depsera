@@ -211,17 +211,34 @@ function Wallboard() {
                       {dep.health_status}
                     </span>
                   </div>
-                  <div className={styles.cardMetaRow}>
-                    <span>Reporters</span>
-                    <span className={styles.reporterNames}>
-                      {dep.reporters.map((r) => r.service_name).join(', ')}
-                    </span>
-                  </div>
-                  {dep.latency && (
-                    <div className={styles.cardMetaRow}>
-                      <span>Latency</span>
-                      <span>{dep.latency.min} / {dep.latency.avg} / {dep.latency.max} ms</span>
-                    </div>
+                  {dep.reporters.length === 1 ? (
+                    <>
+                      <div className={styles.cardMetaRow}>
+                        <span>Reporter</span>
+                        <span className={styles.reporterNames}>
+                          {dep.reporters[0].service_name}
+                        </span>
+                      </div>
+                      {dep.reporters[0].latency_ms != null && (
+                        <div className={styles.cardMetaRow}>
+                          <span>Latency</span>
+                          <span>{Math.round(dep.reporters[0].latency_ms)} ms</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className={styles.cardMetaRow}>
+                        <span>Reporters</span>
+                        <span>{dep.reporters.length} services</span>
+                      </div>
+                      {dep.latency && (
+                        <div className={styles.cardMetaRow}>
+                          <span>Latency</span>
+                          <span>{dep.latency.min} / {dep.latency.avg} / {dep.latency.max} ms</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {dep.linked_service && (
                     <div className={styles.cardMetaRow}>
