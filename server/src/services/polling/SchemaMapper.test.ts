@@ -1060,4 +1060,182 @@ describe('SchemaMapper', () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe('error and errorMessage field mappings', () => {
+    it('should extract error when mapped to a string field', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          error: 'err',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: false, err: 'Connection refused' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toBe('Connection refused');
+    });
+
+    it('should extract error when mapped to an object field', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          error: 'errorDetails',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: false, errorDetails: { code: 'ECONNREFUSED', message: 'Connection refused' } },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toEqual({ code: 'ECONNREFUSED', message: 'Connection refused' });
+    });
+
+    it('should extract errorMessage when mapped', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          errorMessage: 'failureReason',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: false, failureReason: 'Connection timeout after 5000ms' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].errorMessage).toBe('Connection timeout after 5000ms');
+    });
+
+    it('should extract both error and errorMessage when mapped', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          error: 'err',
+          errorMessage: 'errMsg',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'redis', ok: false, err: { code: 'TIMEOUT' }, errMsg: 'Redis timeout' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toEqual({ code: 'TIMEOUT' });
+      expect(result[0].errorMessage).toBe('Redis timeout');
+    });
+
+    it('should not include error or errorMessage when not mapped', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: false, err: 'should be ignored', errMsg: 'also ignored' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toBeUndefined();
+      expect(result[0].errorMessage).toBeUndefined();
+    });
+
+    it('should not include error when mapped path does not exist', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          error: 'nonexistent.path',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [{ name: 'db', ok: false }],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toBeUndefined();
+    });
+
+    it('should not include errorMessage when mapped value is not a string', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          errorMessage: 'errMsg',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', ok: false, errMsg: 42 },
+          { name: 'cache', ok: false, errMsg: { nested: true } },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].errorMessage).toBeUndefined();
+      expect(result[1].errorMessage).toBeUndefined();
+    });
+
+    it('should resolve error from nested path', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+          error: 'status.error',
+          errorMessage: 'status.message',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          {
+            name: 'db',
+            ok: false,
+            status: { error: { code: 'ECONNREFUSED' }, message: 'Connection refused' },
+          },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result[0].error).toEqual({ code: 'ECONNREFUSED' });
+      expect(result[0].errorMessage).toBe('Connection refused');
+    });
+  });
 });

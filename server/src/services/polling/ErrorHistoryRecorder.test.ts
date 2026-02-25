@@ -125,5 +125,56 @@ describe('ErrorHistoryRecorder', () => {
 
       expect(mockInserts).toHaveLength(0);
     });
+
+    it('should record unhealthy event when errorJson is null (no error object)', () => {
+      // Dependency reports healthy: false but has no error object (common for external deps)
+      recorder.record('dep-1', false, null, null, '2024-01-01T00:00:00Z');
+
+      expect(mockInserts).toHaveLength(1);
+      expect(mockInserts[0].error).toBe('{"unhealthy":true}');
+      expect(mockInserts[0].error_message).toBe('Unhealthy');
+    });
+
+    it('should preserve errorMessage when errorJson is null', () => {
+      // Dependency reports healthy: false with errorMessage but no error object
+      recorder.record('dep-1', false, null, 'Connection refused', '2024-01-01T00:00:00Z');
+
+      expect(mockInserts).toHaveLength(1);
+      expect(mockInserts[0].error).toBe('{"unhealthy":true}');
+      expect(mockInserts[0].error_message).toBe('Connection refused');
+    });
+
+    it('should deduplicate consecutive unhealthy events with null errorJson', () => {
+      // First unhealthy event
+      recorder.record('dep-1', false, null, null, '2024-01-01T00:00:00Z');
+      expect(mockInserts).toHaveLength(1);
+
+      // Second unhealthy event (same synthetic marker) should be deduped
+      recorder.record('dep-1', false, null, null, '2024-01-01T00:01:00Z');
+      expect(mockInserts).toHaveLength(1);
+    });
+
+    it('should record recovery after synthetic unhealthy marker', () => {
+      // Set up previous unhealthy state with synthetic marker
+      mockEntries.set('dep-1', [{ error: '{"unhealthy":true}', error_message: 'Unhealthy' }]);
+
+      recorder.record('dep-1', true, null, null, '2024-01-01T00:01:00Z');
+
+      expect(mockInserts).toHaveLength(1);
+      expect(mockInserts[0].error).toBeNull();
+      expect(mockInserts[0].error_message).toBeNull();
+    });
+
+    it('should record real error after synthetic unhealthy marker', () => {
+      // Set up previous unhealthy state with synthetic marker
+      mockEntries.set('dep-1', [{ error: '{"unhealthy":true}', error_message: 'Unhealthy' }]);
+
+      const errorJson = '{"code":"TIMEOUT"}';
+      recorder.record('dep-1', false, errorJson, 'Timeout', '2024-01-01T00:01:00Z');
+
+      expect(mockInserts).toHaveLength(1);
+      expect(mockInserts[0].error).toBe(errorJson);
+      expect(mockInserts[0].error_message).toBe('Timeout');
+    });
   });
 });

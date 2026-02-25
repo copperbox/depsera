@@ -176,7 +176,9 @@ A schema mapping has two parts: a **root path** pointing to the array or object 
     "healthy": "fieldName",
     "latency": "fieldName",
     "impact": "fieldName",
-    "description": "fieldName"
+    "description": "fieldName",
+    "error": "fieldName",
+    "errorMessage": "fieldName"
   }
 }
 ```
@@ -191,6 +193,8 @@ A schema mapping has two parts: a **root path** pointing to the array or object 
 | `fields.description` | string or object | No | Path to the description field |
 | `fields.contact` | string | No | Path to a contact info object (e.g., `{ "email": "...", "slack": "..." }`) |
 | `fields.checkDetails` | string | No | Path to an arbitrary metadata object (captured as-is) |
+| `fields.error` | string | No | Path to the error value field (any type; serialized as JSON for error history) |
+| `fields.errorMessage` | string | No | Path to a human-readable error message field |
 
 ### Field Mappings
 
