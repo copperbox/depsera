@@ -280,50 +280,44 @@ function Dashboard() {
           <div className={styles.sectionContent}>
             {recentActivity.length > 0 ? (
               <ul className={styles.activityList}>
-                {recentActivity.map(service => (
-                  <li key={service.id} className={styles.activityItem}>
-                    <div className={`${styles.activityIcon} ${styles[service.health.status]}`}>
-                      {service.health.status === 'healthy' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M13 4l-7 7-3-3" />
-                        </svg>
-                      )}
-                      {service.health.status === 'warning' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M8 1l7 14H1L8 1z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M8 6v3M8 11v1" stroke="currentColor" strokeWidth="1.5" />
-                        </svg>
-                      )}
-                      {service.health.status === 'critical' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="8" cy="8" r="6" />
-                          <path d="M10 6l-4 4M6 6l4 4" />
-                        </svg>
-                      )}
-                      {service.health.status === 'unknown' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="8" cy="8" r="6" />
-                          <path d="M8 5v3M8 10v1" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className={styles.activityContent}>
-                      <div className={styles.activityText}>
-                        <Link to={`/services/${service.id}`} className={styles.activityLink}>
-                          {service.name}
-                        </Link>
-                        {' '}reported {service.health.status}
+                {recentActivity.map(event => {
+                  const status = event.current_healthy ? 'healthy' : 'critical';
+                  const previousLabel = event.previous_healthy === null
+                    ? 'new'
+                    : event.previous_healthy ? 'healthy' : 'critical';
+                  const currentLabel = event.current_healthy ? 'healthy' : 'critical';
+                  return (
+                    <li key={event.id} className={styles.activityItem}>
+                      <div className={`${styles.activityIcon} ${styles[status]}`}>
+                        {event.current_healthy ? (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 4l-7 7-3-3" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="8" cy="8" r="6" />
+                            <path d="M10 6l-4 4M6 6l4 4" />
+                          </svg>
+                        )}
                       </div>
-                      <div className={styles.activityTime}>
-                        {formatRelativeTime(service.health.last_report)}
+                      <div className={styles.activityContent}>
+                        <div className={styles.activityText}>
+                          <Link to={`/services/${event.service_id}`} className={styles.activityLink}>
+                            {event.service_name}
+                          </Link>
+                          {' '}{event.dependency_name}: {previousLabel} &rarr; {currentLabel}
+                        </div>
+                        <div className={styles.activityTime}>
+                          {formatRelativeTime(event.recorded_at)}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <div className={styles.emptySection}>
-                No recent activity
+                No recent status changes
               </div>
             )}
           </div>

@@ -2,7 +2,7 @@
 
 ## StoreRegistry
 
-Central singleton providing access to all 11 stores:
+Central singleton providing access to all stores:
 
 ```typescript
 class StoreRegistry {
@@ -17,6 +17,7 @@ class StoreRegistry {
   public readonly auditLog: IAuditLogStore;
   public readonly settings: ISettingsStore;
   public readonly canonicalOverrides: ICanonicalOverrideStore;
+  public readonly statusChangeEvents: IStatusChangeEventStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -181,3 +182,10 @@ delete(canonicalName: string): boolean
 ```
 
 `CanonicalOverrideUpsertInput`: `{ canonical_name: string; contact_override?: string | null; impact_override?: string | null; updated_by: string }`. Upsert uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` to update override values and audit fields while preserving the original `created_at`.
+
+### IStatusChangeEventStore
+```typescript
+record(serviceId: string, serviceName: string, dependencyName: string, previousHealthy: boolean | null, currentHealthy: boolean, timestamp: string): StatusChangeEventRow
+getRecent(limit: number): StatusChangeEventRow[]
+deleteOlderThan(timestamp: string): number
+```

@@ -26,6 +26,7 @@ erDiagram
     dependency_aliases }o..o{ dependencies : "resolves name"
     dependency_canonical_overrides }o..o{ dependencies : "overrides by canonical_name"
     users ||--o{ dependency_canonical_overrides : "updated_by"
+    services ||--o{ status_change_events : "records"
 ```
 
 ## Table Definitions
@@ -201,6 +202,22 @@ The batch resolver in `server/src/utils/dependencyOverrideResolver.ts` resolves 
 
 No foreign keys. Links to `dependencies.canonical_name` by convention.
 
+### status_change_events
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| service_name | TEXT | NOT NULL | |
+| dependency_name | TEXT | NOT NULL | |
+| previous_healthy | INTEGER | | NULL |
+| current_healthy | INTEGER | NOT NULL | |
+| recorded_at | TEXT | NOT NULL | `datetime('now')` |
+
+**Indexes:** `idx_status_change_events_time` on (recorded_at), `idx_status_change_events_service` on (service_id)
+
+Records dependency health status transitions detected during polling. `previous_healthy` is NULL for newly discovered dependencies. Used by the dashboard "Recent Activity" panel. Subject to data retention cleanup.
+
 ## Type Enumerations
 
 ```typescript
@@ -319,5 +336,6 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 016 | add_contact_column | Adds nullable `contact TEXT` column to dependencies for storing polled contact JSON |
 | 017 | add_instance_overrides | Adds nullable `contact_override TEXT` and `impact_override TEXT` columns to dependencies for user-managed per-instance overrides |
 | 018 | add_canonical_overrides | Creates `dependency_canonical_overrides` table keyed by `canonical_name` (unique) with `contact_override`, `impact_override`, and `updated_by` FK to users |
+| 019 | add_status_change_events | Creates `status_change_events` table for persisting dependency health transitions |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

@@ -516,7 +516,33 @@ Per-instance overrides set contact and/or impact for a specific dependency insta
 
 **Audit actions:** `dependency_override.updated`, `dependency_override.cleared` (resource type: `dependency`).
 
-## 4.14 Wallboard
+## 4.14 Activity
+
+**[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/activity/recent` | requireAuth | Recent status change events. Query: `limit` (optional, default 10, max 50). |
+
+**GET /api/activity/recent response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "service_id": "uuid",
+    "service_name": "Payment Service",
+    "dependency_name": "postgres-main",
+    "previous_healthy": true,
+    "current_healthy": false,
+    "recorded_at": "2024-06-01T12:00:00.000Z"
+  }
+]
+```
+
+`previous_healthy` is `null` for newly discovered dependencies. Events are sorted by `recorded_at` descending (most recent first). Subject to data retention cleanup.
+
+## 4.15 Wallboard
 
 **[Implemented]** (PRO-48, DPS-16c)
 

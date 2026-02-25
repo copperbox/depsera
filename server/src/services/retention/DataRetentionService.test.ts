@@ -5,6 +5,7 @@ const mockDeleteLatency = jest.fn().mockReturnValue(0);
 const mockDeleteError = jest.fn().mockReturnValue(0);
 const mockDeleteAudit = jest.fn().mockReturnValue(0);
 const mockDeleteAlertHistory = jest.fn().mockReturnValue(0);
+const mockDeleteStatusChange = jest.fn().mockReturnValue(0);
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -13,6 +14,7 @@ jest.mock('../../stores', () => ({
     errorHistory: { deleteOlderThan: mockDeleteError },
     auditLog: { deleteOlderThan: mockDeleteAudit },
     alertHistory: { deleteOlderThan: mockDeleteAlertHistory },
+    statusChangeEvents: { deleteOlderThan: mockDeleteStatusChange },
     settings: mockSettingsStore,
   }),
 }));
@@ -49,6 +51,7 @@ describe('DataRetentionService', () => {
     mockDeleteError.mockReturnValue(0);
     mockDeleteAudit.mockReturnValue(0);
     mockDeleteAlertHistory.mockReturnValue(0);
+    mockDeleteStatusChange.mockReturnValue(0);
 
     // Default settings
     mockGet.mockImplementation((key) => {
@@ -119,6 +122,7 @@ describe('DataRetentionService', () => {
       mockDeleteError.mockReturnValue(50);
       mockDeleteAudit.mockReturnValue(25);
       mockDeleteAlertHistory.mockReturnValue(10);
+      mockDeleteStatusChange.mockReturnValue(5);
 
       const service = DataRetentionService.getInstance();
       const result = service.runCleanup();
@@ -127,6 +131,7 @@ describe('DataRetentionService', () => {
       expect(result.errorDeleted).toBe(50);
       expect(result.auditDeleted).toBe(25);
       expect(result.alertHistoryDeleted).toBe(10);
+      expect(result.statusChangeDeleted).toBe(5);
       expect(result.retentionDays).toBe(365);
     });
 
@@ -162,6 +167,7 @@ describe('DataRetentionService', () => {
       expect(mockDeleteError).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
       expect(mockDeleteAudit).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
       expect(mockDeleteAlertHistory).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+      expect(mockDeleteStatusChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
     });
 
     it('should log the cleanup result', () => {
@@ -179,6 +185,7 @@ describe('DataRetentionService', () => {
           errorDeleted: 5,
           auditDeleted: 2,
           alertHistoryDeleted: 1,
+          statusChangeDeleted: 0,
           retentionDays: 365,
         }),
         'data retention cleanup completed',
@@ -190,6 +197,7 @@ describe('DataRetentionService', () => {
       mockDeleteError.mockReturnValue(0);
       mockDeleteAudit.mockReturnValue(0);
       mockDeleteAlertHistory.mockReturnValue(0);
+      mockDeleteStatusChange.mockReturnValue(0);
 
       const service = DataRetentionService.getInstance();
       const result = service.runCleanup();
@@ -198,6 +206,7 @@ describe('DataRetentionService', () => {
       expect(result.errorDeleted).toBe(0);
       expect(result.auditDeleted).toBe(0);
       expect(result.alertHistoryDeleted).toBe(0);
+      expect(result.statusChangeDeleted).toBe(0);
     });
 
     it('should set lastRunDate after cleanup', () => {

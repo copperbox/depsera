@@ -17,6 +17,7 @@ import * as migration015 from './migrations/015_relax_dependency_type';
 import * as migration016 from './migrations/016_add_contact_column';
 import * as migration017 from './migrations/017_add_instance_overrides';
 import * as migration018 from './migrations/018_add_canonical_overrides';
+import * as migration019 from './migrations/019_add_status_change_events';
 
 interface Migration {
   id: string;
@@ -133,6 +134,12 @@ const migrations: Migration[] = [
     name: 'add_canonical_overrides',
     up: migration018.up,
     down: migration018.down
+  },
+  {
+    id: '019',
+    name: 'add_status_change_events',
+    up: migration019.up,
+    down: migration019.down
   }
 ];
 
