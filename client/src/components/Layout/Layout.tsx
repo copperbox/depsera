@@ -46,7 +46,9 @@ function Layout() {
           >
             <span className={styles.menuIcon} />
           </button>
-          <h1 className={styles.title}>Depsera</h1>
+          <img src="/depsera-sphere.svg" alt="" className={styles.logo} />
+          <img src="/depsera-title-thin.svg" alt="Depsera" className={styles.titleImage} />
+          {/* <h1 className={styles.title}>Depsera</h1> */}
         </div>
         <div className={styles.headerRight}>
           <span className={styles.userName}>{user?.name}</span>
