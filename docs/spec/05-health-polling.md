@@ -125,6 +125,7 @@ When a poll succeeds, the health endpoint response is parsed (proactive-deps for
 4. **Error history:** Deduplication logic — only records if the error state changed:
    - Healthy → only record if previous entry was an error (records recovery with null error)
    - Unhealthy → only record if no previous entry, previous was recovery, or error JSON changed
+   - When a dependency is unhealthy but provides no `error` object (common for external deps and schema-mapped services), a synthetic marker (`{"unhealthy":true}`) is used as the error value with a default `"Unhealthy"` error message. This ensures timeline events are always recorded for unhealthy transitions. If an `errorMessage` is provided without an `error` object, the original message is preserved.
 5. **Latency history:** Records data point if `latency_ms > 0`
 6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
 

@@ -159,6 +159,17 @@ export class SchemaMapper {
       ? contactRaw as Record<string, unknown>
       : undefined;
 
+    // Extract optional error fields
+    const errorRaw = fields.error
+      ? resolveFieldPath(item, fields.error)
+      : undefined;
+    const error = errorRaw !== undefined ? errorRaw : undefined;
+
+    const errorMessageRaw = fields.errorMessage
+      ? this.resolveMapping(item, fields.errorMessage)
+      : undefined;
+    const errorMessage = typeof errorMessageRaw === 'string' ? errorMessageRaw : undefined;
+
     return {
       name: name.trim(),
       description,
@@ -173,6 +184,8 @@ export class SchemaMapper {
       lastChecked: new Date().toISOString(),
       ...(checkDetails !== undefined && { checkDetails }),
       ...(contact !== undefined && { contact }),
+      ...(error !== undefined && { error }),
+      ...(errorMessage !== undefined && { errorMessage }),
     };
   }
 

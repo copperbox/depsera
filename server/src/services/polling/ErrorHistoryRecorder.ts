@@ -37,8 +37,12 @@ export class ErrorHistoryRecorder {
 
     if (isHealthy) {
       this.handleRecovery(dependencyId, lastEntry, timestamp);
-    } else if (errorJson !== null) {
-      this.handleError(dependencyId, lastEntry, errorJson, errorMessage, timestamp);
+    } else {
+      // When unhealthy but no error details provided, use a synthetic marker
+      // to distinguish from recovery entries (which use null for both fields)
+      const effectiveError = errorJson ?? '{"unhealthy":true}';
+      const effectiveMessage = errorMessage ?? 'Unhealthy';
+      this.handleError(dependencyId, lastEntry, effectiveError, effectiveMessage, timestamp);
     }
   }
 
