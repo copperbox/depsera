@@ -130,4 +130,81 @@ describe('SchemaConfigEditor', () => {
     const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
     expect(lastCall.fields.contact).toBeUndefined();
   });
+
+  it('shows error and error message fields in custom mode', () => {
+    render(<SchemaConfigEditor {...defaultProps} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    expect(screen.getByLabelText(/Error field/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Error message field/)).toBeInTheDocument();
+  });
+
+  it('renders error field input that updates state', () => {
+    const onChange = jest.fn();
+    render(<SchemaConfigEditor {...defaultProps} onChange={onChange} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    const errorInput = screen.getByLabelText(/Error field/);
+    expect(errorInput).toHaveValue('');
+
+    fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
+    fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
+    fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'ok' } });
+
+    fireEvent.change(errorInput, { target: { value: 'err' } });
+
+    expect(errorInput).toHaveValue('err');
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
+    expect(lastCall.fields.error).toBe('err');
+  });
+
+  it('renders error message field input that updates state', () => {
+    const onChange = jest.fn();
+    render(<SchemaConfigEditor {...defaultProps} onChange={onChange} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    const errorMsgInput = screen.getByLabelText(/Error message field/);
+    expect(errorMsgInput).toHaveValue('');
+
+    fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
+    fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
+    fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'ok' } });
+
+    fireEvent.change(errorMsgInput, { target: { value: 'failureReason' } });
+
+    expect(errorMsgInput).toHaveValue('failureReason');
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
+    expect(lastCall.fields.errorMessage).toBe('failureReason');
+  });
+
+  it('populates error fields from existing schema value', () => {
+    const schema: SchemaMapping = {
+      root: 'checks',
+      fields: {
+        name: 'name',
+        healthy: 'ok',
+        error: 'err',
+        errorMessage: 'errMsg',
+      },
+    };
+
+    render(<SchemaConfigEditor {...defaultProps} value={schema} />);
+
+    expect(screen.getByLabelText(/Error field/)).toHaveValue('err');
+    expect(screen.getByLabelText(/Error message field/)).toHaveValue('errMsg');
+  });
+
+  it('does not include error fields in schema when empty', () => {
+    const onChange = jest.fn();
+    render(<SchemaConfigEditor {...defaultProps} onChange={onChange} />);
+    fireEvent.click(screen.getByText('Custom schema'));
+
+    fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
+    fireEvent.change(screen.getByLabelText(/Name field/), { target: { value: 'name' } });
+    fireEvent.change(screen.getByLabelText(/Healthy field/), { target: { value: 'ok' } });
+
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0] as SchemaMapping;
+    expect(lastCall.fields.error).toBeUndefined();
+    expect(lastCall.fields.errorMessage).toBeUndefined();
+  });
 });

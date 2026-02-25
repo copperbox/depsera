@@ -29,6 +29,8 @@ interface GuidedFormState {
   typeField: string;
   checkDetailsField: string;
   contactField: string;
+  errorField: string;
+  errorMessageField: string;
 }
 
 interface FormErrors {
@@ -56,6 +58,8 @@ function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
     typeField: mapping.fields.type ? (typeof mapping.fields.type === 'string' ? mapping.fields.type : mapping.fields.type.field) : '',
     checkDetailsField: mapping.fields.checkDetails || '',
     contactField: mapping.fields.contact || '',
+    errorField: mapping.fields.error || '',
+    errorMessageField: mapping.fields.errorMessage || '',
   };
 }
 
@@ -90,6 +94,12 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
   if (state.contactField.trim()) {
     mapping.fields.contact = state.contactField;
   }
+  if (state.errorField.trim()) {
+    mapping.fields.error = state.errorField;
+  }
+  if (state.errorMessageField.trim()) {
+    mapping.fields.errorMessage = state.errorMessageField;
+  }
 
   return mapping;
 }
@@ -106,6 +116,8 @@ const emptyFormState: GuidedFormState = {
   typeField: '',
   checkDetailsField: '',
   contactField: '',
+  errorField: '',
+  errorMessageField: '',
 };
 
 function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: SchemaConfigEditorProps) {
@@ -410,6 +422,39 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                     disabled={disabled}
                   />
                   <span className={styles.hint}>Path to a contact info object (e.g., team email, Slack channel)</span>
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <div className={styles.field}>
+                  <label htmlFor="schema-error" className={styles.label}>
+                    Error field
+                  </label>
+                  <input
+                    id="schema-error"
+                    type="text"
+                    value={formState.errorField}
+                    onChange={(e) => handleFieldChange('errorField', e.target.value)}
+                    className={styles.input}
+                    placeholder="error"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>Path to the error value (used for event history timeline)</span>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="schema-errorMessage" className={styles.label}>
+                    Error message field
+                  </label>
+                  <input
+                    id="schema-errorMessage"
+                    type="text"
+                    value={formState.errorMessageField}
+                    onChange={(e) => handleFieldChange('errorMessageField', e.target.value)}
+                    className={styles.input}
+                    placeholder="errorMessage"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>Path to a human-readable error message</span>
                 </div>
               </div>
             </div>
