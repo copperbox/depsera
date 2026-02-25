@@ -36,10 +36,10 @@ All configuration is via environment variables on the server (set in `server/.en
 
 | Variable | Default | Description |
 |---|---|---|
-| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Global rate limit window |
-| `RATE_LIMIT_MAX` | `100` | Max requests per IP per global window |
+| `RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Global rate limit window |
+| `RATE_LIMIT_MAX` | `3000` | Max requests per IP per global window |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Auth endpoint rate limit window |
-| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per window |
+| `AUTH_RATE_LIMIT_MAX` | `20` | Max auth requests per IP per window |
 
 ## 11.5 Polling
 

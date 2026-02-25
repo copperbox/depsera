@@ -488,7 +488,9 @@ describe('Admin guide documentation', () => {
       const match = rateLimitMiddleware.match(/RATE_LIMIT_MAX.*'(\d+)'/);
       expect(match).not.toBeNull();
       const codeDefault = match![1];
-      expect(adminGuide).toContain(codeDefault);
+      // Doc may format with commas (e.g. 3000 → 3,000)
+      const formatted = Number(codeDefault).toLocaleString('en-US');
+      expect(adminGuide).toContain(formatted);
     });
 
     it('auth rate limit default matches code', () => {

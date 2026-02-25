@@ -11,12 +11,12 @@ export function parseRateLimitConfig(): {
 } {
   return {
     global: {
-      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
-      max: parseInt(process.env.RATE_LIMIT_MAX || '300', 10),
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
+      max: parseInt(process.env.RATE_LIMIT_MAX || '3000', 10),
     },
     auth: {
       windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '60000', 10),
-      max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10),
+      max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '20', 10),
     },
   };
 }

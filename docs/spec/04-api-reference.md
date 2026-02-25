@@ -12,7 +12,7 @@ All endpoints are prefixed with `/api`. All responses are JSON. All mutating req
 
 ## 4.2 Authentication
 
-Rate limited: 10 requests/minute per IP.
+Rate limited: 20 requests/minute per IP.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|

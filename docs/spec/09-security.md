@@ -23,8 +23,8 @@ When `REQUIRE_HTTPS=true`:
 
 | Limiter | Window | Max Requests | Scope |
 |---|---|---|---|
-| Global | 15 minutes | 100 per IP | All requests (applied before session middleware) |
-| Auth | 1 minute | 10 per IP | `/api/auth` endpoints only |
+| Global | 1 minute | 3,000 per IP | All requests (applied before session middleware) |
+| Auth | 1 minute | 20 per IP | `/api/auth` endpoints only |
 
 Returns `429 Too Many Requests` with `RateLimit-*` and `Retry-After` headers.
 

@@ -389,10 +389,10 @@ The first user to authenticate (OIDC) or the user created from `ADMIN_EMAIL`/`AD
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RATE_LIMIT_WINDOW_MS` | `900000` (15 min) | Global rate limit window in milliseconds |
-| `RATE_LIMIT_MAX` | `100` | Max requests per IP per global window |
+| `RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Global rate limit window in milliseconds |
+| `RATE_LIMIT_MAX` | `3000` | Max requests per IP per global window |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Auth endpoint (`/api/auth`) rate limit window in milliseconds |
-| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per auth window |
+| `AUTH_RATE_LIMIT_MAX` | `20` | Max auth requests per IP per auth window |
 
 The global rate limiter runs before session middleware to reject abusive requests early. Rate-limited responses return `429 Too Many Requests` with `Retry-After` header.
 
@@ -436,9 +436,9 @@ The following settings can be changed at runtime via the Admin Settings page (`/
 | `retention_cleanup_time` | `02:00` | Daily cleanup schedule (HH:MM) |
 | `default_poll_interval_ms` | 30000 | Default poll interval for new services (ms) |
 | `ssrf_allowlist` | from env var | SSRF allowlist (overrides env var at runtime) |
-| `global_rate_limit` | 100 | Global API rate limit (requests per window) |
-| `global_rate_limit_window_minutes` | 15 | Global rate limit window (minutes) |
-| `auth_rate_limit` | 10 | Auth endpoint rate limit (requests per window) |
+| `global_rate_limit` | 3000 | Global API rate limit (requests per window) |
+| `global_rate_limit_window_minutes` | 1 | Global rate limit window (minutes) |
+| `auth_rate_limit` | 20 | Auth endpoint rate limit (requests per window) |
 | `auth_rate_limit_window_minutes` | 1 | Auth rate limit window (minutes) |
 | `alert_cooldown_minutes` | 5 | Alert flap protection cooldown (minutes) |
 | `alert_rate_limit_per_hour` | 30 | Max alerts per team per hour |
