@@ -487,8 +487,7 @@ describe('ServiceAssociations', () => {
       { id: 'new-alias', alias: 'Database', canonical_name: 'Primary DB', created_at: '2025-01-01' },
     ]);
 
-    const onAliasChange = jest.fn();
-    render(<ServiceAssociations serviceId="svc-1" dependencies={deps} onAliasChange={onAliasChange} />);
+    render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
     await waitFor(() => expect(screen.getByText('+ Alias')).toBeInTheDocument());
 
     fireEvent.click(screen.getByText('+ Alias'));
@@ -496,7 +495,6 @@ describe('ServiceAssociations', () => {
     fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => expect(mockCreateAlias).toHaveBeenCalledWith({ alias: 'Database', canonical_name: 'Primary DB' }));
-    await waitFor(() => expect(onAliasChange).toHaveBeenCalled());
   });
 
   it('updates alias on save when alias exists', async () => {
@@ -560,8 +558,7 @@ describe('ServiceAssociations', () => {
     ]);
     mockDeleteAlias.mockResolvedValue(undefined);
 
-    const onAliasChange = jest.fn();
-    render(<ServiceAssociations serviceId="svc-1" dependencies={deps} onAliasChange={onAliasChange} />);
+    render(<ServiceAssociations serviceId="svc-1" dependencies={deps} />);
     await waitFor(() => expect(screen.getByText('Edit Alias')).toBeInTheDocument());
 
     // Open editor then click Remove

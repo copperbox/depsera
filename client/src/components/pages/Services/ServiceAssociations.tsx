@@ -15,10 +15,9 @@ import styles from './ServiceAssociations.module.css';
 interface ServiceAssociationsProps {
   serviceId: string;
   dependencies: Dependency[];
-  onAliasChange?: () => void;
 }
 
-function ServiceAssociations({ serviceId, dependencies, onAliasChange }: ServiceAssociationsProps) {
+function ServiceAssociations({ serviceId, dependencies }: ServiceAssociationsProps) {
   const { isAdmin } = useAuth();
   const [selectedDepId, setSelectedDepId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -157,7 +156,6 @@ function ServiceAssociations({ serviceId, dependencies, onAliasChange }: Service
       }
       setEditingAliasDep(null);
       setAliasInput('');
-      onAliasChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save alias');
     } finally {
@@ -172,7 +170,6 @@ function ServiceAssociations({ serviceId, dependencies, onAliasChange }: Service
     setError(null);
     try {
       await removeAlias(existing.id);
-      onAliasChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to remove alias');
     } finally {
