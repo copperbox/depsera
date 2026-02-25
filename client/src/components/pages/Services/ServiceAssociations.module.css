@@ -81,10 +81,28 @@
   padding: 0.75rem 1rem;
 }
 
+.depNameGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .depName {
   font-weight: 500;
   font-size: 0.875rem;
   color: var(--color-text-primary);
+}
+
+.aliasBadge {
+  display: inline-block;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  background-color: var(--color-accent-bg, rgba(59, 130, 246, 0.08));
+  color: var(--color-accent);
+  white-space: nowrap;
 }
 
 .depActions {
@@ -92,6 +110,7 @@
   gap: 0.5rem;
 }
 
+.aliasButton,
 .viewButton,
 .addButton {
   padding: 0.25rem 0.5rem;
@@ -100,6 +119,18 @@
   border-radius: 0.25rem;
   cursor: pointer;
   transition: background-color 0.15s;
+}
+
+.aliasButton {
+  color: var(--color-text-muted);
+  background: none;
+  border: 1px solid var(--color-border);
+}
+
+.aliasButton:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-input);
+  background-color: var(--color-bg-hover);
 }
 
 .viewButton {
@@ -233,4 +264,88 @@
   text-align: center;
   color: var(--color-text-muted);
   font-size: 0.8125rem;
+}
+
+.aliasEditRow {
+  border-top: 1px solid var(--color-border);
+  padding: 0.625rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--color-bg-hover);
+}
+
+.aliasEditLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.aliasEditInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1;
+}
+
+.aliasEditInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.25rem;
+  background-color: var(--color-bg-card);
+  color: var(--color-text-primary);
+}
+
+.aliasEditInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.aliasEditSave {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 0.25rem;
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.aliasEditSave:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.aliasEditSave:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aliasEditRemove {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--color-error-border, var(--color-error));
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--color-error);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.aliasEditRemove:hover:not(:disabled) {
+  background-color: rgba(220, 53, 69, 0.08);
+}
+
+.aliasEditRemove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

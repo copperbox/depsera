@@ -521,7 +521,7 @@ function ServiceDetail() {
         </div>
       )}
 
-      <ServiceAssociations serviceId={service.id} dependencies={service.dependencies} />
+      <ServiceAssociations serviceId={service.id} dependencies={service.dependencies} onAliasChange={loadService} />
 
       {service.dependencies.length > 0 && (
         <>

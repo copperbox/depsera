@@ -263,7 +263,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | Route | Description |
 |-------|-------------|
 | `/` | Dashboard — health distribution, services with issues, team health summaries |
-| `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, and manual poll |
+| `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
 | `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
