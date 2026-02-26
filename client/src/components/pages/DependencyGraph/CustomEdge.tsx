@@ -233,8 +233,12 @@ function CustomEdgeComponent({
   const packetGroupRef = useRef<SVGGElement>(null);
   const motionPathRef = useRef<SVGPathElement>(null);
 
+  // Coarse visibility flag — only restart animation when crossing the threshold,
+  // not on every opacity change (e.g. hover dimming from 1 → 0.3 → 1)
+  const isVisible = opacity >= 0.5;
+
   useEffect(() => {
-    if (opacity < 0.5) return;
+    if (!isVisible) return;
     const group = packetGroupRef.current;
     const path = motionPathRef.current;
     if (!group || !path) return;
@@ -250,6 +254,7 @@ function CustomEdgeComponent({
     function animatePacket() {
       if (cancelled) return;
 
+      // Read path geometry from the DOM element (React keeps its `d` attr updated)
       const totalLength = path!.getTotalLength();
       const duration = 3000;
       const startTime = performance.now();
@@ -286,7 +291,10 @@ function CustomEdgeComponent({
       cancelAnimationFrame(animFrameId);
       clearTimeout(timeoutId);
     };
-  }, [edgePath, id, opacity]);
+    // Only restart when visibility toggles or the edge identity changes.
+    // Path geometry updates are picked up automatically from the DOM element.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isVisible]);
 
   return (
     <>
