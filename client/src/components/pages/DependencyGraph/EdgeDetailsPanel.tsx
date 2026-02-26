@@ -69,7 +69,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
       <div className={styles.panel}>
         <ErrorHistoryPanel
           dependencyId={data.dependencyId}
-          dependencyName={data.dependencyName || 'Unknown'}
+          dependencyName={data.canonicalName || data.dependencyName || 'Unknown'}
           onBack={() => setCurrentView('details')}
         />
       </div>
@@ -80,7 +80,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3 className={styles.title}>{data.dependencyName || 'Connection'}</h3>
+        <h3 className={styles.title}>{data.canonicalName || data.dependencyName || 'Connection'}</h3>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 5L5 15M5 5l10 10" />

@@ -432,6 +432,23 @@ describe('EdgeDetailsPanel', () => {
     expect(screen.queryByText('View Service Details')).not.toBeInTheDocument();
   });
 
+  it('displays canonical name over dependency name when present', async () => {
+    const dataWithCanonical = { ...mockEdgeData, canonicalName: 'PostgreSQL' };
+
+    renderPanel('e1', dataWithCanonical);
+
+    expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
+    expect(screen.queryByText('Database Connection')).not.toBeInTheDocument();
+  });
+
+  it('falls back to dependency name when canonical name is null', async () => {
+    const dataWithNullCanonical = { ...mockEdgeData, canonicalName: null };
+
+    renderPanel('e1', dataWithNullCanonical);
+
+    expect(screen.getByText('Database Connection')).toBeInTheDocument();
+  });
+
   it('falls back to Connection when no dependency name', async () => {
     const noNameData = { ...mockEdgeData, dependencyName: undefined };
 

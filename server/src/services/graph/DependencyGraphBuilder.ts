@@ -193,7 +193,8 @@ export class DependencyGraphBuilder {
     return {
       relationship: 'depends_on',
       dependencyType: dep.type,
-      dependencyName: dep.canonical_name ?? dep.name,
+      dependencyName: dep.name,
+      canonicalName: dep.canonical_name ?? null,
       dependencyId: dep.id,
       healthy: dep.healthy === null ? null : dep.healthy === 1,
       latencyMs: dep.latency_ms,

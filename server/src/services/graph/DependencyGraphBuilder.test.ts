@@ -287,7 +287,7 @@ describe('DependencyGraphBuilder', () => {
       expect(parsed.email).toBe('instance@example.com');
     });
 
-    it('should use canonical_name for dependencyName when available', () => {
+    it('should send canonicalName and raw dependencyName separately', () => {
       const service1 = createService('svc-1', 'User Service');
       const service2 = createService('svc-2', 'Order Service');
       const dep = createDependency('svc-1', 'svc-2');
@@ -299,10 +299,11 @@ describe('DependencyGraphBuilder', () => {
       builder.addEdge(dep);
       const graph = builder.build();
 
-      expect(graph.edges[0].data.dependencyName).toBe('PostgreSQL');
+      expect(graph.edges[0].data.canonicalName).toBe('PostgreSQL');
+      expect(graph.edges[0].data.dependencyName).toBe('postgres-primary');
     });
 
-    it('should fall back to name when canonical_name is null', () => {
+    it('should set canonicalName to null when canonical_name is null', () => {
       const service1 = createService('svc-1', 'User Service');
       const service2 = createService('svc-2', 'Order Service');
       const dep = createDependency('svc-1', 'svc-2');
@@ -314,6 +315,7 @@ describe('DependencyGraphBuilder', () => {
       builder.addEdge(dep);
       const graph = builder.build();
 
+      expect(graph.edges[0].data.canonicalName).toBeNull();
       expect(graph.edges[0].data.dependencyName).toBe('redis-cache');
     });
   });

@@ -36,6 +36,7 @@ export interface GraphEdgeData {
   relationship: 'depends_on';
   dependencyType?: DependencyType;
   dependencyName?: string;
+  canonicalName?: string | null;
   dependencyId?: string;
   healthy?: boolean | null;
   latencyMs?: number | null;
