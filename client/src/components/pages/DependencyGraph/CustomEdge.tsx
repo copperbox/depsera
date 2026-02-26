@@ -24,6 +24,31 @@ function hashCode(str: string): number {
   return Math.abs(hash);
 }
 
+/**
+ * Module-level animation state — persists across React re-renders and remounts
+ * so that data-refresh cycles never reset in-flight packets.
+ */
+interface PacketPhase {
+  kind: 'waiting' | 'traveling';
+  startTime: number; // performance.now() when this phase began
+  waitDuration: number; // only used in 'waiting' phase
+}
+
+const packetPhases = new Map<string, PacketPhase>();
+
+function getOrInitPhase(id: string): PacketPhase {
+  let phase = packetPhases.get(id);
+  if (!phase) {
+    phase = {
+      kind: 'waiting',
+      startTime: performance.now(),
+      waitDuration: hashCode(id) % 13000,
+    };
+    packetPhases.set(id, phase);
+  }
+  return phase;
+}
+
 /* istanbul ignore next -- @preserve
    formatLatency is a utility function used exclusively by CustomEdgeComponent which
    requires ReactFlow context. Testing would require mocking ReactFlow's internal
@@ -233,8 +258,6 @@ function CustomEdgeComponent({
   const packetGroupRef = useRef<SVGGElement>(null);
   const motionPathRef = useRef<SVGPathElement>(null);
 
-  // Coarse visibility flag — only restart animation when crossing the threshold,
-  // not on every opacity change (e.g. hover dimming from 1 → 0.3 → 1)
   const isVisible = opacity >= 0.5;
 
   useEffect(() => {
@@ -244,25 +267,25 @@ function CustomEdgeComponent({
     if (!group || !path) return;
 
     let animFrameId: number;
-    let timeoutId: ReturnType<typeof setTimeout>;
     let cancelled = false;
 
-    // Spread initial delays across the full cycle (~3s travel + ~10s avg gap = ~13s)
-    // so packets are always staggered across the graph
-    const initialDelay = hashCode(id) % 13000;
+    const phase = getOrInitPhase(id);
+    const travelDuration = 3000;
 
-    function animatePacket() {
+    function tick(now: number) {
       if (cancelled) return;
 
-      // Read path geometry from the DOM element (React keeps its `d` attr updated)
-      const totalLength = path!.getTotalLength();
-      const duration = 3000;
-      const startTime = performance.now();
+      const elapsed = now - phase.startTime;
 
-      function step(now: number) {
-        if (cancelled) return;
-        const elapsed = now - startTime;
-        const t = Math.min(elapsed / duration, 1);
+      if (phase.kind === 'waiting') {
+        group!.setAttribute('opacity', '0');
+        if (elapsed >= phase.waitDuration) {
+          phase.kind = 'traveling';
+          phase.startTime = now;
+        }
+      } else {
+        const totalLength = path!.getTotalLength();
+        const t = Math.min(elapsed / travelDuration, 1);
         const point = path!.getPointAtLength(t * totalLength);
 
         group!.setAttribute('transform', `translate(${point.x}, ${point.y})`);
@@ -272,27 +295,24 @@ function CustomEdgeComponent({
         else if (t > 0.88) alpha = (1 - t) / 0.12;
         group!.setAttribute('opacity', String(alpha));
 
-        if (t < 1) {
-          animFrameId = requestAnimationFrame(step);
-        } else {
+        if (t >= 1) {
           group!.setAttribute('opacity', '0');
-          const delay = 6000 + Math.random() * 8000;
-          timeoutId = setTimeout(animatePacket, delay);
+          phase.kind = 'waiting';
+          phase.startTime = now;
+          phase.waitDuration = 6000 + Math.random() * 8000;
         }
       }
 
-      animFrameId = requestAnimationFrame(step);
+      animFrameId = requestAnimationFrame(tick);
     }
 
-    timeoutId = setTimeout(animatePacket, initialDelay);
+    animFrameId = requestAnimationFrame(tick);
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(animFrameId);
-      clearTimeout(timeoutId);
+      // Phase state intentionally NOT deleted — survives remount
     };
-    // Only restart when visibility toggles or the edge identity changes.
-    // Path geometry updates are picked up automatically from the DOM element.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isVisible]);
 
