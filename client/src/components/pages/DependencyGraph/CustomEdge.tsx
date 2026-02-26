@@ -243,7 +243,9 @@ function CustomEdgeComponent({
     let timeoutId: ReturnType<typeof setTimeout>;
     let cancelled = false;
 
-    const initialDelay = hashCode(id) % 3000;
+    // Spread initial delays across the full cycle (~3s travel + ~10s avg gap = ~13s)
+    // so packets are always staggered across the graph
+    const initialDelay = hashCode(id) % 13000;
 
     function animatePacket() {
       if (cancelled) return;
