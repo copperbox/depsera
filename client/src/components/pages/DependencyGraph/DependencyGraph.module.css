@@ -621,36 +621,6 @@
   display: block;
 }
 
-/* Edge pulse animation — glowing pulse flows along the edge */
-@keyframes edgePulseFlow {
-  0% {
-    stroke-dashoffset: 5;
-    opacity: 0;
-  }
-  2% {
-    opacity: 0.9;
-  }
-  18% {
-    opacity: 0.9;
-  }
-  20% {
-    stroke-dashoffset: -100;
-    opacity: 0;
-  }
-  100% {
-    stroke-dashoffset: -100;
-    opacity: 0;
-  }
-}
-
-.edgePulse {
-  stroke-dasharray: 5 95;
-  stroke-dashoffset: 5;
-  pointer-events: none;
-  filter: url(#pulse-glow);
-  animation: edgePulseFlow 4s ease-in-out infinite;
-}
-
 /* High Latency Edge Animation */
 @keyframes pulseLatency {
   0%, 100% {

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useRef, useEffect } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -224,12 +224,67 @@ function CustomEdgeComponent({
     }
   }
 
-  const pulseColor = isHighLatency
+  const packetColor = isHighLatency
     ? 'var(--color-warning)'
     : isHealthy
       ? 'var(--color-success)'
       : 'var(--color-error)';
-  const pulseDelay = (hashCode(id) % 4000) / 1000;
+
+  const packetGroupRef = useRef<SVGGElement>(null);
+  const motionPathRef = useRef<SVGPathElement>(null);
+
+  useEffect(() => {
+    if (opacity < 0.5) return;
+    const group = packetGroupRef.current;
+    const path = motionPathRef.current;
+    if (!group || !path) return;
+
+    let animFrameId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
+
+    const initialDelay = hashCode(id) % 3000;
+
+    function animatePacket() {
+      if (cancelled) return;
+
+      const totalLength = path!.getTotalLength();
+      const duration = 1200;
+      const startTime = performance.now();
+
+      function step(now: number) {
+        if (cancelled) return;
+        const elapsed = now - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const point = path!.getPointAtLength(t * totalLength);
+
+        group!.setAttribute('transform', `translate(${point.x}, ${point.y})`);
+
+        let alpha = 1;
+        if (t < 0.08) alpha = t / 0.08;
+        else if (t > 0.88) alpha = (1 - t) / 0.12;
+        group!.setAttribute('opacity', String(alpha));
+
+        if (t < 1) {
+          animFrameId = requestAnimationFrame(step);
+        } else {
+          group!.setAttribute('opacity', '0');
+          const delay = 2000 + Math.random() * 3000;
+          timeoutId = setTimeout(animatePacket, delay);
+        }
+      }
+
+      animFrameId = requestAnimationFrame(step);
+    }
+
+    timeoutId = setTimeout(animatePacket, initialDelay);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animFrameId);
+      clearTimeout(timeoutId);
+    };
+  }, [edgePath, id, opacity]);
 
   return (
     <>
@@ -241,18 +296,13 @@ function CustomEdgeComponent({
         style={style}
       />
       {opacity >= 0.5 && (
-        <g style={{ opacity }}>
-          <path
-            d={edgePath}
-            pathLength={100}
-            stroke={pulseColor}
-            strokeWidth={3}
-            strokeLinecap="round"
-            fill="none"
-            className={styles.edgePulse}
-            style={{ animationDelay: `${pulseDelay}s` }}
-          />
-        </g>
+        <>
+          <path ref={motionPathRef} d={edgePath} fill="none" stroke="none" />
+          <g ref={packetGroupRef} opacity={0} style={{ pointerEvents: 'none' }}>
+            <circle r={4} fill={packetColor} filter="url(#packet-glow)" />
+            <circle r={2.5} fill="url(#packet-highlight)" />
+          </g>
+        </>
       )}
       {label && opacity >= 0.5 && (
         <EdgeLabelRenderer>
