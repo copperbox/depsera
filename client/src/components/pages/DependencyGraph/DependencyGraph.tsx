@@ -564,7 +564,7 @@ function DependencyGraphInner() {
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
                   </marker>
                   <filter id="packet-glow" x="-200%" y="-200%" width="500%" height="500%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
                     <feMerge>
                       <feMergeNode in="blur" />
                       <feMergeNode in="blur" />

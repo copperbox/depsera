@@ -249,7 +249,7 @@ function CustomEdgeComponent({
       if (cancelled) return;
 
       const totalLength = path!.getTotalLength();
-      const duration = 1200;
+      const duration = 3000;
       const startTime = performance.now();
 
       function step(now: number) {
@@ -269,7 +269,7 @@ function CustomEdgeComponent({
           animFrameId = requestAnimationFrame(step);
         } else {
           group!.setAttribute('opacity', '0');
-          const delay = 2000 + Math.random() * 3000;
+          const delay = 6000 + Math.random() * 8000;
           timeoutId = setTimeout(animatePacket, delay);
         }
       }
@@ -299,8 +299,8 @@ function CustomEdgeComponent({
         <>
           <path ref={motionPathRef} d={edgePath} fill="none" stroke="none" />
           <g ref={packetGroupRef} opacity={0} style={{ pointerEvents: 'none' }}>
-            <circle r={4} fill={packetColor} filter="url(#packet-glow)" />
-            <circle r={2.5} fill="url(#packet-highlight)" />
+            <circle r={6} fill={packetColor} filter="url(#packet-glow)" />
+            <circle r={4} fill="url(#packet-highlight)" />
           </g>
         </>
       )}
