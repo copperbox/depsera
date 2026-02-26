@@ -52,8 +52,8 @@ describe('TokenOverlapStrategy', () => {
   });
 
   it('should match with full token overlap', () => {
-    const dep = createDependency('user-api');
-    const service = createService('api-user');
+    const dep = createDependency('payment-gateway');
+    const service = createService('gateway-payment');
 
     const result = strategy.match(dep, service);
 
@@ -63,8 +63,8 @@ describe('TokenOverlapStrategy', () => {
   });
 
   it('should match with partial token overlap', () => {
-    const dep = createDependency('user-api-gateway');
-    const service = createService('user-service');
+    const dep = createDependency('user-payment-gateway');
+    const service = createService('user-payment-processor');
 
     const result = strategy.match(dep, service);
 
@@ -84,8 +84,8 @@ describe('TokenOverlapStrategy', () => {
   });
 
   it('should handle different token delimiters', () => {
-    const dep = createDependency('user.api.gateway');
-    const service = createService('user_api_service');
+    const dep = createDependency('user.payment.gateway');
+    const service = createService('user_payment_processor');
 
     const result = strategy.match(dep, service);
 
@@ -94,8 +94,8 @@ describe('TokenOverlapStrategy', () => {
   });
 
   it('should be case insensitive', () => {
-    const dep = createDependency('USER-API');
-    const service = createService('user-api');
+    const dep = createDependency('USER-PAYMENT');
+    const service = createService('user-payment');
 
     const result = strategy.match(dep, service);
 
@@ -105,10 +105,70 @@ describe('TokenOverlapStrategy', () => {
 
   it('should infer association type from dependency name', () => {
     const dep = createDependency('order-queue-processor');
-    const service = createService('order-handler');
+    const service = createService('order-queue-handler');
 
     const result = strategy.match(dep, service);
 
     expect(result?.associationType).toBe('message_queue');
+  });
+
+  describe('stop word filtering', () => {
+    it('should not match when only shared token is a stop word like "api"', () => {
+      const dep = createDependency('eComm GraphQL API');
+      const service = createService('Payment API');
+
+      const result = strategy.match(dep, service);
+
+      expect(result).toBeNull();
+    });
+
+    it('should not match when only shared token is "service"', () => {
+      const dep = createDependency('order-service');
+      const service = createService('user-service');
+
+      const result = strategy.match(dep, service);
+
+      expect(result).toBeNull();
+    });
+
+    it('should match when meaningful tokens overlap despite stop words', () => {
+      const dep = createDependency('ecomm-payment-api');
+      const service = createService('ecomm-payment-service');
+
+      const result = strategy.match(dep, service);
+
+      expect(result).not.toBeNull();
+      expect(result?.score).toBe(90); // "ecomm" and "payment" both match
+    });
+
+    it('should not match when all tokens are stop words', () => {
+      const dep = createDependency('api-service');
+      const service = createService('service-api');
+
+      const result = strategy.match(dep, service);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('minimum overlap count', () => {
+    it('should not match with only one meaningful overlapping token', () => {
+      const dep = createDependency('order-gateway');
+      const service = createService('order-processor');
+
+      const result = strategy.match(dep, service);
+
+      // Only "order" overlaps — below minimum of 2
+      expect(result).toBeNull();
+    });
+
+    it('should match with two meaningful overlapping tokens', () => {
+      const dep = createDependency('order-payment-gateway');
+      const service = createService('order-payment-processor');
+
+      const result = strategy.match(dep, service);
+
+      expect(result).not.toBeNull();
+    });
   });
 });

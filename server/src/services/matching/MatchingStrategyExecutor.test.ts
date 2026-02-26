@@ -83,16 +83,16 @@ describe('MatchingStrategyExecutor', () => {
     it('should return highest scoring match', () => {
       // 'user' vs 'user-service':
       // - ContainsMatch: 80 (serviceName contains depName)
-      // - TokenOverlap: 90 (100% overlap since 'user' token is in 'user-service')
-      // TokenOverlap should win
+      // - TokenOverlap: skipped (only 1 meaningful overlapping token after stop-word filtering)
+      // ContainsMatch should win
       const dep = createDependency('user');
       const service = createService('svc-2', 'user-service');
 
       const result = executor.findBestMatch(dep, service);
 
       expect(result).not.toBeNull();
-      expect(result?.score).toBe(90);
-      expect(result?.reason).toContain('Token match');
+      expect(result?.score).toBe(80);
+      expect(result?.reason).toBe('Name contains match');
     });
   });
 
@@ -102,7 +102,7 @@ describe('MatchingStrategyExecutor', () => {
       const services = [
         createService('svc-2', 'order-service'),     // no match
         createService('svc-3', 'user-api'),          // exact match (100)
-        createService('svc-4', 'user-api-gateway'),  // contains match (80) or token overlap (90)
+        createService('svc-4', 'user-api-gateway'),  // contains match (80)
       ];
 
       const results = executor.findAllMatches(dep, services);
@@ -111,8 +111,8 @@ describe('MatchingStrategyExecutor', () => {
       expect(results[0].serviceId).toBe('svc-3');
       expect(results[0].result.score).toBe(100);
       expect(results[1].serviceId).toBe('svc-4');
-      // TokenOverlap scores 90 (100% overlap of 'user', 'api' tokens)
-      expect(results[1].result.score).toBe(90);
+      // ContainsMatch scores 80 (TokenOverlap filtered — only 1 meaningful token "user" overlaps)
+      expect(results[1].result.score).toBe(80);
     });
 
     it('should exclude services that own the dependency', () => {

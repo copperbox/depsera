@@ -3,6 +3,29 @@
  */
 
 /**
+ * Common words in service/dependency names that carry no discriminating signal.
+ * Filtered out during token matching to prevent false-positive associations.
+ */
+export const STOP_WORDS = new Set([
+  'api', 'apis',
+  'service', 'services',
+  'server', 'servers',
+  'client', 'clients',
+  'http', 'https',
+  'internal', 'external',
+  'the', 'and', 'for', 'of',
+]);
+
+/**
+ * Filter stop words from a list of tokens.
+ * @param tokens - Array of tokens to filter
+ * @returns Tokens with common non-discriminating words removed
+ */
+export function filterStopWords(tokens: string[]): string[] {
+  return tokens.filter(token => !STOP_WORDS.has(token));
+}
+
+/**
  * Extract hostname from a URL or URL-like string.
  * @param input - URL or string containing a hostname
  * @returns Lowercase hostname or null if not extractable
