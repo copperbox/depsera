@@ -3,14 +3,13 @@ import {
   transformGraphData,
   computeTopologyFingerprint,
   updateGraphDataOnly,
+  isHighLatency,
   NODE_WIDTH,
   NODE_HEIGHT,
   LAYOUT_DIRECTION_KEY,
   EDGE_STYLE_KEY,
-  LATENCY_THRESHOLD_KEY,
-  DEFAULT_LATENCY_THRESHOLD,
-  MIN_LATENCY_THRESHOLD,
-  MAX_LATENCY_THRESHOLD,
+  HIGH_LATENCY_FLOOR_MS,
+  HIGH_LATENCY_MULTIPLIER,
 } from './graphLayout';
 import type { AppNode, AppEdge } from './graphLayout';
 import type { GraphResponse } from './../types/graph';
@@ -35,12 +34,56 @@ describe('constants', () => {
   it('exports expected constants', () => {
     expect(NODE_WIDTH).toBe(180);
     expect(NODE_HEIGHT).toBe(100);
-    expect(DEFAULT_LATENCY_THRESHOLD).toBe(50);
-    expect(MIN_LATENCY_THRESHOLD).toBe(10);
-    expect(MAX_LATENCY_THRESHOLD).toBe(200);
+    expect(HIGH_LATENCY_FLOOR_MS).toBe(100);
+    expect(HIGH_LATENCY_MULTIPLIER).toBe(2);
     expect(LAYOUT_DIRECTION_KEY).toBe('graph-layout-direction');
     expect(EDGE_STYLE_KEY).toBe('graph-edge-style');
-    expect(LATENCY_THRESHOLD_KEY).toBe('graph-latency-threshold');
+  });
+});
+
+describe('isHighLatency', () => {
+  it('returns false when latencyMs is null or undefined', () => {
+    expect(isHighLatency(null, 50)).toBe(false);
+    expect(isHighLatency(undefined, 50)).toBe(false);
+  });
+
+  it('returns false when avgLatencyMs24h is null, undefined, or zero', () => {
+    expect(isHighLatency(200, null)).toBe(false);
+    expect(isHighLatency(200, undefined)).toBe(false);
+    expect(isHighLatency(200, 0)).toBe(false);
+  });
+
+  it('uses absolute floor for fast dependencies (2x avg < floor)', () => {
+    // avg=2ms, 2x=4ms, floor=100ms → threshold=100ms
+    expect(isHighLatency(99, 2)).toBe(false);
+    expect(isHighLatency(101, 2)).toBe(true);
+  });
+
+  it('uses absolute floor for moderate dependencies (2x avg < floor)', () => {
+    // avg=30ms, 2x=60ms, floor=100ms → threshold=100ms
+    expect(isHighLatency(99, 30)).toBe(false);
+    expect(isHighLatency(101, 30)).toBe(true);
+  });
+
+  it('uses 2x multiplier when 2x avg exceeds floor', () => {
+    // avg=80ms, 2x=160ms, floor=100ms → threshold=160ms
+    expect(isHighLatency(159, 80)).toBe(false);
+    expect(isHighLatency(161, 80)).toBe(true);
+  });
+
+  it('uses 2x multiplier for slow dependencies', () => {
+    // avg=500ms, 2x=1000ms, floor=100ms → threshold=1000ms
+    expect(isHighLatency(999, 500)).toBe(false);
+    expect(isHighLatency(1001, 500)).toBe(true);
+  });
+
+  it('returns false when latency equals the threshold exactly', () => {
+    // avg=100ms, 2x=200ms → threshold=200ms, latency=200ms is NOT high (must exceed)
+    expect(isHighLatency(200, 100)).toBe(false);
+  });
+
+  it('returns false for latencyMs of 0', () => {
+    expect(isHighLatency(0, 50)).toBe(false);
   });
 });
 

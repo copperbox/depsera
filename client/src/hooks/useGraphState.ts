@@ -7,10 +7,6 @@ import {
   type LayoutDirection,
   LAYOUT_DIRECTION_KEY,
   EDGE_STYLE_KEY,
-  LATENCY_THRESHOLD_KEY,
-  DEFAULT_LATENCY_THRESHOLD,
-  MIN_LATENCY_THRESHOLD,
-  MAX_LATENCY_THRESHOLD,
   transformGraphData,
   computeTopologyFingerprint,
   updateGraphDataOnly,
@@ -54,8 +50,6 @@ export interface UseGraphStateReturn {
   setLayoutDirection: (direction: LayoutDirection) => void;
   edgeStyle: EdgeStyle;
   setEdgeStyle: (style: EdgeStyle) => void;
-  latencyThreshold: number;
-  setLatencyThreshold: (threshold: number) => void;
 
   // Loading state
   isLoading: boolean;
@@ -97,17 +91,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const [edgeStyle, setEdgeStyleState] = useState<EdgeStyle>(() => {
     const stored = localStorage.getItem(EDGE_STYLE_KEY);
     return (stored === 'orthogonal' || stored === 'bezier') ? stored : 'orthogonal';
-  });
-
-  const [latencyThreshold, setLatencyThresholdState] = useState(() => {
-    const stored = localStorage.getItem(LATENCY_THRESHOLD_KEY);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_LATENCY_THRESHOLD && parsed <= MAX_LATENCY_THRESHOLD) {
-        return parsed;
-      }
-    }
-    return DEFAULT_LATENCY_THRESHOLD;
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -204,11 +187,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const setEdgeStyle = useCallback((style: EdgeStyle) => {
     setEdgeStyleState(style);
     localStorage.setItem(EDGE_STYLE_KEY, style);
-  }, []);
-
-  const setLatencyThreshold = useCallback((threshold: number) => {
-    setLatencyThresholdState(threshold);
-    localStorage.setItem(LATENCY_THRESHOLD_KEY, String(threshold));
   }, []);
 
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
@@ -372,8 +350,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setLayoutDirection,
     edgeStyle,
     setEdgeStyle,
-    latencyThreshold,
-    setLatencyThreshold,
     isLoading,
     isRefreshing,
     error,

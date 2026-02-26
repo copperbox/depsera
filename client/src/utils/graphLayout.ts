@@ -17,10 +17,28 @@ export type LayoutDirection = 'TB' | 'LR';
 
 export const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 export const EDGE_STYLE_KEY = 'graph-edge-style';
-export const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-export const DEFAULT_LATENCY_THRESHOLD = 50;
-export const MIN_LATENCY_THRESHOLD = 10;
-export const MAX_LATENCY_THRESHOLD = 200;
+/** Absolute floor in ms — latency below this is never flagged as high */
+export const HIGH_LATENCY_FLOOR_MS = 100;
+/** Multiplier against 24h average — latency must exceed avg * this to be flagged */
+export const HIGH_LATENCY_MULTIPLIER = 2;
+
+/**
+ * Determine whether a dependency's current latency qualifies as "high latency".
+ *
+ * Algorithm: threshold = max(HIGH_LATENCY_FLOOR_MS, avgLatencyMs24h * HIGH_LATENCY_MULTIPLIER)
+ *
+ * This prevents fast dependencies (e.g. 2ms avg cache) from being flagged when their
+ * latency is still well within acceptable absolute ranges, while still catching meaningful
+ * degradation for slower dependencies.
+ */
+export function isHighLatency(
+  latencyMs: number | null | undefined,
+  avgLatencyMs24h: number | null | undefined
+): boolean {
+  if (!latencyMs || !avgLatencyMs24h || avgLatencyMs24h === 0) return false;
+  const threshold = Math.max(HIGH_LATENCY_FLOOR_MS, avgLatencyMs24h * HIGH_LATENCY_MULTIPLIER);
+  return latencyMs > threshold;
+}
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 100;

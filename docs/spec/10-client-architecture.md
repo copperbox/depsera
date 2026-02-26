@@ -66,7 +66,7 @@ All API modules follow a consistent pattern:
 | `useServiceDetail` | Loads single service + teams. Handles deletion (redirects to `/services`), manual polling. |
 | `useTeamDetail` | Loads team + users. Computes available (non-member) users. Handles deletion. |
 | `useTeamMembers` | Member CRUD operations — add, toggle role, remove. Tracks in-progress actions per user. |
-| `useGraphState` | Complex state management for React Flow graph. Persists node positions per user, layout direction, tier spacing, latency threshold to localStorage. Smart refresh preserves selection state. |
+| `useGraphState` | Complex state management for React Flow graph. Persists node positions per user, layout direction, tier spacing to localStorage. Smart refresh preserves selection state. High latency detection uses an adaptive algorithm (see §10.6). |
 | `useAssociations` | CRUD for associations scoped to a single dependency. |
 | `useAliases` | Global alias management — CRUD + canonical names list. |
 | `useSuggestions` | Suggestion inbox — list, filter, multi-select, accept/dismiss (individual and bulk). |
@@ -80,8 +80,37 @@ All API modules follow a consistent pattern:
 | `graph-node-positions-{userId}` | Per user | JSON map of manually dragged node positions |
 | `graph-layout-direction` | Global | `'TB'` or `'LR'` |
 | `graph-tier-spacing` | Global | Number (50–500, default 150) |
-| `graph-latency-threshold` | Global | Number (0–100, default 80) |
 | `{page}-auto-refresh` | Per page | `'true'` or `'false'` |
 | `{page}-refresh-interval` | Per page | Interval in ms |
 | `wallboard-team-filter` | Wallboard | Selected team ID |
 | `wallboard-unhealthy-only` | Wallboard | `'true'` or `'false'` |
+
+## 10.6 High Latency Detection
+
+The dependency graph automatically flags edges as "high latency" using an adaptive threshold with an absolute floor. No user configuration is required.
+
+**Algorithm:**
+
+```
+threshold = max(HIGH_LATENCY_FLOOR_MS, avgLatencyMs24h × HIGH_LATENCY_MULTIPLIER)
+```
+
+**Constants:**
+
+| Constant | Value | Purpose |
+|---|---|---|
+| `HIGH_LATENCY_FLOOR_MS` | 100 | Absolute minimum threshold — latency below 100ms is never flagged |
+| `HIGH_LATENCY_MULTIPLIER` | 2 | Relative multiplier — latency must exceed 2× the 24h average |
+
+**Behavior by dependency profile:**
+
+| Dependency | Avg Latency | 2× Avg | Effective Threshold | Why |
+|---|---|---|---|---|
+| Fast cache (Redis) | 2ms | 4ms | 100ms | Floor prevents false positives on trivially fast services |
+| Internal API | 30ms | 60ms | 100ms | Floor still protects — 60ms is fine |
+| External API | 80ms | 160ms | 160ms | 2× average wins — 160ms is meaningful degradation |
+| Slow DB query | 500ms | 1000ms | 1000ms | 2× average wins — 1s response is genuinely degraded |
+
+The `isHighLatency()` function is a pure utility in `client/src/utils/graphLayout.ts`. It returns `false` when either latency value is null/undefined/zero.
+
+High latency edges are rendered with a warning color (orange), pulsing animation, and a "High Latency" badge in the edge details panel.

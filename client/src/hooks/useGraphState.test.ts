@@ -34,10 +34,6 @@ jest.mock('../api/teams', () => ({
 jest.mock('../utils/graphLayout', () => ({
   LAYOUT_DIRECTION_KEY: 'graph-layout-direction',
   EDGE_STYLE_KEY: 'graph-edge-style',
-  LATENCY_THRESHOLD_KEY: 'graph-latency-threshold',
-  DEFAULT_LATENCY_THRESHOLD: 50,
-  MIN_LATENCY_THRESHOLD: 10,
-  MAX_LATENCY_THRESHOLD: 200,
   transformGraphData: jest.fn().mockResolvedValue({ nodes: [], edges: [] }),
   computeTopologyFingerprint: jest.fn().mockReturnValue(''),
   updateGraphDataOnly: jest.fn().mockReturnValue({ nodes: [], edges: [] }),
@@ -181,24 +177,6 @@ describe('useGraphState', () => {
     expect(result.current.edgeStyle).toBe('orthogonal');
   });
 
-  it('reads valid latency threshold from localStorage', () => {
-    localStorage.setItem('graph-latency-threshold', '100');
-    const { result } = renderHook(() => useGraphState());
-    expect(result.current.latencyThreshold).toBe(100);
-  });
-
-  it('uses default latency threshold for invalid value', () => {
-    localStorage.setItem('graph-latency-threshold', 'invalid');
-    const { result } = renderHook(() => useGraphState());
-    expect(result.current.latencyThreshold).toBe(50); // DEFAULT_LATENCY_THRESHOLD
-  });
-
-  it('uses default latency threshold for out-of-range value', () => {
-    localStorage.setItem('graph-latency-threshold', '500');
-    const { result } = renderHook(() => useGraphState());
-    expect(result.current.latencyThreshold).toBe(50); // DEFAULT_LATENCY_THRESHOLD
-  });
-
   it('persists layout direction to localStorage', () => {
     const { result } = renderHook(() => useGraphState());
 
@@ -219,17 +197,6 @@ describe('useGraphState', () => {
 
     expect(localStorage.getItem('graph-edge-style')).toBe('bezier');
     expect(result.current.edgeStyle).toBe('bezier');
-  });
-
-  it('persists latency threshold to localStorage', () => {
-    const { result } = renderHook(() => useGraphState());
-
-    act(() => {
-      result.current.setLatencyThreshold(75);
-    });
-
-    expect(localStorage.getItem('graph-latency-threshold')).toBe('75');
-    expect(result.current.latencyThreshold).toBe(75);
   });
 
   it('sets error on loadData failure', async () => {

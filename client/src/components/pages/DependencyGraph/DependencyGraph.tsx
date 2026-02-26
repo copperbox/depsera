@@ -25,8 +25,7 @@ import {
   type AppNode,
   type AppEdge,
   type LayoutDirection,
-  MIN_LATENCY_THRESHOLD,
-  MAX_LATENCY_THRESHOLD,
+  isHighLatency,
 } from '../../../utils/graphLayout';
 import type { EdgeStyle } from '../../../types/graph';
 import {
@@ -88,8 +87,6 @@ function DependencyGraphInner() {
     setLayoutDirection,
     edgeStyle,
     setEdgeStyle,
-    latencyThreshold,
-    setLatencyThreshold,
     isLoading,
     isRefreshing,
     error,
@@ -122,11 +119,6 @@ function DependencyGraphInner() {
 
   const handleEdgeStyleChange = (style: EdgeStyle) => {
     setEdgeStyle(style);
-  };
-
-  const handleLatencyThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newThreshold = parseInt(e.target.value, 10);
-    setLatencyThreshold(newThreshold);
   };
 
   // Get the selected node's data for the details panel
@@ -216,24 +208,17 @@ function DependencyGraphInner() {
     return result;
   }, [nodes, searchQuery, relatedNodeIds, selectedNodeId, hoveredRelatedNodeIds]);
 
-  // Compute whether an edge has high latency
-  const computeIsHighLatency = useCallback((latencyMs: number | null | undefined, avgLatencyMs24h: number | null | undefined): boolean => {
-    if (!latencyMs || !avgLatencyMs24h || avgLatencyMs24h === 0) return false;
-    const threshold = 1 + latencyThreshold / 100;
-    return latencyMs > avgLatencyMs24h * threshold;
-  }, [latencyThreshold]);
-
   // Filter edges based on selection
   const filteredEdges = useMemo((): AppEdge[] => {
     const processEdge = (edge: AppEdge, isSelected: boolean, isHighlighted: boolean, opacity: number): AppEdge => {
-      const isHighLatency = computeIsHighLatency(edge.data?.latencyMs, edge.data?.avgLatencyMs24h);
+      const edgeIsHighLatency = isHighLatency(edge.data?.latencyMs, edge.data?.avgLatencyMs24h);
       return {
         ...edge,
         data: {
           ...edge.data!,
           isSelected,
           isHighlighted,
-          isHighLatency,
+          isHighLatency: edgeIsHighLatency,
         },
         style: { opacity },
       };
@@ -259,7 +244,7 @@ function DependencyGraphInner() {
         ? processEdge(edge, isSelected, !isSelected, 1)
         : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId, computeIsHighLatency, hoveredRelatedEdgeIds]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, hoveredRelatedEdgeIds]);
 
   // Get the selected edge's data for the details panel
   const selectedEdge = useMemo(() => {
@@ -428,21 +413,6 @@ function DependencyGraphInner() {
               </svg>
             </button>
           </div>
-        </div>
-
-        <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>High latency:</label>
-          <input
-            type="range"
-            className={styles.latencyThresholdSlider}
-            min={MIN_LATENCY_THRESHOLD}
-            max={MAX_LATENCY_THRESHOLD}
-            step={10}
-            value={latencyThreshold}
-            onChange={handleLatencyThresholdChange}
-            title={`Alert when ${latencyThreshold}% above average`}
-          />
-          <span className={styles.latencyThresholdValue}>+{latencyThreshold}%</span>
         </div>
 
         <div className={styles.autoRefreshControls}>
