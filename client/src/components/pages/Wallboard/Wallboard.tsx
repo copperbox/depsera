@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { fetchWallboardData } from '../../../api/wallboard';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
@@ -51,9 +51,25 @@ function Wallboard() {
   const [selectedTeamId, setSelectedTeamId] = useState(() => {
     return localStorage.getItem(TEAM_FILTER_KEY) || '';
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Close settings menu on outside click
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
+    if (silent) setIsRefreshing(true);
     try {
       const result = await fetchWallboardData();
       setData(result);
@@ -62,6 +78,7 @@ function Wallboard() {
       setError(err instanceof Error ? err.message : 'Failed to load dependencies');
     } finally {
       if (!silent) setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -136,47 +153,83 @@ function Wallboard() {
       <div className={styles.container}>
         <div className={styles.header}>
           <h2 className={styles.title}>Wallboard</h2>
-          <div className={styles.controls}>
-            <select
-              className={styles.teamSelect}
-              value={selectedTeamId}
-              onChange={handleTeamFilterChange}
-              aria-label="Filter by team"
-            >
-              <option value="">All teams</option>
-              {data.teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-            <label className={styles.filterToggle}>
-              <input
-                type="checkbox"
-                checked={showUnhealthyOnly}
-                onChange={handleFilterChange}
-              />
-              Unhealthy only
-            </label>
-            <div className={styles.pollingControls}>
+          <div className={styles.headerRight}>
+            {isRefreshing && (
+              <div className={styles.refreshingIndicator}>
+                <div className={styles.spinnerSmall} />
+              </div>
+            )}
+            <div className={styles.settingsWrapper} ref={settingsRef}>
               <button
-                className={`${styles.pollingButton} ${isPollingEnabled ? styles.pollingButtonActive : ''}`}
-                onClick={togglePolling}
+                className={styles.settingsButton}
+                onClick={() => setSettingsOpen((prev) => !prev)}
+                title="Wallboard settings"
+                aria-label="Wallboard settings"
+                aria-expanded={settingsOpen}
               >
-                {isPollingEnabled ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
               </button>
-              {isPollingEnabled && (
-                <select
-                  className={styles.intervalSelect}
-                  value={pollingInterval}
-                  onChange={handleIntervalChange}
-                >
-                  {INTERVAL_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+              {settingsOpen && (
+                <div className={styles.settingsMenu}>
+                  <div className={styles.settingsMenuItem}>
+                    <label className={styles.settingsMenuLabel} htmlFor="wallboard-team-select">Team</label>
+                    <select
+                      id="wallboard-team-select"
+                      className={styles.teamSelect}
+                      value={selectedTeamId}
+                      onChange={handleTeamFilterChange}
+                      aria-label="Filter by team"
+                    >
+                      <option value="">All teams</option>
+                      {data.teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.settingsMenuItem}>
+                    <label className={styles.filterToggle}>
+                      <input
+                        type="checkbox"
+                        checked={showUnhealthyOnly}
+                        onChange={handleFilterChange}
+                      />
+                      Unhealthy only
+                    </label>
+                  </div>
+
+                  <div className={styles.settingsMenuDivider} />
+
+                  <div className={styles.settingsMenuItem}>
+                    <span className={styles.settingsMenuLabel}>Auto-refresh</span>
+                    <div className={styles.pollingControls}>
+                      <button
+                        className={`${styles.pollingButton} ${isPollingEnabled ? styles.pollingButtonActive : ''}`}
+                        onClick={togglePolling}
+                      >
+                        {isPollingEnabled ? 'ON' : 'OFF'}
+                      </button>
+                      {isPollingEnabled && (
+                        <select
+                          className={styles.intervalSelect}
+                          value={pollingInterval}
+                          onChange={handleIntervalChange}
+                        >
+                          {INTERVAL_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>

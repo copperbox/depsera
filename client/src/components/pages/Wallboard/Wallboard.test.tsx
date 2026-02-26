@@ -73,6 +73,10 @@ function renderWallboard() {
   );
 }
 
+function openSettingsMenu() {
+  fireEvent.click(screen.getByLabelText('Wallboard settings'));
+}
+
 describe('Wallboard', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -97,7 +101,9 @@ describe('Wallboard', () => {
     }));
 
     renderWallboard();
-    await waitFor(() => expect(screen.getByLabelText('Filter by team')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Wallboard settings')).toBeInTheDocument());
+
+    openSettingsMenu();
 
     const select = screen.getByLabelText('Filter by team') as HTMLSelectElement;
     expect(select.options).toHaveLength(3); // All teams + 2 teams
@@ -119,6 +125,7 @@ describe('Wallboard', () => {
     await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
     expect(screen.getByText('Redis')).toBeInTheDocument();
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-1' } });
 
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
@@ -139,6 +146,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('SharedDB')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-2' } });
 
     expect(screen.getByText('SharedDB')).toBeInTheDocument();
@@ -156,6 +164,7 @@ describe('Wallboard', () => {
     await waitFor(() => expect(screen.getByText('Healthy DB')).toBeInTheDocument());
     expect(screen.getByText('Down Redis')).toBeInTheDocument();
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.queryByText('Healthy DB')).not.toBeInTheDocument();
@@ -176,6 +185,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('Warning API')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.getByText('Warning API')).toBeInTheDocument();
@@ -306,6 +316,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.getByText('All dependencies are healthy!')).toBeInTheDocument();
@@ -320,8 +331,9 @@ describe('Wallboard', () => {
     }));
 
     renderWallboard();
-    await waitFor(() => expect(screen.getByLabelText('Filter by team')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Wallboard settings')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-2' } });
     expect(localStorage.getItem('wallboard-filter-team')).toBe('team-2');
   });
