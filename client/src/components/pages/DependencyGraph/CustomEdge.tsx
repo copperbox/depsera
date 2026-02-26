@@ -222,6 +222,8 @@ function CustomEdgeComponent({
   }
 
   const isSkipped = data?.skipped === true;
+  const showDashedAnimation = data?.showDashedAnimation ?? false;
+  const showPacketAnimation = data?.showPacketAnimation ?? true;
   const label = isSkipped ? 'skipped' : formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
@@ -267,10 +269,14 @@ function CustomEdgeComponent({
 
   const isVisible = opacity >= 0.5;
 
+  // Apply dashed animation class for non-skipped edges when enabled
+  const dashedClass = showDashedAnimation && !isSkipped ? styles.dashedAnimatedEdge : '';
+
   // Sync packet opacity before every paint so React re-renders never cause flicker.
   // React doesn't manage the opacity attr (removed from JSX), so this is the only writer
   // besides the rAF loop — and useLayoutEffect fires synchronously before paint.
   useLayoutEffect(() => {
+    if (!showPacketAnimation) return;
     const group = packetGroupRef.current;
     if (!group) return;
     const phase = packetPhases.get(id);
@@ -282,7 +288,7 @@ function CustomEdgeComponent({
   });
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible || !showPacketAnimation) return;
     const group = packetGroupRef.current;
     const path = motionPathRef.current;
     if (!group || !path) return;
@@ -335,18 +341,18 @@ function CustomEdgeComponent({
       // Phase state intentionally NOT deleted — survives remount
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isVisible]);
+  }, [id, isVisible, showPacketAnimation]);
 
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
-        className={`${styles.edge} ${edgeClass} ${isSelected ? styles.edgeSelected : ''}`}
+        className={`${styles.edge} ${edgeClass} ${dashedClass} ${isSelected ? styles.edgeSelected : ''}`}
         markerEnd="url(#arrow-dependency)"
         style={style}
       />
-      {opacity >= 0.5 && (
+      {opacity >= 0.5 && showPacketAnimation && (
         <>
           <path ref={motionPathRef} d={edgePath} fill="none" stroke="none" />
           <g ref={packetGroupRef} style={{ pointerEvents: 'none' }}>

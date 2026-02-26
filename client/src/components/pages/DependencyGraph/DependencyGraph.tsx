@@ -87,6 +87,10 @@ function DependencyGraphInner() {
     setLayoutDirection,
     edgeStyle,
     setEdgeStyle,
+    dashedAnimation,
+    setDashedAnimation,
+    packetAnimation,
+    setPacketAnimation,
     isLoading,
     isRefreshing,
     error,
@@ -233,6 +237,8 @@ function DependencyGraphInner() {
           isSelected,
           isHighlighted,
           isHighLatency: edgeIsHighLatency,
+          showDashedAnimation: dashedAnimation,
+          showPacketAnimation: packetAnimation,
         },
         style: { opacity },
       };
@@ -258,7 +264,7 @@ function DependencyGraphInner() {
         ? processEdge(edge, isSelected, !isSelected, 1)
         : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId, hoveredRelatedEdgeIds]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, hoveredRelatedEdgeIds, dashedAnimation, packetAnimation]);
 
   // Get the selected edge's data for the details panel
   const selectedEdge = useMemo(() => {
@@ -487,6 +493,32 @@ function DependencyGraphInner() {
                       <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
                     </svg>
                     Reset Layout
+                  </button>
+                </div>
+
+                <div className={styles.settingsMenuDivider} />
+
+                <div className={styles.settingsMenuItem}>
+                  <span className={styles.settingsMenuLabel}>Dashed edges</span>
+                  <button
+                    role="switch"
+                    aria-checked={dashedAnimation}
+                    onClick={() => setDashedAnimation(!dashedAnimation)}
+                    className={`${styles.togglePill} ${dashedAnimation ? styles.toggleActive : ''}`}
+                  >
+                    <span className={styles.toggleKnob} />
+                  </button>
+                </div>
+
+                <div className={styles.settingsMenuItem}>
+                  <span className={styles.settingsMenuLabel}>Packets</span>
+                  <button
+                    role="switch"
+                    aria-checked={packetAnimation}
+                    onClick={() => setPacketAnimation(!packetAnimation)}
+                    className={`${styles.togglePill} ${packetAnimation ? styles.toggleActive : ''}`}
+                  >
+                    <span className={styles.toggleKnob} />
                   </button>
                 </div>
 
