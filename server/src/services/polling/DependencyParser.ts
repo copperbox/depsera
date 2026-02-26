@@ -52,8 +52,16 @@ export class DependencyParser {
       throw new Error(`Invalid dependency at index ${index}: missing name`);
     }
 
-    if (typeof dep.healthy !== 'boolean') {
+    // Check skipped first — skipped deps are ingested as healthy even without a healthy field
+    const skipped = this.parseSkipped(dep);
+
+    if (!skipped && typeof dep.healthy !== 'boolean') {
       throw new Error(`Invalid dependency at index ${index}: missing healthy`);
+    }
+
+    // When skipped, treat as healthy
+    if (skipped && typeof dep.healthy !== 'boolean') {
+      dep.healthy = true;
     }
 
     // Parse health data from either nested or flat format
@@ -88,20 +96,34 @@ export class DependencyParser {
   }
 
   /**
+   * Check if a dependency has its check skipped.
+   * Looks at health.skipped (nested) or top-level skipped.
+   */
+  private parseSkipped(dep: Record<string, unknown>): boolean {
+    if (dep.health && typeof dep.health === 'object') {
+      const health = dep.health as Record<string, unknown>;
+      if (health.skipped === true) return true;
+    }
+    return false;
+  }
+
+  /**
    * Parse health data from either nested or flat format.
    */
   private parseHealthData(dep: Record<string, unknown>): ProactiveDepsStatus['health'] {
     let healthState = 0;
     let healthCode = 200;
     let latency = 0;
+    let skipped = false;
 
     /* istanbul ignore else -- Nested health format tested; flat format is default path */
     if (dep.health && typeof dep.health === 'object') {
-      // Nested format: { health: { state, code, latency } }
+      // Nested format: { health: { state, code, latency, skipped } }
       const health = dep.health as Record<string, unknown>;
       healthState = typeof health.state === 'number' ? health.state : 0;
       healthCode = typeof health.code === 'number' ? health.code : 200;
       latency = typeof health.latency === 'number' ? health.latency : 0;
+      skipped = health.skipped === true;
     /* istanbul ignore else -- Flat format fallback; nested format is primary path */
     } else {
       // Flat format: { healthCode, latencyMs }
@@ -115,6 +137,7 @@ export class DependencyParser {
       state: healthState as 0 | 1 | 2,
       code: healthCode,
       latency,
+      ...(skipped && { skipped: true }),
     };
   }
 

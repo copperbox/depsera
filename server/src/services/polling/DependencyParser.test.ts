@@ -294,4 +294,59 @@ describe('DependencyParser', () => {
       expect(result[1].healthy).toBe(false);
     });
   });
+
+  describe('skipped dependencies (default format)', () => {
+    it('should parse health.skipped from nested format', () => {
+      const parser = new DependencyParser();
+      const data = [
+        {
+          name: 'db',
+          healthy: true,
+          health: { state: 0, code: 200, latency: 10, skipped: false },
+          lastChecked: '2025-01-01T00:00:00Z',
+        },
+        {
+          name: 'cache',
+          healthy: true,
+          health: { state: 0, code: 0, latency: 0, skipped: true },
+          lastChecked: '2025-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = parser.parse(data);
+      expect(result).toHaveLength(2);
+      expect(result[0].health.skipped).toBeUndefined();
+      expect(result[1].health.skipped).toBe(true);
+    });
+
+    it('should accept skipped deps without healthy field', () => {
+      const parser = new DependencyParser();
+      const data = [
+        {
+          name: 'cache',
+          health: { state: 0, code: 0, latency: 0, skipped: true },
+          lastChecked: '2025-01-01T00:00:00Z',
+        },
+      ];
+
+      const result = parser.parse(data);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('cache');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.skipped).toBe(true);
+    });
+
+    it('should still reject non-skipped deps without healthy field', () => {
+      const parser = new DependencyParser();
+      const data = [
+        {
+          name: 'cache',
+          health: { state: 0, code: 200, latency: 10 },
+          lastChecked: '2025-01-01T00:00:00Z',
+        },
+      ];
+
+      expect(() => parser.parse(data)).toThrow('missing healthy');
+    });
+  });
 });

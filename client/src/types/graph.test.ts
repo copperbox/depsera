@@ -13,6 +13,7 @@ describe('getServiceHealthStatus', () => {
     unhealthyCount: 0,
     lastPollSuccess: null,
     lastPollError: null,
+    skippedCount: 0,
     reportedHealthyCount: 0,
     reportedUnhealthyCount: 0,
   };

@@ -16,6 +16,7 @@ export interface ServiceNodeData {
   unhealthyCount: number;
   lastPollSuccess: boolean | null;
   lastPollError: string | null;
+  skippedCount: number;
   // Reported health: what other services report about THIS service
   reportedHealthyCount: number;
   reportedUnhealthyCount: number;
@@ -53,6 +54,7 @@ export interface GraphEdgeData {
   errorMessage?: string | null;
   impact?: string | null;
   effectiveContact?: string | null;
+  skipped?: boolean;
   [key: string]: unknown;
 }
 

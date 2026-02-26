@@ -47,6 +47,7 @@ const mockService = {
       health_state: 0 as const,
       health_code: null,
       latency_ms: 25,
+      skipped: 0,
       last_checked: null,
       last_status_change: null,
       created_at: '',

@@ -54,6 +54,7 @@ export class DependencyUpsertService {
         check_details: dep.checkDetails,
         error: dep.error,
         error_message: dep.errorMessage ?? null,
+        skipped: dep.health.skipped ?? false,
         last_checked: dep.lastChecked,
       });
 

@@ -64,10 +64,16 @@ export class ExternalNodeBuilder {
   static buildNodeData(name: string, deps: DependencyWithTarget[]): ServiceNodeData {
     let healthyCount = 0;
     let unhealthyCount = 0;
+    let skippedCount = 0;
 
     for (const dep of deps) {
-      if (dep.healthy === 1) healthyCount++;
-      else if (dep.healthy === 0) unhealthyCount++;
+      if (dep.skipped === 1) {
+        skippedCount++;
+      } else if (dep.healthy === 1) {
+        healthyCount++;
+      } else if (dep.healthy === 0) {
+        unhealthyCount++;
+      }
     }
 
     // Infer service type from most common dep type
@@ -95,6 +101,7 @@ export class ExternalNodeBuilder {
       unhealthyCount,
       lastPollSuccess: null,
       lastPollError: null,
+      skippedCount,
       serviceType,
       isExternal: true,
     };

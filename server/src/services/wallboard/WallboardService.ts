@@ -34,6 +34,7 @@ function getGroupKey(dep: DependencyForWallboard): string {
  * Map health_state (0=OK, 1=WARNING, 2=CRITICAL) + healthy flag to WallboardHealthStatus.
  */
 function resolveHealthStatus(dep: DependencyForWallboard): WallboardHealthStatus {
+  if (dep.skipped === 1) return 'skipped';
   if (dep.healthy === null && dep.health_state === null) return 'unknown';
   if (dep.health_state === 2) return 'critical';
   if (dep.health_state === 1) return 'warning';
@@ -44,6 +45,7 @@ function resolveHealthStatus(dep: DependencyForWallboard): WallboardHealthStatus
 
 /** Priority for worst-status-wins aggregation (higher = worse) */
 const STATUS_PRIORITY: Record<WallboardHealthStatus, number> = {
+  skipped: -1,
   unknown: 0,
   healthy: 1,
   warning: 2,
@@ -54,10 +56,11 @@ const STATUS_PRIORITY: Record<WallboardHealthStatus, number> = {
  * Pick the worst health status from a list (critical > warning > healthy > unknown).
  */
 function worstStatus(statuses: WallboardHealthStatus[]): WallboardHealthStatus {
-  let worst: WallboardHealthStatus = 'unknown';
-  for (const s of statuses) {
-    if (STATUS_PRIORITY[s] > STATUS_PRIORITY[worst]) {
-      worst = s;
+  if (statuses.length === 0) return 'unknown';
+  let worst = statuses[0];
+  for (let i = 1; i < statuses.length; i++) {
+    if (STATUS_PRIORITY[statuses[i]] > STATUS_PRIORITY[worst]) {
+      worst = statuses[i];
     }
   }
   return worst;
@@ -203,6 +206,7 @@ export class WallboardService {
         health_state: d.health_state,
         latency_ms: d.latency_ms,
         last_checked: d.last_checked,
+        skipped: d.skipped,
       }));
 
       // Unique team IDs across all reporters

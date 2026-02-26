@@ -18,6 +18,8 @@ function getCardClass(status: HealthStatus): string {
       return styles.cardWarning;
     case 'critical':
       return styles.cardCritical;
+    case 'skipped':
+      return styles.cardSkipped;
     default:
       return styles.cardUnknown;
   }
@@ -31,6 +33,8 @@ function getStatusClass(status: HealthStatus): string {
       return styles.statusWarning;
     case 'critical':
       return styles.statusCritical;
+    case 'skipped':
+      return styles.statusSkipped;
     default:
       return styles.statusUnknown;
   }

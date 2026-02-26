@@ -536,7 +536,7 @@ export function validateDependencyType(type: unknown): DependencyType {
 // Schema Config Validation
 // ============================================================================
 
-const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'type', 'checkDetails', 'contact', 'error', 'errorMessage'] as const;
+const VALID_SCHEMA_FIELDS = ['name', 'healthy', 'latency', 'impact', 'description', 'type', 'checkDetails', 'contact', 'error', 'errorMessage', 'skipped'] as const;
 const REQUIRED_SCHEMA_FIELDS: (keyof SchemaMapping['fields'])[] = ['name', 'healthy'];
 
 /**
@@ -680,6 +680,7 @@ export function validateSchemaConfig(value: unknown): string {
       ...(validatedStringPaths.contact !== undefined && { contact: validatedStringPaths.contact }),
       ...(validatedStringPaths.error !== undefined && { error: validatedStringPaths.error }),
       ...(validatedStringPaths.errorMessage !== undefined && { errorMessage: validatedStringPaths.errorMessage }),
+      ...(validatedFields.skipped !== undefined && { skipped: validatedFields.skipped }),
     },
   };
 

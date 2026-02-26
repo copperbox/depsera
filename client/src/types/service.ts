@@ -4,7 +4,8 @@ export type HealthStatus =
   | 'healthy'
   | 'warning'
   | 'critical'
-  | 'unknown';
+  | 'unknown'
+  | 'skipped';
 
 export interface Team {
   id: string;
@@ -64,6 +65,7 @@ export interface SchemaMapping {
     contact?: string;
     error?: string;
     errorMessage?: string;
+    skipped?: FieldMapping;
   };
 }
 
@@ -102,6 +104,7 @@ export interface Dependency {
   health_state: HealthState | null;
   health_code: number | null;
   latency_ms: number | null;
+  skipped: number;
   last_checked: string | null;
   last_status_change: string | null;
   created_at: string;
@@ -146,4 +149,5 @@ export interface TestSchemaDependency {
   check_details: Record<string, unknown> | null;
   contact: Record<string, unknown> | null;
   type: string;
+  skipped: boolean;
 }

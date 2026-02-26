@@ -155,6 +155,12 @@
   border-left-color: var(--color-text-muted);
 }
 
+.cardSkipped {
+  border-left-color: var(--color-border-input);
+  border-left-style: dashed;
+  opacity: 0.75;
+}
+
 .cardName {
   font-size: 1rem;
   font-weight: 600;
@@ -231,6 +237,12 @@
 .statusUnknown {
   background-color: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
   color: var(--color-text-muted);
+}
+
+.statusSkipped {
+  background-color: color-mix(in srgb, var(--color-border-input) 20%, transparent);
+  color: var(--color-text-muted);
+  font-style: italic;
 }
 
 /* Error row */

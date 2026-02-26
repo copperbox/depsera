@@ -128,6 +128,11 @@
   background: var(--color-text-muted);
 }
 
+.legendDot.skipped {
+  background: var(--color-border-input);
+  border: 1px dashed var(--color-text-muted);
+}
+
 /* Main Content (graph + panel) */
 .mainContent {
   display: flex;
@@ -355,6 +360,17 @@
   font-style: italic;
 }
 
+.skippedBadge {
+  margin-left: 4px;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
 .pollFailure {
   display: flex;
   align-items: center;
@@ -405,6 +421,11 @@
   stroke: var(--color-error);
 }
 
+.skippedEdge {
+  stroke: var(--color-text-muted);
+  stroke-dasharray: 6 4;
+}
+
 .edgeSelected {
   stroke-width: 3px;
 }
@@ -444,6 +465,13 @@
   color: var(--color-error);
   border-color: var(--color-error-border);
   background: var(--color-error-bg);
+}
+
+.edgeLabelSkipped {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+  background: var(--color-bg-hover);
+  font-style: italic;
 }
 
 /* Empty State */

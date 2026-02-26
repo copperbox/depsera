@@ -38,8 +38,9 @@ export class DependencyGraphBuilder {
 
     // Dedupe dependencies by ID for counting
     const uniqueDeps = deduplicateById(dependencies);
-    const healthyCount = uniqueDeps.filter(d => d.healthy === 1).length;
-    const unhealthyCount = uniqueDeps.filter(d => d.healthy === 0).length;
+    const skippedCount = uniqueDeps.filter(d => d.skipped === 1).length;
+    const healthyCount = uniqueDeps.filter(d => d.healthy === 1 && d.skipped !== 1).length;
+    const unhealthyCount = uniqueDeps.filter(d => d.healthy === 0 && d.skipped !== 1).length;
 
     this.nodes.push({
       id: service.id,
@@ -56,6 +57,7 @@ export class DependencyGraphBuilder {
         /* istanbul ignore next -- Poll status conversion; null case rarely occurs */
         lastPollSuccess: service.last_poll_success === null ? null : service.last_poll_success === 1,
         lastPollError: service.last_poll_error ?? null,
+        skippedCount,
         serviceType,
         ...(service.is_external === 1 && { isExternal: true }),
       },
@@ -204,6 +206,7 @@ export class DependencyGraphBuilder {
       errorMessage: dep.error_message,
       impact: dep.impact,
       effectiveContact,
+      ...(dep.skipped === 1 && { skipped: true }),
     };
   }
 }

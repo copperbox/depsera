@@ -495,6 +495,10 @@ function DependencyGraphInner() {
             <span>Unknown</span>
           </div>
           <div className={styles.legendItem}>
+            <div className={`${styles.legendDot} ${styles.skipped}`} />
+            <span>Skipped</span>
+          </div>
+          <div className={styles.legendItem}>
             <div className={`${styles.legendDot} ${styles.highLatency}`} />
             <span>High Latency</span>
           </div>

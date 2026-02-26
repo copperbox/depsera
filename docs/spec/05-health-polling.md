@@ -120,15 +120,16 @@ Promise coalescing for services sharing the same health endpoint URL.
 When a poll succeeds, the health endpoint response is parsed (proactive-deps format) and each dependency is upserted:
 
 1. **Alias resolution:** `aliasStore.resolveAlias(dep.name)` → sets `canonical_name` if alias exists
-2. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). All parsed fields — including `contact` and `checkDetails` — are serialized with `JSON.stringify()` and persisted. The ON CONFLICT clause updates `contact` from polled data each cycle (`contact = excluded.contact`), so contact reflects the latest poll. Missing contact → `null` in DB. Returns whether the dependency is new and whether health changed.
-3. **Status change detection:** If `healthy` value changed, `last_status_change` is updated and a `STATUS_CHANGE` event is emitted.
-4. **Error history:** Deduplication logic — only records if the error state changed:
+2. **Skipped check:** If the dependency's `health.skipped` flag is `true`, the dependency is ingested as healthy (`healthy = 1`) regardless of the actual health field value, and the `skipped` column is set to `1`. The health check is not actually executed for skipped dependencies — they are simply recorded as healthy. This allows services to declare dependencies that are intentionally excluded from health evaluation without affecting overall health status.
+3. **Upsert:** INSERT or UPDATE on `dependencies` table (conflict key: `service_id, name`). All parsed fields — including `contact`, `checkDetails`, and `skipped` — are serialized with `JSON.stringify()` and persisted. The ON CONFLICT clause updates `contact` from polled data each cycle (`contact = excluded.contact`), so contact reflects the latest poll. Missing contact → `null` in DB. Returns whether the dependency is new and whether health changed.
+4. **Status change detection:** If `healthy` value changed, `last_status_change` is updated and a `STATUS_CHANGE` event is emitted.
+5. **Error history:** Deduplication logic — only records if the error state changed:
    - Healthy → only record if previous entry was an error (records recovery with null error)
    - Unhealthy → only record if no previous entry, previous was recovery, or error JSON changed
    - When a dependency is unhealthy but provides no `error` object (common for external deps and schema-mapped services), a synthetic marker (`{"unhealthy":true}`) is used as the error value with a default `"Unhealthy"` error message. This ensures timeline events are always recorded for unhealthy transitions. If an `errorMessage` is provided without an `error` object, the original message is preserved.
-5. **Latency history:** Records data point if `latency_ms > 0`
-6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
-7. **Schema mapping warnings:** When using a custom `SchemaMapping`, items that cannot be parsed (missing `name`, unresolvable `healthy`, non-object entries) are skipped and the reason is collected as a deduplicated warning. Warnings are stored as a JSON array in `services.poll_warnings` and cleared on each poll cycle. They are surfaced in the Poll Issues section of the service detail page and aggregated on the dashboard.
+6. **Latency history:** Records data point if `latency_ms > 0`
+7. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
+8. **Schema mapping warnings:** When using a custom `SchemaMapping`, items that cannot be parsed (missing `name`, unresolvable `healthy`, non-object entries) are skipped and the reason is collected as a deduplicated warning. Warnings are stored as a JSON array in `services.poll_warnings` and cleared on each poll cycle. They are surfaced in the Poll Issues section of the service detail page and aggregated on the dashboard.
 
 ### Parsed Fields
 

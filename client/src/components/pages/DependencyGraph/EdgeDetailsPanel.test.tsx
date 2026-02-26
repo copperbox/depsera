@@ -29,6 +29,7 @@ const mockSourceNode: AppNode = {
     lastPollError: null,
     reportedHealthyCount: 2,
     reportedUnhealthyCount: 0,
+    skippedCount: 0,
     layoutDirection: 'TB',
   },
 };
@@ -50,6 +51,7 @@ const mockTargetNode: AppNode = {
     lastPollError: null,
     reportedHealthyCount: 1,
     reportedUnhealthyCount: 1,
+    skippedCount: 0,
     layoutDirection: 'TB',
   },
 };

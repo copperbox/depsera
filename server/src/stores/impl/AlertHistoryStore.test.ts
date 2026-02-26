@@ -36,6 +36,7 @@ describe('AlertHistoryStore', () => {
         service_id TEXT NOT NULL,
         name TEXT NOT NULL,
         type TEXT DEFAULT 'other',
+        skipped INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE

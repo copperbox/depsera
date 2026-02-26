@@ -147,6 +147,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
         check_details: dep.checkDetails || null,
         contact: dep.contact || null,
         type: dep.type || 'other',
+        skipped: dep.health.skipped ?? false,
       })),
       warnings,
     });

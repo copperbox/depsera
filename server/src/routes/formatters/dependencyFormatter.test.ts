@@ -55,6 +55,7 @@ describe('dependencyFormatter', () => {
     check_details: null,
     error: null,
     error_message: null,
+    skipped: 0,
     last_checked: '2024-01-01T00:00:00.000Z',
     last_status_change: null,
     created_at: '2024-01-01T00:00:00.000Z',

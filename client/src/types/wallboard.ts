@@ -10,6 +10,7 @@ export interface WallboardReporter {
   health_state: number | null;
   latency_ms: number | null;
   last_checked: string | null;
+  skipped: number;
 }
 
 export interface WallboardDependency {

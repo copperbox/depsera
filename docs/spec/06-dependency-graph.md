@@ -17,7 +17,7 @@ The `GraphService` builds graphs by querying services and dependencies, then con
 
 ## 6.2 Node Types
 
-**Service nodes:** Real services registered in Depsera. Include health stats (dependency count, healthy/unhealthy counts, last poll status).
+**Service nodes:** Real services registered in Depsera. Include health stats (dependency count, healthy/unhealthy/skipped counts, last poll status). The `skippedCount` field tracks how many dependencies are marked as skipped. Skipped dependencies are excluded from `healthyCount` and `unhealthyCount` but remain in `dependencyCount` (the total).
 
 **External nodes:** Virtual nodes for dependencies that have no association to a registered service. Created by `ExternalNodeBuilder`:
 - Grouped by normalized dependency name (lowercase + trim)
@@ -35,6 +35,7 @@ For external nodes, the type is inferred from the most common dependency type in
 Edges represent "depends on" relationships. For each dependency:
 - If the dependency has an association (`target_service_id`), the edge connects the associated service to the owning service
 - If unassociated, the edge connects the external node to the owning service
+- Edge data includes `skipped: boolean` — true when the underlying dependency has `skipped = 1`. Skipped edges represent dependencies whose health checks are intentionally not executed.
 - Edge ID format: `{sourceId}-{depId}-{type}` — prevents duplicate edges for the same source→target→type combination
 
 ## 6.5 Upstream Traversal

@@ -26,7 +26,8 @@ describe('AssociationStore', () => {
       CREATE TABLE dependencies (
         id TEXT PRIMARY KEY,
         service_id TEXT NOT NULL,
-        name TEXT NOT NULL
+        name TEXT NOT NULL,
+        skipped INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE dependency_associations (

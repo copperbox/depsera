@@ -22,6 +22,7 @@ describe('ContainsMatchStrategy', () => {
     check_details: null,
     error: null,
     error_message: null,
+    skipped: 0,
     last_checked: new Date().toISOString(),
     last_status_change: null,
     created_at: new Date().toISOString(),

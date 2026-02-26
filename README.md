@@ -25,7 +25,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 **Health Monitoring**
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
-- Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.)
+- Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.) with skipped-check support
 - Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
@@ -34,7 +34,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
 - Edge selection shows per-dependency latency chart, contact info, impact, and error history
 - Node selection shows aggregate latency chart across all dependents and merged contact info
-- Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down
+- Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down. Skipped dependencies are displayed with a distinct status indicator
 - Dashboard with health distribution, services with issues, polling issues aggregation, and team health summaries
 
 **Team Management**

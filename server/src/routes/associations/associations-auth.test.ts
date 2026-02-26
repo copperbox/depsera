@@ -143,6 +143,7 @@ describe('Associations API - Authorization (IDOR)', () => {
         latency_ms INTEGER,
         last_check_at TEXT,
         check_details TEXT,
+        skipped INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,

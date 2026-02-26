@@ -136,17 +136,26 @@ export class SchemaMapper {
       return null;
     }
 
-    const healthy = this.resolveHealthy(item, fields.healthy);
-    if (healthy === null) {
-      logger.warn(
-        { index, name, serviceName: this.serviceName },
-        '%s: skipping item "%s" at index %d — "healthy" field could not be resolved',
-        this.logPrefix,
-        name,
-        index
-      );
-      this._warnings.add(`Dependency "${name}": "healthy" field could not be resolved`);
-      return null;
+    // Check skipped before healthy — skipped deps are ingested as healthy
+    const skipped = this.resolveSkipped(item, fields.skipped);
+
+    let healthy: boolean | null;
+    if (skipped) {
+      // Skipped deps are treated as healthy regardless of the healthy field
+      healthy = true;
+    } else {
+      healthy = this.resolveHealthy(item, fields.healthy);
+      if (healthy === null) {
+        logger.warn(
+          { index, name, serviceName: this.serviceName },
+          '%s: skipping item "%s" at index %d — "healthy" field could not be resolved',
+          this.logPrefix,
+          name,
+          index
+        );
+        this._warnings.add(`Dependency "${name}": "healthy" field could not be resolved`);
+        return null;
+      }
     }
 
     // Extract optional fields
@@ -203,6 +212,7 @@ export class SchemaMapper {
         state: healthy ? 0 : 2,
         code: healthy ? 200 : 500,
         latency,
+        ...(skipped && { skipped: true }),
       },
       lastChecked: new Date().toISOString(),
       ...(checkDetails !== undefined && { checkDetails }),
@@ -210,6 +220,16 @@ export class SchemaMapper {
       ...(error !== undefined && { error }),
       ...(errorMessage !== undefined && { errorMessage }),
     };
+  }
+
+  /**
+   * Resolve the skipped field mapping.
+   * Returns true if the dependency check should be considered skipped.
+   */
+  private resolveSkipped(item: unknown, mapping?: FieldMapping): boolean {
+    if (!mapping) return false;
+    const value = this.resolveHealthy(item, mapping);
+    return value === true;
   }
 
   /**

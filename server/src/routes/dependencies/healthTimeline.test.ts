@@ -30,7 +30,8 @@ describe('Health Timeline API', () => {
         name TEXT NOT NULL,
         healthy INTEGER,
         health_state INTEGER,
-        latency_ms INTEGER
+        latency_ms INTEGER,
+        skipped INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE dependency_error_history (

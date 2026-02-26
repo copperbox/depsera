@@ -20,6 +20,7 @@ const mockNodeData: ServiceNodeData = {
   lastPollError: null,
   reportedHealthyCount: 0,
   reportedUnhealthyCount: 1,
+  skippedCount: 0,
   layoutDirection: 'TB',
 };
 

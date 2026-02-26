@@ -207,6 +207,7 @@ export interface DependencyUpsertInput {
   check_details?: unknown;
   error?: unknown;
   error_message?: string | null;
+  skipped?: boolean;
   last_checked: string;
 }
 

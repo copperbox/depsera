@@ -49,6 +49,7 @@ function makeDep(overrides: Partial<WallboardDependency> = {}): WallboardDepende
         health_state: 0,
         latency_ms: 20,
         last_checked: '2025-01-01T12:00:00Z',
+        skipped: 0,
       },
     ],
     team_ids: ['team-1'],
@@ -186,8 +187,8 @@ describe('Wallboard', () => {
         makeDep({
           latency: { min: 10, avg: 20, max: 30 },
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
-            { dependency_id: 'dep-1', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
+            { dependency_id: 'dep-1', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -203,7 +204,7 @@ describe('Wallboard', () => {
         makeDep({
           latency: null,
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: null, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: null, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -230,8 +231,8 @@ describe('Wallboard', () => {
       dependencies: [
         makeDep({
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
-            { dependency_id: 'dep-2', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
+            { dependency_id: 'dep-2', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -246,7 +247,7 @@ describe('Wallboard', () => {
       dependencies: [
         makeDep({
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
           ],
         }),
       ],

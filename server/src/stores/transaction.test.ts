@@ -62,6 +62,7 @@ describe('transaction', () => {
         check_details TEXT,
         error TEXT,
         error_message TEXT,
+        skipped INTEGER NOT NULL DEFAULT 0,
         last_checked TEXT,
         last_status_change TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),

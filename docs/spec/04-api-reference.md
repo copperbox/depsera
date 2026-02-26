@@ -73,7 +73,7 @@ Rate limited: 20 requests/minute per IP.
 {
   "success": true,
   "dependencies": [
-    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "contact": null, "type": "other" }
+    { "name": "database", "healthy": true, "latency_ms": 12, "impact": null, "description": null, "contact": null, "type": "other", "skipped": false }
   ],
   "warnings": ["No impact field mapping configured — impact data will not be captured"]
 }
@@ -242,6 +242,7 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
         "dependencyCount": 3,
         "healthyCount": 2,
         "unhealthyCount": 1,
+        "skippedCount": 0,
         "lastPollSuccess": true,
         "lastPollError": null,
         "serviceType": "rest",
@@ -266,7 +267,8 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
         "isAutoSuggested": false,
         "confidenceScore": null,
         "impact": "critical",
-        "errorMessage": null
+        "errorMessage": null,
+        "skipped": false
       }
     }
   ]
@@ -579,7 +581,7 @@ Read-only aggregated view of all tracked dependencies, grouped by canonical name
     {
       "canonical_name": "PostgreSQL Primary",
       "primary_dependency_id": "uuid",
-      "health_status": "healthy",
+      "health_status": "healthy | warning | critical | unknown | skipped",
       "type": "database",
       "latency": { "min": 10, "avg": 25, "max": 42 },
       "last_checked": "2026-02-24T12:00:00.000Z",
@@ -599,7 +601,8 @@ Read-only aggregated view of all tracked dependencies, grouped by canonical name
           "healthy": 1,
           "health_state": 0,
           "latency_ms": 25,
-          "last_checked": "2026-02-24T12:00:00.000Z"
+          "last_checked": "2026-02-24T12:00:00.000Z",
+          "skipped": 0
         }
       ],
       "team_ids": ["uuid"]
@@ -613,7 +616,7 @@ Read-only aggregated view of all tracked dependencies, grouped by canonical name
 
 **Aggregation rules:**
 - Dependencies are grouped by linked service ID (if associated) or normalized canonical name / raw name
-- `health_status`: worst status across all reporters (critical > warning > healthy > unknown)
+- `health_status`: worst status across all reporters (critical > warning > healthy > unknown). If all reporters for a group are skipped, the group status is `skipped`.
 - `latency`: min/avg/max across all reporters with latency data (null if none)
 - `impact`, `error_message`, `description`: from primary dependency (most recently checked), with first-non-null fallback across group
 - `effective_contact`, `effective_impact`: resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
