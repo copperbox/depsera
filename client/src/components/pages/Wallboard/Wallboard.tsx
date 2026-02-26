@@ -44,7 +44,7 @@ function Wallboard() {
   const [data, setData] = useState<WallboardResponse>({ dependencies: [], teams: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDep, setSelectedDep] = useState<WallboardDependency | null>(null);
+  const [selectedDepName, setSelectedDepName] = useState<string | null>(null);
   const [showUnhealthyOnly, setShowUnhealthyOnly] = useState(() => {
     return localStorage.getItem(FILTER_KEY) === 'true';
   });
@@ -107,9 +107,14 @@ function Wallboard() {
     }
   };
 
+  const selectedDep = useMemo(
+    () => data.dependencies.find((d) => d.canonical_name === selectedDepName) ?? null,
+    [data.dependencies, selectedDepName],
+  );
+
   const handleCardClick = (dep: WallboardDependency) => {
-    setSelectedDep((prev) =>
-      prev?.canonical_name === dep.canonical_name ? null : dep,
+    setSelectedDepName((prev) =>
+      prev === dep.canonical_name ? null : dep.canonical_name,
     );
   };
 
@@ -209,24 +214,26 @@ function Wallboard() {
                     <span className={styles.settingsMenuLabel}>Auto-refresh</span>
                     <div className={styles.pollingControls}>
                       <button
-                        className={`${styles.pollingButton} ${isPollingEnabled ? styles.pollingButtonActive : ''}`}
+                        role="switch"
+                        aria-checked={isPollingEnabled}
                         onClick={togglePolling}
+                        className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
                       >
-                        {isPollingEnabled ? 'ON' : 'OFF'}
+                        <span className={styles.toggleKnob} />
                       </button>
-                      {isPollingEnabled && (
-                        <select
-                          className={styles.intervalSelect}
-                          value={pollingInterval}
-                          onChange={handleIntervalChange}
-                        >
-                          {INTERVAL_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
+                      <select
+                        className={styles.intervalSelect}
+                        value={pollingInterval}
+                        onChange={handleIntervalChange}
+                        disabled={!isPollingEnabled}
+                        aria-label="Refresh interval"
+                      >
+                        {INTERVAL_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -326,7 +333,7 @@ function Wallboard() {
       {selectedDep && (
         <DependencyDetailPanel
           dependency={selectedDep}
-          onClose={() => setSelectedDep(null)}
+          onClose={() => setSelectedDepName(null)}
         />
       )}
     </div>

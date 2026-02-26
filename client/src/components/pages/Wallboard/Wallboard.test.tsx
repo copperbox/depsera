@@ -4,19 +4,25 @@ import type { WallboardDependency, WallboardResponse } from '../../../types/wall
 
 // Mock the api module
 jest.mock('../../../api/wallboard');
-// Mock the DependencyDetailPanel
+// Mock the DependencyDetailPanel – render health_status so we can verify updates
 jest.mock('./DependencyDetailPanel', () => ({
-  DependencyDetailPanel: () => <div data-testid="detail-panel" />,
+  DependencyDetailPanel: ({ dependency }: { dependency: { health_status: string } }) => (
+    <div data-testid="detail-panel">{dependency.health_status}</div>
+  ),
 }));
-// Mock usePolling
+// Mock usePolling – capture onPoll so tests can trigger a refresh
+let capturedOnPoll: (() => void) | undefined;
 jest.mock('../../../hooks/usePolling', () => ({
   INTERVAL_OPTIONS: [{ value: 30000, label: '30s' }],
-  usePolling: () => ({
-    isPollingEnabled: false,
-    pollingInterval: 30000,
-    togglePolling: jest.fn(),
-    handleIntervalChange: jest.fn(),
-  }),
+  usePolling: ({ onPoll }: { onPoll: () => void }) => {
+    capturedOnPoll = onPoll;
+    return {
+      isPollingEnabled: false,
+      pollingInterval: 30000,
+      togglePolling: jest.fn(),
+      handleIntervalChange: jest.fn(),
+    };
+  },
 }));
 
 import { fetchWallboardData } from '../../../api/wallboard';
@@ -400,5 +406,26 @@ describe('Wallboard', () => {
 
     renderWallboard();
     await waitFor(() => expect(screen.getByText('Last checked')).toBeInTheDocument());
+  });
+
+  it('updates detail panel when data refreshes', async () => {
+    mockFetchWallboard
+      .mockResolvedValueOnce(makeResponse({
+        dependencies: [makeDep({ health_status: 'critical' })],
+      }))
+      .mockResolvedValueOnce(makeResponse({
+        dependencies: [makeDep({ health_status: 'healthy' })],
+      }));
+
+    renderWallboard();
+    await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
+
+    // Open detail panel
+    fireEvent.click(screen.getByText('PostgreSQL').closest('div[class*="card"]')!);
+    expect(screen.getByTestId('detail-panel')).toHaveTextContent('critical');
+
+    // Simulate a polling refresh
+    await capturedOnPoll!();
+    await waitFor(() => expect(screen.getByTestId('detail-panel')).toHaveTextContent('healthy'));
   });
 });
