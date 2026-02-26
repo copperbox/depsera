@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect } from 'react';
+import { memo, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -260,6 +260,20 @@ function CustomEdgeComponent({
 
   const isVisible = opacity >= 0.5;
 
+  // Sync packet opacity before every paint so React re-renders never cause flicker.
+  // React doesn't manage the opacity attr (removed from JSX), so this is the only writer
+  // besides the rAF loop — and useLayoutEffect fires synchronously before paint.
+  useLayoutEffect(() => {
+    const group = packetGroupRef.current;
+    if (!group) return;
+    const phase = packetPhases.get(id);
+    if (!phase || phase.kind === 'waiting') {
+      group.setAttribute('opacity', '0');
+    }
+    // When traveling, leave opacity untouched — the rAF loop already set the right value
+    // and React didn't clobber it (no opacity prop in JSX).
+  });
+
   useEffect(() => {
     if (!isVisible) return;
     const group = packetGroupRef.current;
@@ -328,7 +342,7 @@ function CustomEdgeComponent({
       {opacity >= 0.5 && (
         <>
           <path ref={motionPathRef} d={edgePath} fill="none" stroke="none" />
-          <g ref={packetGroupRef} opacity={0} style={{ pointerEvents: 'none' }}>
+          <g ref={packetGroupRef} style={{ pointerEvents: 'none' }}>
             <circle r={6} fill={packetColor} filter="url(#packet-glow)" />
             <circle r={4} fill="url(#packet-highlight)" />
           </g>
