@@ -206,7 +206,7 @@ export class GraphService {
   }
 
   /**
-   * Recursively traverse upstream dependencies.
+   * Iterative BFS traversal of upstream dependencies with batch fetches.
    */
   private traverseUpstream(
     serviceId: string,
@@ -214,23 +214,42 @@ export class GraphService {
     allDependencies: DependencyWithTarget[],
     serviceData: { service: ServiceWithTeam; deps: DependencyWithTarget[] }[]
   ): void {
-    if (visitedServices.has(serviceId)) return;
-    visitedServices.add(serviceId);
+    let frontier = [serviceId];
 
-    const service = this.serviceStore.findByIdWithTeam(serviceId) as ServiceWithTeam | undefined;
-    if (!service) return;
+    while (frontier.length > 0) {
+      // Filter out already-visited IDs
+      const unvisited = frontier.filter(id => !visitedServices.has(id));
+      if (unvisited.length === 0) break;
 
-    const dependencies = this.dependencyStore.findByServiceIdsWithAssociationsAndLatency([
-      serviceId,
-    ]) as DependencyWithTarget[];
-    allDependencies.push(...dependencies);
-    serviceData.push({ service, deps: dependencies });
-
-    // Traverse to upstream services
-    for (const dep of dependencies) {
-      if (dep.target_service_id) {
-        this.traverseUpstream(dep.target_service_id, visitedServices, allDependencies, serviceData);
+      for (const id of unvisited) {
+        visitedServices.add(id);
       }
+
+      // Batch-fetch all services and dependencies for this frontier
+      const services = this.serviceStore.findByIdsWithTeam(unvisited);
+      const dependencies = this.dependencyStore.findByServiceIdsWithAssociationsAndLatency(
+        unvisited
+      ) as DependencyWithTarget[];
+
+      allDependencies.push(...dependencies);
+
+      // Group deps by service_id to pair with services
+      const depsByService = groupByKey(dependencies, 'service_id');
+
+      for (const service of services) {
+        const serviceDeps = depsByService.get(service.id) || [];
+        serviceData.push({ service, deps: serviceDeps });
+      }
+
+      // Collect next frontier from upstream target_service_ids
+      const nextFrontier: string[] = [];
+      for (const dep of dependencies) {
+        if (dep.target_service_id && !visitedServices.has(dep.target_service_id)) {
+          nextFrontier.push(dep.target_service_id);
+        }
+      }
+
+      frontier = [...new Set(nextFrontier)];
     }
   }
 
@@ -268,12 +287,11 @@ export class GraphService {
     /* istanbul ignore if -- Defensive guard; caller checks length before calling */
     if (serviceIds.length === 0) return;
 
-    for (const serviceId of serviceIds) {
-      const service = this.serviceStore.findByIdWithTeam(serviceId) as ServiceWithTeam | undefined;
-      if (!service) continue;
+    const services = this.serviceStore.findByIdsWithTeam(serviceIds);
 
+    for (const service of services) {
       // Filter dependencies that target this service (i.e., other services report on this one)
-      const targetingDeps = dependencies.filter(d => d.target_service_id === serviceId);
+      const targetingDeps = dependencies.filter(d => d.target_service_id === service.id);
 
       builder.addServiceNode(service, targetingDeps, serviceTypes.get(service.id));
     }

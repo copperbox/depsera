@@ -12,6 +12,8 @@ import {
   MIN_LATENCY_THRESHOLD,
   MAX_LATENCY_THRESHOLD,
   transformGraphData,
+  computeTopologyFingerprint,
+  updateGraphDataOnly,
 } from '../utils/graphLayout';
 import type { EdgeStyle } from '../types/graph';
 import { fetchGraph } from '../api/graph';
@@ -138,6 +140,17 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     selectedEdgeIdRef.current = selectedEdgeId;
   }, [selectedEdgeId]);
 
+  // Refs for accessing current nodes/edges in loadData without adding to deps
+  const nodesRef = useRef<AppNode[]>([]);
+  const edgesRef = useRef<AppEdge[]>([]);
+
+  // Keep node/edge refs in sync
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+
+  // Topology fingerprint for skipping layout on unchanged topology
+  const topologyFingerprintRef = useRef<string>('');
+
   // Track whether initial dependency selection has been applied
   const initialDependencyAppliedRef = useRef(false);
 
@@ -220,7 +233,25 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, style);
+      // Compute topology fingerprint
+      const newFingerprint = computeTopologyFingerprint(graphData);
+      const topologyChanged = newFingerprint !== topologyFingerprintRef.current;
+
+      let layoutedNodes: AppNode[];
+      let layoutedEdges: AppEdge[];
+
+      if (isBackgroundRefresh && !topologyChanged && nodesRef.current.length > 0) {
+        // Topology unchanged — update data only, skip expensive ELK layout
+        const updated = updateGraphDataOnly(nodesRef.current, edgesRef.current, graphData, direction);
+        layoutedNodes = updated.nodes;
+        layoutedEdges = updated.edges;
+      } else {
+        // Full layout needed
+        const result = await transformGraphData(graphData, direction, style);
+        layoutedNodes = result.nodes;
+        layoutedEdges = result.edges;
+        topologyFingerprintRef.current = newFingerprint;
+      }
 
       // Apply saved positions for manually dragged nodes
       const currentNodeIds = new Set(layoutedNodes.map(n => n.id));

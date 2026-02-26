@@ -39,6 +39,8 @@ jest.mock('../utils/graphLayout', () => ({
   MIN_LATENCY_THRESHOLD: 10,
   MAX_LATENCY_THRESHOLD: 200,
   transformGraphData: jest.fn().mockResolvedValue({ nodes: [], edges: [] }),
+  computeTopologyFingerprint: jest.fn().mockReturnValue(''),
+  updateGraphDataOnly: jest.fn().mockReturnValue({ nodes: [], edges: [] }),
 }));
 
 jest.mock('../utils/graphLayoutStorage');
@@ -414,5 +416,90 @@ describe('useGraphState', () => {
     });
 
     expect(result.current.isRefreshing).toBe(false);
+  });
+
+  it('skips layout and uses updateGraphDataOnly when topology is unchanged on background refresh', async () => {
+    const { transformGraphData, computeTopologyFingerprint, updateGraphDataOnly } = jest.requireMock('../utils/graphLayout');
+    const { fetchGraph } = jest.requireMock('../api/graph');
+
+    const mockNodes = [
+      { id: 'node-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
+      { id: 'node-2', position: { x: 100, y: 100 }, data: { name: 'Service B' } },
+    ];
+    const mockEdges = [
+      { id: 'edge-1', source: 'node-1', target: 'node-2', data: { relationship: 'depends_on' } },
+    ];
+
+    (fetchGraph as jest.Mock).mockResolvedValue({ nodes: [], edges: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({ nodes: mockNodes, edges: mockEdges });
+    (computeTopologyFingerprint as jest.Mock).mockReturnValue('fingerprint-1');
+    (updateGraphDataOnly as jest.Mock).mockReturnValue({
+      nodes: mockNodes.map(n => ({ ...n, data: { ...n.data, updated: true } })),
+      edges: mockEdges,
+    });
+
+    const { result } = renderHook(() => useGraphState());
+
+    // First load — full layout (fingerprint not yet stored)
+    await act(async () => {
+      await result.current.loadData(false);
+    });
+
+    expect(transformGraphData).toHaveBeenCalledTimes(1);
+    expect(updateGraphDataOnly).not.toHaveBeenCalled();
+
+    jest.clearAllMocks();
+    (fetchGraph as jest.Mock).mockResolvedValue({ nodes: [], edges: [] });
+    (computeTopologyFingerprint as jest.Mock).mockReturnValue('fingerprint-1');
+
+    // Second load — background refresh with same fingerprint
+    await act(async () => {
+      await result.current.loadData(true);
+    });
+
+    expect(transformGraphData).not.toHaveBeenCalled();
+    expect(updateGraphDataOnly).toHaveBeenCalled();
+  });
+
+  it('does full layout when topology changes on background refresh', async () => {
+    const { transformGraphData, computeTopologyFingerprint, updateGraphDataOnly } = jest.requireMock('../utils/graphLayout');
+    const { fetchGraph } = jest.requireMock('../api/graph');
+
+    const mockNodes = [
+      { id: 'node-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
+    ];
+    const mockEdges: never[] = [];
+
+    (fetchGraph as jest.Mock).mockResolvedValue({ nodes: [], edges: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({ nodes: mockNodes, edges: mockEdges });
+    (computeTopologyFingerprint as jest.Mock).mockReturnValue('fingerprint-1');
+
+    const { result } = renderHook(() => useGraphState());
+
+    // First load
+    await act(async () => {
+      await result.current.loadData(false);
+    });
+
+    jest.clearAllMocks();
+    (fetchGraph as jest.Mock).mockResolvedValue({ nodes: [], edges: [] });
+    (computeTopologyFingerprint as jest.Mock).mockReturnValue('fingerprint-2'); // changed
+    (transformGraphData as jest.Mock).mockResolvedValue({
+      nodes: [
+        ...mockNodes,
+        { id: 'node-2', position: { x: 100, y: 100 }, data: { name: 'Service B' } },
+      ],
+      edges: [
+        { id: 'edge-1', source: 'node-1', target: 'node-2', data: { relationship: 'depends_on' } },
+      ],
+    });
+
+    // Background refresh with different fingerprint
+    await act(async () => {
+      await result.current.loadData(true);
+    });
+
+    expect(transformGraphData).toHaveBeenCalled();
+    expect(updateGraphDataOnly).not.toHaveBeenCalled();
   });
 });

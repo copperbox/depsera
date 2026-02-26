@@ -13,6 +13,7 @@ export interface IServiceStore {
   // Find operations
   findById(id: string): Service | undefined;
   findByIdWithTeam(id: string): ServiceWithTeam | undefined;
+  findByIdsWithTeam(ids: string[]): ServiceWithTeam[];
   findAll(options?: ServiceListOptions): Service[];
   findAllWithTeam(options?: ServiceListOptions): ServiceWithTeam[];
   findActive(): Service[];

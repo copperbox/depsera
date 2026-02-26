@@ -1,6 +1,8 @@
 import {
   getLayoutedElements,
   transformGraphData,
+  computeTopologyFingerprint,
+  updateGraphDataOnly,
   NODE_WIDTH,
   NODE_HEIGHT,
   LAYOUT_DIRECTION_KEY,
@@ -276,5 +278,307 @@ describe('transformGraphData', () => {
 
     expect(result.nodes[0].data.layoutDirection).toBe('LR');
     expect(result.edges[0].data!.edgeStyle).toBe('bezier');
+  });
+});
+
+describe('computeTopologyFingerprint', () => {
+  it('produces a deterministic fingerprint from node IDs and edges', () => {
+    const data: GraphResponse = {
+      nodes: [
+        { id: 'b', type: 'service', data: {} as never },
+        { id: 'a', type: 'service', data: {} as never },
+      ],
+      edges: [
+        { id: 'e1', source: 'a', target: 'b', data: { relationship: 'depends_on' } },
+      ],
+    };
+
+    const fingerprint = computeTopologyFingerprint(data);
+    expect(fingerprint).toBe('a,b|a->b');
+  });
+
+  it('produces the same fingerprint regardless of node/edge order', () => {
+    const data1: GraphResponse = {
+      nodes: [
+        { id: 'a', type: 'service', data: {} as never },
+        { id: 'b', type: 'service', data: {} as never },
+      ],
+      edges: [
+        { id: 'e1', source: 'b', target: 'a', data: { relationship: 'depends_on' } },
+        { id: 'e2', source: 'a', target: 'b', data: { relationship: 'depends_on' } },
+      ],
+    };
+
+    const data2: GraphResponse = {
+      nodes: [
+        { id: 'b', type: 'service', data: {} as never },
+        { id: 'a', type: 'service', data: {} as never },
+      ],
+      edges: [
+        { id: 'e2', source: 'a', target: 'b', data: { relationship: 'depends_on' } },
+        { id: 'e1', source: 'b', target: 'a', data: { relationship: 'depends_on' } },
+      ],
+    };
+
+    expect(computeTopologyFingerprint(data1)).toBe(computeTopologyFingerprint(data2));
+  });
+
+  it('produces different fingerprints for different topologies', () => {
+    const data1: GraphResponse = {
+      nodes: [
+        { id: 'a', type: 'service', data: {} as never },
+        { id: 'b', type: 'service', data: {} as never },
+      ],
+      edges: [
+        { id: 'e1', source: 'a', target: 'b', data: { relationship: 'depends_on' } },
+      ],
+    };
+
+    const data2: GraphResponse = {
+      nodes: [
+        { id: 'a', type: 'service', data: {} as never },
+        { id: 'b', type: 'service', data: {} as never },
+        { id: 'c', type: 'service', data: {} as never },
+      ],
+      edges: [
+        { id: 'e1', source: 'a', target: 'b', data: { relationship: 'depends_on' } },
+      ],
+    };
+
+    expect(computeTopologyFingerprint(data1)).not.toBe(computeTopologyFingerprint(data2));
+  });
+
+  it('handles empty graph data', () => {
+    const data: GraphResponse = { nodes: [], edges: [] };
+    expect(computeTopologyFingerprint(data)).toBe('|');
+  });
+});
+
+describe('updateGraphDataOnly', () => {
+  const existingNodes: AppNode[] = [
+    {
+      id: 'node-1',
+      type: 'service',
+      position: { x: 100, y: 200 },
+      data: {
+        name: 'Service A',
+        teamId: 't1',
+        teamName: 'Team A',
+        healthEndpoint: '/health',
+        isActive: true,
+        dependencyCount: 1,
+        healthyCount: 1,
+        unhealthyCount: 0,
+        lastPollSuccess: true,
+        lastPollError: null,
+        reportedHealthyCount: 0,
+        reportedUnhealthyCount: 0,
+        layoutDirection: 'TB',
+      },
+    },
+    {
+      id: 'node-2',
+      type: 'service',
+      position: { x: 300, y: 400 },
+      data: {
+        name: 'Service B',
+        teamId: 't1',
+        teamName: 'Team A',
+        healthEndpoint: '/health',
+        isActive: true,
+        dependencyCount: 0,
+        healthyCount: 0,
+        unhealthyCount: 0,
+        lastPollSuccess: true,
+        lastPollError: null,
+        reportedHealthyCount: 1,
+        reportedUnhealthyCount: 0,
+        layoutDirection: 'TB',
+      },
+    },
+  ];
+
+  const existingEdges: AppEdge[] = [
+    {
+      id: 'edge-1',
+      source: 'node-2',
+      target: 'node-1',
+      type: 'custom',
+      data: {
+        relationship: 'depends_on',
+        healthy: true,
+        latencyMs: 50,
+        routingLane: 1,
+        layoutDirection: 'TB',
+        edgeStyle: 'orthogonal',
+      },
+    },
+  ];
+
+  it('preserves node positions while updating data', () => {
+    const newData: GraphResponse = {
+      nodes: [
+        {
+          id: 'node-1',
+          type: 'service',
+          data: {
+            name: 'Service A',
+            teamId: 't1',
+            teamName: 'Team A',
+            healthEndpoint: '/health',
+            isActive: true,
+            dependencyCount: 1,
+            healthyCount: 0,
+            unhealthyCount: 1,
+            lastPollSuccess: false,
+            lastPollError: 'timeout',
+            reportedHealthyCount: 0,
+            reportedUnhealthyCount: 0,
+          },
+        },
+        {
+          id: 'node-2',
+          type: 'service',
+          data: {
+            name: 'Service B',
+            teamId: 't1',
+            teamName: 'Team A',
+            healthEndpoint: '/health',
+            isActive: true,
+            dependencyCount: 0,
+            healthyCount: 0,
+            unhealthyCount: 0,
+            lastPollSuccess: true,
+            lastPollError: null,
+            reportedHealthyCount: 0,
+            reportedUnhealthyCount: 0,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'node-2',
+          target: 'node-1',
+          data: {
+            relationship: 'depends_on',
+            healthy: false,
+            latencyMs: 120,
+          },
+        },
+      ],
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData);
+
+    // Positions should be preserved
+    expect(result.nodes[0].position).toEqual({ x: 100, y: 200 });
+    expect(result.nodes[1].position).toEqual({ x: 300, y: 400 });
+
+    // Data should be updated
+    expect(result.nodes[0].data.unhealthyCount).toBe(1);
+    expect(result.nodes[0].data.lastPollSuccess).toBe(false);
+    expect(result.nodes[0].data.lastPollError).toBe('timeout');
+  });
+
+  it('recalculates reported health counts from edges', () => {
+    const newData: GraphResponse = {
+      nodes: existingNodes.map(n => ({ id: n.id, type: 'service' as const, data: n.data })),
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'node-2',
+          target: 'node-1',
+          data: { relationship: 'depends_on', healthy: false },
+        },
+      ],
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData);
+
+    // node-2 is source of edge with healthy=false
+    const node2 = result.nodes.find(n => n.id === 'node-2');
+    expect(node2?.data.reportedHealthyCount).toBe(0);
+    expect(node2?.data.reportedUnhealthyCount).toBe(1);
+
+    // node-1 is target, no reported health
+    const node1 = result.nodes.find(n => n.id === 'node-1');
+    expect(node1?.data.reportedHealthyCount).toBe(0);
+    expect(node1?.data.reportedUnhealthyCount).toBe(0);
+  });
+
+  it('preserves edge routing while updating edge data', () => {
+    const newData: GraphResponse = {
+      nodes: existingNodes.map(n => ({ id: n.id, type: 'service' as const, data: n.data })),
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'node-2',
+          target: 'node-1',
+          data: { relationship: 'depends_on', healthy: false, latencyMs: 200 },
+        },
+      ],
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData);
+
+    // Edge routing should be preserved (from existing edge data)
+    expect(result.edges[0].data!.routingLane).toBe(1);
+    expect(result.edges[0].data!.layoutDirection).toBe('TB');
+    expect(result.edges[0].data!.edgeStyle).toBe('orthogonal');
+
+    // Edge data should be updated
+    expect(result.edges[0].data!.healthy).toBe(false);
+    expect(result.edges[0].data!.latencyMs).toBe(200);
+  });
+
+  it('returns existing node if not found in new data', () => {
+    const newData: GraphResponse = {
+      nodes: [
+        {
+          id: 'node-1',
+          type: 'service',
+          data: existingNodes[0].data,
+        },
+        // node-2 is missing from new data
+      ],
+      edges: [],
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData);
+
+    // node-2 should remain unchanged
+    expect(result.nodes[1]).toBe(existingNodes[1]);
+  });
+
+  it('returns existing edge if not found in new data', () => {
+    const newData: GraphResponse = {
+      nodes: existingNodes.map(n => ({ id: n.id, type: 'service' as const, data: n.data })),
+      edges: [], // edge-1 is missing from new data
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData);
+
+    // edge should remain unchanged
+    expect(result.edges[0]).toBe(existingEdges[0]);
+  });
+
+  it('applies custom layout direction to node data', () => {
+    const newData: GraphResponse = {
+      nodes: existingNodes.map(n => ({ id: n.id, type: 'service' as const, data: n.data })),
+      edges: [
+        {
+          id: 'edge-1',
+          source: 'node-2',
+          target: 'node-1',
+          data: { relationship: 'depends_on', healthy: true },
+        },
+      ],
+    };
+
+    const result = updateGraphDataOnly(existingNodes, existingEdges, newData, 'LR');
+
+    expect(result.nodes[0].data.layoutDirection).toBe('LR');
+    expect(result.nodes[1].data.layoutDirection).toBe('LR');
   });
 });

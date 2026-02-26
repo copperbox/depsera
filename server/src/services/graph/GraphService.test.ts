@@ -11,6 +11,7 @@ describe('GraphService', () => {
     findById: jest.fn(),
     findAll: jest.fn(),
     findByIdWithTeam: jest.fn(),
+    findByIdsWithTeam: jest.fn(),
     findAllWithTeam: jest.fn(),
     findActiveWithTeam: jest.fn(),
     findByTeamId: jest.fn(),
@@ -114,7 +115,7 @@ describe('GraphService', () => {
       mockTeamStore.findById.mockReturnValue({ id: 'team-1', name: 'Test' });
       mockServiceStore.findAllWithTeam.mockReturnValue([teamService]);
       mockDependencyStore.findByServiceIdsWithAssociationsAndLatency.mockReturnValue([dep]);
-      mockServiceStore.findByIdWithTeam.mockReturnValue(externalService);
+      mockServiceStore.findByIdsWithTeam.mockReturnValue([externalService]);
       mockDependencyStore.findByServiceId.mockReturnValue([]);
 
       const graphService = new GraphService(undefined, mockStores);
@@ -122,7 +123,7 @@ describe('GraphService', () => {
 
       // Should have both team's service and external service
       expect(result.nodes.length).toBeGreaterThanOrEqual(2);
-      expect(mockServiceStore.findByIdWithTeam).toHaveBeenCalledWith('svc-2');
+      expect(mockServiceStore.findByIdsWithTeam).toHaveBeenCalledWith(['svc-2']);
     });
 
     it('should skip external services that no longer exist', () => {
@@ -132,7 +133,7 @@ describe('GraphService', () => {
       mockTeamStore.findById.mockReturnValue({ id: 'team-1', name: 'Test' });
       mockServiceStore.findAllWithTeam.mockReturnValue([teamService]);
       mockDependencyStore.findByServiceIdsWithAssociationsAndLatency.mockReturnValue([dep]);
-      mockServiceStore.findByIdWithTeam.mockReturnValue(undefined);
+      mockServiceStore.findByIdsWithTeam.mockReturnValue([]);
 
       const graphService = new GraphService(undefined, mockStores);
       const result = graphService.getTeamGraph('team-1');
@@ -162,7 +163,7 @@ describe('GraphService', () => {
   });
 
   describe('getServiceSubgraph', () => {
-    it('should traverse upstream dependencies recursively', () => {
+    it('should traverse upstream dependencies using BFS', () => {
       const service1 = createService('svc-1', 'Service 1');
       const service2 = createService('svc-2', 'Service 2');
       const service3 = createService('svc-3', 'Service 3');
@@ -170,10 +171,11 @@ describe('GraphService', () => {
       const dep1to2 = createDependency('svc-1', 'svc-2', 'rest');
       const dep2to3 = createDependency('svc-2', 'svc-3', 'database');
 
-      mockServiceStore.findByIdWithTeam
-        .mockReturnValueOnce(service1)
-        .mockReturnValueOnce(service2)
-        .mockReturnValueOnce(service3);
+      // BFS level 1: fetch svc-1
+      mockServiceStore.findByIdsWithTeam
+        .mockReturnValueOnce([service1])
+        .mockReturnValueOnce([service2])
+        .mockReturnValueOnce([service3]);
 
       mockDependencyStore.findByServiceIdsWithAssociationsAndLatency
         .mockReturnValueOnce([dep1to2])
@@ -184,10 +186,14 @@ describe('GraphService', () => {
       const result = graphService.getServiceSubgraph('svc-1');
 
       expect(result.nodes).toHaveLength(3);
+      expect(mockServiceStore.findByIdsWithTeam).toHaveBeenCalledWith(['svc-1']);
+      expect(mockServiceStore.findByIdsWithTeam).toHaveBeenCalledWith(['svc-2']);
+      expect(mockServiceStore.findByIdsWithTeam).toHaveBeenCalledWith(['svc-3']);
     });
 
     it('should return empty graph for non-existent service', () => {
-      mockServiceStore.findByIdWithTeam.mockReturnValue(undefined);
+      mockServiceStore.findByIdsWithTeam.mockReturnValue([]);
+      mockDependencyStore.findByServiceIdsWithAssociationsAndLatency.mockReturnValue([]);
 
       const graphService = new GraphService(undefined, mockStores);
       const result = graphService.getServiceSubgraph('non-existent');
@@ -203,9 +209,9 @@ describe('GraphService', () => {
       const dep1to2 = createDependency('svc-1', 'svc-2', 'rest');
       const dep2to1 = createDependency('svc-2', 'svc-1', 'rest');
 
-      mockServiceStore.findByIdWithTeam
-        .mockReturnValueOnce(service1)
-        .mockReturnValueOnce(service2);
+      mockServiceStore.findByIdsWithTeam
+        .mockReturnValueOnce([service1])
+        .mockReturnValueOnce([service2]);
 
       mockDependencyStore.findByServiceIdsWithAssociationsAndLatency
         .mockReturnValueOnce([dep1to2])
@@ -214,7 +220,7 @@ describe('GraphService', () => {
       const graphService = new GraphService(undefined, mockStores);
       const result = graphService.getServiceSubgraph('svc-1');
 
-      // Should have both services without infinite recursion
+      // Should have both services without infinite loop
       expect(result.nodes).toHaveLength(2);
     });
   });
@@ -239,14 +245,14 @@ describe('GraphService', () => {
       const service = createService('svc-1', 'Service 1');
 
       mockDependencyStore.findById.mockReturnValue(dependency);
-      mockServiceStore.findByIdWithTeam.mockReturnValue(service);
+      mockServiceStore.findByIdsWithTeam.mockReturnValue([service]);
       mockDependencyStore.findByServiceIdsWithAssociationsAndLatency.mockReturnValue([]);
 
       const graphService = new GraphService(undefined, mockStores);
       const result = graphService.getDependencySubgraph('dep-1');
 
       expect(result.nodes).toHaveLength(1);
-      expect(mockServiceStore.findByIdWithTeam).toHaveBeenCalledWith('svc-1');
+      expect(mockServiceStore.findByIdsWithTeam).toHaveBeenCalledWith(['svc-1']);
     });
   });
 

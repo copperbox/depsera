@@ -50,6 +50,25 @@ export class ServiceStore implements IServiceStore {
       .get(id) as ServiceWithTeam | undefined;
   }
 
+  findByIdsWithTeam(ids: string[]): ServiceWithTeam[] {
+    if (ids.length === 0) return [];
+
+    const placeholders = ids.map(() => '?').join(', ');
+    return this.db
+      .prepare(`
+        SELECT
+          s.*,
+          t.name as team_name,
+          t.description as team_description,
+          t.created_at as team_created_at,
+          t.updated_at as team_updated_at
+        FROM services s
+        JOIN teams t ON s.team_id = t.id
+        WHERE s.id IN (${placeholders})
+      `)
+      .all(...ids) as ServiceWithTeam[];
+  }
+
   findAll(options?: ServiceListOptions): Service[] {
     const { where, params } = this.buildWhereClause(options);
     const { column: orderBy, direction: orderDir } = validateOrderBy(
