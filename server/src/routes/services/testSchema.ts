@@ -105,6 +105,9 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Include any schema mapping warnings (skipped items, etc.)
+    warnings.push(...parser.lastWarnings);
+
     // Collect warnings about missing optional fields
     if (!schemaConfig.fields.latency) {
       warnings.push('No latency field mapping configured — latency data will not be captured');

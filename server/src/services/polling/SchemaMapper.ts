@@ -64,7 +64,7 @@ export class SchemaMapper {
       const item = items[i];
       if (typeof item !== 'object' || item === null) {
         logger.warn({ index: i, serviceName: this.serviceName }, '%s: skipping non-object item at index %d', this.logPrefix, i);
-        this._warnings.add('Non-object item encountered in response array');
+        this._warnings.add(`Item at index ${i}: non-object item in response array`);
         continue;
       }
 
@@ -92,7 +92,7 @@ export class SchemaMapper {
 
       if (typeof value !== 'object' || value === null) {
         logger.warn({ key, serviceName: this.serviceName }, '%s: skipping non-object value for key "%s"', this.logPrefix, key);
-        this._warnings.add(`Non-object value for key "${key}"`);
+        this._warnings.add(`Dependency "${key}": non-object value`);
         continue;
       }
 
@@ -131,7 +131,8 @@ export class SchemaMapper {
         this.logPrefix,
         index
       );
-      this._warnings.add('"name" field is missing or not a string');
+      const itemLabel = objectKey !== undefined ? `"${objectKey}"` : `index ${index}`;
+      this._warnings.add(`Item ${itemLabel}: "name" field is missing or not a string`);
       return null;
     }
 
@@ -144,7 +145,7 @@ export class SchemaMapper {
         name,
         index
       );
-      this._warnings.add('"healthy" field could not be resolved');
+      this._warnings.add(`Dependency "${name}": "healthy" field could not be resolved`);
       return null;
     }
 

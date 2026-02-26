@@ -40,6 +40,7 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     description: row.description ?? null,
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
+    poll_warnings: row.poll_warnings ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
