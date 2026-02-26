@@ -86,10 +86,11 @@ function renderPanel(
 }
 
 describe('EdgeDetailsPanel', () => {
-  it('renders dependency name', async () => {
+  it('renders source node name as title', async () => {
     renderPanel();
 
-    expect(screen.getByText('Database Connection')).toBeInTheDocument();
+    // Title uses source node name as fallback when no canonical name
+    expect(screen.getByRole('heading', { name: 'Source Service' })).toBeInTheDocument();
   });
 
   it('displays healthy status', async () => {
@@ -134,9 +135,9 @@ describe('EdgeDetailsPanel', () => {
     renderPanel();
 
     expect(screen.getByText('From')).toBeInTheDocument();
-    expect(screen.getByText('Source Service')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Source Service' })).toBeInTheDocument();
     expect(screen.getByText('To')).toBeInTheDocument();
-    expect(screen.getByText('Target Service')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Target Service' })).toBeInTheDocument();
   });
 
   it('shows Unknown for missing source node', async () => {
@@ -426,7 +427,7 @@ describe('EdgeDetailsPanel', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Database Connection')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Source Service' })).toBeInTheDocument();
     });
 
     expect(screen.queryByText('View Service Details')).not.toBeInTheDocument();
@@ -441,18 +442,47 @@ describe('EdgeDetailsPanel', () => {
     expect(screen.queryByText('Database Connection')).not.toBeInTheDocument();
   });
 
-  it('falls back to dependency name when canonical name is null', async () => {
+  it('falls back to source node name when canonical name is null', async () => {
     const dataWithNullCanonical = { ...mockEdgeData, canonicalName: null };
 
     renderPanel('e1', dataWithNullCanonical);
 
-    expect(screen.getByText('Database Connection')).toBeInTheDocument();
+    // sourceNode.data.name is "Source Service"
+    expect(screen.getByRole('heading', { name: 'Source Service' })).toBeInTheDocument();
   });
 
-  it('falls back to Connection when no dependency name', async () => {
+  it('falls back to dependency name when no canonical name and no source node', async () => {
+    const dataWithNullCanonical = { ...mockEdgeData, canonicalName: null };
+
+    render(
+      <MemoryRouter>
+        <EdgeDetailsPanel
+          edgeId="e1"
+          data={dataWithNullCanonical}
+          sourceNode={undefined}
+          targetNode={mockTargetNode}
+          onClose={jest.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('heading', { name: 'Database Connection' })).toBeInTheDocument();
+  });
+
+  it('falls back to Connection when no names available', async () => {
     const noNameData = { ...mockEdgeData, dependencyName: undefined };
 
-    renderPanel('e1', noNameData);
+    render(
+      <MemoryRouter>
+        <EdgeDetailsPanel
+          edgeId="e1"
+          data={noNameData}
+          sourceNode={undefined}
+          targetNode={mockTargetNode}
+          onClose={jest.fn()}
+        />
+      </MemoryRouter>
+    );
 
     // "Connection" appears both in the title and as a section title
     const connectionElements = screen.getAllByText('Connection');
