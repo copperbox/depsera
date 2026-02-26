@@ -38,7 +38,7 @@ curl http://localhost:3001/api/health
 
 ## Auth
 
-Rate limited: 10 requests/minute per IP on all `/api/auth` endpoints.
+Rate limited: 20 requests/minute per IP on all `/api/auth` endpoints.
 
 ### `GET /api/auth/mode`
 
@@ -1322,9 +1322,9 @@ curl http://localhost:3001/api/admin/settings -b cookies.txt
   "retention_cleanup_time": { "value": "02:00", "source": "default" },
   "default_poll_interval_ms": { "value": 30000, "source": "default" },
   "ssrf_allowlist": { "value": "localhost,127.0.0.0/8", "source": "database" },
-  "global_rate_limit": { "value": 100, "source": "default" },
-  "global_rate_limit_window_minutes": { "value": 15, "source": "default" },
-  "auth_rate_limit": { "value": 10, "source": "default" },
+  "global_rate_limit": { "value": 3000, "source": "default" },
+  "global_rate_limit_window_minutes": { "value": 1, "source": "default" },
+  "auth_rate_limit": { "value": 20, "source": "default" },
   "auth_rate_limit_window_minutes": { "value": 1, "source": "default" },
   "alert_cooldown_minutes": { "value": 5, "source": "default" },
   "alert_rate_limit_per_hour": { "value": 30, "source": "default" }

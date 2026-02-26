@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 34 419 96">
+  <title>Depsera</title>
+  <defs>
+    <style>
+      @font-face { font-family:"BricolageGrotesque"; src:url("/mnt/skills/examples/canvas-design/canvas-fonts/BricolageGrotesque-Bold.ttf"); font-weight:700; }
+    </style>
+  </defs>
+  <text x="0" y="110" font-family="BricolageGrotesque,Arial Black,sans-serif" font-weight="700" font-size="100" fill="#DCE8E4">dep</text>
+  <text x="185.8" y="110" font-family="BricolageGrotesque,Arial Black,sans-serif" font-weight="700" font-size="100" fill="#00D49A">sera</text>
+</svg>

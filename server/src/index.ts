@@ -19,7 +19,9 @@ import dependenciesRouter from './routes/dependencies';
 import externalServicesRouter from './routes/external-services';
 import wallboardRouter from './routes/wallboard';
 import canonicalOverridesRouter from './routes/canonicalOverrides';
-import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
+import activityRouter from './routes/activity';
+import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
+import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
 import { DataRetentionService } from './services/retention/DataRetentionService';
 import { AlertService } from './services/alerts';
@@ -80,6 +82,7 @@ app.use('/api/dependencies', requireAuth, dependenciesRouter);
 app.use('/api/external-services', requireAuth, externalServicesRouter);
 app.use('/api/wallboard', requireAuth, wallboardRouter);
 app.use('/api/canonical-overrides', requireAuth, canonicalOverridesRouter);
+app.use('/api/activity', requireAuth, activityRouter);
 app.use('/api', requireAuth, associationsRouter);
 app.use('/api/admin', requireAuth, adminRouter);
 app.use('/api/teams', requireAuth, alertsRouter);
@@ -122,13 +125,28 @@ async function start() {
   // Initialize health polling service
   const pollingService = HealthPollingService.getInstance();
 
-  // Log status changes (for debugging and future alerting)
+  // Persist and log status changes
+  const statusChangeStore = getStores().statusChangeEvents;
   pollingService.on(PollingEventType.STATUS_CHANGE, (event: StatusChangeEvent) => {
     logger.info({ service: event.serviceName, dependency: event.dependencyName, from: event.previousHealthy, to: event.currentHealthy }, 'dependency status changed');
+    statusChangeStore.record(
+      event.serviceId,
+      event.serviceName,
+      event.dependencyName,
+      event.previousHealthy,
+      event.currentHealthy,
+      event.timestamp
+    );
   });
 
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
     logger.error({ service: event.serviceName, error: event.error }, 'poll failed');
+  });
+
+  // Record service-level poll history (success/failure transitions)
+  const pollHistoryRecorder = getServicePollHistoryRecorder();
+  pollingService.on(PollingEventType.POLL_COMPLETE, (event: PollCompleteEvent) => {
+    pollHistoryRecorder.record(event.serviceId, event.success, event.error, new Date().toISOString());
   });
 
   // Warn about insecure session cookie settings

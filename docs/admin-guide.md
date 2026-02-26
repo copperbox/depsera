@@ -372,9 +372,9 @@ Individual services can override this value. Existing services are not affected 
 | Setting | Range | Default | Description |
 |---------|-------|---------|-------------|
 | SSRF allowlist | — | From env var | Hostnames, wildcards, and CIDRs to allow for health polling |
-| Global rate limit (requests) | 1–10,000 | 300 | Max API requests per IP per window |
-| Global rate limit window (minutes) | 1–1,440 | 15 | Window duration for global rate limit |
-| Auth rate limit (requests) | 1–1,000 | 10 | Max auth requests per IP per window |
+| Global rate limit (requests) | 1–10,000 | 3,000 | Max API requests per IP per window |
+| Global rate limit window (minutes) | 1–1,440 | 1 | Window duration for global rate limit |
+| Auth rate limit (requests) | 1–1,000 | 20 | Max auth requests per IP per window |
 | Auth rate limit window (minutes) | 1–1,440 | 1 | Window duration for auth rate limit |
 
 ### Alerts

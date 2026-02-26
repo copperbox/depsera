@@ -35,9 +35,9 @@ All items in this section are **[Planned]**. See the [PRD](../PRD-1.0.md) for fu
 | `retention_cleanup_time` | `"02:00"` | Daily cleanup schedule |
 | `default_poll_interval_ms` | 30000 | Default poll interval for new services |
 | `ssrf_allowlist` | from env var | SSRF allowlist |
-| `global_rate_limit` | 100 | Global rate limit |
-| `global_rate_limit_window_minutes` | 15 | Global rate limit window |
-| `auth_rate_limit` | 10 | Auth rate limit |
+| `global_rate_limit` | 3000 | Global rate limit |
+| `global_rate_limit_window_minutes` | 1 | Global rate limit window |
+| `auth_rate_limit` | 20 | Auth rate limit |
 | `auth_rate_limit_window_minutes` | 1 | Auth rate limit window |
 
 **Frontend:** **[Implemented]** (PRO-76). Admin-only `/admin/settings` page with collapsible sections for data retention, polling defaults, security (SSRF allowlist + rate limits), and alerts. Form validation, save confirmation toast, and immediate effect. Admin nav updated with section divider and separate "Users" and "Settings" links. See `/client/src/components/pages/Admin/AdminSettings.tsx`.

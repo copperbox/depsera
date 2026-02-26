@@ -1,7 +1,6 @@
-# Depsera
-
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)]()
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+<p align="center">
+  <img src="./docs/depsera-logo.svg" alt="Depsera" width="800" />
+</p>
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
 
@@ -263,7 +262,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | Route | Description |
 |-------|-------------|
 | `/` | Dashboard — health distribution, services with issues, team health summaries |
-| `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, and manual poll |
+| `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
 | `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
@@ -287,7 +286,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
 | Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
-| History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline` |
+| History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
 

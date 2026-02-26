@@ -16,6 +16,8 @@ import type { IAlertChannelStore } from './interfaces/IAlertChannelStore';
 import type { IAlertRuleStore } from './interfaces/IAlertRuleStore';
 import type { IAlertHistoryStore } from './interfaces/IAlertHistoryStore';
 import type { ICanonicalOverrideStore } from './interfaces/ICanonicalOverrideStore';
+import type { IStatusChangeEventStore } from './interfaces/IStatusChangeEventStore';
+import type { IServicePollHistoryStore } from './interfaces/IServicePollHistoryStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -32,6 +34,8 @@ import { AlertChannelStore } from './impl/AlertChannelStore';
 import { AlertRuleStore } from './impl/AlertRuleStore';
 import { AlertHistoryStore } from './impl/AlertHistoryStore';
 import { CanonicalOverrideStore } from './impl/CanonicalOverrideStore';
+import { StatusChangeEventStore } from './impl/StatusChangeEventStore';
+import { ServicePollHistoryStore } from './impl/ServicePollHistoryStore';
 
 /**
  * Central registry providing access to all stores.
@@ -54,6 +58,8 @@ export class StoreRegistry {
   public readonly alertRules: IAlertRuleStore;
   public readonly alertHistory: IAlertHistoryStore;
   public readonly canonicalOverrides: ICanonicalOverrideStore;
+  public readonly statusChangeEvents: IStatusChangeEventStore;
+  public readonly servicePollHistory: IServicePollHistoryStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -70,6 +76,8 @@ export class StoreRegistry {
     this.alertRules = new AlertRuleStore(database);
     this.alertHistory = new AlertHistoryStore(database);
     this.canonicalOverrides = new CanonicalOverrideStore(database);
+    this.statusChangeEvents = new StatusChangeEventStore(database);
+    this.servicePollHistory = new ServicePollHistoryStore(database);
   }
 
   /**

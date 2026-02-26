@@ -18,6 +18,7 @@ function Dashboard() {
     stats,
     servicesWithIssues,
     recentActivity,
+    unstableDependencies,
     teamHealthSummary,
     loadData,
   } = useDashboard();
@@ -280,86 +281,90 @@ function Dashboard() {
           <div className={styles.sectionContent}>
             {recentActivity.length > 0 ? (
               <ul className={styles.activityList}>
-                {recentActivity.map(service => (
-                  <li key={service.id} className={styles.activityItem}>
-                    <div className={`${styles.activityIcon} ${styles[service.health.status]}`}>
-                      {service.health.status === 'healthy' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M13 4l-7 7-3-3" />
-                        </svg>
-                      )}
-                      {service.health.status === 'warning' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M8 1l7 14H1L8 1z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                          <path d="M8 6v3M8 11v1" stroke="currentColor" strokeWidth="1.5" />
-                        </svg>
-                      )}
-                      {service.health.status === 'critical' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="8" cy="8" r="6" />
-                          <path d="M10 6l-4 4M6 6l4 4" />
-                        </svg>
-                      )}
-                      {service.health.status === 'unknown' && (
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="8" cy="8" r="6" />
-                          <path d="M8 5v3M8 10v1" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className={styles.activityContent}>
-                      <div className={styles.activityText}>
-                        <Link to={`/services/${service.id}`} className={styles.activityLink}>
-                          {service.name}
-                        </Link>
-                        {' '}reported {service.health.status}
+                {recentActivity.map(event => {
+                  const status = event.current_healthy ? 'healthy' : 'critical';
+                  const previousLabel = event.previous_healthy === null
+                    ? 'new'
+                    : event.previous_healthy ? 'healthy' : 'critical';
+                  const currentLabel = event.current_healthy ? 'healthy' : 'critical';
+                  return (
+                    <li key={event.id} className={styles.activityItem}>
+                      <div className={`${styles.activityIcon} ${styles[status]}`}>
+                        {event.current_healthy ? (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 4l-7 7-3-3" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="8" cy="8" r="6" />
+                            <path d="M10 6l-4 4M6 6l4 4" />
+                          </svg>
+                        )}
                       </div>
-                      <div className={styles.activityTime}>
-                        {formatRelativeTime(service.health.last_report)}
+                      <div className={styles.activityContent}>
+                        <div className={styles.activityText}>
+                          <Link to={`/services/${event.service_id}`} className={styles.activityLink}>
+                            {event.service_name}
+                          </Link>
+                          {' '}{event.dependency_name}: {previousLabel} &rarr; {currentLabel}
+                        </div>
+                        <div className={styles.activityTime}>
+                          {formatRelativeTime(event.recorded_at)}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <div className={styles.emptySection}>
-                No recent activity
+                No recent status changes
               </div>
             )}
           </div>
         </div>
 
-        {/* Mini Graph Preview */}
+        {/* Most Unstable Dependencies */}
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Dependency Graph</h2>
-            <Link to="/graph" className={styles.sectionLink}>
-              View full graph
-            </Link>
+            <h2 className={styles.sectionTitle}>Most Unstable (24h)</h2>
           </div>
-          <div
-            className={styles.graphPreview}
-            onClick={() => navigate('/graph')}
-          >
-            <div className={styles.graphPlaceholder}>
-              <svg
-                className={styles.graphIcon}
-                width="48"
-                height="48"
-                viewBox="0 0 48 48"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="24" r="4" />
-                <circle cx="36" cy="12" r="4" />
-                <circle cx="36" cy="36" r="4" />
-                <path d="M16 24h12M28 20l8-6M28 28l8 6" />
-              </svg>
-              <span className={styles.graphText}>
-                Click to view dependency graph
-              </span>
-            </div>
+          <div className={styles.sectionContent}>
+            {unstableDependencies.length > 0 ? (
+              <ul className={styles.unstableList}>
+                {unstableDependencies.map(dep => {
+                  const maxCount = unstableDependencies[0].change_count;
+                  const barWidth = maxCount > 0 ? (dep.change_count / maxCount) * 100 : 0;
+                  return (
+                    <li key={dep.dependency_name} className={styles.unstableItem}>
+                      <div className={styles.unstableInfo}>
+                        <span className={`${styles.unstableDot} ${dep.current_healthy ? styles.healthy : styles.critical}`} />
+                        <div className={styles.unstableText}>
+                          <Link to={`/services/${dep.service_id}`} className={styles.unstableName}>
+                            {dep.dependency_name}
+                          </Link>
+                          <span className={styles.unstableService}>{dep.service_name}</span>
+                        </div>
+                      </div>
+                      <div className={styles.unstableBar}>
+                        <div
+                          className={styles.unstableBarFill}
+                          style={{ width: `${barWidth}%` }}
+                        />
+                        <span className={styles.unstableCount}>{dep.change_count}</span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className={styles.emptySection}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: '0.5rem' }}>
+                  <path d="M16.7 5.3l-8.4 8.4-4-4" />
+                </svg>
+                <div>All dependencies stable</div>
+              </div>
+            )}
           </div>
         </div>
       </div>

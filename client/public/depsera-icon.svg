@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <title>Depsera</title>
+
+  <g opacity="0.6">
+    <circle cx="48" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="48" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="96" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="144" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="192" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="240" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="288" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="336" cy="384" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="48" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="96" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="144" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="192" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="240" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="288" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="336" r="1" fill="#0F1818"/>
+    <circle cx="384" cy="384" r="1" fill="#0F1818"/>
+  </g>
+  <defs>
+    <filter id="glow-hub" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-node" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <line x1="100" y1="285" x2="200" y2="210" stroke="#0E1818" stroke-width="1"/>
+  <line x1="292" y1="282" x2="200" y2="210" stroke="#0E1818" stroke-width="1"/>
+  <line x1="22" y1="215" x2="105" y2="128" stroke="#0E1818" stroke-width="1"/>
+  <line x1="22" y1="215" x2="100" y2="285" stroke="#0E1818" stroke-width="1"/>
+  <line x1="192" y1="50" x2="105" y2="128" stroke="#1A3030" stroke-width="1"/>
+  <line x1="192" y1="50" x2="288" y2="132" stroke="#1A3030" stroke-width="1"/>
+  <line x1="105" y1="128" x2="200" y2="210" stroke="#001810" stroke-width="5"/>
+  <line x1="105" y1="128" x2="200" y2="210" stroke="#003525" stroke-width="3"/>
+  <line x1="105" y1="128" x2="200" y2="210" stroke="#004A38" stroke-width="2"/>
+  <line x1="105" y1="128" x2="200" y2="210" stroke="#008060" stroke-width="1"/>
+  <line x1="288" y1="132" x2="200" y2="210" stroke="#001810" stroke-width="5"/>
+  <line x1="288" y1="132" x2="200" y2="210" stroke="#003525" stroke-width="3"/>
+  <line x1="288" y1="132" x2="200" y2="210" stroke="#004A38" stroke-width="2"/>
+  <line x1="288" y1="132" x2="200" y2="210" stroke="#008060" stroke-width="1"/>
+  <polygon points="178.3,187.2 176.8,190.0 174.3,191.8" fill="#00C896"/>
+  <polygon points="223.7,193.1 221.2,191.2 219.7,188.5" fill="#00C896"/>
+  <circle cx="200" cy="210" r="28" fill="#001008"/>
+  <circle cx="200" cy="210" r="23" fill="#001E14"/>
+  <circle cx="200" cy="210" r="20" fill="#003020"/>
+  <circle cx="200" cy="210" r="18" fill="#00C896" filter="url(#glow-hub)"/>
+  <circle cx="200" cy="210" r="6" fill="#60FFD8"/>
+  <circle cx="105" cy="128" r="15" fill="#001408"/>
+  <circle cx="105" cy="128" r="11" fill="#00C896" filter="url(#glow-node)"/>
+  <circle cx="288" cy="132" r="15" fill="#001408"/>
+  <circle cx="288" cy="132" r="11" fill="#00C896" filter="url(#glow-node)"/>
+  <circle cx="100" cy="285" r="9" fill="#2E5858"/>
+  <circle cx="292" cy="282" r="9" fill="#2E5858"/>
+  <circle cx="192" cy="50" r="7" fill="#1A3535"/>
+  <circle cx="22" cy="215" r="7" fill="#1A3535"/>
+</svg>

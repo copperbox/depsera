@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { fetchServices, fetchTeams } from '../api/services';
+import { fetchRecentActivity, fetchUnstableDependencies } from '../api/activity';
 import type { Service, TeamWithCounts } from '../types/service';
+import type { StatusChangeActivity, UnstableDependency } from '../types/activity';
 
 export interface DashboardStats {
   total: number;
@@ -25,7 +27,8 @@ export interface UseDashboardReturn {
   error: string | null;
   stats: DashboardStats;
   servicesWithIssues: Service[];
-  recentActivity: Service[];
+  recentActivity: StatusChangeActivity[];
+  unstableDependencies: UnstableDependency[];
   teamHealthSummary: TeamHealthSummary[];
   loadData: (isBackgroundRefresh?: boolean) => Promise<void>;
 }
@@ -33,6 +36,8 @@ export interface UseDashboardReturn {
 export function useDashboard(): UseDashboardReturn {
   const [services, setServices] = useState<Service[]>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
+  const [recentActivity, setRecentActivity] = useState<StatusChangeActivity[]>([]);
+  const [unstableDependencies, setUnstableDependencies] = useState<UnstableDependency[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -45,12 +50,16 @@ export function useDashboard(): UseDashboardReturn {
     }
     setError(null);
     try {
-      const [servicesData, teamsData] = await Promise.all([
+      const [servicesData, teamsData, activityData, unstableData] = await Promise.all([
         fetchServices(),
         fetchTeams(),
+        fetchRecentActivity(5),
+        fetchUnstableDependencies(24, 5),
       ]);
       setServices(servicesData);
       setTeams(teamsData);
+      setRecentActivity(activityData);
+      setUnstableDependencies(unstableData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -86,18 +95,6 @@ export function useDashboard(): UseDashboardReturn {
       .slice(0, 5);
   }, [services]);
 
-  // Recent activity (services with recent reports, sorted by last_report)
-  const recentActivity = useMemo(() => {
-    return services
-      .filter(s => s.health.last_report)
-      .sort((a, b) => {
-        const dateA = new Date(a.health.last_report!).getTime();
-        const dateB = new Date(b.health.last_report!).getTime();
-        return dateB - dateA;
-      })
-      .slice(0, 5);
-  }, [services]);
-
   // Team health summary
   const teamHealthSummary = useMemo((): TeamHealthSummary[] => {
     return teams.map(team => {
@@ -121,6 +118,7 @@ export function useDashboard(): UseDashboardReturn {
     stats,
     servicesWithIssues,
     recentActivity,
+    unstableDependencies,
     teamHealthSummary,
     loadData,
   };

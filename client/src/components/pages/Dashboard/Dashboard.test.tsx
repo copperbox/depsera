@@ -71,6 +71,15 @@ function renderDashboard() {
   );
 }
 
+/** Mock all 4 fetch calls: services, teams, activity, unstable */
+function mockDashboardFetches(services: unknown, teams: unknown) {
+  mockFetch
+    .mockResolvedValueOnce(jsonResponse(services))
+    .mockResolvedValueOnce(jsonResponse(teams))
+    .mockResolvedValueOnce(jsonResponse([]))
+    .mockResolvedValueOnce(jsonResponse([]));
+}
+
 beforeEach(() => {
   mockFetch.mockReset();
   mockNavigate.mockReset();
@@ -87,9 +96,7 @@ describe('Dashboard', () => {
   });
 
   it('renders dashboard content after loading', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -104,14 +111,16 @@ describe('Dashboard', () => {
   });
 
   it('displays error state and allows retry', async () => {
-    // Both calls happen concurrently via Promise.all, so we need mocks for both
-    // First attempt: both fail
-    // Second attempt (retry): both succeed
+    // All 4 calls happen concurrently via Promise.all
+    // First attempt: all fail
+    // Second attempt (retry): all succeed
     mockFetch
       .mockRejectedValueOnce(new Error('Network error'))
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new Error('Network error'));
+    // Retry succeeds
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -129,9 +138,7 @@ describe('Dashboard', () => {
   });
 
   it('displays services with issues', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -150,9 +157,7 @@ describe('Dashboard', () => {
       health: { ...s.health, status: 'healthy' },
     }));
 
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(healthyServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(healthyServices, mockTeams);
 
     renderDashboard();
 
@@ -162,9 +167,7 @@ describe('Dashboard', () => {
   });
 
   it('displays team health summary', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -178,9 +181,7 @@ describe('Dashboard', () => {
   });
 
   it('displays recent activity', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -190,9 +191,7 @@ describe('Dashboard', () => {
   });
 
   it('toggles auto-refresh polling', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -210,9 +209,7 @@ describe('Dashboard', () => {
   });
 
   it('changes polling interval', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -227,9 +224,7 @@ describe('Dashboard', () => {
   });
 
   it('navigates to services on card click', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
@@ -244,26 +239,8 @@ describe('Dashboard', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/services');
   });
 
-  it('navigates to graph on graph preview click', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
-
-    renderDashboard();
-
-    await waitFor(() => {
-      expect(screen.getByText('Click to view dependency graph')).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText('Click to view dependency graph'));
-
-    expect(mockNavigate).toHaveBeenCalledWith('/graph');
-  });
-
   it('shows no teams message when empty', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse([]))
-      .mockResolvedValueOnce(jsonResponse([]));
+    mockDashboardFetches([], []);
 
     renderDashboard();
 
@@ -273,52 +250,41 @@ describe('Dashboard', () => {
   });
 
   it('shows no activity message when empty', async () => {
-    const servicesWithNoReports = mockServices.map((s) => ({
-      ...s,
-      health: { ...s.health, last_report: null },
-    }));
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(servicesWithNoReports))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+    mockDashboardFetches(mockServices, mockTeams);
 
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText('No recent activity')).toBeInTheDocument();
+      expect(screen.getByText('No recent status changes')).toBeInTheDocument();
     });
   });
 
-  it('renders status icons for different health statuses', async () => {
-    const servicesWithAllStatuses = [
-      { ...mockServices[0], health: { ...mockServices[0].health, status: 'healthy', last_report: '2024-01-15T10:00:00Z' } },
-      { ...mockServices[1], health: { ...mockServices[1].health, status: 'warning', last_report: '2024-01-15T09:00:00Z' } },
-      { ...mockServices[2], health: { ...mockServices[2].health, status: 'critical', last_report: '2024-01-15T08:00:00Z' } },
-      { id: 's4', name: 'Service D', team_id: 't1', team: { name: 'Team A' }, health: { status: 'unknown', last_report: '2024-01-15T07:00:00Z', healthy_reports: 0, total_reports: 0 } },
+  it('renders recent activity with status change events', async () => {
+    const mockActivity = [
+      { id: 'a1', service_id: 's1', service_name: 'Service A', dependency_name: 'DB', previous_healthy: true, current_healthy: false, recorded_at: '2024-01-15T10:00:00Z' },
+      { id: 'a2', service_id: 's2', service_name: 'Service B', dependency_name: 'Redis', previous_healthy: false, current_healthy: true, recorded_at: '2024-01-15T09:00:00Z' },
     ];
 
     mockFetch
-      .mockResolvedValueOnce(jsonResponse(servicesWithAllStatuses))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockServices))
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse(mockActivity))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getAllByText('Service A').length).toBeGreaterThan(0);
+      expect(screen.getByText('Recent Activity')).toBeInTheDocument();
     });
 
-    // Services appear in recent activity with their status text
-    expect(screen.getAllByText(/reported healthy/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/reported warning/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/reported critical/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/reported unknown/).length).toBeGreaterThan(0);
+    // Activity events show service names and transitions
+    expect(screen.getAllByText('Service A').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Service B').length).toBeGreaterThan(0);
   });
 
   describe('Health Overview', () => {
     it('displays health overview bar when services exist', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockServices))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      mockDashboardFetches(mockServices, mockTeams);
 
       renderDashboard();
 
@@ -331,9 +297,7 @@ describe('Dashboard', () => {
     });
 
     it('shows health distribution bar with aria label', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockServices))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      mockDashboardFetches(mockServices, mockTeams);
 
       renderDashboard();
 
@@ -343,9 +307,7 @@ describe('Dashboard', () => {
     });
 
     it('shows legend with counts for non-zero categories', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(mockServices))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      mockDashboardFetches(mockServices, mockTeams);
 
       renderDashboard();
 
@@ -360,9 +322,7 @@ describe('Dashboard', () => {
     });
 
     it('does not show health overview when no services', async () => {
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse([]))
-        .mockResolvedValueOnce(jsonResponse([]));
+      mockDashboardFetches([], []);
 
       renderDashboard();
 
@@ -379,9 +339,7 @@ describe('Dashboard', () => {
         health: { ...s.health, status: 'healthy' },
       }));
 
-      mockFetch
-        .mockResolvedValueOnce(jsonResponse(healthyServices))
-        .mockResolvedValueOnce(jsonResponse(mockTeams));
+      mockDashboardFetches(healthyServices, mockTeams);
 
       renderDashboard();
 

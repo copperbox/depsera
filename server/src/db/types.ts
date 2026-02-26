@@ -422,6 +422,25 @@ export interface AlertHistoryEntry {
   status: AlertStatus;
 }
 
+// Status change event types
+export interface StatusChangeEventRow {
+  id: string;
+  service_id: string;
+  service_name: string;
+  dependency_name: string;
+  previous_healthy: number | null; // SQLite boolean
+  current_healthy: number; // SQLite boolean
+  recorded_at: string;
+}
+
+// Service poll history types
+export interface ServicePollHistory {
+  id: string;
+  service_id: string;
+  error: string | null;
+  recorded_at: string;
+}
+
 // Settings types
 export interface Setting {
   key: string;

@@ -12,7 +12,7 @@ All endpoints are prefixed with `/api`. All responses are JSON. All mutating req
 
 ## 4.2 Authentication
 
-Rate limited: 10 requests/minute per IP.
+Rate limited: 20 requests/minute per IP.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -55,6 +55,7 @@ Rate limited: 10 requests/minute per IP.
 | PUT | `/api/services/:id` | requireServiceTeamLead | Update service. |
 | DELETE | `/api/services/:id` | requireServiceTeamLead | Delete service. Returns 204. |
 | POST | `/api/services/:id/poll` | requireServiceTeamAccess | Trigger manual poll. Requires team membership (any role). |
+| GET | `/api/services/:id/poll-history` | requireAuth | Get service-level poll error/recovery history. Returns last 50 entries with 24h error count. |
 | POST | `/api/services/test-schema` | requireAuth (team lead+ or admin) | Test a schema mapping against a live URL. **[Implemented]** (PRO-104). |
 
 **POST /api/services/test-schema request:** **[Implemented]** (PRO-104)
@@ -516,7 +517,51 @@ Per-instance overrides set contact and/or impact for a specific dependency insta
 
 **Audit actions:** `dependency_override.updated`, `dependency_override.cleared` (resource type: `dependency`).
 
-## 4.14 Wallboard
+## 4.14 Activity
+
+**[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/activity/recent` | requireAuth | Recent status change events. Query: `limit` (optional, default 10, max 50). |
+| GET | `/api/activity/unstable` | requireAuth | Most unstable dependencies. Query: `hours` (default 24, max 168), `limit` (default 5, max 20). |
+
+**GET /api/activity/recent response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "service_id": "uuid",
+    "service_name": "Payment Service",
+    "dependency_name": "postgres-main",
+    "previous_healthy": true,
+    "current_healthy": false,
+    "recorded_at": "2024-06-01T12:00:00.000Z"
+  }
+]
+```
+
+`previous_healthy` is `null` for newly discovered dependencies. Events are sorted by `recorded_at` descending (most recent first). Subject to data retention cleanup.
+
+**GET /api/activity/unstable response:**
+
+```json
+[
+  {
+    "dependency_name": "postgres-main",
+    "service_name": "Payment Service",
+    "service_id": "uuid",
+    "change_count": 7,
+    "current_healthy": false,
+    "last_change_at": "2024-06-01T12:00:00.000Z"
+  }
+]
+```
+
+Returns dependencies with the most status changes within the specified time window, sorted by `change_count` descending. Used by the dashboard "Most Unstable" panel. When multiple services report on the same dependency name, the service from the most recent event is returned.
+
+## 4.15 Wallboard
 
 **[Implemented]** (PRO-48, DPS-16c)
 
