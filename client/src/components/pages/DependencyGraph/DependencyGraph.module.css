@@ -16,7 +16,6 @@
   padding: 12px 20px;
   background: var(--color-bg-card);
   border-bottom: 1px solid var(--color-border);
-  flex-wrap: wrap;
 }
 
 .toolbarGroup {
@@ -87,18 +86,119 @@
   height: 16px;
 }
 
-.toolbarSpacer {
-  flex: 1;
-}
-
-/* Legend */
-.legend {
+/* Toolbar right section */
+.toolbarRight {
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 12px;
-  color: var(--color-text-muted);
+  gap: 8px;
+  margin-left: auto;
 }
+
+/* Legend tooltip wrapper */
+.legendWrapper {
+  position: relative;
+}
+
+.legendButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.legendButton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-input);
+}
+
+.legendTooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  padding: 12px 16px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+}
+
+.legendWrapper:hover .legendTooltip,
+.legendButton:focus + .legendTooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Settings menu */
+.settingsWrapper {
+  position: relative;
+}
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-input);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition: all 0.15s;
+}
+
+.settingsButton:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-muted);
+}
+
+.settingsMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  padding: 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+}
+
+.settingsMenuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settingsMenuLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.settingsMenuDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 -4px;
+}
+
+/* Legend (shared styles for tooltip items) */
 
 .legendItem {
   display: flex;
@@ -523,10 +623,6 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  background-color: var(--color-bg-hover);
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
 }
 
 .autoRefreshLabel {

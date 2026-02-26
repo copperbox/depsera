@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   ReactFlow,
@@ -95,6 +95,20 @@ function DependencyGraphInner() {
   } = useGraphState({ userId: user?.id, initialDependencyId: dependencyParam });
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Close settings menu on outside click
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setSettingsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   // Initial load and team/direction/edge style change
   useEffect(() => {
@@ -353,124 +367,159 @@ function DependencyGraphInner() {
           />
         </div>
 
-        <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>Layout:</label>
-          <div className={styles.directionToggle}>
-            <button
-              className={`${styles.directionButton} ${layoutDirection === 'TB' ? styles.directionActive : ''}`}
-              onClick={() => handleDirectionChange('TB')}
-              title="Top to Bottom"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M12 3v18M12 21l-4-4M12 21l4-4" />
-              </svg>
-            </button>
-            <button
-              className={`${styles.directionButton} ${layoutDirection === 'LR' ? styles.directionActive : ''}`}
-              onClick={() => handleDirectionChange('LR')}
-              title="Left to Right"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M3 12h18M21 12l-4-4M21 12l-4 4" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.toolbarGroup}>
-          <button
-            className={styles.toolbarButton}
-            onClick={resetLayout}
-            title="Reset to auto-layout"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M1 4v6h6M23 20v-6h-6" />
-              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-            </svg>
-            Reset Layout
-          </button>
-        </div>
-
-        <div className={styles.toolbarGroup}>
-          <label className={styles.toolbarLabel}>Edges:</label>
-          <div className={styles.directionToggle}>
-            <button
-              className={`${styles.directionButton} ${edgeStyle === 'orthogonal' ? styles.directionActive : ''}`}
-              onClick={() => handleEdgeStyleChange('orthogonal')}
-              title="Orthogonal edges"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M4 4v8h16v8" />
-              </svg>
-            </button>
-            <button
-              className={`${styles.directionButton} ${edgeStyle === 'bezier' ? styles.directionActive : ''}`}
-              onClick={() => handleEdgeStyleChange('bezier')}
-              title="Bezier curve edges"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M4 4c0 12 16 4 16 16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.autoRefreshControls}>
+        <div className={styles.toolbarRight}>
           {isRefreshing && (
             <div className={styles.refreshingIndicator}>
               <div className={styles.spinnerSmall} />
             </div>
           )}
-          <span className={styles.autoRefreshLabel}>Auto-refresh</span>
-          <button
-            role="switch"
-            aria-checked={isPollingEnabled}
-            onClick={togglePolling}
-            className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
-          >
-            <span className={styles.toggleKnob} />
-          </button>
-          <select
-            value={pollingInterval}
-            onChange={handleIntervalChange}
-            className={styles.intervalSelect}
-            disabled={!isPollingEnabled}
-            aria-label="Refresh interval"
-          >
-            {INTERVAL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
 
-        <div className={styles.toolbarSpacer} />
+          <div className={styles.legendWrapper}>
+            <button
+              className={styles.legendButton}
+              title="Legend"
+              aria-label="Show legend"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+            </button>
+            <div className={styles.legendTooltip}>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.healthy}`} />
+                <span>Healthy</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.warning}`} />
+                <span>Warning</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.critical}`} />
+                <span>Critical</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.unknown}`} />
+                <span>Unknown</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.skipped}`} />
+                <span>Skipped</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={`${styles.legendDot} ${styles.highLatency}`} />
+                <span>High Latency</span>
+              </div>
+            </div>
+          </div>
 
-        <div className={styles.legend}>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.healthy}`} />
-            <span>Healthy</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.warning}`} />
-            <span>Warning</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.critical}`} />
-            <span>Critical</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.unknown}`} />
-            <span>Unknown</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.skipped}`} />
-            <span>Skipped</span>
-          </div>
-          <div className={styles.legendItem}>
-            <div className={`${styles.legendDot} ${styles.highLatency}`} />
-            <span>High Latency</span>
+          <div className={styles.settingsWrapper} ref={settingsRef}>
+            <button
+              className={styles.settingsButton}
+              onClick={() => setSettingsOpen((prev) => !prev)}
+              title="Graph settings"
+              aria-label="Graph settings"
+              aria-expanded={settingsOpen}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            {settingsOpen && (
+              <div className={styles.settingsMenu}>
+                <div className={styles.settingsMenuItem}>
+                  <label className={styles.settingsMenuLabel}>Layout</label>
+                  <div className={styles.directionToggle}>
+                    <button
+                      className={`${styles.directionButton} ${layoutDirection === 'TB' ? styles.directionActive : ''}`}
+                      onClick={() => handleDirectionChange('TB')}
+                      title="Top to Bottom"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M12 3v18M12 21l-4-4M12 21l4-4" />
+                      </svg>
+                    </button>
+                    <button
+                      className={`${styles.directionButton} ${layoutDirection === 'LR' ? styles.directionActive : ''}`}
+                      onClick={() => handleDirectionChange('LR')}
+                      title="Left to Right"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M3 12h18M21 12l-4-4M21 12l-4 4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.settingsMenuItem}>
+                  <label className={styles.settingsMenuLabel}>Edges</label>
+                  <div className={styles.directionToggle}>
+                    <button
+                      className={`${styles.directionButton} ${edgeStyle === 'orthogonal' ? styles.directionActive : ''}`}
+                      onClick={() => handleEdgeStyleChange('orthogonal')}
+                      title="Orthogonal edges"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M4 4v8h16v8" />
+                      </svg>
+                    </button>
+                    <button
+                      className={`${styles.directionButton} ${edgeStyle === 'bezier' ? styles.directionActive : ''}`}
+                      onClick={() => handleEdgeStyleChange('bezier')}
+                      title="Bezier curve edges"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M4 4c0 12 16 4 16 16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.settingsMenuItem}>
+                  <button
+                    className={styles.toolbarButton}
+                    onClick={resetLayout}
+                    title="Reset to auto-layout"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                      <path d="M1 4v6h6M23 20v-6h-6" />
+                      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                    </svg>
+                    Reset Layout
+                  </button>
+                </div>
+
+                <div className={styles.settingsMenuDivider} />
+
+                <div className={styles.settingsMenuItem}>
+                  <span className={styles.autoRefreshLabel}>Auto-refresh</span>
+                  <div className={styles.autoRefreshControls}>
+                    <button
+                      role="switch"
+                      aria-checked={isPollingEnabled}
+                      onClick={togglePolling}
+                      className={`${styles.togglePill} ${isPollingEnabled ? styles.toggleActive : ''}`}
+                    >
+                      <span className={styles.toggleKnob} />
+                    </button>
+                    <select
+                      value={pollingInterval}
+                      onChange={handleIntervalChange}
+                      className={styles.intervalSelect}
+                      disabled={!isPollingEnabled}
+                      aria-label="Refresh interval"
+                    >
+                      {INTERVAL_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

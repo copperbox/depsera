@@ -24,7 +24,7 @@ describe('usePolling', () => {
     const onPoll = jest.fn();
     const { result } = renderHook(() => usePolling({ storageKey: 'test', onPoll }));
 
-    expect(result.current.isPollingEnabled).toBe(false);
+    expect(result.current.isPollingEnabled).toBe(true);
     expect(result.current.pollingInterval).toBe(30000);
   });
 
@@ -43,14 +43,7 @@ describe('usePolling', () => {
     const onPoll = jest.fn();
     const { result } = renderHook(() => usePolling({ storageKey: 'test', onPoll }));
 
-    expect(result.current.isPollingEnabled).toBe(false);
-
-    act(() => {
-      result.current.togglePolling();
-    });
-
     expect(result.current.isPollingEnabled).toBe(true);
-    expect(localStorage.getItem('test-auto-refresh')).toBe('true');
 
     act(() => {
       result.current.togglePolling();
@@ -58,6 +51,13 @@ describe('usePolling', () => {
 
     expect(result.current.isPollingEnabled).toBe(false);
     expect(localStorage.getItem('test-auto-refresh')).toBe('false');
+
+    act(() => {
+      result.current.togglePolling();
+    });
+
+    expect(result.current.isPollingEnabled).toBe(true);
+    expect(localStorage.getItem('test-auto-refresh')).toBe('true');
   });
 
   it('changes polling interval', () => {
@@ -97,6 +97,7 @@ describe('usePolling', () => {
   });
 
   it('does not call onPoll when disabled', () => {
+    localStorage.setItem('test-auto-refresh', 'false');
     const onPoll = jest.fn();
     renderHook(() => usePolling({ storageKey: 'test', onPoll }));
 

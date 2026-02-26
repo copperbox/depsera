@@ -200,12 +200,12 @@ describe('Dashboard', () => {
     });
 
     const toggle = screen.getByRole('switch');
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
 
     fireEvent.click(toggle);
 
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(localStorage.getItem('dashboard-auto-refresh')).toBe('true');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(localStorage.getItem('dashboard-auto-refresh')).toBe('false');
   });
 
   it('changes polling interval', async () => {
