@@ -549,7 +549,7 @@ function DependencyGraphInner() {
               />
               <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e5e7eb" />
 
-              {/* Custom marker definitions */}
+              {/* Custom marker, filter, and gradient definitions */}
               <svg>
                 <defs>
                   <marker
@@ -563,6 +563,18 @@ function DependencyGraphInner() {
                   >
                     <path d="M 0 0 L 10 5 L 0 10 z" fill="#6b7280" />
                   </marker>
+                  <filter id="packet-glow" x="-200%" y="-200%" width="500%" height="500%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                  <radialGradient id="packet-highlight">
+                    <stop offset="0%" stopColor="white" stopOpacity={0.7} />
+                    <stop offset="100%" stopColor="white" stopOpacity={0} />
+                  </radialGradient>
                 </defs>
               </svg>
             </ReactFlow>

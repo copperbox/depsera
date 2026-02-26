@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useRef, useEffect, useLayoutEffect } from 'react';
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -14,6 +14,40 @@ type CustomEdgeType = Edge<GraphEdgeData, 'custom'>;
 type CustomEdgeProps = EdgeProps<CustomEdgeType>;
 
 const BORDER_RADIUS = 8;
+
+/* istanbul ignore next -- @preserve */
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Module-level animation state — persists across React re-renders and remounts
+ * so that data-refresh cycles never reset in-flight packets.
+ */
+interface PacketPhase {
+  kind: 'waiting' | 'traveling';
+  startTime: number; // performance.now() when this phase began
+  waitDuration: number; // only used in 'waiting' phase
+}
+
+const packetPhases = new Map<string, PacketPhase>();
+
+function getOrInitPhase(id: string): PacketPhase {
+  let phase = packetPhases.get(id);
+  if (!phase) {
+    phase = {
+      kind: 'waiting',
+      startTime: performance.now(),
+      waitDuration: hashCode(id) % 13000,
+    };
+    packetPhases.set(id, phase);
+  }
+  return phase;
+}
 
 /* istanbul ignore next -- @preserve
    formatLatency is a utility function used exclusively by CustomEdgeComponent which
@@ -215,6 +249,87 @@ function CustomEdgeComponent({
     }
   }
 
+  const packetColor = isHighLatency
+    ? 'var(--color-warning)'
+    : isHealthy
+      ? 'var(--color-success)'
+      : 'var(--color-error)';
+
+  const packetGroupRef = useRef<SVGGElement>(null);
+  const motionPathRef = useRef<SVGPathElement>(null);
+
+  const isVisible = opacity >= 0.5;
+
+  // Sync packet opacity before every paint so React re-renders never cause flicker.
+  // React doesn't manage the opacity attr (removed from JSX), so this is the only writer
+  // besides the rAF loop — and useLayoutEffect fires synchronously before paint.
+  useLayoutEffect(() => {
+    const group = packetGroupRef.current;
+    if (!group) return;
+    const phase = packetPhases.get(id);
+    if (!phase || phase.kind === 'waiting') {
+      group.setAttribute('opacity', '0');
+    }
+    // When traveling, leave opacity untouched — the rAF loop already set the right value
+    // and React didn't clobber it (no opacity prop in JSX).
+  });
+
+  useEffect(() => {
+    if (!isVisible) return;
+    const group = packetGroupRef.current;
+    const path = motionPathRef.current;
+    if (!group || !path) return;
+
+    let animFrameId: number;
+    let cancelled = false;
+
+    const phase = getOrInitPhase(id);
+    const travelDuration = 3000;
+
+    function tick(now: number) {
+      if (cancelled) return;
+
+      const elapsed = now - phase.startTime;
+
+      if (phase.kind === 'waiting') {
+        group!.setAttribute('opacity', '0');
+        if (elapsed >= phase.waitDuration) {
+          phase.kind = 'traveling';
+          phase.startTime = now;
+        }
+      } else {
+        const totalLength = path!.getTotalLength();
+        const t = Math.min(elapsed / travelDuration, 1);
+        const point = path!.getPointAtLength(t * totalLength);
+
+        group!.setAttribute('transform', `translate(${point.x}, ${point.y})`);
+
+        let alpha = 1;
+        if (t < 0.08) alpha = t / 0.08;
+        else if (t > 0.88) alpha = (1 - t) / 0.12;
+        group!.setAttribute('opacity', String(alpha));
+
+        if (t >= 1) {
+          group!.setAttribute('opacity', '0');
+          phase.kind = 'waiting';
+          phase.startTime = now;
+          phase.waitDuration = 6000 + Math.random() * 8000;
+        }
+      }
+
+      animFrameId = requestAnimationFrame(tick);
+    }
+
+    animFrameId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(animFrameId);
+      // Phase state intentionally NOT deleted — survives remount
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isVisible]);
+
   return (
     <>
       <BaseEdge
@@ -224,6 +339,15 @@ function CustomEdgeComponent({
         markerEnd="url(#arrow-dependency)"
         style={style}
       />
+      {opacity >= 0.5 && (
+        <>
+          <path ref={motionPathRef} d={edgePath} fill="none" stroke="none" />
+          <g ref={packetGroupRef} style={{ pointerEvents: 'none' }}>
+            <circle r={6} fill={packetColor} filter="url(#packet-glow)" />
+            <circle r={4} fill="url(#packet-highlight)" />
+          </g>
+        </>
+      )}
       {label && opacity >= 0.5 && (
         <EdgeLabelRenderer>
           <div
