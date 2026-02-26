@@ -2,11 +2,6 @@
   <img src="./docs/depsera-logo.svg" alt="Depsera" width="800" />
 </p>
 
-<!-- <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/version-1.5.0-blue.svg" alt="Version" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License" /></a>
-</p> -->
-
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
 
 ## Quick Start
