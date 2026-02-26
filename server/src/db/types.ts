@@ -433,6 +433,14 @@ export interface StatusChangeEventRow {
   recorded_at: string;
 }
 
+// Service poll history types
+export interface ServicePollHistory {
+  id: string;
+  service_id: string;
+  error: string | null;
+  recorded_at: string;
+}
+
 // Settings types
 export interface Setting {
   key: string;

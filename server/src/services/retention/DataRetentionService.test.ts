@@ -6,6 +6,7 @@ const mockDeleteError = jest.fn().mockReturnValue(0);
 const mockDeleteAudit = jest.fn().mockReturnValue(0);
 const mockDeleteAlertHistory = jest.fn().mockReturnValue(0);
 const mockDeleteStatusChange = jest.fn().mockReturnValue(0);
+const mockDeletePollHistory = jest.fn().mockReturnValue(0);
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -15,6 +16,7 @@ jest.mock('../../stores', () => ({
     auditLog: { deleteOlderThan: mockDeleteAudit },
     alertHistory: { deleteOlderThan: mockDeleteAlertHistory },
     statusChangeEvents: { deleteOlderThan: mockDeleteStatusChange },
+    servicePollHistory: { deleteOlderThan: mockDeletePollHistory },
     settings: mockSettingsStore,
   }),
 }));
@@ -52,6 +54,7 @@ describe('DataRetentionService', () => {
     mockDeleteAudit.mockReturnValue(0);
     mockDeleteAlertHistory.mockReturnValue(0);
     mockDeleteStatusChange.mockReturnValue(0);
+    mockDeletePollHistory.mockReturnValue(0);
 
     // Default settings
     mockGet.mockImplementation((key) => {

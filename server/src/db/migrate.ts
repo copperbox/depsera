@@ -18,6 +18,7 @@ import * as migration016 from './migrations/016_add_contact_column';
 import * as migration017 from './migrations/017_add_instance_overrides';
 import * as migration018 from './migrations/018_add_canonical_overrides';
 import * as migration019 from './migrations/019_add_status_change_events';
+import * as migration020 from './migrations/020_add_service_poll_history';
 
 interface Migration {
   id: string;
@@ -140,6 +141,12 @@ const migrations: Migration[] = [
     name: 'add_status_change_events',
     up: migration019.up,
     down: migration019.down
+  },
+  {
+    id: '020',
+    name: 'add_service_poll_history',
+    up: migration020.up,
+    down: migration020.down
   }
 ];
 

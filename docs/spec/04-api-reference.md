@@ -55,6 +55,7 @@ Rate limited: 20 requests/minute per IP.
 | PUT | `/api/services/:id` | requireServiceTeamLead | Update service. |
 | DELETE | `/api/services/:id` | requireServiceTeamLead | Delete service. Returns 204. |
 | POST | `/api/services/:id/poll` | requireServiceTeamAccess | Trigger manual poll. Requires team membership (any role). |
+| GET | `/api/services/:id/poll-history` | requireAuth | Get service-level poll error/recovery history. Returns last 50 entries with 24h error count. |
 | POST | `/api/services/test-schema` | requireAuth (team lead+ or admin) | Test a schema mapping against a live URL. **[Implemented]** (PRO-104). |
 
 **POST /api/services/test-schema request:** **[Implemented]** (PRO-104)

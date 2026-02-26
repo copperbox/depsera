@@ -7,6 +7,7 @@ import { updateService } from './update';
 import { deleteService } from './delete';
 import { pollServiceNow } from './poll';
 import { testSchema } from './testSchema';
+import { getServicePollHistory } from './pollHistory';
 
 const router = Router();
 
@@ -19,6 +20,9 @@ router.post('/test-schema', requireAuth, testSchema);
 router.post('/', requireBodyTeamLead, createService);
 router.put('/:id', requireServiceTeamLead, updateService);
 router.delete('/:id', requireServiceTeamLead, deleteService);
+
+// Poll history (read-only, requires auth)
+router.get('/:id/poll-history', requireAuth, getServicePollHistory);
 
 // Trigger immediate poll requires team membership (not just lead)
 router.post('/:id/poll', requireServiceTeamAccess, pollServiceNow);

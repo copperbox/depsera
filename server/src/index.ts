@@ -20,7 +20,8 @@ import externalServicesRouter from './routes/external-services';
 import wallboardRouter from './routes/wallboard';
 import canonicalOverridesRouter from './routes/canonicalOverrides';
 import activityRouter from './routes/activity';
-import { HealthPollingService, PollingEventType, StatusChangeEvent } from './services/polling';
+import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
+import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
 import { DataRetentionService } from './services/retention/DataRetentionService';
 import { AlertService } from './services/alerts';
@@ -140,6 +141,12 @@ async function start() {
 
   pollingService.on(PollingEventType.POLL_ERROR, (event: { serviceId: string; serviceName: string; error: string }) => {
     logger.error({ service: event.serviceName, error: event.error }, 'poll failed');
+  });
+
+  // Record service-level poll history (success/failure transitions)
+  const pollHistoryRecorder = getServicePollHistoryRecorder();
+  pollingService.on(PollingEventType.POLL_COMPLETE, (event: PollCompleteEvent) => {
+    pollHistoryRecorder.record(event.serviceId, event.success, event.error, new Date().toISOString());
   });
 
   // Warn about insecure session cookie settings

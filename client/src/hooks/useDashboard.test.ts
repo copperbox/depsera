@@ -64,7 +64,9 @@ describe('useDashboard', () => {
   it('loads services and teams data', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -79,7 +81,11 @@ describe('useDashboard', () => {
   });
 
   it('handles load error', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    mockFetch
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -92,7 +98,11 @@ describe('useDashboard', () => {
   });
 
   it('handles non-Error exception', async () => {
-    mockFetch.mockRejectedValueOnce('String error');
+    mockFetch
+      .mockRejectedValueOnce('String error')
+      .mockRejectedValueOnce('String error')
+      .mockRejectedValueOnce('String error')
+      .mockRejectedValueOnce('String error');
 
     const { result } = renderHook(() => useDashboard());
 
@@ -106,7 +116,9 @@ describe('useDashboard', () => {
   it('calculates stats correctly', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -125,7 +137,9 @@ describe('useDashboard', () => {
   it('returns services with issues sorted by severity', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -138,10 +152,16 @@ describe('useDashboard', () => {
     expect(result.current.servicesWithIssues[1].health.status).toBe('warning');
   });
 
-  it('returns recent activity sorted by last_report', async () => {
+  it('returns recent activity from API', async () => {
+    const mockActivity = [
+      { id: 'a1', service_id: 's1', service_name: 'Service A', dependency_name: 'DB', previous_healthy: true, current_healthy: false, recorded_at: '2024-01-15T10:00:00Z' },
+      { id: 'a2', service_id: 's2', service_name: 'Service B', dependency_name: 'Redis', previous_healthy: false, current_healthy: true, recorded_at: '2024-01-15T09:00:00Z' },
+    ];
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse(mockActivity))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -149,17 +169,17 @@ describe('useDashboard', () => {
       await result.current.loadData();
     });
 
-    // Only services with last_report, sorted descending
-    expect(result.current.recentActivity).toHaveLength(3);
-    expect(result.current.recentActivity[0].id).toBe('s1'); // Most recent
-    expect(result.current.recentActivity[1].id).toBe('s2');
-    expect(result.current.recentActivity[2].id).toBe('s3');
+    expect(result.current.recentActivity).toHaveLength(2);
+    expect(result.current.recentActivity[0].id).toBe('a1');
+    expect(result.current.recentActivity[1].id).toBe('a2');
   });
 
   it('calculates team health summary', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 
@@ -193,8 +213,12 @@ describe('useDashboard', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse(mockServices))
       .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse(mockServices))
-      .mockResolvedValueOnce(jsonResponse(mockTeams));
+      .mockResolvedValueOnce(jsonResponse(mockTeams))
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse([]));
 
     const { result } = renderHook(() => useDashboard());
 

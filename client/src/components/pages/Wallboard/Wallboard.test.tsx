@@ -183,7 +183,13 @@ describe('Wallboard', () => {
   it('renders latency summary on card', async () => {
     mockFetchWallboard.mockResolvedValue(makeResponse({
       dependencies: [
-        makeDep({ latency: { min: 10, avg: 20, max: 30 } }),
+        makeDep({
+          latency: { min: 10, avg: 20, max: 30 },
+          reporters: [
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+          ],
+        }),
       ],
     }));
 
@@ -194,7 +200,12 @@ describe('Wallboard', () => {
   it('hides latency row when null', async () => {
     mockFetchWallboard.mockResolvedValue(makeResponse({
       dependencies: [
-        makeDep({ latency: null }),
+        makeDep({
+          latency: null,
+          reporters: [
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: null, last_checked: null },
+          ],
+        }),
       ],
     }));
 
@@ -214,7 +225,7 @@ describe('Wallboard', () => {
     await waitFor(() => expect(screen.getByText('Target Service')).toBeInTheDocument());
   });
 
-  it('shows reporter names on card', async () => {
+  it('shows reporter count on card with multiple reporters', async () => {
     mockFetchWallboard.mockResolvedValue(makeResponse({
       dependencies: [
         makeDep({
@@ -227,7 +238,22 @@ describe('Wallboard', () => {
     }));
 
     renderWallboard();
-    await waitFor(() => expect(screen.getByText('Service Alpha, Service Beta')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('2 services')).toBeInTheDocument());
+  });
+
+  it('shows reporter name on card with single reporter', async () => {
+    mockFetchWallboard.mockResolvedValue(makeResponse({
+      dependencies: [
+        makeDep({
+          reporters: [
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
+          ],
+        }),
+      ],
+    }));
+
+    renderWallboard();
+    await waitFor(() => expect(screen.getByText('Service Alpha')).toBeInTheDocument());
   });
 
   it('opens detail panel on card click', async () => {

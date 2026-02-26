@@ -13,5 +13,6 @@ All relevant implementation specs can be found in `docs/specs`. These must be ma
   2. Present the available options with pros/cons
   3. Wait for confirmation before proceeding
 - After implementing changes, always run npm run build to ensure that builds are not broken.
+- use `npm run test:server` and `npm run test:client` from project root when attempting to test either.
 
 When being asked to handle linear tasks, refer to `LINEAR.md` for general instructions.

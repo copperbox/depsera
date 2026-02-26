@@ -215,6 +215,16 @@ export interface DependencyOverrideInput {
   impact_override?: string | null;
 }
 
+/**
+ * Service-level poll history entry
+ */
+export interface ServicePollHistoryEntry {
+  id: string;
+  service_id: string;
+  error: string | null;
+  recorded_at: string;
+}
+
 export interface AssociationCreateInput {
   dependency_id: string;
   linked_service_id: string;

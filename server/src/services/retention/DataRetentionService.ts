@@ -124,6 +124,7 @@ export class DataRetentionService {
       const auditDeleted = stores.auditLog.deleteOlderThan(cutoffTimestamp);
       const alertHistoryDeleted = stores.alertHistory.deleteOlderThan(cutoffTimestamp);
       const statusChangeDeleted = stores.statusChangeEvents.deleteOlderThan(cutoffTimestamp);
+      const pollHistoryDeleted = stores.servicePollHistory.deleteOlderThan(cutoffTimestamp);
 
       const result: CleanupResult = {
         latencyDeleted,
@@ -131,6 +132,7 @@ export class DataRetentionService {
         auditDeleted,
         alertHistoryDeleted,
         statusChangeDeleted,
+        pollHistoryDeleted,
         retentionDays,
         cutoffTimestamp,
       };
@@ -180,6 +182,7 @@ export interface CleanupResult {
   auditDeleted: number;
   alertHistoryDeleted: number;
   statusChangeDeleted: number;
+  pollHistoryDeleted: number;
   retentionDays: number;
   cutoffTimestamp: string;
 }

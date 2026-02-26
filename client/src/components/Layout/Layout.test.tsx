@@ -67,7 +67,7 @@ describe('Layout', () => {
 
     renderLayout();
 
-    expect(await screen.findByText('Depsera')).toBeInTheDocument();
+    expect(await screen.findByAltText('Depsera')).toBeInTheDocument();
   });
 
   it('displays user name and role', async () => {

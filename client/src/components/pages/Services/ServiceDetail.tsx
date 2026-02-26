@@ -7,6 +7,7 @@ import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import ServiceForm from './ServiceForm';
 import DependencyList from './DependencyList';
+import PollIssuesSection from './PollIssuesSection';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { getHealthBadgeStatus, getHealthStateBadgeStatus } from '../../../utils/statusMapping';
 import styles from './Services.module.css';
@@ -291,6 +292,10 @@ function ServiceDetail() {
         canEditOverrides={canEditOverrides()}
         onServiceReload={loadService}
       />
+
+      {service.is_active && !service.is_external && (
+        <PollIssuesSection serviceId={service.id} />
+      )}
 
       <Modal
         isOpen={isEditModalOpen}
