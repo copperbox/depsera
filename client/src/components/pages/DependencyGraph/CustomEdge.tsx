@@ -15,6 +15,15 @@ type CustomEdgeProps = EdgeProps<CustomEdgeType>;
 
 const BORDER_RADIUS = 8;
 
+/* istanbul ignore next -- @preserve */
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 /* istanbul ignore next -- @preserve
    formatLatency is a utility function used exclusively by CustomEdgeComponent which
    requires ReactFlow context. Testing would require mocking ReactFlow's internal
@@ -215,6 +224,13 @@ function CustomEdgeComponent({
     }
   }
 
+  const pulseColor = isHighLatency
+    ? 'var(--color-warning)'
+    : isHealthy
+      ? 'var(--color-success)'
+      : 'var(--color-error)';
+  const pulseDelay = (hashCode(id) % 4000) / 1000;
+
   return (
     <>
       <BaseEdge
@@ -224,6 +240,20 @@ function CustomEdgeComponent({
         markerEnd="url(#arrow-dependency)"
         style={style}
       />
+      {opacity >= 0.5 && (
+        <g style={{ opacity }}>
+          <path
+            d={edgePath}
+            pathLength={100}
+            stroke={pulseColor}
+            strokeWidth={3}
+            strokeLinecap="round"
+            fill="none"
+            className={styles.edgePulse}
+            style={{ animationDelay: `${pulseDelay}s` }}
+          />
+        </g>
+      )}
       {label && opacity >= 0.5 && (
         <EdgeLabelRenderer>
           <div
