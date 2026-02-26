@@ -7,11 +7,9 @@ import {
   type LayoutDirection,
   LAYOUT_DIRECTION_KEY,
   EDGE_STYLE_KEY,
-  LATENCY_THRESHOLD_KEY,
-  DEFAULT_LATENCY_THRESHOLD,
-  MIN_LATENCY_THRESHOLD,
-  MAX_LATENCY_THRESHOLD,
   transformGraphData,
+  computeTopologyFingerprint,
+  updateGraphDataOnly,
 } from '../utils/graphLayout';
 import type { EdgeStyle } from '../types/graph';
 import { fetchGraph } from '../api/graph';
@@ -52,8 +50,6 @@ export interface UseGraphStateReturn {
   setLayoutDirection: (direction: LayoutDirection) => void;
   edgeStyle: EdgeStyle;
   setEdgeStyle: (style: EdgeStyle) => void;
-  latencyThreshold: number;
-  setLatencyThreshold: (threshold: number) => void;
 
   // Loading state
   isLoading: boolean;
@@ -97,17 +93,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     return (stored === 'orthogonal' || stored === 'bezier') ? stored : 'orthogonal';
   });
 
-  const [latencyThreshold, setLatencyThresholdState] = useState(() => {
-    const stored = localStorage.getItem(LATENCY_THRESHOLD_KEY);
-    if (stored) {
-      const parsed = parseInt(stored, 10);
-      if (!isNaN(parsed) && parsed >= MIN_LATENCY_THRESHOLD && parsed <= MAX_LATENCY_THRESHOLD) {
-        return parsed;
-      }
-    }
-    return DEFAULT_LATENCY_THRESHOLD;
-  });
-
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Refs for polling callback to access current state
@@ -137,6 +122,17 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   useEffect(() => {
     selectedEdgeIdRef.current = selectedEdgeId;
   }, [selectedEdgeId]);
+
+  // Refs for accessing current nodes/edges in loadData without adding to deps
+  const nodesRef = useRef<AppNode[]>([]);
+  const edgesRef = useRef<AppEdge[]>([]);
+
+  // Keep node/edge refs in sync
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+
+  // Topology fingerprint for skipping layout on unchanged topology
+  const topologyFingerprintRef = useRef<string>('');
 
   // Track whether initial dependency selection has been applied
   const initialDependencyAppliedRef = useRef(false);
@@ -193,11 +189,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     localStorage.setItem(EDGE_STYLE_KEY, style);
   }, []);
 
-  const setLatencyThreshold = useCallback((threshold: number) => {
-    setLatencyThresholdState(threshold);
-    localStorage.setItem(LATENCY_THRESHOLD_KEY, String(threshold));
-  }, []);
-
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
     const teamId = selectedTeamRef.current || undefined;
     const direction = layoutDirectionRef.current;
@@ -220,7 +211,25 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
         setTeams(teamsData);
       }
 
-      const { nodes: layoutedNodes, edges: layoutedEdges } = await transformGraphData(graphData, direction, style);
+      // Compute topology fingerprint
+      const newFingerprint = computeTopologyFingerprint(graphData);
+      const topologyChanged = newFingerprint !== topologyFingerprintRef.current;
+
+      let layoutedNodes: AppNode[];
+      let layoutedEdges: AppEdge[];
+
+      if (isBackgroundRefresh && !topologyChanged && nodesRef.current.length > 0) {
+        // Topology unchanged — update data only, skip expensive ELK layout
+        const updated = updateGraphDataOnly(nodesRef.current, edgesRef.current, graphData, direction);
+        layoutedNodes = updated.nodes;
+        layoutedEdges = updated.edges;
+      } else {
+        // Full layout needed
+        const result = await transformGraphData(graphData, direction, style);
+        layoutedNodes = result.nodes;
+        layoutedEdges = result.edges;
+        topologyFingerprintRef.current = newFingerprint;
+      }
 
       // Apply saved positions for manually dragged nodes
       const currentNodeIds = new Set(layoutedNodes.map(n => n.id));
@@ -341,8 +350,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setLayoutDirection,
     edgeStyle,
     setEdgeStyle,
-    latencyThreshold,
-    setLatencyThreshold,
     isLoading,
     isRefreshing,
     error,

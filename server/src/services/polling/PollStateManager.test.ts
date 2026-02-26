@@ -17,6 +17,7 @@ describe('PollStateManager', () => {
     description: null,
     last_poll_success: null,
     last_poll_error: null,
+    poll_warnings: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,

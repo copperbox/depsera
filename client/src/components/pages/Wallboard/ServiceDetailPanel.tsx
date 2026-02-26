@@ -15,6 +15,7 @@ const healthStatusLabels: Record<HealthStatus, string> = {
   warning: 'Warning',
   critical: 'Critical',
   unknown: 'Unknown',
+  skipped: 'Skipped',
 };
 
 function getHealthClass(status: HealthStatus): string {

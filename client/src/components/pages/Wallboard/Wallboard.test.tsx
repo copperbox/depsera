@@ -4,19 +4,25 @@ import type { WallboardDependency, WallboardResponse } from '../../../types/wall
 
 // Mock the api module
 jest.mock('../../../api/wallboard');
-// Mock the DependencyDetailPanel
+// Mock the DependencyDetailPanel – render health_status so we can verify updates
 jest.mock('./DependencyDetailPanel', () => ({
-  DependencyDetailPanel: () => <div data-testid="detail-panel" />,
+  DependencyDetailPanel: ({ dependency }: { dependency: { health_status: string } }) => (
+    <div data-testid="detail-panel">{dependency.health_status}</div>
+  ),
 }));
-// Mock usePolling
+// Mock usePolling – capture onPoll so tests can trigger a refresh
+let capturedOnPoll: (() => void) | undefined;
 jest.mock('../../../hooks/usePolling', () => ({
   INTERVAL_OPTIONS: [{ value: 30000, label: '30s' }],
-  usePolling: () => ({
-    isPollingEnabled: false,
-    pollingInterval: 30000,
-    togglePolling: jest.fn(),
-    handleIntervalChange: jest.fn(),
-  }),
+  usePolling: ({ onPoll }: { onPoll: () => void }) => {
+    capturedOnPoll = onPoll;
+    return {
+      isPollingEnabled: false,
+      pollingInterval: 30000,
+      togglePolling: jest.fn(),
+      handleIntervalChange: jest.fn(),
+    };
+  },
 }));
 
 import { fetchWallboardData } from '../../../api/wallboard';
@@ -49,6 +55,7 @@ function makeDep(overrides: Partial<WallboardDependency> = {}): WallboardDepende
         health_state: 0,
         latency_ms: 20,
         last_checked: '2025-01-01T12:00:00Z',
+        skipped: 0,
       },
     ],
     team_ids: ['team-1'],
@@ -70,6 +77,10 @@ function renderWallboard() {
       <Wallboard />
     </MemoryRouter>,
   );
+}
+
+function openSettingsMenu() {
+  fireEvent.click(screen.getByLabelText('Wallboard settings'));
 }
 
 describe('Wallboard', () => {
@@ -96,7 +107,9 @@ describe('Wallboard', () => {
     }));
 
     renderWallboard();
-    await waitFor(() => expect(screen.getByLabelText('Filter by team')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Wallboard settings')).toBeInTheDocument());
+
+    openSettingsMenu();
 
     const select = screen.getByLabelText('Filter by team') as HTMLSelectElement;
     expect(select.options).toHaveLength(3); // All teams + 2 teams
@@ -118,6 +131,7 @@ describe('Wallboard', () => {
     await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
     expect(screen.getByText('Redis')).toBeInTheDocument();
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-1' } });
 
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
@@ -138,6 +152,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('SharedDB')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-2' } });
 
     expect(screen.getByText('SharedDB')).toBeInTheDocument();
@@ -155,6 +170,7 @@ describe('Wallboard', () => {
     await waitFor(() => expect(screen.getByText('Healthy DB')).toBeInTheDocument());
     expect(screen.getByText('Down Redis')).toBeInTheDocument();
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.queryByText('Healthy DB')).not.toBeInTheDocument();
@@ -175,6 +191,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('Warning API')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.getByText('Warning API')).toBeInTheDocument();
@@ -186,8 +203,8 @@ describe('Wallboard', () => {
         makeDep({
           latency: { min: 10, avg: 20, max: 30 },
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
-            { dependency_id: 'dep-1', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
+            { dependency_id: 'dep-1', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -203,7 +220,7 @@ describe('Wallboard', () => {
         makeDep({
           latency: null,
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: null, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: null, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -230,8 +247,8 @@ describe('Wallboard', () => {
       dependencies: [
         makeDep({
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
-            { dependency_id: 'dep-2', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
+            { dependency_id: 'dep-2', service_id: 'svc-2', service_name: 'Service Beta', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 30, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -246,7 +263,7 @@ describe('Wallboard', () => {
       dependencies: [
         makeDep({
           reporters: [
-            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null },
+            { dependency_id: 'dep-1', service_id: 'svc-1', service_name: 'Service Alpha', service_team_id: 'team-1', service_team_name: 'Team One', healthy: 1, health_state: 0, latency_ms: 20, last_checked: null, skipped: 0 },
           ],
         }),
       ],
@@ -305,6 +322,7 @@ describe('Wallboard', () => {
     renderWallboard();
     await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.click(screen.getByLabelText('Unhealthy only'));
 
     expect(screen.getByText('All dependencies are healthy!')).toBeInTheDocument();
@@ -319,8 +337,9 @@ describe('Wallboard', () => {
     }));
 
     renderWallboard();
-    await waitFor(() => expect(screen.getByLabelText('Filter by team')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText('Wallboard settings')).toBeInTheDocument());
 
+    openSettingsMenu();
     fireEvent.change(screen.getByLabelText('Filter by team'), { target: { value: 'team-2' } });
     expect(localStorage.getItem('wallboard-filter-team')).toBe('team-2');
   });
@@ -387,5 +406,26 @@ describe('Wallboard', () => {
 
     renderWallboard();
     await waitFor(() => expect(screen.getByText('Last checked')).toBeInTheDocument());
+  });
+
+  it('updates detail panel when data refreshes', async () => {
+    mockFetchWallboard
+      .mockResolvedValueOnce(makeResponse({
+        dependencies: [makeDep({ health_status: 'critical' })],
+      }))
+      .mockResolvedValueOnce(makeResponse({
+        dependencies: [makeDep({ health_status: 'healthy' })],
+      }));
+
+    renderWallboard();
+    await waitFor(() => expect(screen.getByText('PostgreSQL')).toBeInTheDocument());
+
+    // Open detail panel
+    fireEvent.click(screen.getByText('PostgreSQL').closest('div[class*="card"]')!);
+    expect(screen.getByTestId('detail-panel')).toHaveTextContent('critical');
+
+    // Simulate a polling refresh
+    await capturedOnPoll!();
+    await waitFor(() => expect(screen.getByTestId('detail-panel')).toHaveTextContent('healthy'));
   });
 });

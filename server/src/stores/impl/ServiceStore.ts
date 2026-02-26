@@ -50,6 +50,25 @@ export class ServiceStore implements IServiceStore {
       .get(id) as ServiceWithTeam | undefined;
   }
 
+  findByIdsWithTeam(ids: string[]): ServiceWithTeam[] {
+    if (ids.length === 0) return [];
+
+    const placeholders = ids.map(() => '?').join(', ');
+    return this.db
+      .prepare(`
+        SELECT
+          s.*,
+          t.name as team_name,
+          t.description as team_description,
+          t.created_at as team_created_at,
+          t.updated_at as team_updated_at
+        FROM services s
+        JOIN teams t ON s.team_id = t.id
+        WHERE s.id IN (${placeholders})
+      `)
+      .all(...ids) as ServiceWithTeam[];
+  }
+
   findAll(options?: ServiceListOptions): Service[] {
     const { where, params } = this.buildWhereClause(options);
     const { column: orderBy, direction: orderDir } = validateOrderBy(
@@ -194,10 +213,11 @@ export class ServiceStore implements IServiceStore {
     return this.findById(id);
   }
 
-  updatePollResult(serviceId: string, success: boolean, error?: string): void {
+  updatePollResult(serviceId: string, success: boolean, error?: string, warnings?: string[]): void {
+    const pollWarnings = warnings && warnings.length > 0 ? JSON.stringify(warnings) : null;
     this.db
-      .prepare(`UPDATE services SET last_poll_success = ?, last_poll_error = ?, updated_at = ? WHERE id = ?`)
-      .run(success ? 1 : 0, error ?? null, new Date().toISOString(), serviceId);
+      .prepare(`UPDATE services SET last_poll_success = ?, last_poll_error = ?, poll_warnings = ?, updated_at = ? WHERE id = ?`)
+      .run(success ? 1 : 0, error ?? null, pollWarnings, new Date().toISOString(), serviceId);
   }
 
   delete(id: string): boolean {

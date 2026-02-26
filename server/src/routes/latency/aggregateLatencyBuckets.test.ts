@@ -29,7 +29,8 @@ describe('Aggregate Latency Buckets API', () => {
         id TEXT PRIMARY KEY,
         service_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        latency_ms INTEGER
+        latency_ms INTEGER,
+        skipped INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE dependency_latency_history (

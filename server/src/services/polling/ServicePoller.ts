@@ -42,6 +42,7 @@ export class ServicePoller {
     try {
       const deps = await this.fetchHealthEndpoint();
       const changes = this.upsertService.upsert(this.service, deps);
+      const warnings = this.parser.lastWarnings;
 
       // Reset backoff on success
       this.backoff.reset();
@@ -51,6 +52,7 @@ export class ServicePoller {
         success: true,
         dependenciesUpdated: deps.length,
         statusChanges: changes,
+        ...(warnings.length > 0 && { warnings }),
         latencyMs: Date.now() - startTime,
       };
     } catch (error) {
@@ -109,7 +111,7 @@ export class ServicePoller {
 
       const data = await response.json();
       const schemaConfig = this.getSchemaConfig();
-      return this.parser.parse(data, schemaConfig);
+      return this.parser.parse(data, schemaConfig, this.service.name);
     } finally {
       clearTimeout(timeout);
     }

@@ -30,6 +30,7 @@ describe('ServiceStore', () => {
         description TEXT,
         last_poll_success INTEGER,
         last_poll_error TEXT,
+        poll_warnings TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -143,6 +144,48 @@ describe('ServiceStore', () => {
     it('should return undefined for non-existent id', () => {
       const result = store.findByIdWithTeam('non-existent');
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('findByIdsWithTeam', () => {
+    it('should return empty array for empty ids', () => {
+      const result = store.findByIdsWithTeam([]);
+      expect(result).toEqual([]);
+    });
+
+    it('should return services with team info for given ids', () => {
+      const s1 = store.create({ name: 'Service A', team_id: 'team-1', health_endpoint: 'http://a/health' });
+      const s2 = store.create({ name: 'Service B', team_id: 'team-2', health_endpoint: 'http://b/health' });
+      store.create({ name: 'Service C', team_id: 'team-1', health_endpoint: 'http://c/health' });
+
+      const result = store.findByIdsWithTeam([s1.id, s2.id]);
+      expect(result).toHaveLength(2);
+
+      const names = result.map(s => s.name).sort();
+      expect(names).toEqual(['Service A', 'Service B']);
+
+      const serviceA = result.find(s => s.id === s1.id)!;
+      expect(serviceA.team_name).toBe('Team One');
+
+      const serviceB = result.find(s => s.id === s2.id)!;
+      expect(serviceB.team_name).toBe('Team Two');
+    });
+
+    it('should skip non-existent ids', () => {
+      const s1 = store.create({ name: 'Exists', team_id: 'team-1', health_endpoint: 'http://a/health' });
+
+      const result = store.findByIdsWithTeam([s1.id, 'non-existent']);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Exists');
+    });
+
+    it('should return single service for single id', () => {
+      const s1 = store.create({ name: 'Only One', team_id: 'team-1', health_endpoint: 'http://a/health' });
+
+      const result = store.findByIdsWithTeam([s1.id]);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Only One');
+      expect(result[0].team_name).toBe('Team One');
     });
   });
 

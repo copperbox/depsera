@@ -307,6 +307,7 @@ describe('POST /api/services/test-schema', () => {
       check_details: null,
       contact: null,
       type: 'other',
+      skipped: false,
     });
     expect(response.body.dependencies[1]).toEqual({
       name: 'cache',
@@ -317,6 +318,7 @@ describe('POST /api/services/test-schema', () => {
       check_details: null,
       contact: null,
       type: 'other',
+      skipped: false,
     });
   });
 

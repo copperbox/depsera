@@ -25,6 +25,7 @@ export interface PollResult {
   dependenciesUpdated: number;
   statusChanges: StatusChangeEvent[];
   error?: string;
+  warnings?: string[];
   latencyMs: number;
 }
 

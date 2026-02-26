@@ -38,7 +38,7 @@ export function usePolling({ storageKey, onPoll }: UsePollingOptions): UsePollin
 
   const [isPollingEnabled, setIsPollingEnabled] = useState(() => {
     const stored = localStorage.getItem(POLLING_ENABLED_KEY);
-    return stored === 'true';
+    return stored === null ? true : stored === 'true';
   });
 
   const [pollingInterval, setPollingInterval] = useState(() => {

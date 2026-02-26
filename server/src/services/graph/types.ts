@@ -38,6 +38,7 @@ export interface ServiceNodeData {
   unhealthyCount: number;
   lastPollSuccess: boolean | null;
   lastPollError: string | null;
+  skippedCount: number;
   serviceType?: DependencyType;
   isExternal?: boolean;
 }
@@ -58,6 +59,7 @@ export interface GraphEdgeData {
   relationship: 'depends_on';
   dependencyType?: DependencyType;
   dependencyName?: string;
+  canonicalName?: string | null;
   dependencyId?: string;
   healthy?: boolean | null;
   latencyMs?: number | null;
@@ -70,6 +72,7 @@ export interface GraphEdgeData {
   errorMessage?: string | null;
   impact?: string | null;
   effectiveContact?: string | null;
+  skipped?: boolean;
 }
 
 /**

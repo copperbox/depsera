@@ -383,12 +383,12 @@ describe('ServicesList', () => {
     });
 
     const toggle = screen.getByRole('switch');
-    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
 
     fireEvent.click(toggle);
 
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(localStorage.getItem('services-auto-refresh')).toBe('true');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(localStorage.getItem('services-auto-refresh')).toBe('false');
   });
 
   it('displays dependent reports count', async () => {

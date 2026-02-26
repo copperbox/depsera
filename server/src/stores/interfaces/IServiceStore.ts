@@ -13,6 +13,7 @@ export interface IServiceStore {
   // Find operations
   findById(id: string): Service | undefined;
   findByIdWithTeam(id: string): ServiceWithTeam | undefined;
+  findByIdsWithTeam(ids: string[]): ServiceWithTeam[];
   findAll(options?: ServiceListOptions): Service[];
   findAllWithTeam(options?: ServiceListOptions): ServiceWithTeam[];
   findActive(): Service[];
@@ -25,7 +26,7 @@ export interface IServiceStore {
   delete(id: string): boolean;
 
   // Poll result tracking
-  updatePollResult(serviceId: string, success: boolean, error?: string): void;
+  updatePollResult(serviceId: string, success: boolean, error?: string, warnings?: string[]): void;
 
   // Utility
   exists(id: string): boolean;

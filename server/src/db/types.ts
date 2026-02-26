@@ -81,6 +81,7 @@ export interface SchemaMapping {
     contact?: string;
     error?: string;
     errorMessage?: string;
+    skipped?: FieldMapping;
   };
 }
 
@@ -98,6 +99,7 @@ export interface Service {
   description: string | null;
   last_poll_success: number | null; // SQLite boolean (0/1)
   last_poll_error: string | null;
+  poll_warnings: string | null; // JSON array of warning strings
   created_at: string;
   updated_at: string;
 }
@@ -162,6 +164,7 @@ export interface Dependency {
   check_details: string | null; // JSON string of check details
   error: string | null; // JSON string of error object
   error_message: string | null;
+  skipped: number; // SQLite boolean — 1 if health check is skipped
   last_checked: string | null;
   last_status_change: string | null;
   created_at: string;

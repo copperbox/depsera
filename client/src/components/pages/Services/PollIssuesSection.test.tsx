@@ -15,6 +15,7 @@ function jsonResponse(data: unknown, status = 200) {
 const mockPollHistory = {
   serviceId: 'svc-1',
   errorCount: 2,
+  pollWarnings: [],
   entries: [
     {
       error: 'Connection timeout',
@@ -62,6 +63,7 @@ describe('PollIssuesSection', () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({
       serviceId: 'svc-1',
       errorCount: 0,
+      pollWarnings: [],
       entries: [],
     }));
 
@@ -86,6 +88,7 @@ describe('PollIssuesSection', () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({
       serviceId: 'svc-1',
       errorCount: 1,
+      pollWarnings: [],
       entries: [
         { error: 'Timeout', recordedAt: '2024-01-15T10:00:00Z', isRecovery: false },
       ],
@@ -119,6 +122,7 @@ describe('PollIssuesSection', () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({
       serviceId: 'svc-1',
       errorCount: 0,
+      pollWarnings: [],
       entries: [],
     }));
 

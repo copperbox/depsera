@@ -154,6 +154,11 @@ function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
               <span className={styles.separator}>/</span>
               <span className={styles.totalCount}>{data.dependencyCount}</span>
               <span className={styles.label}>deps</span>
+              {data.skippedCount > 0 && (
+                <span className={styles.skippedBadge} title={`${data.skippedCount} skipped`}>
+                  {data.skippedCount} skipped
+                </span>
+              )}
             </>
           ) : (
             <span className={styles.noDeps}>No deps</span>

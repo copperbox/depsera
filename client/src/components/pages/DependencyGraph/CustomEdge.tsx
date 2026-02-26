@@ -221,21 +221,26 @@ function CustomEdgeComponent({
     });
   }
 
-  const label = formatLatency(data?.latencyMs);
+  const isSkipped = data?.skipped === true;
+  const label = isSkipped ? 'skipped' : formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
   const isHighLatency = data?.isHighLatency ?? false;
   const opacity = Number(style?.opacity ?? 1);
 
-  // Determine edge class: high latency takes precedence over healthy/unhealthy for styling
+  // Determine edge class: skipped and high latency take precedence
   let edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
-  if (isHighLatency) {
+  if (isSkipped) {
+    edgeClass = styles.skippedEdge;
+  } else if (isHighLatency) {
     edgeClass = styles.highLatencyEdge;
   }
 
   // Determine label class
   let labelClass = styles.edgeLabel;
-  if (!isHealthy) {
+  if (isSkipped) {
+    labelClass += ` ${styles.edgeLabelSkipped}`;
+  } else if (!isHealthy) {
     labelClass += ` ${styles.edgeLabelUnhealthy}`;
   }
   if (isHighLatency) {
@@ -249,11 +254,13 @@ function CustomEdgeComponent({
     }
   }
 
-  const packetColor = isHighLatency
-    ? 'var(--color-warning)'
-    : isHealthy
-      ? 'var(--color-success)'
-      : 'var(--color-error)';
+  const packetColor = isSkipped
+    ? 'var(--color-text-muted)'
+    : isHighLatency
+      ? 'var(--color-warning)'
+      : isHealthy
+        ? 'var(--color-success)'
+        : 'var(--color-error)';
 
   const packetGroupRef = useRef<SVGGElement>(null);
   const motionPathRef = useRef<SVGPathElement>(null);

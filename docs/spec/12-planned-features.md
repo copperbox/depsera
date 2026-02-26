@@ -69,7 +69,8 @@ Support for services that don't use the proactive-deps format:
     "latency": "responseTimeMs",
     "impact": "severity",
     "description": "displayName",
-    "contact": "metadata.contact_info"
+    "contact": "metadata.contact_info",
+    "skipped": { "field": "status", "equals": "skipped" }
   }
 }
 ```
@@ -78,6 +79,7 @@ Support for services that don't use the proactive-deps format:
 - `fields.name`: Direct field mapping (required)
 - `fields.healthy`: Direct mapping or boolean comparison (`field` + `equals` value match) (required)
 - `fields.latency`, `fields.impact`, `fields.description`: Optional field mappings
+- `fields.skipped`: Optional field mapping (direct or BooleanComparison). When resolved to a truthy value, the dependency is treated as healthy regardless of the `healthy` field and the actual health check is not executed.
 - `fields.checkDetails`, `fields.contact`: Optional dot-notation string paths that must resolve to a non-null object. These are simple string paths only (no BooleanComparison). Non-object, null, or array values are silently ignored.
 - Nested paths supported: `"metrics.responseTime"`
 - Services without a mapping default to proactive-deps

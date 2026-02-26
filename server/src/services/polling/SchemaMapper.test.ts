@@ -1039,8 +1039,9 @@ describe('SchemaMapper', () => {
       expect(result[0].name).toBe('db');
       expect(result[1].name).toBe('cache');
       expect(logger.warn).toHaveBeenCalledWith(
-        { key: 'version' },
+        { key: 'version', serviceName: undefined },
         expect.stringContaining('skipping non-object value for key'),
+        expect.any(String),
         'version'
       );
     });
@@ -1058,6 +1059,60 @@ describe('SchemaMapper', () => {
 
       const result = mapper.parse(data);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('service name in log context', () => {
+    it('should include serviceName in log warnings when provided', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema, 'My Service');
+      const data = {
+        checks: [
+          { ok: true }, // missing name — triggers skip warning
+        ],
+      };
+
+      (logger.warn as jest.Mock).mockClear();
+      mapper.parse(data);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceName: 'My Service' }),
+        expect.stringContaining('skipping item'),
+        'Schema mapping [My Service]',
+        0
+      );
+    });
+
+    it('should use plain prefix when serviceName is not provided', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { ok: true }, // missing name
+        ],
+      };
+
+      (logger.warn as jest.Mock).mockClear();
+      mapper.parse(data);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceName: undefined }),
+        expect.stringContaining('skipping item'),
+        'Schema mapping',
+        0
+      );
     });
   });
 
@@ -1236,6 +1291,102 @@ describe('SchemaMapper', () => {
 
       expect(result[0].error).toEqual({ code: 'ECONNREFUSED' });
       expect(result[0].errorMessage).toBe('Connection refused');
+    });
+  });
+
+  describe('skipped field mapping', () => {
+    it('should parse skipped boolean field', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'healthy',
+          skipped: 'skipped',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', healthy: true, skipped: false },
+          { name: 'cache', healthy: true, skipped: true },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].health.skipped).toBeUndefined();
+      expect(result[1].health.skipped).toBe(true);
+    });
+
+    it('should parse skipped with BooleanComparison', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: { field: 'status', equals: 'UP' },
+          skipped: { field: 'status', equals: 'SKIPPED' },
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', status: 'UP' },
+          { name: 'cache', status: 'SKIPPED' },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.skipped).toBeUndefined();
+      expect(result[1].healthy).toBe(true);
+      expect(result[1].health.skipped).toBe(true);
+    });
+
+    it('should treat skipped deps as healthy even without healthy field resolving', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'healthy',
+          skipped: 'skipped',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'cache', skipped: true },
+        ],
+      };
+
+      const result = mapper.parse(data);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('cache');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.skipped).toBe(true);
+      expect(result[0].health.state).toBe(0);
+    });
+
+    it('should not set skipped when field is absent from schema', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'healthy',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { name: 'db', healthy: true },
+        ],
+      };
+
+      const result = mapper.parse(data);
+      expect(result[0].health.skipped).toBeUndefined();
     });
   });
 });

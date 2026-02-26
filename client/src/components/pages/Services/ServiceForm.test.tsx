@@ -28,6 +28,7 @@ const mockService = {
   is_active: 1,
   last_poll_success: 1,
   last_poll_error: null,
+  poll_warnings: null,
   health: { status: 'healthy' as const, last_report: null, healthy_reports: 0, warning_reports: 0, critical_reports: 0, total_reports: 0, dependent_count: 0 },
   dependencies: [],
   dependent_reports: [],

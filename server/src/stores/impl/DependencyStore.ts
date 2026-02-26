@@ -222,15 +222,16 @@ export class DependencyStore implements IDependencyStore {
     const contactJson = input.contact ? JSON.stringify(input.contact) : null;
     const checkDetailsJson = input.check_details ? JSON.stringify(input.check_details) : null;
     const errorJson = input.error !== undefined ? JSON.stringify(input.error) : null;
+    const skippedValue = input.skipped ? 1 : 0;
 
     this.db
       .prepare(`
         INSERT INTO dependencies (
           id, service_id, name, canonical_name, description, impact, type,
           healthy, health_state, health_code, latency_ms,
-          contact, check_details, error, error_message,
+          contact, check_details, error, error_message, skipped,
           last_checked, last_status_change, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(service_id, name) DO UPDATE SET
           canonical_name = excluded.canonical_name,
           description = excluded.description,
@@ -244,6 +245,7 @@ export class DependencyStore implements IDependencyStore {
           check_details = excluded.check_details,
           error = excluded.error,
           error_message = excluded.error_message,
+          skipped = excluded.skipped,
           last_checked = excluded.last_checked,
           last_status_change = CASE
             WHEN dependencies.healthy IS NULL OR dependencies.healthy != excluded.healthy
@@ -268,6 +270,7 @@ export class DependencyStore implements IDependencyStore {
         checkDetailsJson,
         errorJson,
         input.error_message ?? null,
+        skippedValue,
         input.last_checked,
         now,
         now,

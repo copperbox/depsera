@@ -17,10 +17,28 @@ export type LayoutDirection = 'TB' | 'LR';
 
 export const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 export const EDGE_STYLE_KEY = 'graph-edge-style';
-export const LATENCY_THRESHOLD_KEY = 'graph-latency-threshold';
-export const DEFAULT_LATENCY_THRESHOLD = 50;
-export const MIN_LATENCY_THRESHOLD = 10;
-export const MAX_LATENCY_THRESHOLD = 200;
+/** Absolute floor in ms — latency below this is never flagged as high */
+export const HIGH_LATENCY_FLOOR_MS = 100;
+/** Multiplier against 24h average — latency must exceed avg * this to be flagged */
+export const HIGH_LATENCY_MULTIPLIER = 2;
+
+/**
+ * Determine whether a dependency's current latency qualifies as "high latency".
+ *
+ * Algorithm: threshold = max(HIGH_LATENCY_FLOOR_MS, avgLatencyMs24h * HIGH_LATENCY_MULTIPLIER)
+ *
+ * This prevents fast dependencies (e.g. 2ms avg cache) from being flagged when their
+ * latency is still well within acceptable absolute ranges, while still catching meaningful
+ * degradation for slower dependencies.
+ */
+export function isHighLatency(
+  latencyMs: number | null | undefined,
+  avgLatencyMs24h: number | null | undefined
+): boolean {
+  if (!latencyMs || !avgLatencyMs24h || avgLatencyMs24h === 0) return false;
+  const threshold = Math.max(HIGH_LATENCY_FLOOR_MS, avgLatencyMs24h * HIGH_LATENCY_MULTIPLIER);
+  return latencyMs > threshold;
+}
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 100;
@@ -114,6 +132,77 @@ export async function getLayoutedElements(
   }));
 
   return { nodes: finalNodes, edges: layoutedEdges };
+}
+
+/**
+ * Compute a deterministic fingerprint of the graph topology (node IDs + edge connections).
+ * Used to detect whether the topology has changed between refreshes.
+ */
+export function computeTopologyFingerprint(data: GraphResponse): string {
+  const nodeIds = data.nodes.map(n => n.id).sort().join(',');
+  const edgeKeys = data.edges.map(e => `${e.source}->${e.target}`).sort().join(',');
+  return `${nodeIds}|${edgeKeys}`;
+}
+
+/**
+ * Update node/edge data fields (health, latency, counts, etc.) without re-running layout.
+ * Preserves existing positions and routing.
+ */
+export function updateGraphDataOnly(
+  existingNodes: AppNode[],
+  existingEdges: AppEdge[],
+  newData: GraphResponse,
+  direction: LayoutDirection = 'TB'
+): { nodes: AppNode[]; edges: AppEdge[] } {
+  // Build lookup from new data
+  const newNodeMap = new Map(newData.nodes.map(n => [n.id, n]));
+
+  // Recalculate reported health from edges (same logic as transformGraphData)
+  const reportedHealth = new Map<string, { healthy: number; unhealthy: number }>();
+  for (const edge of newData.edges) {
+    const sourceId = edge.source;
+    if (!reportedHealth.has(sourceId)) {
+      reportedHealth.set(sourceId, { healthy: 0, unhealthy: 0 });
+    }
+    const counts = reportedHealth.get(sourceId)!;
+    if (edge.data.healthy === true) {
+      counts.healthy++;
+    } else if (edge.data.healthy === false) {
+      counts.unhealthy++;
+    }
+  }
+
+  // Update node data while preserving positions
+  const nodes: AppNode[] = existingNodes.map(node => {
+    const newNode = newNodeMap.get(node.id);
+    if (!newNode) return node;
+    const reported = reportedHealth.get(node.id) || { healthy: 0, unhealthy: 0 };
+    return {
+      ...node,
+      data: {
+        ...newNode.data,
+        reportedHealthyCount: reported.healthy,
+        reportedUnhealthyCount: reported.unhealthy,
+        layoutDirection: direction,
+      },
+    };
+  });
+
+  // Update edge data while preserving routing
+  const newEdgeMap = new Map(newData.edges.map(e => [e.id, e]));
+  const edges: AppEdge[] = existingEdges.map(edge => {
+    const newEdge = newEdgeMap.get(edge.id);
+    if (!newEdge) return edge;
+    return {
+      ...edge,
+      data: {
+        ...edge.data,
+        ...newEdge.data,
+      },
+    };
+  });
+
+  return { nodes, edges };
 }
 
 /**

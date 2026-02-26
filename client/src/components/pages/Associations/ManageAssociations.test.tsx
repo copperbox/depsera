@@ -90,6 +90,7 @@ function makeService(overrides = {}) {
     is_active: 1,
     last_poll_success: 1,
     last_poll_error: null,
+    poll_warnings: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
@@ -119,6 +120,7 @@ function makeService(overrides = {}) {
         health_state: 0 as const,
         health_code: null,
         latency_ms: 5,
+        skipped: 0,
         last_checked: '2024-01-01T00:00:00Z',
         last_status_change: null,
         created_at: '2024-01-01T00:00:00Z',
@@ -150,6 +152,7 @@ function makeAssociation(overrides = {}) {
       is_active: 1,
       last_poll_success: 1,
       last_poll_error: null,
+      poll_warnings: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
       team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
@@ -262,8 +265,8 @@ describe('ManageAssociations', () => {
     mockFetchServices.mockResolvedValue([
       makeService({
         dependencies: [
-          { id: 'dep-1', service_id: 'svc-1', name: 'Redis', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 5, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
-          { id: 'dep-2', service_id: 'svc-1', name: 'PostgreSQL', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 10, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'dep-1', service_id: 'svc-1', name: 'Redis', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 5, skipped: 0, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'dep-2', service_id: 'svc-1', name: 'PostgreSQL', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 10, skipped: 0, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
         ],
       }),
     ]);
@@ -459,7 +462,7 @@ describe('ManageAssociations', () => {
         id: 'svc-2',
         name: 'Service Beta',
         dependencies: [
-          { id: 'dep-2', service_id: 'svc-2', name: 'Kafka', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 2, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
+          { id: 'dep-2', service_id: 'svc-2', name: 'Kafka', canonical_name: null, description: null, impact: null, healthy: 1, health_state: 0, health_code: null, latency_ms: 2, skipped: 0, last_checked: '', last_status_change: null, created_at: '', updated_at: '' },
         ],
       }),
     ]);
@@ -630,6 +633,7 @@ describe('ManageAssociations', () => {
         health_state: 0 as const,
         health_code: null,
         latency_ms: 5,
+        skipped: 0,
         last_checked: '2024-01-01T00:00:00Z',
         last_status_change: null,
         created_at: '2024-01-01T00:00:00Z',

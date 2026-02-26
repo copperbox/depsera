@@ -17,6 +17,7 @@ function Dashboard() {
     error,
     stats,
     servicesWithIssues,
+    servicesWithPollingIssues,
     recentActivity,
     unstableDependencies,
     teamHealthSummary,
@@ -225,6 +226,38 @@ function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Polling Issues */}
+        {servicesWithPollingIssues.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Polling Issues</h2>
+              <span className={styles.pollingIssuesBadge}>
+                {servicesWithPollingIssues.length}
+              </span>
+            </div>
+            <div className={styles.sectionContent}>
+              <ul className={styles.issuesList}>
+                {servicesWithPollingIssues.map(svc => (
+                  <li key={svc.id} className={styles.issueItem}>
+                    <Link to={`/services/${svc.id}`} className={styles.issueLink}>
+                      <span className={`${styles.pollingDot} ${svc.pollError ? styles.critical : styles.warning}`} />
+                      <div>
+                        <div className={styles.issueName}>{svc.name}</div>
+                        <div className={styles.issueTeam}>{svc.teamName}</div>
+                      </div>
+                    </Link>
+                    <div className={styles.pollingIssueDetail}>
+                      {svc.pollError
+                        ? 'Poll failed'
+                        : `${svc.warningCount} warning${svc.warningCount !== 1 ? 's' : ''}`}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Team Health Summary */}
         <div className={styles.section}>

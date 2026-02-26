@@ -2,6 +2,7 @@ import {
   extractHostname,
   tokenize,
   calculateTokenOverlap,
+  filterStopWords,
   levenshteinDistance,
   calculateSimilarity,
 } from './stringMatchers';
@@ -68,6 +69,32 @@ describe('tokenize', () => {
 
   it('should handle mixed delimiters', () => {
     expect(tokenize('user-service_api.v2')).toEqual(['user', 'service', 'api', 'v2']);
+  });
+});
+
+describe('filterStopWords', () => {
+  it('should remove common stop words', () => {
+    expect(filterStopWords(['user', 'api', 'gateway'])).toEqual(['user', 'gateway']);
+    expect(filterStopWords(['payment', 'service'])).toEqual(['payment']);
+  });
+
+  it('should remove all stop word variants', () => {
+    const stopWords = ['api', 'apis', 'service', 'services', 'server', 'servers',
+      'client', 'clients', 'http', 'https', 'internal', 'external',
+      'the', 'and', 'for', 'of'];
+    expect(filterStopWords(stopWords)).toEqual([]);
+  });
+
+  it('should keep meaningful tokens', () => {
+    expect(filterStopWords(['payment', 'gateway', 'order'])).toEqual(['payment', 'gateway', 'order']);
+  });
+
+  it('should handle empty array', () => {
+    expect(filterStopWords([])).toEqual([]);
+  });
+
+  it('should return empty when all tokens are stop words', () => {
+    expect(filterStopWords(['api', 'service', 'server'])).toEqual([]);
   });
 });
 

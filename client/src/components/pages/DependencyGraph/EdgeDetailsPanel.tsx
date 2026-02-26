@@ -58,6 +58,9 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
   const hasCheckDetails = data.checkDetails && Object.keys(data.checkDetails).length > 0;
   const contact = parseContact(data.effectiveContact);
 
+  // Display name: prefer canonical name, then linked service name, then raw name
+  const displayName = data.canonicalName || sourceNode?.data.name || data.dependencyName || 'Connection';
+
   // Reset view when dependency changes
   useEffect(() => {
     setCurrentView('details');
@@ -69,7 +72,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
       <div className={styles.panel}>
         <ErrorHistoryPanel
           dependencyId={data.dependencyId}
-          dependencyName={data.dependencyName || 'Unknown'}
+          dependencyName={displayName}
           onBack={() => setCurrentView('details')}
         />
       </div>
@@ -80,7 +83,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
-        <h3 className={styles.title}>{data.dependencyName || 'Connection'}</h3>
+        <h3 className={styles.title}>{displayName}</h3>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 5L5 15M5 5l10 10" />

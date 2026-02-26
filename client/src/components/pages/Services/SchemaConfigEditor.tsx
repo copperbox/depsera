@@ -23,6 +23,8 @@ interface GuidedFormState {
   useKeyAsName: boolean;
   healthyField: string;
   healthyEquals: string;
+  skippedField: string;
+  skippedEquals: string;
   latencyField: string;
   impactField: string;
   descriptionField: string;
@@ -52,6 +54,8 @@ function schemaMappingToFormState(mapping: SchemaMapping): GuidedFormState {
     useKeyAsName: isKeyName,
     healthyField: isBooleanComparison(mapping.fields.healthy) ? mapping.fields.healthy.field : (typeof mapping.fields.healthy === 'string' ? mapping.fields.healthy : ''),
     healthyEquals: isBooleanComparison(mapping.fields.healthy) ? mapping.fields.healthy.equals : '',
+    skippedField: mapping.fields.skipped ? (isBooleanComparison(mapping.fields.skipped) ? mapping.fields.skipped.field : (typeof mapping.fields.skipped === 'string' ? mapping.fields.skipped : '')) : '',
+    skippedEquals: mapping.fields.skipped && isBooleanComparison(mapping.fields.skipped) ? mapping.fields.skipped.equals : '',
     latencyField: mapping.fields.latency ? (typeof mapping.fields.latency === 'string' ? mapping.fields.latency : mapping.fields.latency.field) : '',
     impactField: mapping.fields.impact ? (typeof mapping.fields.impact === 'string' ? mapping.fields.impact : mapping.fields.impact.field) : '',
     descriptionField: mapping.fields.description ? (typeof mapping.fields.description === 'string' ? mapping.fields.description : mapping.fields.description.field) : '',
@@ -76,6 +80,11 @@ function formStateToSchemaMapping(state: GuidedFormState): SchemaMapping {
     },
   };
 
+  if (state.skippedField.trim()) {
+    mapping.fields.skipped = state.skippedEquals.trim()
+      ? { field: state.skippedField, equals: state.skippedEquals }
+      : state.skippedField;
+  }
   if (state.latencyField.trim()) {
     mapping.fields.latency = state.latencyField;
   }
@@ -110,6 +119,8 @@ const emptyFormState: GuidedFormState = {
   useKeyAsName: false,
   healthyField: '',
   healthyEquals: '',
+  skippedField: '',
+  skippedEquals: '',
   latencyField: '',
   impactField: '',
   descriptionField: '',
@@ -343,6 +354,39 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                 </div>
               </div>
 
+              <div className={styles.healthyRow}>
+                <div className={styles.field}>
+                  <label htmlFor="schema-skipped" className={styles.label}>
+                    Skipped field
+                  </label>
+                  <input
+                    id="schema-skipped"
+                    type="text"
+                    value={formState.skippedField}
+                    onChange={(e) => handleFieldChange('skippedField', e.target.value)}
+                    className={styles.input}
+                    placeholder="health.skipped"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>If true, the check is skipped and the dependency is treated as healthy</span>
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="schema-skipped-equals" className={styles.label}>
+                    Skipped equals value
+                  </label>
+                  <input
+                    id="schema-skipped-equals"
+                    type="text"
+                    value={formState.skippedEquals}
+                    onChange={(e) => handleFieldChange('skippedEquals', e.target.value)}
+                    className={styles.input}
+                    placeholder="true"
+                    disabled={disabled}
+                  />
+                  <span className={styles.hint}>If set, compares field value instead of treating as boolean</span>
+                </div>
+              </div>
+
               <div className={styles.fieldRow}>
                 <div className={styles.field}>
                   <label htmlFor="schema-latency" className={styles.label}>
@@ -518,7 +562,7 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Healthy</th>
+                      <th>Status</th>
                       <th>Latency</th>
                       <th>Impact</th>
                       <th>Contact</th>
@@ -529,9 +573,15 @@ function SchemaConfigEditor({ value, onChange, healthEndpoint, disabled }: Schem
                       <tr key={dep.name}>
                         <td>{dep.name}</td>
                         <td>
-                          <span className={`${styles.healthyBadge} ${dep.healthy ? styles.healthyTrue : styles.healthyFalse}`}>
-                            {dep.healthy ? 'Yes' : 'No'}
-                          </span>
+                          {dep.skipped ? (
+                            <span className={`${styles.healthyBadge} ${styles.healthySkipped}`}>
+                              Skipped
+                            </span>
+                          ) : (
+                            <span className={`${styles.healthyBadge} ${dep.healthy ? styles.healthyTrue : styles.healthyFalse}`}>
+                              {dep.healthy ? 'Healthy' : 'Unhealthy'}
+                            </span>
+                          )}
                         </td>
                         <td>{dep.latency_ms != null ? `${dep.latency_ms}ms` : '-'}</td>
                         <td>{dep.impact ?? '-'}</td>

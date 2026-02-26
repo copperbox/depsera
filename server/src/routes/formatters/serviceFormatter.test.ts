@@ -41,6 +41,7 @@ describe('serviceFormatter', () => {
     description: null,
     last_poll_success: 1704067200,
     last_poll_error: null,
+    poll_warnings: null,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
     team_name: 'Test Team',
@@ -70,6 +71,7 @@ describe('serviceFormatter', () => {
     check_details: null,
     error: null,
     error_message: null,
+    skipped: 0,
     last_checked: '2024-01-01T00:00:00.000Z',
     last_status_change: null,
     created_at: '2024-01-01T00:00:00.000Z',
@@ -104,6 +106,7 @@ describe('serviceFormatter', () => {
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,
         last_poll_error TEXT,
+        poll_warnings TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE RESTRICT
@@ -126,6 +129,7 @@ describe('serviceFormatter', () => {
         check_details TEXT,
         error TEXT,
         error_message TEXT,
+        skipped INTEGER NOT NULL DEFAULT 0,
         last_checked TEXT,
         last_status_change TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -310,6 +314,7 @@ describe('serviceFormatter', () => {
         description: null,
         last_poll_success: null,
         last_poll_error: null,
+        poll_warnings: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };
@@ -348,6 +353,7 @@ describe('serviceFormatter', () => {
         description: null,
         last_poll_success: null,
         last_poll_error: null,
+        poll_warnings: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };

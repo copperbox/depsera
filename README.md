@@ -25,17 +25,17 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 **Health Monitoring**
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
-- Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.)
+- Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.) with skipped-check support
 - Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
 **Visualization**
-- Interactive dependency graph (React Flow) with team filtering, search, layout controls, and latency thresholds
+- Interactive dependency graph (React Flow) with team filtering, search, layout controls, and automatic high-latency detection
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
 - Edge selection shows per-dependency latency chart, contact info, impact, and error history
 - Node selection shows aggregate latency chart across all dependents and merged contact info
-- Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down
-- Dashboard with health distribution, services with issues, and team health summaries
+- Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down. Skipped dependencies are displayed with a distinct status indicator
+- Dashboard with health distribution, services with issues, polling issues aggregation, and team health summaries
 
 **Team Management**
 - Organize services by team with lead/member roles
@@ -261,10 +261,10 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 
 | Route | Description |
 |-------|-------------|
-| `/` | Dashboard — health distribution, services with issues, team health summaries |
+| `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
-| `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |
+| `/graph` | Interactive dependency graph with team filter, search, layout controls, and automatic high-latency detection |
 | `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |

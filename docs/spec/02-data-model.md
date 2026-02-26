@@ -81,6 +81,7 @@ erDiagram
 | is_active | INTEGER | NOT NULL | 1 |
 | last_poll_success | INTEGER | | NULL |
 | last_poll_error | TEXT | | NULL |
+| poll_warnings | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
@@ -109,6 +110,7 @@ erDiagram
 | check_details | TEXT | | NULL |
 | error | TEXT | | NULL |
 | error_message | TEXT | | NULL |
+| skipped | INTEGER | NOT NULL | 0 |
 | last_checked | TEXT | | NULL |
 | last_status_change | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
@@ -352,5 +354,8 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 018 | add_canonical_overrides | Creates `dependency_canonical_overrides` table keyed by `canonical_name` (unique) with `contact_override`, `impact_override`, and `updated_by` FK to users |
 | 019 | add_status_change_events | Creates `status_change_events` table for persisting dependency health transitions |
 | 020 | add_service_poll_history | Creates `service_poll_history` table for tracking service-level poll success/failure transitions |
+| 021 | add_performance_indexes | Adds performance indexes for common query patterns |
+| 022 | add_poll_warnings | Adds nullable `poll_warnings TEXT` column to services for storing schema mapping warnings as JSON array |
+| 023 | add_skipped_column | Adds `skipped INTEGER NOT NULL DEFAULT 0` column to dependencies |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

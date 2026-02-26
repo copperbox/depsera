@@ -19,6 +19,7 @@ const createService = (
   description: null,
   last_poll_success: null,
   last_poll_error: null,
+  poll_warnings: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
@@ -935,8 +936,8 @@ describe('HealthPollingService - deduplication', () => {
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Both services should have their poll results persisted
-    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-1', true, undefined);
-    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-2', true, undefined);
+    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-1', true, undefined, undefined);
+    expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-2', true, undefined, undefined);
 
     await instance.shutdown();
     logSpy.mockRestore();

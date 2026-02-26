@@ -15,6 +15,7 @@ describe('DependencyGraphBuilder', () => {
     poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,
+    poll_warnings: null,
     is_active: 1,
     is_external: 0,
     description: null,
@@ -44,6 +45,7 @@ describe('DependencyGraphBuilder', () => {
     check_details: '{"query": "SELECT 1"}',
     error: null,
     error_message: null,
+    skipped: 0,
     last_checked: new Date().toISOString(),
     last_status_change: null,
     created_at: new Date().toISOString(),
@@ -285,7 +287,7 @@ describe('DependencyGraphBuilder', () => {
       expect(parsed.email).toBe('instance@example.com');
     });
 
-    it('should use canonical_name for dependencyName when available', () => {
+    it('should send canonicalName and raw dependencyName separately', () => {
       const service1 = createService('svc-1', 'User Service');
       const service2 = createService('svc-2', 'Order Service');
       const dep = createDependency('svc-1', 'svc-2');
@@ -297,10 +299,11 @@ describe('DependencyGraphBuilder', () => {
       builder.addEdge(dep);
       const graph = builder.build();
 
-      expect(graph.edges[0].data.dependencyName).toBe('PostgreSQL');
+      expect(graph.edges[0].data.canonicalName).toBe('PostgreSQL');
+      expect(graph.edges[0].data.dependencyName).toBe('postgres-primary');
     });
 
-    it('should fall back to name when canonical_name is null', () => {
+    it('should set canonicalName to null when canonical_name is null', () => {
       const service1 = createService('svc-1', 'User Service');
       const service2 = createService('svc-2', 'Order Service');
       const dep = createDependency('svc-1', 'svc-2');
@@ -312,6 +315,7 @@ describe('DependencyGraphBuilder', () => {
       builder.addEdge(dep);
       const graph = builder.build();
 
+      expect(graph.edges[0].data.canonicalName).toBeNull();
       expect(graph.edges[0].data.dependencyName).toBe('redis-cache');
     });
   });
@@ -340,6 +344,7 @@ describe('DependencyGraphBuilder', () => {
         dependencyCount: 2,
         healthyCount: 2,
         unhealthyCount: 0,
+        skippedCount: 0,
         lastPollSuccess: null,
         lastPollError: null,
         isExternal: true,
@@ -361,6 +366,7 @@ describe('DependencyGraphBuilder', () => {
         dependencyCount: 1,
         healthyCount: 1,
         unhealthyCount: 0,
+        skippedCount: 0,
         lastPollSuccess: null,
         lastPollError: null,
         isExternal: true as const,
@@ -387,6 +393,7 @@ describe('DependencyGraphBuilder', () => {
         dependencyCount: 1,
         healthyCount: 1,
         unhealthyCount: 0,
+        skippedCount: 0,
         lastPollSuccess: null,
         lastPollError: null,
         isExternal: true,
@@ -416,6 +423,7 @@ describe('DependencyGraphBuilder', () => {
         dependencyCount: 1,
         healthyCount: 1,
         unhealthyCount: 0,
+        skippedCount: 0,
         lastPollSuccess: null,
         lastPollError: null,
         isExternal: true,

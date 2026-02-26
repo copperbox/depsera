@@ -1,6 +1,6 @@
 {
   "name": "depsera",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "Dependency monitoring and service health dashboard",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\"",
@@ -17,7 +17,8 @@
     "lint": "npm run lint:server && npm run lint:client",
     "lint:server": "cd server && npm run lint",
     "lint:client": "cd client && npm run lint",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "version": "bash scripts/version-bump.sh"
   },
   "keywords": [
     "dashboard",

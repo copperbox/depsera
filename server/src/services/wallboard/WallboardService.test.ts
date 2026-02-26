@@ -35,6 +35,7 @@ function makeDep(overrides: Partial<DependencyForWallboard> = {}): DependencyFor
     check_details: null,
     error: null,
     error_message: null,
+    skipped: 0,
     last_checked: '2025-01-01T12:00:00Z',
     last_status_change: null,
     created_at: '2025-01-01',

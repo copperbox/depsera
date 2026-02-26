@@ -42,6 +42,7 @@ function makeDep(overrides: Partial<WallboardDependency> = {}): WallboardDepende
         health_state: 0,
         latency_ms: 20,
         last_checked: '2025-01-01T12:00:00Z',
+        skipped: 0,
       },
     ],
     team_ids: ['team-1'],
@@ -89,6 +90,7 @@ describe('DependencyDetailPanel', () => {
           health_state: 0,
           latency_ms: 20,
           last_checked: '2025-01-01T12:00:00Z',
+          skipped: 0,
         },
         {
           dependency_id: 'dep-2',
@@ -100,6 +102,7 @@ describe('DependencyDetailPanel', () => {
           health_state: 2,
           latency_ms: 100,
           last_checked: '2025-01-01T12:00:00Z',
+          skipped: 0,
         },
       ],
     }));
@@ -204,6 +207,7 @@ describe('DependencyDetailPanel', () => {
         health_state: 0,
         latency_ms: 1500,
         last_checked: '2025-01-01T12:00:00Z',
+        skipped: 0,
       }],
     }));
 
@@ -222,6 +226,7 @@ describe('DependencyDetailPanel', () => {
         health_state: 0,
         latency_ms: 250,
         last_checked: '2025-01-01T12:00:00Z',
+        skipped: 0,
       }],
     }));
 

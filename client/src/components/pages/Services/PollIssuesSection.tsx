@@ -25,7 +25,9 @@ function PollIssuesSection({ serviceId }: PollIssuesSectionProps) {
   }, [serviceId]);
 
   const errorCount = data?.errorCount ?? 0;
-  const hasIssues = errorCount > 0;
+  const warningCount = data?.pollWarnings?.length ?? 0;
+  const totalIssues = errorCount + warningCount;
+  const hasIssues = totalIssues > 0;
 
   return (
     <div className={styles.section}>
@@ -37,9 +39,9 @@ function PollIssuesSection({ serviceId }: PollIssuesSectionProps) {
         <div className={styles.sectionLeft}>
           <h2 className={styles.sectionTitle}>Poll Issues</h2>
           {!isLoading && !error && (
-            <span className={`${styles.badge} ${hasIssues ? styles.badgeError : styles.badgeNeutral}`}>
+            <span className={`${styles.badge} ${hasIssues ? (errorCount > 0 ? styles.badgeError : styles.badgeWarning) : styles.badgeNeutral}`}>
               {hasIssues
-                ? `${errorCount} issue${errorCount !== 1 ? 's' : ''}`
+                ? `${totalIssues} issue${totalIssues !== 1 ? 's' : ''}`
                 : 'No issues'}
             </span>
           )}
@@ -81,7 +83,7 @@ function PollIssuesSection({ serviceId }: PollIssuesSectionProps) {
                 Retry
               </button>
             </div>
-          ) : data && data.entries.length === 0 ? (
+          ) : data && data.entries.length === 0 && warningCount === 0 ? (
             <div className={styles.emptyState}>
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="10" cy="10" r="8" />
@@ -90,6 +92,24 @@ function PollIssuesSection({ serviceId }: PollIssuesSectionProps) {
               <span>No poll issues recorded</span>
             </div>
           ) : data ? (
+            <>
+            {data.pollWarnings.length > 0 && (
+              <div className={styles.warningsSection}>
+                <h3 className={styles.warningsTitle}>Schema Mapping Warnings</h3>
+                <ul className={styles.warningsList}>
+                  {data.pollWarnings.map((warning, index) => (
+                    <li key={index} className={styles.warningItem}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className={styles.warningIcon}>
+                        <path d="M8 1l7 14H1L8 1z" />
+                        <path d="M8 6v4M8 12v0" />
+                      </svg>
+                      <span>{warning}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {data.entries.length > 0 && (
             <div className={styles.timeline}>
               {data.entries.map((entry, index) => (
                 <div
@@ -113,6 +133,8 @@ function PollIssuesSection({ serviceId }: PollIssuesSectionProps) {
                 </div>
               ))}
             </div>
+            )}
+            </>
           ) : null}
         </div>
       )}
