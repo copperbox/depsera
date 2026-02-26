@@ -7,6 +7,13 @@ import { SchemaMapper } from './SchemaMapper';
  * When a SchemaMapping is provided, delegates to SchemaMapper for custom schemas.
  */
 export class DependencyParser {
+  private _lastWarnings: string[] = [];
+
+  /** Warnings from the most recent parse() call (schema mapping only). */
+  get lastWarnings(): string[] {
+    return this._lastWarnings;
+  }
+
   /**
    * Parse a health endpoint response into an array of dependency statuses.
    * @param data - The raw response data (expected to be an array, or object for custom schema)
@@ -14,10 +21,14 @@ export class DependencyParser {
    * @returns Array of parsed ProactiveDepsStatus objects
    * @throws Error if the data format is invalid
    */
-  parse(data: unknown, schemaConfig?: SchemaMapping | null): ProactiveDepsStatus[] {
+  parse(data: unknown, schemaConfig?: SchemaMapping | null, serviceName?: string): ProactiveDepsStatus[] {
+    this._lastWarnings = [];
+
     if (schemaConfig) {
-      const mapper = new SchemaMapper(schemaConfig);
-      return mapper.parse(data);
+      const mapper = new SchemaMapper(schemaConfig, serviceName);
+      const results = mapper.parse(data);
+      this._lastWarnings = mapper.warnings;
+      return results;
     }
 
     if (!Array.isArray(data)) {

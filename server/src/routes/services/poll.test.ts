@@ -58,6 +58,7 @@ describe('Poll Route', () => {
         description TEXT,
         last_poll_success INTEGER,
         last_poll_error TEXT,
+        poll_warnings TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );

@@ -1039,8 +1039,9 @@ describe('SchemaMapper', () => {
       expect(result[0].name).toBe('db');
       expect(result[1].name).toBe('cache');
       expect(logger.warn).toHaveBeenCalledWith(
-        { key: 'version' },
+        { key: 'version', serviceName: undefined },
         expect.stringContaining('skipping non-object value for key'),
+        expect.any(String),
         'version'
       );
     });
@@ -1058,6 +1059,60 @@ describe('SchemaMapper', () => {
 
       const result = mapper.parse(data);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('service name in log context', () => {
+    it('should include serviceName in log warnings when provided', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema, 'My Service');
+      const data = {
+        checks: [
+          { ok: true }, // missing name — triggers skip warning
+        ],
+      };
+
+      (logger.warn as jest.Mock).mockClear();
+      mapper.parse(data);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceName: 'My Service' }),
+        expect.stringContaining('skipping item'),
+        'Schema mapping [My Service]',
+        0
+      );
+    });
+
+    it('should use plain prefix when serviceName is not provided', () => {
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'name',
+          healthy: 'ok',
+        },
+      };
+      const mapper = new SchemaMapper(schema);
+      const data = {
+        checks: [
+          { ok: true }, // missing name
+        ],
+      };
+
+      (logger.warn as jest.Mock).mockClear();
+      mapper.parse(data);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceName: undefined }),
+        expect.stringContaining('skipping item'),
+        'Schema mapping',
+        0
+      );
     });
   });
 

@@ -10,6 +10,7 @@ export interface PollHistoryResponse {
   serviceId: string;
   errorCount: number;
   entries: PollHistoryEntry[];
+  pollWarnings: string[];
 }
 
 export async function fetchServicePollHistory(serviceId: string): Promise<PollHistoryResponse> {

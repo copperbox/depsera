@@ -24,6 +24,7 @@ function makeService(overrides = {}) {
     is_active: 1,
     last_poll_success: 1,
     last_poll_error: null,
+    poll_warnings: null,
     created_at: '2025-01-01',
     updated_at: '2025-01-01',
     team: { id: 'team-1', name: 'Team One', description: null, created_at: '2025-01-01', updated_at: '2025-01-01' },

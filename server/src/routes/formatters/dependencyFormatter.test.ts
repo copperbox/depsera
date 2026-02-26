@@ -20,6 +20,7 @@ describe('dependencyFormatter', () => {
     description: null,
     last_poll_success: null,
     last_poll_error: null,
+    poll_warnings: null,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   };

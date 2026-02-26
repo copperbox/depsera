@@ -124,6 +124,7 @@ describe('Associations API - Authorization (IDOR)', () => {
         is_active INTEGER NOT NULL DEFAULT 1,
         last_poll_success INTEGER,
         last_poll_error TEXT,
+        poll_warnings TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE RESTRICT

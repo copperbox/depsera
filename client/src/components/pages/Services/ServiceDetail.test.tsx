@@ -65,6 +65,7 @@ const mockService = {
   updated_at: '2024-01-15T10:00:00Z',
   last_poll_success: 1,
   last_poll_error: null,
+  poll_warnings: null,
   health: {
     status: 'healthy',
     last_report: '2024-01-15T10:00:00Z',

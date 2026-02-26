@@ -31,6 +31,7 @@ const mockService: Service = {
   description: null,
   last_poll_success: 1,
   last_poll_error: null,
+  poll_warnings: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };

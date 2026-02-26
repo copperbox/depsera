@@ -172,7 +172,7 @@ export class HealthPollingService extends EventEmitter {
       } as PollCompleteEvent);
 
       // Store poll result in database
-      this.serviceStore.updatePollResult(serviceId, result.success, result.error);
+      this.serviceStore.updatePollResult(serviceId, result.success, result.error, result.warnings);
 
       // Update backoff/circuit on manual poll
       /* istanbul ignore if -- Manual poll success path tested via integration */
@@ -474,7 +474,7 @@ export class HealthPollingService extends EventEmitter {
       state.circuitState = cb.getState();
 
       // Persist poll result to database
-      this.serviceStore.updatePollResult(serviceId, pollResult.success, pollResult.error);
+      this.serviceStore.updatePollResult(serviceId, pollResult.success, pollResult.error, pollResult.warnings);
 
       // Emit poll complete event
       this.emit(PollingEventType.POLL_COMPLETE, {

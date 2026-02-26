@@ -19,6 +19,14 @@ export interface TeamHealthSummary {
   total: number;
 }
 
+export interface PollingIssueService {
+  id: string;
+  name: string;
+  teamName: string;
+  pollError: string | null;
+  warningCount: number;
+}
+
 export interface UseDashboardReturn {
   services: Service[];
   teams: TeamWithCounts[];
@@ -27,6 +35,7 @@ export interface UseDashboardReturn {
   error: string | null;
   stats: DashboardStats;
   servicesWithIssues: Service[];
+  servicesWithPollingIssues: PollingIssueService[];
   recentActivity: StatusChangeActivity[];
   unstableDependencies: UnstableDependency[];
   teamHealthSummary: TeamHealthSummary[];
@@ -95,6 +104,41 @@ export function useDashboard(): UseDashboardReturn {
       .slice(0, 5);
   }, [services]);
 
+  // Services with polling issues (failed polls or schema mapping warnings)
+  const servicesWithPollingIssues = useMemo((): PollingIssueService[] => {
+    return services
+      .filter(s => {
+        if (s.last_poll_success === 0) return true;
+        if (s.poll_warnings) {
+          try {
+            const warnings = JSON.parse(s.poll_warnings);
+            return Array.isArray(warnings) && warnings.length > 0;
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      })
+      .map(s => {
+        let warningCount = 0;
+        if (s.poll_warnings) {
+          try {
+            const warnings = JSON.parse(s.poll_warnings);
+            warningCount = Array.isArray(warnings) ? warnings.length : 0;
+          } catch {
+            // ignore
+          }
+        }
+        return {
+          id: s.id,
+          name: s.name,
+          teamName: s.team.name,
+          pollError: s.last_poll_success === 0 ? (s.last_poll_error ?? 'Unknown error') : null,
+          warningCount,
+        };
+      });
+  }, [services]);
+
   // Team health summary
   const teamHealthSummary = useMemo((): TeamHealthSummary[] => {
     return teams.map(team => {
@@ -117,6 +161,7 @@ export function useDashboard(): UseDashboardReturn {
     error,
     stats,
     servicesWithIssues,
+    servicesWithPollingIssues,
     recentActivity,
     unstableDependencies,
     teamHealthSummary,

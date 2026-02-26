@@ -98,6 +98,7 @@ export interface Service {
   description: string | null;
   last_poll_success: number | null; // SQLite boolean (0/1)
   last_poll_error: string | null;
+  poll_warnings: string | null; // JSON array of warning strings
   created_at: string;
   updated_at: string;
 }

@@ -26,7 +26,7 @@ export interface IServiceStore {
   delete(id: string): boolean;
 
   // Poll result tracking
-  updatePollResult(serviceId: string, success: boolean, error?: string): void;
+  updatePollResult(serviceId: string, success: boolean, error?: string, warnings?: string[]): void;
 
   // Utility
   exists(id: string): boolean;

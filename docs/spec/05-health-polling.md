@@ -128,6 +128,7 @@ When a poll succeeds, the health endpoint response is parsed (proactive-deps for
    - When a dependency is unhealthy but provides no `error` object (common for external deps and schema-mapped services), a synthetic marker (`{"unhealthy":true}`) is used as the error value with a default `"Unhealthy"` error message. This ensures timeline events are always recorded for unhealthy transitions. If an `errorMessage` is provided without an `error` object, the original message is preserved.
 5. **Latency history:** Records data point if `latency_ms > 0`
 6. **Auto-suggestions:** For newly created dependencies, `AssociationMatcher.generateSuggestions()` is called (non-blocking, failures swallowed)
+7. **Schema mapping warnings:** When using a custom `SchemaMapping`, items that cannot be parsed (missing `name`, unresolvable `healthy`, non-object entries) are skipped and the reason is collected as a deduplicated warning. Warnings are stored as a JSON array in `services.poll_warnings` and cleared on each poll cycle. They are surfaced in the Poll Issues section of the service detail page and aggregated on the dashboard.
 
 ### Parsed Fields
 
@@ -145,7 +146,7 @@ Both fields follow the same pattern: present and valid → included in `Proactiv
 | Event | Emitted When | Payload |
 |---|---|---|
 | `status:change` | Dependency healthy ↔ unhealthy | serviceId, serviceName, dependencyName, previousHealthy, currentHealthy, timestamp |
-| `poll:complete` | Poll finishes (success or failure) | serviceId, success, dependenciesUpdated, statusChanges[], error?, latencyMs |
+| `poll:complete` | Poll finishes (success or failure) | serviceId, success, dependenciesUpdated, statusChanges[], error?, warnings?, latencyMs |
 | `poll:error` | Poll fails | serviceId, serviceName, error |
 | `service:started` | Service added to polling | serviceId, serviceName |
 | `service:stopped` | Service removed from polling | serviceId, serviceName |

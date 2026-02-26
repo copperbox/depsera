@@ -420,6 +420,7 @@ function createService(id: string, name: string): ServiceWithTeam {
     poll_interval_ms: 30000,
     last_poll_success: null,
     last_poll_error: null,
+    poll_warnings: null,
     is_active: 1,
     is_external: 0,
     description: null,

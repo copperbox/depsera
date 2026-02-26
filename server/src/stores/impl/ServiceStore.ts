@@ -213,10 +213,11 @@ export class ServiceStore implements IServiceStore {
     return this.findById(id);
   }
 
-  updatePollResult(serviceId: string, success: boolean, error?: string): void {
+  updatePollResult(serviceId: string, success: boolean, error?: string, warnings?: string[]): void {
+    const pollWarnings = warnings && warnings.length > 0 ? JSON.stringify(warnings) : null;
     this.db
-      .prepare(`UPDATE services SET last_poll_success = ?, last_poll_error = ?, updated_at = ? WHERE id = ?`)
-      .run(success ? 1 : 0, error ?? null, new Date().toISOString(), serviceId);
+      .prepare(`UPDATE services SET last_poll_success = ?, last_poll_error = ?, poll_warnings = ?, updated_at = ? WHERE id = ?`)
+      .run(success ? 1 : 0, error ?? null, pollWarnings, new Date().toISOString(), serviceId);
   }
 
   delete(id: string): boolean {

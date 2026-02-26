@@ -23,10 +23,21 @@ export function getServicePollHistory(req: Request, res: Response): void {
       isRecovery: e.error === null,
     }));
 
+    // Include current schema mapping warnings from the service
+    let pollWarnings: string[] = [];
+    if (service.poll_warnings) {
+      try {
+        pollWarnings = JSON.parse(service.poll_warnings);
+      } catch {
+        // Ignore malformed JSON
+      }
+    }
+
     res.json({
       serviceId: id,
       errorCount,
       entries: formattedEntries,
+      pollWarnings,
     });
   } catch (error) /* istanbul ignore next */ {
     sendErrorResponse(res, error, 'fetching service poll history');

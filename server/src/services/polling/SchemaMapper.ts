@@ -7,9 +7,23 @@ import logger from '../../utils/logger';
  */
 export class SchemaMapper {
   private schema: SchemaMapping;
+  private serviceName: string | undefined;
+  private _warnings: Set<string> = new Set();
 
-  constructor(schema: SchemaMapping) {
+  constructor(schema: SchemaMapping, serviceName?: string) {
     this.schema = schema;
+    this.serviceName = serviceName;
+  }
+
+  /** Deduplicated warnings from the last parse() call. */
+  get warnings(): string[] {
+    return Array.from(this._warnings);
+  }
+
+  private get logPrefix(): string {
+    return this.serviceName
+      ? `Schema mapping [${this.serviceName}]`
+      : 'Schema mapping';
   }
 
   /**
@@ -19,6 +33,8 @@ export class SchemaMapper {
    * @throws Error if the root path doesn't resolve to an array or object
    */
   parse(data: unknown): ProactiveDepsStatus[] {
+    this._warnings = new Set();
+
     if (typeof data !== 'object' || data === null) {
       throw new Error('Invalid response: expected object');
     }
@@ -47,7 +63,8 @@ export class SchemaMapper {
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       if (typeof item !== 'object' || item === null) {
-        logger.warn({ index: i }, 'Schema mapping: skipping non-object item at index %d', i);
+        logger.warn({ index: i, serviceName: this.serviceName }, '%s: skipping non-object item at index %d', this.logPrefix, i);
+        this._warnings.add('Non-object item encountered in response array');
         continue;
       }
 
@@ -74,7 +91,8 @@ export class SchemaMapper {
       const value = obj[key];
 
       if (typeof value !== 'object' || value === null) {
-        logger.warn({ key }, 'Schema mapping: skipping non-object value for key "%s"', key);
+        logger.warn({ key, serviceName: this.serviceName }, '%s: skipping non-object value for key "%s"', this.logPrefix, key);
+        this._warnings.add(`Non-object value for key "${key}"`);
         continue;
       }
 
@@ -108,21 +126,25 @@ export class SchemaMapper {
       : this.resolveMapping(item, fields.name);
     if (typeof name !== 'string' || name.trim() === '') {
       logger.warn(
-        { index },
-        'Schema mapping: skipping item at index %d — "name" field is missing or not a string',
+        { index, serviceName: this.serviceName },
+        '%s: skipping item at index %d — "name" field is missing or not a string',
+        this.logPrefix,
         index
       );
+      this._warnings.add('"name" field is missing or not a string');
       return null;
     }
 
     const healthy = this.resolveHealthy(item, fields.healthy);
     if (healthy === null) {
       logger.warn(
-        { index, name },
-        'Schema mapping: skipping item "%s" at index %d — "healthy" field could not be resolved',
+        { index, name, serviceName: this.serviceName },
+        '%s: skipping item "%s" at index %d — "healthy" field could not be resolved',
+        this.logPrefix,
         name,
         index
       );
+      this._warnings.add('"healthy" field could not be resolved');
       return null;
     }
 

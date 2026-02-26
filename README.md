@@ -35,7 +35,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Edge selection shows per-dependency latency chart, contact info, impact, and error history
 - Node selection shows aggregate latency chart across all dependents and merged contact info
 - Dependency-focused wallboard showing all dependencies deduplicated by canonical name with aggregated health, latency, and reporting services — click any card for charts and drill-down
-- Dashboard with health distribution, services with issues, and team health summaries
+- Dashboard with health distribution, services with issues, polling issues aggregation, and team health summaries
 
 **Team Management**
 - Organize services by team with lead/member roles
@@ -261,7 +261,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 
 | Route | Description |
 |-------|-------------|
-| `/` | Dashboard — health distribution, services with issues, team health summaries |
+| `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, and latency thresholds |

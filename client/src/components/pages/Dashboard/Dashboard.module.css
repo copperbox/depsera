@@ -622,6 +622,42 @@
   text-align: right;
 }
 
+/* Polling Issues */
+.pollingIssuesBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  background-color: var(--color-warning);
+  color: #fff;
+}
+
+.pollingDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pollingDot.warning {
+  background-color: var(--color-warning);
+}
+
+.pollingDot.critical {
+  background-color: var(--color-error);
+}
+
+.pollingIssueDetail {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* Empty State */
 .emptySection {
   padding: 2rem 1.25rem;
