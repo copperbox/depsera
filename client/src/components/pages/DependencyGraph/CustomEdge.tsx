@@ -8,6 +8,7 @@ import {
   type EdgeProps,
 } from '@xyflow/react';
 import { GraphEdgeData } from '../../../types/graph';
+import { useAnimationSettings } from './AnimationContext';
 import styles from './DependencyGraph.module.css';
 
 type CustomEdgeType = Edge<GraphEdgeData, 'custom'>;
@@ -222,8 +223,7 @@ function CustomEdgeComponent({
   }
 
   const isSkipped = data?.skipped === true;
-  const showDashedAnimation = data?.showDashedAnimation ?? false;
-  const showPacketAnimation = data?.showPacketAnimation ?? true;
+  const { dashedAnimation: showDashedAnimation, packetAnimation: showPacketAnimation } = useAnimationSettings();
   const label = isSkipped ? 'skipped' : formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
   const isSelected = data?.isSelected ?? false;
@@ -272,9 +272,10 @@ function CustomEdgeComponent({
   // Apply dashed animation class for non-skipped edges when enabled
   const dashedClass = showDashedAnimation && !isSkipped ? styles.dashedAnimatedEdge : '';
 
-  // Sync packet opacity before every paint so React re-renders never cause flicker.
-  // React doesn't manage the opacity attr (removed from JSX), so this is the only writer
-  // besides the rAF loop — and useLayoutEffect fires synchronously before paint.
+  // Sync packet opacity on mount / animation toggle so the group starts hidden
+  // until the rAF loop takes over. The rAF loop is the sole ongoing writer of
+  // opacity, and React never manages it (no opacity prop in JSX), so we only
+  // need this on mount or when the animation flag changes.
   useLayoutEffect(() => {
     if (!showPacketAnimation) return;
     const group = packetGroupRef.current;
@@ -283,9 +284,7 @@ function CustomEdgeComponent({
     if (!phase || phase.kind === 'waiting') {
       group.setAttribute('opacity', '0');
     }
-    // When traveling, leave opacity untouched — the rAF loop already set the right value
-    // and React didn't clobber it (no opacity prop in JSX).
-  });
+  }, [id, showPacketAnimation]);
 
   useEffect(() => {
     if (!isVisible || !showPacketAnimation) return;
