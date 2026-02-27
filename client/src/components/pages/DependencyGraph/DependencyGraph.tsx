@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import { getServiceHealthStatus } from '../../../types/graph';
 import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
+import { AnimationContext } from './AnimationContext';
 import { NodeDetailsPanel } from './NodeDetailsPanel';
 import { EdgeDetailsPanel } from './EdgeDetailsPanel';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
@@ -237,8 +238,6 @@ function DependencyGraphInner() {
           isSelected,
           isHighlighted,
           isHighLatency: edgeIsHighLatency,
-          showDashedAnimation: dashedAnimation,
-          showPacketAnimation: packetAnimation,
         },
         style: { opacity },
       };
@@ -264,13 +263,20 @@ function DependencyGraphInner() {
         ? processEdge(edge, isSelected, !isSelected, 1)
         : { ...processEdge(edge, false, false, 0), style: { opacity: 0, pointerEvents: 'none' as const } };
     });
-  }, [edges, relatedEdgeIds, selectedEdgeId, hoveredRelatedEdgeIds, dashedAnimation, packetAnimation]);
+  }, [edges, relatedEdgeIds, selectedEdgeId, hoveredRelatedEdgeIds]);
 
   // Get the selected edge's data for the details panel
   const selectedEdge = useMemo(() => {
     if (!selectedEdgeId) return null;
     return filteredEdges.find((e) => e.id === selectedEdgeId) || null;
   }, [filteredEdges, selectedEdgeId]);
+
+  // Memoize animation settings so CustomEdge components only re-render
+  // when the flags actually change, not on every data refresh.
+  const animationSettings = useMemo(
+    () => ({ dashedAnimation, packetAnimation }),
+    [dashedAnimation, packetAnimation],
+  );
 
   // Handle node selection change
   useOnSelectionChange({
@@ -576,6 +582,7 @@ function DependencyGraphInner() {
               <span>No services or dependencies to display</span>
             </div>
           ) : (
+            <AnimationContext.Provider value={animationSettings}>
             <ReactFlow
               nodes={filteredNodes}
               edges={filteredEdges}
@@ -633,6 +640,7 @@ function DependencyGraphInner() {
                 </defs>
               </svg>
             </ReactFlow>
+            </AnimationContext.Provider>
           )}
         </div>
 
