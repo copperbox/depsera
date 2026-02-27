@@ -86,4 +86,15 @@ describe('warnInsecureCookies', () => {
 
     expect(console.warn).not.toHaveBeenCalled();
   });
+
+  it('should not warn in production with ENABLE_HTTPS=true', () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.REQUIRE_HTTPS;
+    delete process.env.TRUST_PROXY;
+    process.env.ENABLE_HTTPS = 'true';
+
+    warnInsecureCookies();
+
+    expect(console.warn).not.toHaveBeenCalled();
+  });
 });

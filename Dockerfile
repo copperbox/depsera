@@ -63,6 +63,6 @@ EXPOSE 3001
 VOLUME ["/app/server/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:3001/api/health || exit 1
+    CMD curl -kf https://localhost:3001/api/health 2>/dev/null || curl -f http://localhost:3001/api/health || exit 1
 
 CMD ["node", "server/dist/index.js"]

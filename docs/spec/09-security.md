@@ -19,7 +19,34 @@ When `REQUIRE_HTTPS=true`:
 - `/api/health` is exempt (for load balancer probes)
 - Requires `TRUST_PROXY` to be set when behind a reverse proxy (so `req.secure` is correct)
 
-## 9.3 Rate Limiting **[Implemented]**
+## 9.3 Direct HTTPS **[Implemented]**
+
+Depsera can terminate TLS itself without a reverse proxy via `ENABLE_HTTPS=true`.
+
+**Behavior:**
+
+| Configuration | Result |
+|---|---|
+| `ENABLE_HTTPS=false` (default) | Plain HTTP on `PORT` — unchanged |
+| `ENABLE_HTTPS=true` + `SSL_CERT_PATH` / `SSL_KEY_PATH` | Load the provided PEM cert/key, HTTPS on `PORT` |
+| `ENABLE_HTTPS=true` + no cert paths | Generate a self-signed certificate at startup, HTTPS on `PORT` |
+| `HTTP_PORT` set (any of the above HTTPS modes) | Start a minimal HTTP server on `HTTP_PORT`: `/api/health` returns 200, all other requests receive a 301 redirect to the HTTPS URL |
+
+**When to use direct HTTPS vs reverse proxy:**
+
+- **Direct HTTPS** is suited to small / single-node deployments, Docker containers exposed directly, or development/staging environments where a reverse proxy is unnecessary overhead.
+- **Reverse proxy** (nginx, Caddy) is preferred when you need load balancing, centralized TLS certificate management, or advanced routing rules. In that case leave `ENABLE_HTTPS=false` and configure `TRUST_PROXY` + `REQUIRE_HTTPS` instead.
+
+**Self-signed certificates:**
+
+When no cert paths are provided, the server generates a self-signed certificate on each startup. Browsers and HTTP clients will show TLS warnings. This is intended for development and internal testing only.
+
+**Interaction with `REQUIRE_HTTPS` and `TRUST_PROXY`:**
+
+- When `ENABLE_HTTPS=true`, `REQUIRE_HTTPS` is not needed — the server is already HTTPS. If `HTTP_PORT` is set, the HTTP listener redirects automatically.
+- `TRUST_PROXY` is only relevant when Depsera is behind a reverse proxy. When using direct HTTPS it can be left unset.
+
+## 9.4 Rate Limiting **[Implemented]**
 
 | Limiter | Window | Max Requests | Scope |
 |---|---|---|---|
@@ -28,7 +55,7 @@ When `REQUIRE_HTTPS=true`:
 
 Returns `429 Too Many Requests` with `RateLimit-*` and `Retry-After` headers.
 
-## 9.4 Redirect Validation **[Implemented]**
+## 9.5 Redirect Validation **[Implemented]**
 
 Logout redirect URLs are validated client-side via `validateRedirectUrl()`:
 - Relative paths allowed (`/services`)
@@ -36,7 +63,7 @@ Logout redirect URLs are validated client-side via `validateRedirectUrl()`:
 - External HTTPS URLs allowed (for OIDC end-session endpoints)
 - All other URLs rejected (prevents open redirect)
 
-## 9.5 Middleware Application Order **[Implemented]**
+## 9.6 Middleware Application Order **[Implemented]**
 
 The order matters — each layer builds on previous:
 
