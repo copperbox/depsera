@@ -53,11 +53,12 @@ export function warnInsecureCookies(): void {
 
   const hasHttps = process.env.REQUIRE_HTTPS === 'true';
   const hasTrustProxy = !!process.env.TRUST_PROXY;
+  const hasNativeHttps = process.env.ENABLE_HTTPS === 'true';
 
-  // If neither HTTPS redirect nor trust proxy is configured outside dev,
-  // the 'auto' secure flag will resolve to false (HTTP), sending session
-  // cookies over unencrypted connections.
-  if (!hasHttps && !hasTrustProxy) {
+  // If neither HTTPS redirect, trust proxy, nor native HTTPS is configured
+  // outside dev, the 'auto' secure flag will resolve to false (HTTP), sending
+  // session cookies over unencrypted connections.
+  if (!hasHttps && !hasTrustProxy && !hasNativeHttps) {
     console.warn(
       '[Security] Session cookie "secure" flag will be false — cookies will be sent over HTTP. ' +
       'Set REQUIRE_HTTPS=true and/or TRUST_PROXY for production deployments.'

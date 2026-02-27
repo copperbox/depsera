@@ -19,6 +19,10 @@ This guide covers deploying Depsera for production use. For development setup, s
 - [Reverse Proxy](#reverse-proxy)
   - [nginx](#nginx)
   - [Caddy](#caddy)
+- [Direct HTTPS](#direct-https)
+  - [Custom Certificates](#custom-certificates)
+  - [Self-Signed (Development)](#self-signed-development)
+  - [Docker with Certificates](#docker-with-certificates)
 - [Configuration Reference](#configuration-reference)
   - [Core](#core)
   - [Authentication](#authentication)
@@ -339,6 +343,73 @@ Caddy handles HTTPS automatically, so `REQUIRE_HTTPS` is optional (Caddy redirec
 
 ---
 
+## Direct HTTPS
+
+Depsera can terminate TLS directly without a reverse proxy. This is useful for single-node deployments, Docker containers exposed directly, or development/staging environments.
+
+### Custom Certificates
+
+Provide your own PEM certificate and key:
+
+```bash
+ENABLE_HTTPS=true
+SSL_CERT_PATH=/etc/ssl/certs/depsera.crt
+SSL_KEY_PATH=/etc/ssl/private/depsera.key
+```
+
+The server starts HTTPS on `PORT` (default 3001).
+
+To also run a plain HTTP listener for health checks and redirect:
+
+```bash
+HTTP_PORT=3080
+```
+
+The HTTP server on port 3080 returns 200 for `/api/health` and 301-redirects everything else to the HTTPS URL.
+
+### Self-Signed (Development)
+
+For development or internal testing, omit the cert paths and Depsera generates a self-signed certificate at startup:
+
+```bash
+ENABLE_HTTPS=true
+```
+
+Browsers will show a TLS warning. This is not suitable for production.
+
+### Docker with Certificates
+
+Mount your certificate files into the container:
+
+```yaml
+services:
+  depsera:
+    build: .
+    ports:
+      - "443:3001"
+      - "80:3080"    # optional HTTP health check + redirect
+    environment:
+      - ENABLE_HTTPS=true
+      - SSL_CERT_PATH=/certs/depsera.crt
+      - SSL_KEY_PATH=/certs/depsera.key
+      - HTTP_PORT=3080
+      - SESSION_SECRET=your-secure-random-string-at-least-32-chars
+      - LOCAL_AUTH=true
+      - ADMIN_EMAIL=admin@yourdomain.com
+      - ADMIN_PASSWORD=a-strong-password
+    volumes:
+      - depsera-data:/app/server/data
+      - ./certs:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  depsera-data:
+```
+
+> **Note:** When using direct HTTPS, `TRUST_PROXY` and `REQUIRE_HTTPS` are not needed. The server is already HTTPS and the optional `HTTP_PORT` listener handles redirects automatically.
+
+---
+
 ## Configuration Reference
 
 All configuration is via environment variables set on the server process. In bare Node.js deployments, use `server/.env`. In Docker, use `environment:` in `docker-compose.yml` or `-e` flags.
@@ -384,6 +455,10 @@ The first user to authenticate (OIDC) or the user created from `ADMIN_EMAIL`/`AD
 | `TRUST_PROXY` | — | Express `trust proxy` setting. **Required when behind a reverse proxy.** Accepts: `true` (trust all), a number (hop count), IP/subnet (`10.0.0.0/8`), `loopback`, or a comma-separated list. Enables correct `req.secure`, `req.ip` from `X-Forwarded-*` headers. |
 | `REQUIRE_HTTPS` | `false` | Set `true` to 301-redirect all HTTP requests to HTTPS. `/api/health` is exempt so load-balancer health probes still work over HTTP. Requires `TRUST_PROXY` when behind a reverse proxy. |
 | `SSRF_ALLOWLIST` | — | Comma-separated list of hostnames, wildcard patterns, and CIDR ranges that bypass SSRF blocking for health endpoint polling. Required for monitoring internal/private-network services. Examples: `localhost,127.0.0.0/8` (local dev), `*.internal,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` (corporate network). |
+| `ENABLE_HTTPS` | `false` | Set `true` to start an HTTPS server directly (no reverse proxy needed). See [Direct HTTPS](#direct-https). |
+| `SSL_CERT_PATH` | — | Path to PEM certificate file. Must pair with `SSL_KEY_PATH`. If omitted with `ENABLE_HTTPS=true`, a self-signed cert is generated. |
+| `SSL_KEY_PATH` | — | Path to PEM private key file. Must pair with `SSL_CERT_PATH`. |
+| `HTTP_PORT` | — | Start a plain HTTP server on this port when `ENABLE_HTTPS=true`. Serves `/api/health` (200) and 301-redirects all other requests. |
 
 ### Rate Limiting
 

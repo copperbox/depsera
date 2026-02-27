@@ -31,6 +31,10 @@ All configuration is via environment variables on the server (set in `server/.en
 | `TRUST_PROXY` | — | Express trust proxy setting. Accepts: `true`, hop count, IP/subnet, `loopback`, comma-separated list. |
 | `REQUIRE_HTTPS` | `false` | `'true'` enables 301 HTTP → HTTPS redirect |
 | `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), CIDRs (`10.0.0.0/8`) |
+| `ENABLE_HTTPS` | `false` | Set `true` to start an HTTPS server directly (no reverse proxy needed) |
+| `SSL_CERT_PATH` | — | Path to PEM certificate file. Must pair with `SSL_KEY_PATH`. |
+| `SSL_KEY_PATH` | — | Path to PEM private key file. Must pair with `SSL_CERT_PATH`. |
+| `HTTP_PORT` | — | Optional: start a plain HTTP server on this port for health checks (`/api/health` returns 200) and 301-redirect all other requests to HTTPS. Only used when `ENABLE_HTTPS=true`. |
 
 ## 11.4 Rate Limiting
 

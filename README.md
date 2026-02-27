@@ -56,6 +56,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - SSRF protection with configurable allowlist for internal networks
 - CSRF protection, rate limiting, security headers (CSP, HSTS, X-Frame-Options)
 - Audit trail for all admin actions
+- Direct HTTPS support with custom or auto-generated self-signed certificates
 - Session secret validation, redirect URL validation, timing-safe comparisons
 
 **Operations**
@@ -172,6 +173,10 @@ cp server/.env.example server/.env
 | `SSRF_ALLOWLIST` | — | Comma-separated hostnames, wildcards (`*.internal`), CIDRs (`10.0.0.0/8`) |
 | `TRUST_PROXY` | — | Express trust proxy setting (`true`, hop count, IP/subnet, `loopback`) |
 | `REQUIRE_HTTPS` | `false` | Set `true` to redirect HTTP to HTTPS |
+| `ENABLE_HTTPS` | `false` | Direct HTTPS without a reverse proxy (generates self-signed cert if no cert paths given) |
+| `SSL_CERT_PATH` | — | PEM certificate path (pair with `SSL_KEY_PATH`) |
+| `SSL_KEY_PATH` | — | PEM private key path (pair with `SSL_CERT_PATH`) |
+| `HTTP_PORT` | — | Plain HTTP port for health checks + redirect when `ENABLE_HTTPS=true` |
 | `RATE_LIMIT_MAX` | `100` | Max requests per IP per 15-minute window |
 | `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per minute |
 

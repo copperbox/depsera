@@ -45,9 +45,12 @@ describe('Docker configuration', () => {
       expect(dockerfile).toMatch(/VOLUME.*\/app\/server\/data/);
     });
 
-    it('includes a health check using /api/health', () => {
+    it('includes a health check that handles both HTTP and HTTPS', () => {
       expect(dockerfile).toContain('HEALTHCHECK');
       expect(dockerfile).toContain('/api/health');
+      // Should try HTTPS first (with -k for self-signed), fall back to HTTP
+      expect(dockerfile).toContain('curl -kf https://');
+      expect(dockerfile).toContain('curl -f http://');
     });
 
     it('runs as non-root user', () => {

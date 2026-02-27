@@ -1,8 +1,11 @@
+import https from 'node:https';
+import http from 'node:http';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { initializeDatabase, closeDatabase } from './db';
 import { sessionMiddleware, warnInsecureCookies, initializeOIDC, requireAuth, validateLocalAuthConfig, bootstrapLocalAdmin, getAuthMode } from './auth';
+import { resolveSSLConfig } from './ssl';
 import authRouter from './routes/auth';
 import healthRouter from './routes/health';
 import servicesRouter from './routes/services';
@@ -99,6 +102,8 @@ if (clientBuildExists()) {
 
 // Initialize and start server
 async function start() {
+  const sslConfig = await resolveSSLConfig();
+
   initializeDatabase();
 
   const authMode = getAuthMode();
@@ -152,8 +157,8 @@ async function start() {
   // Warn about insecure session cookie settings
   warnInsecureCookies();
 
-  // Warn about HTTPS redirect without proxy trust
-  if (process.env.REQUIRE_HTTPS === 'true' && !process.env.TRUST_PROXY) {
+  // Warn about HTTPS redirect without proxy trust (not needed when native HTTPS is active)
+  if (process.env.REQUIRE_HTTPS === 'true' && !process.env.TRUST_PROXY && !sslConfig.enabled) {
     logger.warn('REQUIRE_HTTPS is enabled but TRUST_PROXY is not set — HTTPS redirect will not work correctly behind a reverse proxy');
   }
 
@@ -175,9 +180,45 @@ async function start() {
   // Start polling all active services
   pollingService.startAll();
 
-  const server = app.listen(PORT, () => {
-    logger.info({ port: PORT }, 'server started');
-  });
+  let server: http.Server | https.Server;
+  let httpRedirectServer: http.Server | undefined;
+
+  if (sslConfig.enabled && sslConfig.certKeyPair) {
+    server = https.createServer(
+      { cert: sslConfig.certKeyPair.cert, key: sslConfig.certKeyPair.key },
+      app,
+    );
+    server.listen(PORT, () => {
+      logger.info({ port: PORT, protocol: 'https' }, 'HTTPS server started');
+    });
+
+    // Optional HTTP redirect/health server
+    if (sslConfig.httpPort) {
+      httpRedirectServer = http.createServer((req, res) => {
+        if (req.url === '/api/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'ok' }));
+          return;
+        }
+        const host = (req.headers.host || `localhost:${PORT}`).replace(
+          `:${sslConfig.httpPort}`,
+          `:${PORT}`,
+        );
+        res.writeHead(301, { Location: `https://${host}${req.url}` });
+        res.end();
+      });
+      httpRedirectServer.listen(sslConfig.httpPort, () => {
+        logger.info(
+          { port: sslConfig.httpPort, protocol: 'http' },
+          'HTTP redirect server started (health + redirect)',
+        );
+      });
+    }
+  } else {
+    server = app.listen(PORT, () => {
+      logger.info({ port: PORT }, 'server started');
+    });
+  }
 
   // Graceful shutdown
   const shutdown = async () => {
@@ -194,6 +235,9 @@ async function start() {
     // Close database connection
     closeDatabase();
 
+    if (httpRedirectServer) {
+      httpRedirectServer.close();
+    }
     server.close(() => {
       logger.info('server closed');
       process.exit(0);
