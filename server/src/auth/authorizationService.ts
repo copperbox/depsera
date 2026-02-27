@@ -212,6 +212,40 @@ export class AuthorizationService {
   }
 
   /**
+   * Check if a user can manage an alias.
+   * Authorized if admin OR team lead of any team that owns a service
+   * with a dependency matching the given alias name.
+   */
+  static checkAliasAccess(user: User, aliasName: string): AuthorizationResult {
+    if (user.role === 'admin') {
+      return { authorized: true };
+    }
+
+    const stores = getStores();
+
+    // Find all dependencies whose reported name matches the alias
+    const allDeps = stores.dependencies.findAll();
+    const matchingDeps = allDeps.filter(d => d.name === aliasName);
+
+    // Get unique service IDs from matching dependencies
+    const serviceIds = [...new Set(matchingDeps.map(d => d.service_id))];
+
+    // Check if user is team lead of any team owning these services
+    for (const serviceId of serviceIds) {
+      const result = this.checkServiceTeamLeadAccess(user, serviceId);
+      if (result.authorized) {
+        return { authorized: true, membership: result.membership };
+      }
+    }
+
+    return {
+      authorized: false,
+      error: 'Admin or team lead access required for a team with a service reporting this dependency',
+      statusCode: 403,
+    };
+  }
+
+  /**
    * Check if user is an admin
    */
   static checkAdminAccess(user: User): AuthorizationResult {

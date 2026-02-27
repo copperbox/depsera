@@ -10,7 +10,8 @@ interface AliasesManagerProps {
 }
 
 function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLead } = useAuth();
+  const canManageAliases = isAdmin || isLead;
   const {
     aliases,
     canonicalNames,
@@ -64,7 +65,7 @@ function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
         aliases unify them under one canonical identity.
       </p>
 
-      {isAdmin && (
+      {canManageAliases && (
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
             <SearchableSelect
@@ -117,7 +118,7 @@ function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
               {items.map((a) => (
                 <div key={a.id} className={styles.aliasRow}>
                   <span className={styles.aliasName}>{a.alias}</span>
-                  {isAdmin && (
+                  {canManageAliases && (
                     <div className={styles.aliasActions}>
                       <button
                         className={`${styles.iconButton} ${styles.deleteButton}`}

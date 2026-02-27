@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
+import { AuthorizationService } from '../../auth/authorizationService';
 import { sendErrorResponse } from '../../utils/errors';
 
 export function updateAlias(req: Request, res: Response): void {
@@ -12,13 +13,22 @@ export function updateAlias(req: Request, res: Response): void {
       return;
     }
 
-    const updated = getStores().aliases.update(id, canonical_name.trim());
-    if (!updated) {
+    const stores = getStores();
+    const existing = stores.aliases.findById(id);
+    if (!existing) {
       res.status(404).json({ error: 'Alias not found' });
       return;
     }
 
-    res.json(updated);
+    // Check permissions: admin or team lead of a team with a service reporting this dependency
+    const authResult = AuthorizationService.checkAliasAccess(req.user!, existing.alias);
+    if (!authResult.authorized) {
+      res.status(authResult.statusCode!).json({ error: authResult.error });
+      return;
+    }
+
+    const updated = stores.aliases.update(id, canonical_name.trim());
+    res.json(updated!);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
     sendErrorResponse(res, error, 'updating alias');
   }
