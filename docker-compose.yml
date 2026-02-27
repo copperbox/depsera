@@ -4,7 +4,7 @@ services:
     image: depsera
     ports:
       - "3001:3001"
-      # - "8443:8443" # Only needed if ENABLE_HTTPS=true
+      # - "443:3001" # Uncomment if using direct HTTPS
     environment:
       # Session secret (required — generate with: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")
       - SESSION_SECRET=change-me-to-a-secure-random-string-at-least-32-chars

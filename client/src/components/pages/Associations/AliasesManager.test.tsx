@@ -45,7 +45,7 @@ beforeEach(() => {
   mockCanonicalNames = [];
   mockIsLoading = false;
   mockError = null;
-  mockUseAuth.mockReturnValue({ isAdmin: true });
+  mockUseAuth.mockReturnValue({ isAdmin: true, isLead: false });
 });
 
 describe('AliasesManager', () => {
@@ -196,19 +196,42 @@ describe('AliasesManager', () => {
     expect(datalist?.querySelectorAll('option')).toHaveLength(3);
   });
 
-  describe('non-admin user', () => {
+  describe('team lead user', () => {
     beforeEach(() => {
-      mockUseAuth.mockReturnValue({ isAdmin: false });
+      mockUseAuth.mockReturnValue({ isAdmin: false, isLead: true });
     });
 
-    it('hides the add alias form for non-admin users', () => {
+    it('shows the add alias form for team leads', () => {
+      render(<AliasesManager {...defaultProps} />);
+
+      expect(screen.getByText('Alias (reported name)')).toBeInTheDocument();
+      expect(screen.getByText('Add Alias')).toBeInTheDocument();
+    });
+
+    it('shows delete buttons for team leads', () => {
+      mockAliases = [
+        { id: '1', alias: 'pg-main', canonical_name: 'Primary DB', created_at: '' },
+      ];
+
+      render(<AliasesManager {...defaultProps} />);
+
+      expect(screen.getByTitle('Delete alias')).toBeInTheDocument();
+    });
+  });
+
+  describe('non-admin non-lead user', () => {
+    beforeEach(() => {
+      mockUseAuth.mockReturnValue({ isAdmin: false, isLead: false });
+    });
+
+    it('hides the add alias form', () => {
       render(<AliasesManager {...defaultProps} />);
 
       expect(screen.queryByText('Add Alias')).not.toBeInTheDocument();
       expect(screen.queryByText('Alias (reported name)')).not.toBeInTheDocument();
     });
 
-    it('hides delete buttons for non-admin users', () => {
+    it('hides delete buttons', () => {
       mockAliases = [
         { id: '1', alias: 'pg-main', canonical_name: 'Primary DB', created_at: '' },
       ];

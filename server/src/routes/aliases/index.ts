@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { requireAdmin } from '../../auth';
 import { getAliases } from './getAliases';
 import { createAlias } from './createAlias';
 import { updateAlias } from './updateAlias';
@@ -12,9 +11,9 @@ const router = Router();
 router.get('/', getAliases);
 router.get('/canonical-names', getCanonicalNames);
 
-// Mutation endpoints — admin only
-router.post('/', requireAdmin, createAlias);
-router.put('/:id', requireAdmin, updateAlias);
-router.delete('/:id', requireAdmin, deleteAlias);
+// Mutation endpoints — admin or team lead (authorization checked in handlers)
+router.post('/', createAlias);
+router.put('/:id', updateAlias);
+router.delete('/:id', deleteAlias);
 
 export default router;

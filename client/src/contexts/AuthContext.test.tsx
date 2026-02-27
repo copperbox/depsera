@@ -17,12 +17,13 @@ Object.defineProperty(window, 'location', {
 
 // Test component that uses the auth context
 function TestComponent() {
-  const { user, isLoading, isAuthenticated, isAdmin, canManageServices, login, logout, checkAuth } = useAuth();
+  const { user, isLoading, isAuthenticated, isAdmin, isLead, canManageServices, login, logout, checkAuth } = useAuth();
   return (
     <div>
       <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
       <span data-testid="authenticated">{isAuthenticated ? 'yes' : 'no'}</span>
       <span data-testid="admin">{isAdmin ? 'yes' : 'no'}</span>
+      <span data-testid="lead">{isLead ? 'yes' : 'no'}</span>
       <span data-testid="can-manage-services">{canManageServices ? 'yes' : 'no'}</span>
       <span data-testid="user">{user?.name || 'none'}</span>
       <button onClick={login}>Login</button>
@@ -143,6 +144,55 @@ describe('AuthProvider', () => {
 
     expect(screen.getByTestId('admin')).toHaveTextContent('no');
     expect(screen.getByTestId('can-manage-services')).toHaveTextContent('yes');
+  });
+
+  it('identifies team lead users via team memberships', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        id: '2',
+        name: 'Team Lead',
+        role: 'user',
+        teams: [{ team_id: 't1', role: 'lead', team: { id: 't1', name: 'Platform', description: null } }],
+      }),
+    });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    });
+
+    expect(screen.getByTestId('lead')).toHaveTextContent('yes');
+    expect(screen.getByTestId('admin')).toHaveTextContent('no');
+  });
+
+  it('sets isLead false for regular members', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        id: '3',
+        name: 'Member',
+        role: 'user',
+        teams: [{ team_id: 't1', role: 'member', team: { id: 't1', name: 'Platform', description: null } }],
+      }),
+    });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    });
+
+    expect(screen.getByTestId('lead')).toHaveTextContent('no');
   });
 
   it('sets canManageServices false for regular members', async () => {

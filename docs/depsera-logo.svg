@@ -1001,7 +1001,7 @@
   <text x="516" y="337" font-family="GeistMono,monospace" font-size="12" fill="#009970" fill-opacity="0.45">all-encompassing visibility across your service world</text>
   <line x1="516" y1="347" x2="1074" y2="347" stroke="#00D49A" stroke-width="0.5" stroke-opacity="0.10"/>
   <rect x="516" y="361" width="70" height="22" rx="3" fill="none" stroke="#00D49A" stroke-width="0.75" stroke-opacity="0.35"/>
-  <text x="526" y="376" font-family="GeistMono,monospace" font-size="12" fill="#009970">v1.6.4</text>
+  <text x="526" y="376" font-family="GeistMono,monospace" font-size="12" fill="#009970">v1.6.5</text>
   <line x1="600" y1="371" x2="606" y2="371" stroke="#00D49A" stroke-width="0.75" stroke-opacity="0.2"/>
   <text x="612" y="376" font-family="GeistMono,monospace" font-size="12" fill="#009970" fill-opacity="0.4">apache 2.0</text>
   <line x1="28" y1="80" x2="28" y2="500" stroke="#00D49A" stroke-width="0.75" stroke-opacity="0.15"/>
