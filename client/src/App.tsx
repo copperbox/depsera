@@ -32,7 +32,14 @@ function App() {
         <Route path="teams" element={<TeamsList />} />
         <Route path="teams/:id" element={<TeamDetail />} />
         <Route path="graph" element={<DependencyGraph />} />
-        <Route path="associations" element={<AssociationsPage />} />
+        <Route
+          path="admin/associations"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AssociationsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="wallboard" element={<Wallboard />} />
         <Route
           path="admin/users"

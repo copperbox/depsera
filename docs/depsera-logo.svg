@@ -997,7 +997,7 @@
   <text x="516" y="253" font-family="BricolageGrotesque,Arial Black,sans-serif" font-weight="700" font-size="100" fill="#DCE8E4">dep</text>
   <text x="692" y="253" font-family="BricolageGrotesque,Arial Black,sans-serif" font-weight="700" font-size="100" fill="#00D49A">sera</text>
   <line x1="516" y1="281" x2="1074" y2="281" stroke="#00D49A" stroke-width="0.5" stroke-opacity="0.15"/>
-  <text x="516" y="315" font-family="GeistMono,monospace" font-size="14" fill="#385050">dependency monitoring   ·   service health   ·   graph visualization</text>
+  <text x="516" y="315" font-family="GeistMono,monospace" font-size="14" fill="#385050">dependency monitoring and service health, all in one place.</text>
   <text x="516" y="337" font-family="GeistMono,monospace" font-size="12" fill="#009970" fill-opacity="0.45">all-encompassing visibility across your service world</text>
   <line x1="516" y1="347" x2="1074" y2="347" stroke="#00D49A" stroke-width="0.5" stroke-opacity="0.10"/>
   <rect x="516" y="361" width="70" height="22" rx="3" fill="none" stroke="#00D49A" stroke-width="0.75" stroke-opacity="0.35"/>
