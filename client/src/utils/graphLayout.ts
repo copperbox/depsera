@@ -17,6 +17,8 @@ export type LayoutDirection = 'TB' | 'LR';
 
 export const LAYOUT_DIRECTION_KEY = 'graph-layout-direction';
 export const EDGE_STYLE_KEY = 'graph-edge-style';
+export const DASHED_ANIMATION_KEY = 'graph-dashed-animation';
+export const PACKET_ANIMATION_KEY = 'graph-packet-animation';
 /** Absolute floor in ms — latency below this is never flagged as high */
 export const HIGH_LATENCY_FLOOR_MS = 100;
 /** Multiplier against 24h average — latency must exceed avg * this to be flagged */
@@ -253,7 +255,6 @@ export async function transformGraphData(
     target: edge.target,
     type: 'custom' as const,
     data: edge.data,
-    animated: true,
   }));
 
   return await getLayoutedElements(nodes, edges, direction, edgeStyle);

@@ -56,6 +56,8 @@ export interface GraphEdgeData {
   impact?: string | null;
   effectiveContact?: string | null;
   skipped?: boolean;
+  showDashedAnimation?: boolean;
+  showPacketAnimation?: boolean;
   [key: string]: unknown;
 }
 

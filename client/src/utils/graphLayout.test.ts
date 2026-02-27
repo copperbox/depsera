@@ -257,7 +257,7 @@ describe('transformGraphData', () => {
 
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0].type).toBe('custom');
-    expect(result.edges[0].animated).toBe(true);
+    expect(result.edges[0].animated).toBeUndefined();
   });
 
   it('calculates reported health counts from edges', async () => {

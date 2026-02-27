@@ -187,8 +187,8 @@ describe('Layout', () => {
     expect(screen.getByTitle('Services')).toBeInTheDocument();
     expect(screen.getByTitle('Teams')).toBeInTheDocument();
     expect(screen.getByTitle('Dependency Graph')).toBeInTheDocument();
-    expect(screen.getByTitle('Associations')).toBeInTheDocument();
     expect(screen.getByTitle('Wallboard')).toBeInTheDocument();
+    expect(screen.queryByTitle('Associations')).not.toBeInTheDocument();
   });
 
   it('shows admin link for admin users', async () => {
@@ -201,6 +201,7 @@ describe('Layout', () => {
 
     await screen.findByText('Admin User');
 
+    expect(screen.getByTitle('Associations')).toBeInTheDocument();
     expect(screen.getByTitle('Users')).toBeInTheDocument();
     expect(screen.getByTitle('Settings')).toBeInTheDocument();
   });
@@ -215,6 +216,7 @@ describe('Layout', () => {
 
     await screen.findByText('Regular User');
 
+    expect(screen.queryByTitle('Associations')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Users')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Settings')).not.toBeInTheDocument();
   });

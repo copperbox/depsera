@@ -7,6 +7,8 @@ import {
   type LayoutDirection,
   LAYOUT_DIRECTION_KEY,
   EDGE_STYLE_KEY,
+  DASHED_ANIMATION_KEY,
+  PACKET_ANIMATION_KEY,
   transformGraphData,
   computeTopologyFingerprint,
   updateGraphDataOnly,
@@ -51,6 +53,12 @@ export interface UseGraphStateReturn {
   edgeStyle: EdgeStyle;
   setEdgeStyle: (style: EdgeStyle) => void;
 
+  // Animation state
+  dashedAnimation: boolean;
+  setDashedAnimation: (enabled: boolean) => void;
+  packetAnimation: boolean;
+  setPacketAnimation: (enabled: boolean) => void;
+
   // Loading state
   isLoading: boolean;
   isRefreshing: boolean;
@@ -91,6 +99,16 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const [edgeStyle, setEdgeStyleState] = useState<EdgeStyle>(() => {
     const stored = localStorage.getItem(EDGE_STYLE_KEY);
     return (stored === 'orthogonal' || stored === 'bezier') ? stored : 'orthogonal';
+  });
+
+  const [dashedAnimation, setDashedAnimationState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(DASHED_ANIMATION_KEY);
+    return stored === 'true';
+  });
+
+  const [packetAnimation, setPacketAnimationState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(PACKET_ANIMATION_KEY);
+    return stored !== 'false';
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -187,6 +205,16 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const setEdgeStyle = useCallback((style: EdgeStyle) => {
     setEdgeStyleState(style);
     localStorage.setItem(EDGE_STYLE_KEY, style);
+  }, []);
+
+  const setDashedAnimation = useCallback((enabled: boolean) => {
+    setDashedAnimationState(enabled);
+    localStorage.setItem(DASHED_ANIMATION_KEY, String(enabled));
+  }, []);
+
+  const setPacketAnimation = useCallback((enabled: boolean) => {
+    setPacketAnimationState(enabled);
+    localStorage.setItem(PACKET_ANIMATION_KEY, String(enabled));
   }, []);
 
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
@@ -350,6 +378,10 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setLayoutDirection,
     edgeStyle,
     setEdgeStyle,
+    dashedAnimation,
+    setDashedAnimation,
+    packetAnimation,
+    setPacketAnimation,
     isLoading,
     isRefreshing,
     error,

@@ -34,6 +34,8 @@ jest.mock('../api/teams', () => ({
 jest.mock('../utils/graphLayout', () => ({
   LAYOUT_DIRECTION_KEY: 'graph-layout-direction',
   EDGE_STYLE_KEY: 'graph-edge-style',
+  DASHED_ANIMATION_KEY: 'graph-dashed-animation',
+  PACKET_ANIMATION_KEY: 'graph-packet-animation',
   transformGraphData: jest.fn().mockResolvedValue({ nodes: [], edges: [] }),
   computeTopologyFingerprint: jest.fn().mockReturnValue(''),
   updateGraphDataOnly: jest.fn().mockReturnValue({ nodes: [], edges: [] }),
@@ -468,5 +470,51 @@ describe('useGraphState', () => {
 
     expect(transformGraphData).toHaveBeenCalled();
     expect(updateGraphDataOnly).not.toHaveBeenCalled();
+  });
+
+  describe('animation toggles', () => {
+    it('defaults dashedAnimation to false', () => {
+      const { result } = renderHook(() => useGraphState());
+      expect(result.current.dashedAnimation).toBe(false);
+    });
+
+    it('defaults packetAnimation to true', () => {
+      const { result } = renderHook(() => useGraphState());
+      expect(result.current.packetAnimation).toBe(true);
+    });
+
+    it('reads dashedAnimation from localStorage', () => {
+      localStorage.setItem('graph-dashed-animation', 'true');
+      const { result } = renderHook(() => useGraphState());
+      expect(result.current.dashedAnimation).toBe(true);
+    });
+
+    it('reads packetAnimation false from localStorage', () => {
+      localStorage.setItem('graph-packet-animation', 'false');
+      const { result } = renderHook(() => useGraphState());
+      expect(result.current.packetAnimation).toBe(false);
+    });
+
+    it('persists dashedAnimation to localStorage', () => {
+      const { result } = renderHook(() => useGraphState());
+
+      act(() => {
+        result.current.setDashedAnimation(true);
+      });
+
+      expect(localStorage.getItem('graph-dashed-animation')).toBe('true');
+      expect(result.current.dashedAnimation).toBe(true);
+    });
+
+    it('persists packetAnimation to localStorage', () => {
+      const { result } = renderHook(() => useGraphState());
+
+      act(() => {
+        result.current.setPacketAnimation(false);
+      });
+
+      expect(localStorage.getItem('graph-packet-animation')).toBe('false');
+      expect(result.current.packetAnimation).toBe(false);
+    });
   });
 });
