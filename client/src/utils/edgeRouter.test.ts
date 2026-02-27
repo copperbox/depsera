@@ -80,9 +80,9 @@ describe('computeEdgeRoutes', () => {
     const edges = [makeEdge('e1', 'a', 'b'), makeEdge('e2', 'a', 'c')];
     const result = computeEdgeRoutes(nodes, edges, 'TB');
 
-    // lane[0] = 190 - 7.5 = 182.5, lane[1] = 190 + 7.5 = 197.5
-    expect(result.get('e1')).toBe(182.5);
-    expect(result.get('e2')).toBe(197.5);
+    // floor-median centering: lane[0] = 190, lane[1] = 190 + 15 = 205
+    expect(result.get('e1')).toBe(190);
+    expect(result.get('e2')).toBe(205);
   });
 
   it('globally deduplicates lanes for edges from different sources in same layer (TB)', () => {
@@ -95,8 +95,8 @@ describe('computeEdgeRoutes', () => {
     const edges = [makeEdge('e1', 'a', 'b'), makeEdge('e2', 'd', 'c')];
     const result = computeEdgeRoutes(nodes, edges, 'TB');
 
-    expect(result.get('e1')).toBe(182.5);
-    expect(result.get('e2')).toBe(197.5);
+    expect(result.get('e1')).toBe(190);
+    expect(result.get('e2')).toBe(205);
     expect(result.get('e1')).not.toBe(result.get('e2'));
   });
 
@@ -140,8 +140,8 @@ describe('computeEdgeRoutes', () => {
     const edges = [makeEdge('e1', 'a', 'b'), makeEdge('e2', 'a', 'c')];
     const result = computeEdgeRoutes(nodes, edges, 'TB', 20);
 
-    expect(result.get('e1')).toBe(180);
-    expect(result.get('e2')).toBe(200);
+    expect(result.get('e1')).toBe(190);
+    expect(result.get('e2')).toBe(210);
   });
 
   it('sub-sorts by source cross-axis when targets have same X (TB)', () => {
@@ -171,8 +171,8 @@ describe('computeEdgeRoutes', () => {
     const result = computeEdgeRoutes(nodes, edges, 'LR');
 
     // Gap center = (0 + 180 + 400) / 2 = 290
-    expect(result.get('e1')).toBe(282.5);
-    expect(result.get('e2')).toBe(297.5);
+    expect(result.get('e1')).toBe(290);
+    expect(result.get('e2')).toBe(305);
   });
 
   it('assigns single lane at gap center for LR direction', () => {
@@ -181,6 +181,53 @@ describe('computeEdgeRoutes', () => {
     const result = computeEdgeRoutes(nodes, edges, 'LR');
 
     expect(result.get('e1')).toBe(290);
+  });
+
+  // --- Floor-median centering ---
+
+  it('odd edge count: median edge lands exactly on gap center', () => {
+    const nodes = [
+      makeNode('a', 100, 0),
+      makeNode('b', 0, 280),
+      makeNode('c', 100, 280),
+      makeNode('d', 200, 280),
+    ];
+    const edges = [
+      makeEdge('e1', 'a', 'b'),
+      makeEdge('e2', 'a', 'c'),
+      makeEdge('e3', 'a', 'd'),
+    ];
+    const result = computeEdgeRoutes(nodes, edges, 'TB');
+
+    // Gap center = (0 + 100 + 280) / 2 = 190
+    // 3 edges → mid = 1, lanes: 190-15=175, 190, 190+15=205
+    expect(result.get('e1')).toBe(175);
+    expect(result.get('e2')).toBe(190);
+    expect(result.get('e3')).toBe(205);
+  });
+
+  it('even edge count: floor-median edge lands on gap center', () => {
+    const nodes = [
+      makeNode('a', 100, 0),
+      makeNode('b', 0, 280),
+      makeNode('c', 100, 280),
+      makeNode('d', 200, 280),
+      makeNode('e', 300, 280),
+    ];
+    const edges = [
+      makeEdge('e1', 'a', 'b'),
+      makeEdge('e2', 'a', 'c'),
+      makeEdge('e3', 'a', 'd'),
+      makeEdge('e4', 'a', 'e'),
+    ];
+    const result = computeEdgeRoutes(nodes, edges, 'TB');
+
+    // Gap center = 190, 4 edges → mid = 1
+    // lanes: 190-15=175, 190, 190+15=205, 190+30=220
+    expect(result.get('e1')).toBe(175);
+    expect(result.get('e2')).toBe(190);
+    expect(result.get('e3')).toBe(205);
+    expect(result.get('e4')).toBe(220);
   });
 
   // --- Edge cases ---

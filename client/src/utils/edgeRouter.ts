@@ -231,10 +231,11 @@ export function computeEdgeRoutes(
       gapCenter = (sourceLayerPos + NODE_WIDTH + targetLayerPos) / 2;
     }
 
-    // Assign lanes centered around gap center
+    // Assign lanes centered around gap center (floor-median centering)
     const count = gapEdgeList.length;
+    const mid = Math.floor((count - 1) / 2);
     for (let i = 0; i < count; i++) {
-      const lane = gapCenter + (i - (count - 1) / 2) * laneSpacing;
+      const lane = gapCenter + (i - mid) * laneSpacing;
       result.set(gapEdgeList[i].id, lane);
     }
   }
