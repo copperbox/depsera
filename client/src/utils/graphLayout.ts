@@ -255,7 +255,6 @@ export async function transformGraphData(
     target: edge.target,
     type: 'custom' as const,
     data: edge.data,
-    animated: true,
   }));
 
   return await getLayoutedElements(nodes, edges, direction, edgeStyle);
