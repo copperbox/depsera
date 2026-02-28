@@ -500,6 +500,32 @@ Contains all types specific to the manifest sync engine:
 - Empty `services` array is valid (not an error)
 - Reuses existing `validateSchemaConfig()` and `VALID_ASSOCIATION_TYPES` from `server/src/utils/validation.ts`
 
+### ManifestFetcher **[Implemented]**
+
+`server/src/services/manifest/ManifestFetcher.ts` — HTTP fetch of manifest JSON from team-configured URLs with SSRF protection, timeout, and streaming size limit. Returns a `ManifestFetchResult` discriminated union.
+
+**Public API:** `fetchManifest(url: string, options?: { headers?: Record<string, string> }): Promise<ManifestFetchResult>`
+
+**Security & limits:**
+- Async SSRF validation via `validateUrlNotPrivate()` before fetch (DNS resolution)
+- `AbortController` timeout at 10,000ms
+- `Content-Length` pre-check against 1MB (1,048,576 bytes) limit
+- Streaming body reader `readResponseWithLimit()` enforces size limit even with absent/spoofed `Content-Length`
+- Error messages sanitized via `sanitizePollError()` before returning
+
+**Request configuration:**
+- Method: `GET`, redirect: `follow` (Node default, up to 20 redirects)
+- Headers: `Accept: application/json`, `User-Agent: Depsera-Manifest-Sync/1.0`
+- Optional `headers` parameter for future auth support (DPS-24)
+
+**Error handling:**
+- SSRF rejection → sanitized error
+- Non-2xx status → `HTTP {status}: {statusText}`
+- Size exceeded → `Manifest too large: ...`
+- JSON parse failure → `Invalid JSON: manifest could not be parsed`
+- Abort/timeout → `Manifest fetch timed out (10s)`
+- Network errors → sanitized via `sanitizePollError()`
+
 ## Migration History
 
 | ID | Name | Changes |
