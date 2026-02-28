@@ -32,6 +32,9 @@ const mockService: Service = {
   last_poll_success: 1,
   last_poll_error: null,
   poll_warnings: null,
+  manifest_key: null,
+  manifest_managed: 0,
+  manifest_last_synced_values: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };

@@ -35,6 +35,7 @@ export function getAssociations(req: Request, res: Response): void {
           confidence_score: row.confidence_score,
           is_dismissed: row.is_dismissed,
           match_reason: row.match_reason ?? null,
+          manifest_managed: row.manifest_managed,
           created_at: row.created_at,
           linked_service: linkedService!,
         };

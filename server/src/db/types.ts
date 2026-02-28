@@ -100,6 +100,9 @@ export interface Service {
   last_poll_success: number | null; // SQLite boolean (0/1)
   last_poll_error: string | null;
   poll_warnings: string | null; // JSON array of warning strings
+  manifest_key: string | null;
+  manifest_managed: number; // SQLite boolean — 1 if managed by manifest
+  manifest_last_synced_values: string | null; // JSON snapshot of last synced field values
   created_at: string;
   updated_at: string;
 }
@@ -202,6 +205,7 @@ export interface DependencyAssociation {
   confidence_score: number | null;
   is_dismissed: number; // SQLite boolean
   match_reason: string | null;
+  manifest_managed: number; // SQLite boolean — 1 if managed by manifest
   created_at: string;
 }
 
@@ -222,6 +226,7 @@ export interface DependencyAlias {
   id: string;
   alias: string;
   canonical_name: string;
+  manifest_team_id: string | null; // FK → teams.id, team-scoping for manifest-managed aliases
   created_at: string;
 }
 
@@ -229,8 +234,10 @@ export interface DependencyAlias {
 export interface DependencyCanonicalOverride {
   id: string;
   canonical_name: string;
+  team_id: string | null; // NULL for global, non-NULL for team-scoped overrides
   contact_override: string | null; // JSON string of contact object
   impact_override: string | null; // Plain text impact statement
+  manifest_managed: number; // SQLite boolean — 1 if managed by manifest
   created_at: string;
   updated_at: string;
   updated_by: string | null; // FK → users(id)
@@ -450,4 +457,72 @@ export interface Setting {
   value: string | null;
   updated_at: string;
   updated_by: string | null;
+}
+
+// Drift flag types
+export type DriftType = 'field_change' | 'service_removal';
+export type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
+
+/** DB row type for drift_flags table. */
+export interface DriftFlag {
+  id: string;
+  team_id: string;
+  service_id: string;
+  drift_type: DriftType;
+  field_name: string | null;
+  manifest_value: string | null;
+  current_value: string | null;
+  status: DriftFlagStatus;
+  first_detected_at: string;
+  last_detected_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null; // FK → users.id
+  sync_history_id: string | null; // FK → manifest_sync_history.id
+  created_at: string;
+}
+
+/** Drift flag joined with service data and resolver user name. */
+export interface DriftFlagWithContext extends DriftFlag {
+  service_name: string;
+  manifest_key: string | null;
+  resolved_by_name: string | null;
+}
+
+/** Input for creating a new drift flag. */
+export interface DriftFlagCreateInput {
+  team_id: string;
+  service_id: string;
+  drift_type: DriftType;
+  field_name?: string;
+  manifest_value?: string;
+  current_value?: string;
+  sync_history_id?: string;
+}
+
+/** Summary counts for a team's drift flags. */
+export interface DriftSummary {
+  pending_count: number;
+  dismissed_count: number;
+  field_change_pending: number;
+  service_removal_pending: number;
+}
+
+/** Result of a drift flag upsert — discriminated union. */
+export type DriftFlagUpsertResult =
+  | { action: 'created'; flag: DriftFlag }
+  | { action: 'updated'; flag: DriftFlag }
+  | { action: 'reopened'; flag: DriftFlag }
+  | { action: 'unchanged'; flag: DriftFlag };
+
+/** Input for bulk drift flag actions. */
+export interface BulkDriftActionInput {
+  flag_ids: string[];
+  user_id: string;
+}
+
+/** Result of a bulk drift flag action. */
+export interface BulkDriftActionResult {
+  succeeded: number;
+  failed: number;
+  errors: Array<{ flag_id: string; error: string }>;
 }

@@ -244,6 +244,11 @@ type AggregatedHealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 type DependencyType = 'database' | 'rest' | 'soap' | 'grpc' | 'graphql'
                     | 'message_queue' | 'cache' | 'file_system' | 'smtp' | 'other';
 type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
+type DriftType = 'field_change' | 'service_removal';
+type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
+type FieldDriftPolicy = 'flag' | 'manifest_wins' | 'local_wins';
+type RemovalPolicy = 'flag' | 'deactivate' | 'delete';
+type MetadataRemovalPolicy = 'remove' | 'keep';
 ```
 
 ## Additional Schema
@@ -410,6 +415,71 @@ Tracks drift between manifest-defined values and local state. `drift_type` is `f
 
 **dependency_associations** — Added column:
 - `manifest_managed INTEGER DEFAULT 0` — whether this association is managed by a manifest
+
+## Manifest System TypeScript Types **[Implemented]**
+
+Manifest types are split across two files:
+
+### `server/src/services/manifest/types.ts`
+
+Contains all types specific to the manifest sync engine:
+
+**Sync policy types:**
+- `FieldDriftPolicy`: `'flag' | 'manifest_wins' | 'local_wins'`
+- `RemovalPolicy`: `'flag' | 'deactivate' | 'delete'`
+- `MetadataRemovalPolicy`: `'remove' | 'keep'`
+- `ManifestSyncPolicy`: interface with `on_field_drift`, `on_removal`, `on_alias_removal`, `on_override_removal`, `on_association_removal`
+- `DEFAULT_SYNC_POLICY`: constant — all fields default to `'flag'`/`'keep'`
+
+**Config types:**
+- `TeamManifestConfig`: DB row type for `team_manifest_config` table
+- `ManifestConfigCreateInput`: requires `team_id`, `manifest_url`; optional `is_enabled`, `sync_policy`
+- `ManifestConfigUpdateInput`: all fields optional, `sync_policy` accepts `Partial<ManifestSyncPolicy>`
+
+**Parsed manifest types:**
+- `ManifestServiceEntry`: `key`, `name`, `health_endpoint` (required); `description`, `metrics_endpoint`, `poll_interval_ms`, `schema_config` (optional)
+- `ManifestAliasEntry`: `alias`, `canonical_name`
+- `ManifestCanonicalOverrideEntry`: `canonical_name`, optional `contact`, `impact`
+- `ManifestAssociationEntry`: `service_key`, `dependency_name`, `association_type`
+- `ParsedManifest`: `version`, `services` (required); `aliases`, `canonical_overrides`, `associations` (optional)
+
+**Validation types:**
+- `ManifestValidationSeverity`: `'error' | 'warning'`
+- `ManifestValidationIssue`: `severity`, `path`, `message`
+- `ManifestValidationResult`: `valid`, `version`, `service_count`, `valid_count`, `errors[]`, `warnings[]`
+
+**Sync result types:**
+- `ManifestSyncSummary`: nested counters for `services`, `aliases`, `overrides`, `associations`
+- `ManifestSyncChange`: per-service change detail with `manifest_key`, `service_name`, `action`, optional `fields_changed`/`drift_fields`
+- `ManifestSyncResult`: `status`, `summary`, `errors`, `warnings`, `changes`, `duration_ms`
+
+**Diff types:**
+- `ManifestUpdateEntry`: safe-to-apply update with `manifest_entry`, `existing_service_id`, `fields_changed`
+- `ManifestDriftEntry`: manual edit detected with `field_name`, `manifest_value`, `current_value`
+- `ManifestDiffResult`: categorized lists — `toCreate`, `toUpdate`, `toDrift`, `toKeepLocal`, `unchanged`, `toDeactivate`, `toDelete`, `removalDrift`
+
+**History/fetch types:**
+- `ManifestSyncHistoryEntry`: DB row type for `manifest_sync_history` table
+- `ManifestFetchResult`: discriminated union — `{ success: true, data, url }` or `{ success: false, error, url }`
+
+### `server/src/db/types.ts` — Drift flag types
+
+- `DriftType`: `'field_change' | 'service_removal'`
+- `DriftFlagStatus`: `'pending' | 'dismissed' | 'accepted' | 'resolved'`
+- `DriftFlag`: DB row type for `drift_flags` table
+- `DriftFlagWithContext`: extends `DriftFlag` with `service_name`, `manifest_key`, `resolved_by_name`
+- `DriftFlagCreateInput`: requires `team_id`, `service_id`, `drift_type`; optional `field_name`, `manifest_value`, `current_value`, `sync_history_id`
+- `DriftSummary`: `pending_count`, `dismissed_count`, `field_change_pending`, `service_removal_pending`
+- `DriftFlagUpsertResult`: discriminated union — `created | updated | reopened | unchanged`, each with `flag: DriftFlag`
+- `BulkDriftActionInput`: `flag_ids[]`, `user_id`
+- `BulkDriftActionResult`: `succeeded`, `failed`, `errors[]`
+
+### Updated existing interfaces
+
+- `Service`: added `manifest_key: string | null`, `manifest_managed: number`, `manifest_last_synced_values: string | null`
+- `DependencyAlias`: added `manifest_team_id: string | null`
+- `DependencyCanonicalOverride`: added `team_id: string | null`, `manifest_managed: number`
+- `DependencyAssociation`: added `manifest_managed: number`
 
 ## Migration History
 

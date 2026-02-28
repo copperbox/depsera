@@ -37,6 +37,8 @@ function makeCanonicalOverride(
     canonical_name: 'PostgreSQL',
     contact_override: null,
     impact_override: null,
+    team_id: null,
+    manifest_managed: 0,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     updated_by: null,
