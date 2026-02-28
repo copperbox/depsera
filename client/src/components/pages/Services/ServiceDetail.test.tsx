@@ -929,4 +929,71 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('+ Add Association')).toBeInTheDocument();
     });
   });
+
+  describe('manifest indicators', () => {
+    it('shows [M] badge and manifest info for manifest-managed services', async () => {
+      const manifestService = {
+        ...mockService,
+        manifest_managed: 1,
+        manifest_key: 'user-service',
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(manifestService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTitle('Managed by manifest')).toBeInTheDocument();
+      expect(screen.getByText(/Managed by manifest/)).toBeInTheDocument();
+      expect(screen.getByText(/Key: user-service/)).toBeInTheDocument();
+    });
+
+    it('does not show manifest indicators for non-manifest services', async () => {
+      const regularService = {
+        ...mockService,
+        manifest_managed: 0,
+        manifest_key: null,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(regularService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Managed by manifest')).not.toBeInTheDocument();
+      expect(screen.queryByText('Manifest')).not.toBeInTheDocument();
+    });
+
+    it('shows manifest info without key when manifest_key is null', async () => {
+      const manifestService = {
+        ...mockService,
+        manifest_managed: 1,
+        manifest_key: null,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(manifestService))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServiceDetail('s1', { isAdmin: true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTitle('Managed by manifest')).toBeInTheDocument();
+      expect(screen.getByText('Managed by manifest')).toBeInTheDocument();
+      expect(screen.queryByText(/Key:/)).not.toBeInTheDocument();
+    });
+  });
 });

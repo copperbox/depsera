@@ -309,6 +309,9 @@ function TeamDetail() {
                   <Link to={`/services/${service.id}`} className={styles.serviceName}>
                     {service.name}
                   </Link>
+                  {service.manifest_managed === 1 && (
+                    <span className={styles.manifestBadge} title="Managed by manifest">M</span>
+                  )}
                   {!service.is_active && (
                     <span
                       style={{

@@ -34,6 +34,8 @@ export interface TeamService {
   health_endpoint: string;
   metrics_endpoint: string | null;
   is_active: number;
+  manifest_managed?: number;
+  manifest_key?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -133,6 +133,22 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className={styles.form}>
+      {isEdit && service?.manifest_managed === 1 && (
+        <div className={styles.warningBanner}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={styles.warningIcon}
+          >
+            <path d="M8 1L1 14h14L8 1zM8 6v4M8 12h.01" />
+          </svg>
+          <span>This service is managed by a manifest. Manual changes may be detected as drift on the next sync.</span>
+        </div>
+      )}
       {submitError && <div className={styles.error}>{submitError}</div>}
 
       <div className={styles.field}>

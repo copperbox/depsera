@@ -30,6 +30,8 @@ export interface FormattedServiceListItem {
   last_poll_success: number | null;
   last_poll_error: string | null;
   poll_warnings: string | null;
+  manifest_managed: number;
+  manifest_key: string | null;
   created_at: string;
   updated_at: string;
   team: FormattedTeam;
@@ -54,6 +56,8 @@ export interface FormattedServiceMutation {
   last_poll_success: number | null;
   last_poll_error: string | null;
   poll_warnings: string | null;
+  manifest_managed: number;
+  manifest_key: string | null;
   created_at: string;
   updated_at: string;
   team: Team | FormattedTeam;

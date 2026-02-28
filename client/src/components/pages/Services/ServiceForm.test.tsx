@@ -555,4 +555,54 @@ describe('ServiceForm', () => {
       });
     });
   });
+
+  describe('manifest warning banner', () => {
+    it('shows warning banner when editing a manifest-managed service', () => {
+      const manifestService = { ...mockService, manifest_managed: 1 };
+
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          service={manifestService}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(/This service is managed by a manifest/)
+      ).toBeInTheDocument();
+    });
+
+    it('does not show warning banner when editing a non-manifest service', () => {
+      const regularService = { ...mockService, manifest_managed: 0 };
+
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          service={regularService}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByText(/This service is managed by a manifest/)
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show warning banner in create mode', () => {
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByText(/This service is managed by a manifest/)
+      ).not.toBeInTheDocument();
+    });
+  });
 });

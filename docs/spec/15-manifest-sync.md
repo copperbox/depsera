@@ -432,3 +432,69 @@ Paginated sync history with load-more pattern. Page size of 20.
 - 26 tests in `useManifestConfig.test.ts` covering load/save/remove/toggle/sync with error handling
 - 25 tests in `useDriftFlags.test.ts` covering load/filter/select/accept/dismiss/reopen/bulk with error handling
 - 12 tests in `useSyncHistory.test.ts` covering load/loadMore/pagination/offset reset with error handling
+
+## Manifest Badges & Warnings
+
+**[Implemented]** (DPS-64)
+
+### API Changes
+
+`manifest_managed` and `manifest_key` are now included in all service API responses:
+
+- `GET /api/services` — list endpoint includes both fields via `extractServiceFields()`
+- `GET /api/services/:id` — detail endpoint includes both fields
+- `POST /api/services` and `PUT /api/services/:id` — mutation responses include both fields
+- `GET /api/teams/:id` — team detail services already included these via `SELECT *`
+
+**Files modified:**
+- `server/src/routes/formatters/serviceFormatter.ts` — `extractServiceFields()` now includes `manifest_managed` and `manifest_key`
+- `server/src/routes/formatters/types.ts` — `FormattedServiceListItem` and `FormattedServiceMutation` include both fields
+
+### Client Type Updates
+
+- `client/src/types/service.ts` — `Service` interface: added optional `manifest_managed?: number` and `manifest_key?: string | null`
+- `client/src/types/team.ts` — `TeamService` interface: added optional `manifest_managed?: number` and `manifest_key?: string | null`
+
+### Services List Badge
+
+**File:** `client/src/components/pages/Services/ServicesList.tsx`
+
+`[M]` pill badge displayed next to manifest-managed service names in the services table. Only shown when `manifest_managed === 1`.
+
+- CSS class `.manifestBadge` in `Services.module.css`
+- Styling: `font-size: 0.625rem`, accent colors via `color-mix()`, `border-radius: 3px`, `title="Managed by manifest"`
+
+### Team Detail Badge
+
+**File:** `client/src/components/pages/Teams/TeamDetail.tsx`
+
+Same `[M]` badge next to service names in the team detail services section. CSS class `.manifestBadge` in `Teams.module.css`.
+
+### Service Edit Warning
+
+**File:** `client/src/components/pages/Services/ServiceForm.tsx`
+
+Warning banner shown at the top of the form when editing a manifest-managed service (not shown in create mode):
+
+> "This service is managed by a manifest. Manual changes may be detected as drift on the next sync."
+
+- Warning icon (triangle) + text in `.warningBanner` styled div
+- CSS uses `var(--color-warning-bg)`, `var(--color-warning-border)`, `var(--color-warning-text)`
+- Informational only — does not block editing
+
+### Service Detail Page
+
+**File:** `client/src/components/pages/Services/ServiceDetail.tsx`
+
+Two manifest indicators on the service detail page:
+
+1. `[M]` badge in the title row next to the health status badge
+2. "Managed by manifest · Key: {manifest_key}" metadata item in the metadata card (only shown when `manifest_managed === 1`)
+
+### Tests
+
+- 2 tests in `services.test.ts` (server) — manifest fields in list and detail responses
+- 2 tests in `ServicesList.test.tsx` — badge presence/absence for manifest-managed services
+- 2 tests in `TeamDetail.test.tsx` — badge presence/absence in team services section
+- 3 tests in `ServiceForm.test.tsx` — warning banner in edit mode (manifest/non-manifest/create)
+- 3 tests in `ServiceDetail.test.tsx` — badge + manifest info with key, without key, and non-manifest

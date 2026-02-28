@@ -41,6 +41,8 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
     poll_warnings: row.poll_warnings ?? null,
+    manifest_managed: row.manifest_managed ?? 0,
+    manifest_key: row.manifest_key ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

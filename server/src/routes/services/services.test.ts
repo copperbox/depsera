@@ -79,6 +79,9 @@ describe('Services API', () => {
         last_poll_success INTEGER,
         last_poll_error TEXT,
         poll_warnings TEXT,
+        manifest_key TEXT,
+        manifest_managed INTEGER DEFAULT 0,
+        manifest_last_synced_values TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE RESTRICT
@@ -126,7 +129,9 @@ describe('Services API', () => {
     testDb.exec(`
       CREATE TABLE IF NOT EXISTS dependency_canonical_overrides (
         id TEXT PRIMARY KEY,
-        canonical_name TEXT NOT NULL UNIQUE,
+        canonical_name TEXT NOT NULL,
+        team_id TEXT,
+        manifest_managed INTEGER DEFAULT 0,
         contact_override TEXT,
         impact_override TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -385,6 +390,28 @@ describe('Services API', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should include manifest_managed and manifest_key in response', async () => {
+      // Create a manifest-managed service
+      const manifestServiceId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO services (id, name, team_id, health_endpoint, manifest_managed, manifest_key)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(manifestServiceId, 'Manifest Service', teamId, 'https://manifest.example.com/health', 1, 'manifest-svc');
+
+      const response = await request(app).get('/api/services');
+
+      expect(response.status).toBe(200);
+
+      const manifestSvc = response.body.find((s: { name: string }) => s.name === 'Manifest Service');
+      expect(manifestSvc.manifest_managed).toBe(1);
+      expect(manifestSvc.manifest_key).toBe('manifest-svc');
+
+      // Non-manifest services default to 0
+      const regularSvc = response.body.find((s: { name: string }) => s.name === 'Service A');
+      expect(regularSvc.manifest_managed).toBe(0);
+      expect(regularSvc.manifest_key).toBeNull();
+    });
   });
 
   describe('GET /api/services/:id', () => {
@@ -418,6 +445,20 @@ describe('Services API', () => {
 
       expect(response.status).toBe(404);
       expect(response.body.error).toBe('Service not found');
+    });
+
+    it('should include manifest_managed and manifest_key in detail response', async () => {
+      const manifestId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO services (id, name, team_id, health_endpoint, manifest_managed, manifest_key)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(manifestId, 'Manifest Detail', teamId, 'https://manifest-detail.example.com/health', 1, 'my-key');
+
+      const response = await request(app).get(`/api/services/${manifestId}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.manifest_managed).toBe(1);
+      expect(response.body.manifest_key).toBe('my-key');
     });
   });
 

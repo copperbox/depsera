@@ -227,6 +227,9 @@ function ServicesList() {
                     <Link to={`/services/${service.id}`} className={styles.serviceLink}>
                       {service.name}
                     </Link>
+                    {service.manifest_managed === 1 && (
+                      <span className={styles.manifestBadge} title="Managed by manifest">M</span>
+                    )}
                   </td>
                   <td className={styles.teamCell}>{service.team.name}</td>
                   <td>

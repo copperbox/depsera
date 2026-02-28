@@ -603,4 +603,44 @@ describe('TeamDetail', () => {
       expect(screen.getByText('Action failed')).toBeInTheDocument();
     });
   });
+
+  describe('manifest badges', () => {
+    it('shows [M] badge for manifest-managed services', async () => {
+      const teamWithManifest = {
+        ...mockTeam,
+        services: [
+          { id: 's1', name: 'Manifest Service', is_active: 1, manifest_managed: 1 },
+          { id: 's2', name: 'Regular Service', is_active: 1, manifest_managed: 0 },
+        ],
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamWithManifest))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Manifest Service')).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByTitle('Managed by manifest');
+      expect(badges).toHaveLength(1);
+      expect(badges[0].textContent).toBe('M');
+    });
+
+    it('does not show [M] badge for non-manifest services', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockTeam))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service A')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Managed by manifest')).not.toBeInTheDocument();
+    });
+  });
 });

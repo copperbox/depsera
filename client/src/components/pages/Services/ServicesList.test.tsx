@@ -421,4 +421,66 @@ describe('ServicesList', () => {
 
     expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
   });
+
+  describe('manifest badges', () => {
+    const manifestServices = [
+      {
+        id: 's1',
+        name: 'Manifest Service',
+        team_id: 't1',
+        team: { name: 'Team A' },
+        manifest_managed: 1,
+        health: { status: 'healthy', last_report: '2024-01-15T10:00:00Z', healthy_reports: 5, total_reports: 5 },
+      },
+      {
+        id: 's2',
+        name: 'Regular Service',
+        team_id: 't1',
+        team: { name: 'Team A' },
+        manifest_managed: 0,
+        health: { status: 'healthy', last_report: '2024-01-15T10:00:00Z', healthy_reports: 3, total_reports: 3 },
+      },
+    ];
+
+    it('shows [M] badge for manifest-managed services', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(manifestServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList({ user: adminUser, isAdmin: true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Manifest Service')).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByTitle('Managed by manifest');
+      expect(badges).toHaveLength(1);
+      expect(badges[0].textContent).toBe('M');
+    });
+
+    it('does not show [M] badge for non-manifest services', async () => {
+      const nonManifestServices = [
+        {
+          id: 's1',
+          name: 'Regular Service',
+          team_id: 't1',
+          team: { name: 'Team A' },
+          manifest_managed: 0,
+          health: { status: 'healthy', last_report: '2024-01-15T10:00:00Z', healthy_reports: 3, total_reports: 3 },
+        },
+      ];
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(nonManifestServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList({ user: adminUser, isAdmin: true });
+
+      await waitFor(() => {
+        expect(screen.getByText('Regular Service')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Managed by manifest')).not.toBeInTheDocument();
+    });
+  });
 });
