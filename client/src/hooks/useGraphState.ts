@@ -73,6 +73,9 @@ export interface UseGraphStateReturn {
   setIsolationTarget: (target: IsolationTarget | null) => void;
   exitIsolation: () => void;
 
+  // Layout version — increments after each layout completes (for triggering fitView)
+  layoutVersion: number;
+
   // Actions
   loadData: (isBackgroundRefresh?: boolean) => Promise<void>;
   resetLayout: () => void;
@@ -108,6 +111,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const [isolationTarget, setIsolationTargetState] = useState<IsolationTarget | null>(
     resolvedInitialIsolation
   );
+  const [layoutVersion, setLayoutVersion] = useState(0);
 
   const [layoutDirection, setLayoutDirectionState] = useState<LayoutDirection>(() => {
     const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
@@ -397,6 +401,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
 
       setNodes(nodesWithSelection);
       setEdges(edgesWithSelection);
+      setLayoutVersion(v => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {
@@ -439,6 +444,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
 
       setNodes(finalNodes);
       setEdges(result.edges);
+      setLayoutVersion(v => v + 1);
     })();
   }, [isolationTarget]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -478,6 +484,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     isolationTarget,
     setIsolationTarget,
     exitIsolation,
+    layoutVersion,
     isLoading,
     isRefreshing,
     error,

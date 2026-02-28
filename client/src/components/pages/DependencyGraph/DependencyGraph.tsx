@@ -101,6 +101,7 @@ function DependencyGraphInner() {
     isolationTarget,
     setIsolationTarget,
     exitIsolation,
+    layoutVersion,
     isLoading,
     isRefreshing,
     error,
@@ -125,20 +126,17 @@ function DependencyGraphInner() {
     setSearchParams(params, { replace: true });
   }, [isolationTarget, setSearchParams]);
 
-  // Re-center viewport when isolation changes (nodes re-layout to new positions)
+  // Re-center viewport after layout completes (isolation enter/exit, re-layout)
   const { fitView } = useReactFlow();
-  const skipFitViewRef = useRef(true);
+  const initialLayoutVersionRef = useRef(layoutVersion);
   useEffect(() => {
-    // Skip initial render — ReactFlow's fitView prop handles that
-    if (skipFitViewRef.current) {
-      skipFitViewRef.current = false;
-      return;
-    }
-    // Wait for ReactFlow to process the new nodes before fitting
+    // Skip the initial layout — ReactFlow's fitView prop handles that
+    if (layoutVersion === initialLayoutVersionRef.current) return;
+    // Wait for ReactFlow to render the new nodes before fitting
     requestAnimationFrame(() => {
       fitView({ padding: 0.2, duration: 300 });
     });
-  }, [isolationTarget, fitView]);
+  }, [layoutVersion, fitView]);
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
