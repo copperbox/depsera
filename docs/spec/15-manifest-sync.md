@@ -202,3 +202,89 @@ Exports two routers:
 - Sync trigger guards (404 no config, 400 disabled, 409 in-progress, 429 cooldown with Retry-After)
 - Sync history pagination
 - Manifest validation endpoint (valid/invalid/warnings)
+
+## Drift Flag Routes
+
+**[Implemented]** (DPS-58)
+
+**File:** `server/src/routes/drifts/index.ts`
+
+Exports `driftRouter` — team-scoped routes mounted under `/api/teams`.
+
+### List & Summary
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/drifts` | requireTeamAccess | List drift flags with filtering. Default `status=pending`. Max limit 250. Always includes `summary`. |
+| GET | `/api/teams/:id/drifts/summary` | requireTeamAccess | Lightweight badge counts only. |
+
+**GET /api/teams/:id/drifts query params:**
+
+- `status` — `pending` (default), `dismissed`, `accepted`, `resolved`
+- `drift_type` — `field_change`, `service_removal`
+- `service_id` — filter by service UUID
+- `limit` — max 250, default 50
+- `offset` — default 0
+
+**GET /api/teams/:id/drifts response:**
+
+```json
+{
+  "flags": [DriftFlagWithContext],
+  "summary": { "pending_count": 2, "dismissed_count": 1, "field_change_pending": 1, "service_removal_pending": 1 },
+  "total": 2
+}
+```
+
+### Single Flag Actions
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| PUT | `/api/teams/:id/drifts/:driftId/accept` | requireTeamLead | Accept drift flag. Applies manifest value to service. |
+| PUT | `/api/teams/:id/drifts/:driftId/dismiss` | requireTeamLead | Dismiss flag (stays visible in dismissed view). |
+| PUT | `/api/teams/:id/drifts/:driftId/reopen` | requireTeamLead | Reopen a dismissed flag back to pending. |
+
+**Accept behavior:**
+
+- `field_change`: Updates service field to `manifest_value`. Re-validates SSRF for URL fields. Validates `poll_interval_ms` bounds (5000–3600000). Updates `manifest_last_synced_values` snapshot. Restarts polling if `health_endpoint` or `poll_interval_ms` changed.
+- `service_removal`: Deactivates service (`is_active=0`), stops polling.
+- Returns 409 if flag already accepted/resolved.
+- Returns 400 if SSRF validation fails for URL fields.
+
+### Bulk Actions
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/teams/:id/drifts/bulk-accept` | requireTeamLead | Bulk accept (max 100 flags). Best-effort SSRF. Transaction. |
+| POST | `/api/teams/:id/drifts/bulk-dismiss` | requireTeamLead | Bulk dismiss (max 100 flags). Transaction. |
+
+**POST body:** `{ "flag_ids": ["id1", "id2", ...] }`
+
+**Response:** `{ "result": { "succeeded": 2, "failed": 0, "errors": [] } }`
+
+### Audit Actions
+
+- `drift.accepted`, `drift.dismissed`, `drift.reopened` — single flag actions (resource_type: `service`)
+- `drift.bulk_accepted`, `drift.bulk_dismissed` — bulk actions (resource_type: `team`)
+
+### Tests
+
+55 tests in `drifts.test.ts` covering:
+
+- List with default pending filter and all query param filters (status, drift_type, service_id, limit, offset)
+- Summary endpoint with correct counts
+- Invalid filter parameter rejection
+- Auth enforcement (team leads for mutations, members for reads, non-members denied)
+- Accept field_change (service update, synced snapshot update, polling restart for endpoint/interval changes)
+- Accept service_removal (deactivation, polling stop)
+- SSRF rejection on accept for URL fields
+- poll_interval_ms bounds validation on accept
+- 409 for already accepted/resolved flags
+- 404 for non-existent or wrong-team flags
+- Dismiss, reopen with correct status transitions
+- Reopen rejects non-dismissed flags (400)
+- Bulk accept with mixed field_change and service_removal
+- Bulk accept best-effort (SSRF failures skip individual flags)
+- Bulk dismiss with transaction
+- Bulk validation (empty array, max 100 limit)
+- Audit events for all single and bulk operations

@@ -50,6 +50,15 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Flap protection and per-team hourly rate limiting
 - Full alert delivery history (sent, failed, suppressed)
 
+**Manifest Sync & Drift Detection**
+- Declarative service configuration via JSON manifest URL per team
+- Automated sync engine: fetch, validate, diff, and apply service definitions
+- Field-level drift detection when local edits diverge from the manifest
+- Sync policies: configurable behavior for field drift (flag/manifest wins/local wins) and service removal (flag/deactivate/delete)
+- Drift review inbox with accept, dismiss, reopen, and bulk actions
+- Scheduled sync (default hourly) with manual trigger and 60s cooldown
+- Full sync history with per-entry detail
+
 **Security**
 - OIDC/SSO authentication with PKCE or local username/password auth
 - RBAC with admin, team lead, and member roles

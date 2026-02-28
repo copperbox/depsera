@@ -736,3 +736,90 @@ Accepts raw manifest JSON in request body. No persistence, no side effects.
 ```
 
 **Audit actions:** `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted` (resource type: `team`)
+
+## 4.17 Drift Flags
+
+**[Implemented]** (DPS-58)
+
+Team-scoped drift flag review, actions, and bulk operations. All endpoints are nested under `/api/teams/:id`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/drifts` | requireTeamAccess | List drift flags with filtering. Query: `status` (default `pending`), `drift_type`, `service_id`, `limit` (max 250, default 50), `offset`. |
+| GET | `/api/teams/:id/drifts/summary` | requireTeamAccess | Lightweight badge counts (DriftSummary). |
+| PUT | `/api/teams/:id/drifts/:driftId/accept` | requireTeamLead | Accept drift flag. Applies manifest value to service. |
+| PUT | `/api/teams/:id/drifts/:driftId/dismiss` | requireTeamLead | Dismiss drift flag. |
+| PUT | `/api/teams/:id/drifts/:driftId/reopen` | requireTeamLead | Reopen dismissed flag to pending. |
+| POST | `/api/teams/:id/drifts/bulk-accept` | requireTeamLead | Bulk accept flags. Body: `{ flag_ids: string[] }` (max 100). |
+| POST | `/api/teams/:id/drifts/bulk-dismiss` | requireTeamLead | Bulk dismiss flags. Body: `{ flag_ids: string[] }` (max 100). |
+
+**GET /api/teams/:id/drifts response:**
+
+```json
+{
+  "flags": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "service_id": "uuid",
+      "drift_type": "field_change | service_removal",
+      "field_name": "name | health_endpoint | ...",
+      "manifest_value": "new value from manifest",
+      "current_value": "current local value",
+      "status": "pending | dismissed | accepted | resolved",
+      "first_detected_at": "2026-02-28T10:00:00.000Z",
+      "last_detected_at": "2026-02-28T10:00:00.000Z",
+      "resolved_at": null,
+      "resolved_by": null,
+      "service_name": "Service Name",
+      "manifest_key": "svc-key",
+      "resolved_by_name": null
+    }
+  ],
+  "summary": {
+    "pending_count": 2,
+    "dismissed_count": 1,
+    "field_change_pending": 1,
+    "service_removal_pending": 1
+  },
+  "total": 2
+}
+```
+
+**GET /api/teams/:id/drifts/summary response:**
+
+```json
+{
+  "summary": {
+    "pending_count": 2,
+    "dismissed_count": 1,
+    "field_change_pending": 1,
+    "service_removal_pending": 1
+  }
+}
+```
+
+**Accept behavior:**
+- `field_change`: Updates service field to manifest value. SSRF-validates URL fields. Validates `poll_interval_ms` bounds. Updates `manifest_last_synced_values` snapshot. Restarts polling if `health_endpoint` or `poll_interval_ms` changed.
+- `service_removal`: Deactivates service (`is_active=0`), stops polling.
+- Returns 409 if flag already accepted/resolved. Returns 400 if SSRF validation fails.
+
+**Bulk action response:**
+
+```json
+{
+  "result": {
+    "succeeded": 2,
+    "failed": 1,
+    "errors": [{ "flag_id": "uuid", "error": "reason" }]
+  }
+}
+```
+
+**Validation:**
+- `status` must be one of: `pending`, `dismissed`, `accepted`, `resolved`
+- `drift_type` must be one of: `field_change`, `service_removal`
+- `flag_ids` must be non-empty array of strings (max 100)
+- Reopen only works on dismissed flags (400 otherwise)
+
+**Audit actions:** `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.bulk_accepted`, `drift.bulk_dismissed`
