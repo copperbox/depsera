@@ -411,6 +411,18 @@
   transition: background-color 0.15s, border-color 0.15s;
 }
 
+.graphLink {
+  color: var(--color-accent);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-accent);
+  text-decoration: none;
+}
+
+.graphLink:hover {
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
 .editButton {
   color: var(--color-text-primary);
   background-color: var(--color-bg-card);

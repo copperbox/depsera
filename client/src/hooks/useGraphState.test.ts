@@ -274,7 +274,7 @@ describe('useGraphState', () => {
     expect(result.current.isRefreshing).toBe(false);
   });
 
-  it('auto-selects source node when initialDependencyId matches an edge', async () => {
+  it('sets isolation target when initialDependencyId is provided', async () => {
     const { transformGraphData } = jest.requireMock('../utils/graphLayout');
     const { fetchGraph } = jest.requireMock('../api/graph');
     (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
@@ -292,71 +292,56 @@ describe('useGraphState', () => {
       useGraphState({ initialDependencyId: 'dep-42' })
     );
 
-    await act(async () => {
-      await result.current.loadData();
-    });
-
-    expect(result.current.selectedNodeId).toBe('service-1');
-    const selectedNode = result.current.nodes.find((n) => n.id === 'service-1');
-    expect(selectedNode?.selected).toBe(true);
+    // initialDependencyId should be converted to an isolation target
+    expect(result.current.isolationTarget).toEqual({ type: 'dependency', id: 'dep-42' });
   });
 
-  it('does not auto-select when initialDependencyId does not match any edge', async () => {
-    const { transformGraphData } = jest.requireMock('../utils/graphLayout');
-    const { fetchGraph } = jest.requireMock('../api/graph');
-    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
-    (transformGraphData as jest.Mock).mockResolvedValue({
-      nodes: [
-        { id: 'service-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
-      ],
-      edges: [],
-    });
-
+  it('initialIsolationTarget takes priority over initialDependencyId', () => {
     const { result } = renderHook(() =>
-      useGraphState({ initialDependencyId: 'dep-nonexistent' })
+      useGraphState({
+        initialDependencyId: 'dep-42',
+        initialIsolationTarget: { type: 'service', id: 'svc-1' },
+      })
     );
 
-    await act(async () => {
-      await result.current.loadData();
-    });
-
-    expect(result.current.selectedNodeId).toBeNull();
+    expect(result.current.isolationTarget).toEqual({ type: 'service', id: 'svc-1' });
   });
 
-  it('only auto-selects on first load, not on subsequent loads', async () => {
-    const { transformGraphData } = jest.requireMock('../utils/graphLayout');
-    const { fetchGraph } = jest.requireMock('../api/graph');
-    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
-    (transformGraphData as jest.Mock).mockResolvedValue({
-      nodes: [
-        { id: 'service-1', position: { x: 0, y: 0 }, data: { name: 'Service A' } },
-        { id: 'service-2', position: { x: 100, y: 0 }, data: { name: 'Service B' } },
-      ],
-      edges: [
-        { id: 'edge-1', source: 'service-1', target: 'service-2', data: { dependencyId: 'dep-42' } },
-      ],
-    });
+  it('does not set isolation when initialDependencyId is not provided', () => {
+    const { result } = renderHook(() => useGraphState());
 
-    const { result } = renderHook(() =>
-      useGraphState({ initialDependencyId: 'dep-42' })
-    );
+    expect(result.current.isolationTarget).toBeNull();
+  });
 
-    // First load — should auto-select
-    await act(async () => {
-      await result.current.loadData();
-    });
-    expect(result.current.selectedNodeId).toBe('service-1');
+  it('setIsolationTarget clears team filter', () => {
+    const { result } = renderHook(() => useGraphState());
 
-    // Clear selection manually
+    // Set a team first
     act(() => {
-      result.current.setSelectedNodeId(null);
+      result.current.setSelectedTeam('team-1');
     });
+    expect(result.current.selectedTeam).toBe('team-1');
 
-    // Second load — should NOT auto-select again
-    await act(async () => {
-      await result.current.loadData();
+    // Setting isolation should clear the team
+    act(() => {
+      result.current.setIsolationTarget({ type: 'service', id: 'svc-1' });
     });
-    expect(result.current.selectedNodeId).toBeNull();
+    expect(result.current.selectedTeam).toBe('');
+    expect(result.current.isolationTarget).toEqual({ type: 'service', id: 'svc-1' });
+  });
+
+  it('exitIsolation clears isolation target and team filter', () => {
+    const { result } = renderHook(() =>
+      useGraphState({ initialIsolationTarget: { type: 'service', id: 'svc-1' } })
+    );
+
+    expect(result.current.isolationTarget).toEqual({ type: 'service', id: 'svc-1' });
+
+    act(() => {
+      result.current.exitIsolation();
+    });
+    expect(result.current.isolationTarget).toBeNull();
+    expect(result.current.selectedTeam).toBe('');
   });
 
   it('sets isRefreshing for background refresh', async () => {

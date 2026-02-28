@@ -211,7 +211,7 @@ function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetai
 
       <div className={styles.actions}>
         <Link
-          to={`/graph?dependency=${dependency.primary_dependency_id}`}
+          to={`/graph?isolateDep=${dependency.primary_dependency_id}`}
           className={styles.actionLink}
         >
           View in Graph

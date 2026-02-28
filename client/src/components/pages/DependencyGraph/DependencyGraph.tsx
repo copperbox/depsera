@@ -7,6 +7,7 @@ import {
   MiniMap,
   Background,
   useOnSelectionChange,
+  useReactFlow,
   type EdgeMouseHandler,
   type NodeMouseHandler,
   BackgroundVariant,
@@ -33,6 +34,7 @@ import {
   getRelatedNodeIds,
   getRelatedNodeIdsFromEdge,
   getRelatedEdgeIds,
+  type IsolationTarget,
 } from '../../../utils/graphTraversal';
 import styles from './DependencyGraph.module.css';
 
@@ -61,13 +63,17 @@ const edgeTypes = {
 function DependencyGraphInner() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const dependencyParam = searchParams.get('dependency');
 
-  // Clear query param after reading so it doesn't persist on refresh
-  useEffect(() => {
-    if (dependencyParam) {
-      setSearchParams({}, { replace: true });
-    }
+  // Read isolation URL params (isolateService, isolateDep, or legacy dependency)
+  const isolateServiceParam = searchParams.get('isolateService');
+  const isolateDepParam = searchParams.get('isolateDep');
+  const legacyDepParam = searchParams.get('dependency');
+
+  const initialIsolationTarget = useMemo((): IsolationTarget | null => {
+    if (isolateServiceParam) return { type: 'service', id: isolateServiceParam };
+    if (isolateDepParam) return { type: 'dependency', id: isolateDepParam };
+    if (legacyDepParam) return { type: 'dependency', id: legacyDepParam };
+    return null;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
@@ -92,16 +98,50 @@ function DependencyGraphInner() {
     setDashedAnimation,
     packetAnimation,
     setPacketAnimation,
+    isolationTarget,
+    setIsolationTarget,
+    exitIsolation,
+    layoutVersion,
     isLoading,
     isRefreshing,
     error,
     loadData,
     resetLayout,
-  } = useGraphState({ userId: user?.id, initialDependencyId: dependencyParam });
+  } = useGraphState({ userId: user?.id, initialIsolationTarget });
+
+  // Sync isolation state to URL
+  const skipUrlSyncRef = useRef(true);
+  useEffect(() => {
+    // Skip first render (URL already has the params)
+    if (skipUrlSyncRef.current) {
+      skipUrlSyncRef.current = false;
+      return;
+    }
+    const params = new URLSearchParams();
+    if (isolationTarget?.type === 'service') {
+      params.set('isolateService', isolationTarget.id);
+    } else if (isolationTarget?.type === 'dependency') {
+      params.set('isolateDep', isolationTarget.id);
+    }
+    setSearchParams(params, { replace: true });
+  }, [isolationTarget, setSearchParams]);
+
+  // Re-center viewport after layout completes (isolation enter/exit, re-layout)
+  const { fitView } = useReactFlow();
+  const initialLayoutVersionRef = useRef(layoutVersion);
+  useEffect(() => {
+    // Skip the initial layout — ReactFlow's fitView prop handles that
+    if (layoutVersion === initialLayoutVersionRef.current) return;
+    // Wait for ReactFlow to render the new nodes before fitting
+    requestAnimationFrame(() => {
+      fitView({ padding: 0.2, duration: 300 });
+    });
+  }, [layoutVersion, fitView]);
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
 
   // Close settings menu on outside click
   useEffect(() => {
@@ -305,11 +345,18 @@ function DependencyGraphInner() {
     setHoveredNodeId(null);
   }, []);
 
-  // Handle pane click (deselect all)
+  // Handle pane click (deselect all, close context menu)
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setContextMenu(null);
   }, [setSelectedNodeId, setSelectedEdgeId]);
+
+  // Handle right-click context menu on nodes
+  const handleNodeContextMenu = useCallback((event: React.MouseEvent, node: AppNode) => {
+    event.preventDefault();
+    setContextMenu({ x: event.clientX, y: event.clientY, nodeId: node.id });
+  }, []);
 
   const getMiniMapNodeColor = (node: AppNode) => {
     const status = getServiceHealthStatus(node.data);
@@ -378,6 +425,21 @@ function DependencyGraphInner() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+
+        {isolationTarget && (
+          <div className={styles.toolbarGroup}>
+            <button
+              className={styles.exitIsolationButton}
+              onClick={exitIsolation}
+              title="Exit isolated view and show all nodes"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+              Show full graph
+            </button>
+          </div>
+        )}
 
         <div className={styles.toolbarRight}>
           {isRefreshing && (
@@ -592,6 +654,7 @@ function DependencyGraphInner() {
               onPaneClick={handlePaneClick}
               onNodeMouseEnter={handleNodeMouseEnter}
               onNodeMouseLeave={handleNodeMouseLeave}
+              onNodeContextMenu={handleNodeContextMenu}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               fitView
@@ -651,6 +714,7 @@ function DependencyGraphInner() {
             nodes={nodes}
             edges={edges}
             onClose={() => setSelectedNodeId(null)}
+            onIsolate={(serviceId) => setIsolationTarget({ type: 'service', id: serviceId })}
           />
         )}
 
@@ -661,7 +725,28 @@ function DependencyGraphInner() {
             sourceNode={nodes.find((n) => n.id === selectedEdge.source)}
             targetNode={nodes.find((n) => n.id === selectedEdge.target)}
             onClose={() => setSelectedEdgeId(null)}
+            onIsolate={(depId) => setIsolationTarget({ type: 'dependency', id: depId })}
           />
+        )}
+
+        {contextMenu && (
+          <div
+            className={styles.contextMenu}
+            style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className={styles.contextMenuItem}
+              onClick={() => {
+                setIsolationTarget({ type: 'service', id: contextMenu.nodeId });
+                setContextMenu(null);
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+              Isolate tree
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -1,4 +1,8 @@
-import { type AppEdge } from './graphLayout';
+import { type AppEdge, type AppNode } from './graphLayout';
+
+export type IsolationTarget =
+  | { type: 'service'; id: string }
+  | { type: 'dependency'; id: string };
 
 /**
  * Find all upstream nodes (nodes that the selected node depends on, following edge direction).
@@ -125,4 +129,34 @@ export function getRelatedEdgeIds(
   }
 
   return relatedEdges;
+}
+
+/**
+ * Compute the isolated tree for a given isolation target.
+ * Returns filtered nodes and edges, or null if the target cannot be resolved.
+ */
+export function getIsolatedTree(
+  target: IsolationTarget,
+  allNodes: AppNode[],
+  allEdges: AppEdge[]
+): { nodes: AppNode[]; edges: AppEdge[] } | null {
+  let relevantNodeIds: Set<string>;
+
+  if (target.type === 'service') {
+    // Check the node exists
+    if (!allNodes.some((n) => n.id === target.id)) return null;
+    relevantNodeIds = getRelatedNodeIds(target.id, allEdges);
+  } else {
+    // Find the edge with matching dependencyId
+    const matchingEdge = allEdges.find((e) => e.data?.dependencyId === target.id);
+    if (!matchingEdge) return null;
+    relevantNodeIds = getRelatedNodeIdsFromEdge(matchingEdge.id, allEdges);
+  }
+
+  const filteredNodes = allNodes.filter((n) => relevantNodeIds.has(n.id));
+  const filteredEdges = allEdges.filter(
+    (e) => relevantNodeIds.has(e.source) && relevantNodeIds.has(e.target)
+  );
+
+  return { nodes: filteredNodes, edges: filteredEdges };
 }

@@ -22,6 +22,10 @@ import {
   loadNodePositions,
   clearNodePositions,
 } from '../utils/graphLayoutStorage';
+import {
+  type IsolationTarget,
+  getIsolatedTree,
+} from '../utils/graphTraversal';
 
 export interface UseGraphStateReturn {
   // Node and edge state
@@ -64,6 +68,14 @@ export interface UseGraphStateReturn {
   isRefreshing: boolean;
   error: string | null;
 
+  // Isolation state
+  isolationTarget: IsolationTarget | null;
+  setIsolationTarget: (target: IsolationTarget | null) => void;
+  exitIsolation: () => void;
+
+  // Layout version — increments after each layout completes (for triggering fitView)
+  layoutVersion: number;
+
   // Actions
   loadData: (isBackgroundRefresh?: boolean) => Promise<void>;
   resetLayout: () => void;
@@ -77,10 +89,16 @@ export interface UseGraphStateReturn {
 export interface UseGraphStateOptions {
   userId?: string;
   initialDependencyId?: string | null;
+  initialIsolationTarget?: IsolationTarget | null;
 }
 
 export function useGraphState(options: UseGraphStateOptions = {}): UseGraphStateReturn {
-  const { userId, initialDependencyId } = options;
+  const { userId, initialDependencyId, initialIsolationTarget } = options;
+
+  // Resolve initial isolation: explicit target takes priority, then legacy dep ID
+  const resolvedInitialIsolation: IsolationTarget | null =
+    initialIsolationTarget ??
+    (initialDependencyId ? { type: 'dependency', id: initialDependencyId } : null);
   const [nodes, setNodes, baseOnNodesChange] = useNodesState<AppNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<AppEdge>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
@@ -90,6 +108,10 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
   const [error, setError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [isolationTarget, setIsolationTargetState] = useState<IsolationTarget | null>(
+    resolvedInitialIsolation
+  );
+  const [layoutVersion, setLayoutVersion] = useState(0);
 
   const [layoutDirection, setLayoutDirectionState] = useState<LayoutDirection>(() => {
     const stored = localStorage.getItem(LAYOUT_DIRECTION_KEY);
@@ -141,6 +163,13 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     selectedEdgeIdRef.current = selectedEdgeId;
   }, [selectedEdgeId]);
 
+  const isolationTargetRef = useRef<IsolationTarget | null>(resolvedInitialIsolation);
+  useEffect(() => { isolationTargetRef.current = isolationTarget; }, [isolationTarget]);
+
+  // Full graph data ref for re-isolation without re-fetching
+  const fullGraphNodesRef = useRef<AppNode[]>([]);
+  const fullGraphEdgesRef = useRef<AppEdge[]>([]);
+
   // Refs for accessing current nodes/edges in loadData without adding to deps
   const nodesRef = useRef<AppNode[]>([]);
   const edgesRef = useRef<AppEdge[]>([]);
@@ -151,9 +180,6 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
 
   // Topology fingerprint for skipping layout on unchanged topology
   const topologyFingerprintRef = useRef<string>('');
-
-  // Track whether initial dependency selection has been applied
-  const initialDependencyAppliedRef = useRef(false);
 
   // Track manually dragged node IDs
   const movedNodeIdsRef = useRef<Set<string>>(new Set());
@@ -217,10 +243,51 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     localStorage.setItem(PACKET_ANIMATION_KEY, String(enabled));
   }, []);
 
+  // Isolation setter that clears team filter
+  const setIsolationTarget = useCallback((target: IsolationTarget | null) => {
+    setIsolationTargetState(target);
+    if (target) {
+      setSelectedTeamState('');
+      selectedTeamRef.current = '';
+    }
+  }, []);
+
+  const exitIsolation = useCallback(() => {
+    setIsolationTargetState(null);
+    setSelectedTeamState('');
+    selectedTeamRef.current = '';
+  }, []);
+
+  // Apply isolation filtering + re-layout on the full graph data
+  const applyIsolation = useCallback(async (
+    target: IsolationTarget | null,
+    fullNodes: AppNode[],
+    fullEdges: AppEdge[],
+    direction: LayoutDirection,
+    style: EdgeStyle
+  ): Promise<{ nodes: AppNode[]; edges: AppEdge[] }> => {
+    if (!target) return { nodes: fullNodes, edges: fullEdges };
+
+    const isolated = getIsolatedTree(target, fullNodes, fullEdges);
+    if (!isolated || isolated.nodes.length === 0) {
+      return { nodes: fullNodes, edges: fullEdges };
+    }
+
+    // Re-run ELK layout on isolated subset to fill viewport
+    const result = await transformGraphData(
+      { nodes: isolated.nodes.map(n => ({ id: n.id, type: 'service' as const, data: n.data })),
+        edges: isolated.edges.map(e => ({ id: e.id, source: e.source, target: e.target, data: e.data! })) },
+      direction,
+      style
+    );
+    return result;
+  }, []);
+
   const loadData = useCallback(async (isBackgroundRefresh = false) => {
     const teamId = selectedTeamRef.current || undefined;
     const direction = layoutDirectionRef.current;
     const style = edgeStyleRef.current;
+    const currentIsolation = isolationTargetRef.current;
 
     if (!isBackgroundRefresh) {
       setIsLoading(true);
@@ -230,8 +297,13 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setError(null);
 
     try {
+      // When isolated, don't filter by team (isolation clears team filter)
+      const fetchParams = currentIsolation
+        ? undefined
+        : (teamId ? { team: teamId } : undefined);
+
       const [graphData, teamsData] = await Promise.all([
-        fetchGraph(teamId ? { team: teamId } : undefined),
+        fetchGraph(fetchParams),
         teams.length === 0 ? fetchTeams() : Promise.resolve(teams),
       ]);
 
@@ -246,7 +318,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
       let layoutedNodes: AppNode[];
       let layoutedEdges: AppEdge[];
 
-      if (isBackgroundRefresh && !topologyChanged && nodesRef.current.length > 0) {
+      if (isBackgroundRefresh && !topologyChanged && nodesRef.current.length > 0 && !currentIsolation) {
         // Topology unchanged — update data only, skip expensive ELK layout
         const updated = updateGraphDataOnly(nodesRef.current, edgesRef.current, graphData, direction);
         layoutedNodes = updated.nodes;
@@ -259,39 +331,51 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
         topologyFingerprintRef.current = newFingerprint;
       }
 
-      // Apply saved positions for manually dragged nodes
-      const currentNodeIds = new Set(layoutedNodes.map(n => n.id));
-      const positions = savedPositionsRef.current;
-      const movedIds = movedNodeIdsRef.current;
+      // Store full graph data for re-isolation
+      fullGraphNodesRef.current = layoutedNodes;
+      fullGraphEdgesRef.current = layoutedEdges;
 
-      /* istanbul ignore next -- @preserve
-         Stale node cleanup requires specific timing between graph data fetch, node position
-         persistence, and ReactFlow's internal state. This is tested through integration
-         tests with real ReactFlow rendering. */
-      // Clean up stale node IDs from saved positions
-      if (userId) {
-        let staleRemoved = false;
-        for (const id of movedIds) {
-          if (!currentNodeIds.has(id)) {
-            movedIds.delete(id);
-            delete positions[id];
-            staleRemoved = true;
-          }
-        }
-        if (staleRemoved) {
-          saveNodePositions(userId, positions);
-        }
+      // Apply isolation filter if active
+      if (currentIsolation) {
+        const isolated = await applyIsolation(currentIsolation, layoutedNodes, layoutedEdges, direction, style);
+        layoutedNodes = isolated.nodes;
+        layoutedEdges = isolated.edges;
       }
 
-      const mergedNodes = layoutedNodes.map(node => {
-        if (movedIds.has(node.id) && positions[node.id]) {
-          return {
-            ...node,
-            position: positions[node.id],
-          };
+      // Apply saved positions for manually dragged nodes (skip during isolation)
+      const isIsolated = !!currentIsolation;
+
+      if (!isIsolated) {
+        const currentNodeIds = new Set(layoutedNodes.map(n => n.id));
+        const positions = savedPositionsRef.current;
+        const movedIds = movedNodeIdsRef.current;
+
+        /* istanbul ignore next -- @preserve
+           Stale node cleanup requires specific timing between graph data fetch, node position
+           persistence, and ReactFlow's internal state. This is tested through integration
+           tests with real ReactFlow rendering. */
+        // Clean up stale node IDs from saved positions
+        if (userId) {
+          let staleRemoved = false;
+          for (const id of movedIds) {
+            if (!currentNodeIds.has(id)) {
+              movedIds.delete(id);
+              delete positions[id];
+              staleRemoved = true;
+            }
+          }
+          if (staleRemoved) {
+            saveNodePositions(userId, positions);
+          }
         }
-        return node;
-      });
+
+        layoutedNodes = layoutedNodes.map(node => {
+          if (movedIds.has(node.id) && positions[node.id]) {
+            return { ...node, position: positions[node.id] };
+          }
+          return node;
+        });
+      }
 
       /* istanbul ignore next -- @preserve
          Selection preservation during refresh requires ReactFlow's internal state management
@@ -302,11 +386,11 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
       const currentSelectedEdgeId = selectedEdgeIdRef.current;
 
       const nodesWithSelection = currentSelectedNodeId
-        ? mergedNodes.map(node => ({
+        ? layoutedNodes.map(node => ({
             ...node,
             selected: node.id === currentSelectedNodeId,
           }))
-        : mergedNodes;
+        : layoutedNodes;
 
       const edgesWithSelection = currentSelectedEdgeId
         ? layoutedEdges.map(edge => ({
@@ -315,39 +399,54 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
           }))
         : layoutedEdges;
 
-      // Auto-select node for initial dependency navigation (e.g., from wallboard)
-      if (initialDependencyId && !initialDependencyAppliedRef.current) {
-        const matchingEdge = layoutedEdges.find(
-          (e) => e.data?.dependencyId === initialDependencyId
-        );
-        if (matchingEdge) {
-          const sourceNodeId = matchingEdge.source;
-          setSelectedNodeId(sourceNodeId);
-          initialDependencyAppliedRef.current = true;
-
-          // Mark the source node as selected
-          const finalNodes = nodesWithSelection.map((node) => ({
-            ...node,
-            selected: node.id === sourceNodeId,
-          }));
-          setNodes(finalNodes);
-          setEdges(edgesWithSelection);
-        } else {
-          initialDependencyAppliedRef.current = true;
-          setNodes(nodesWithSelection);
-          setEdges(edgesWithSelection);
-        }
-      } else {
-        setNodes(nodesWithSelection);
-        setEdges(edgesWithSelection);
-      }
+      setNodes(nodesWithSelection);
+      setEdges(edgesWithSelection);
+      setLayoutVersion(v => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [teams, setNodes, setEdges, userId]);
+  }, [teams, setNodes, setEdges, userId, applyIsolation]);
+
+  // Re-apply isolation when target changes (without re-fetching)
+  const isolationInitializedRef = useRef(false);
+  useEffect(() => {
+    // Skip the first render — loadData handles initial isolation
+    if (!isolationInitializedRef.current) {
+      isolationInitializedRef.current = true;
+      return;
+    }
+
+    const fullNodes = fullGraphNodesRef.current;
+    const fullEdges = fullGraphEdgesRef.current;
+    if (fullNodes.length === 0) return;
+
+    const direction = layoutDirectionRef.current;
+    const style = edgeStyleRef.current;
+
+    (async () => {
+      const result = await applyIsolation(isolationTarget, fullNodes, fullEdges, direction, style);
+
+      // When exiting isolation, re-apply saved positions
+      let finalNodes = result.nodes;
+      if (!isolationTarget) {
+        const positions = savedPositionsRef.current;
+        const movedIds = movedNodeIdsRef.current;
+        finalNodes = finalNodes.map(node => {
+          if (movedIds.has(node.id) && positions[node.id]) {
+            return { ...node, position: positions[node.id] };
+          }
+          return node;
+        });
+      }
+
+      setNodes(finalNodes);
+      setEdges(result.edges);
+      setLayoutVersion(v => v + 1);
+    })();
+  }, [isolationTarget]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetLayout = useCallback(() => {
     if (userId) {
@@ -382,6 +481,10 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
     setDashedAnimation,
     packetAnimation,
     setPacketAnimation,
+    isolationTarget,
+    setIsolationTarget,
+    exitIsolation,
+    layoutVersion,
     isLoading,
     isRefreshing,
     error,

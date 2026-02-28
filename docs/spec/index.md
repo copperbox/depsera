@@ -21,6 +21,7 @@
 | 11 | [11-configuration.md](./11-configuration.md) | All environment variables reference | configuration, env vars, environment variables, PORT, DATABASE_PATH, OIDC, SESSION_SECRET, TRUST_PROXY |
 | 12 | [12-planned-features.md](./12-planned-features.md) | Security hardening, team-scoped access, admin settings, data retention, custom schema, alerting, charts, local auth, deployment, Docker | planned, roadmap, 1.0, security hardening, team-scoped, admin settings, retention, schema mapping, alerts, charts, Docker, deployment |
 | 13 | [13-store-layer.md](./13-store-layer.md) | StoreRegistry, all store interfaces and method signatures | stores, StoreRegistry, interfaces, IServiceStore, ITeamStore, IUserStore, IDependencyStore, IAssociationStore |
+| 14 | [14-isolated-tree-view.md](./14-isolated-tree-view.md) | Isolated dependency tree view, graph isolation, context menu, deep linking | graph, isolation, isolate, tree view, context menu, deep linking, filter |
 
 ## Cross-Reference Guide
 
@@ -30,7 +31,7 @@ When working on a task, use these mappings to find the right sections:
 - **Database/migration changes** → 02 (Data Model) + 13 (Store Layer)
 - **Auth or permissions changes** → 03 (Auth) + 09 (Security)
 - **Polling or health check changes** → 05 (Health Polling) + 08 (SSRF)
-- **Graph visualization changes** → 06 (Dependency Graph) + 10 (Client Architecture)
+- **Graph visualization changes** → 06 (Dependency Graph) + 14 (Isolated Tree View) + 10 (Client Architecture)
 - **Alert system changes** → 12 (Planned Features §12.6) + 04 (API Reference §4.11)
 - **Frontend component changes** → 10 (Client Architecture) + 04 (API Reference)
 - **Configuration/env var changes** → 11 (Configuration)
