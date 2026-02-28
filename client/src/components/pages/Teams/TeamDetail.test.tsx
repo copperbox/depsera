@@ -40,6 +40,11 @@ jest.mock('./AlertHistory', () => {
   AlertHistory.displayName = 'AlertHistory';
   return AlertHistory;
 });
+jest.mock('./ManifestStatusCard', () => {
+  const ManifestStatusCard = () => <div data-testid="manifest-status-card" />;
+  ManifestStatusCard.displayName = 'ManifestStatusCard';
+  return ManifestStatusCard;
+});
 
 function jsonResponse(data: unknown, status = 200) {
   return {

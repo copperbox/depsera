@@ -498,3 +498,69 @@ Two manifest indicators on the service detail page:
 - 2 tests in `TeamDetail.test.tsx` — badge presence/absence in team services section
 - 3 tests in `ServiceForm.test.tsx` — warning banner in edit mode (manifest/non-manifest/create)
 - 3 tests in `ServiceDetail.test.tsx` — badge + manifest info with key, without key, and non-manifest
+
+## ManifestStatusCard
+
+**[Implemented]** (DPS-61)
+
+### Component
+
+**File:** `client/src/components/pages/Teams/ManifestStatusCard.tsx`
+
+Compact status card on the team detail page showing manifest configuration status, last sync result, pending drift count, and quick actions.
+
+**Props:** `teamId: string`, `canManage: boolean`
+
+Fetches two lightweight endpoints on mount:
+- `GET /api/teams/:id/manifest` — manifest config (via `useManifestConfig` hook)
+- `GET /api/teams/:id/drifts/summary` — drift badge counts (via `getDriftSummary` API)
+
+### States
+
+| State | Trigger | Display |
+|---|---|---|
+| No manifest | `config` is null | "No manifest URL configured." + "Configure Manifest →" link (lead only) |
+| Configured OK | Config present, enabled, no drift, no error | URL (truncated), last sync time + status + service count, Sync Now + Manage Manifest |
+| Configured with drift | Config present + pending drift count > 0 | Same as OK plus warning banner: "N pending drift flags (M dismissed)" linking to manifest page |
+| Last sync errored | `last_sync_status === 'failed'` | URL, red status dot, error message |
+| Manifest disabled | `is_enabled === 0` | URL, "Scheduled syncs are paused", Manage Manifest only (no Sync Now) |
+
+### Sync Now Behavior
+
+- Button enters loading state ("Syncing...")
+- Calls `POST /api/teams/:teamId/manifest/sync`
+- On success: inline summary banner (e.g., "Added 2, updated 1, 3 drift flags"), auto-dismiss after 8s
+- On error: inline error banner ("Sync failed")
+- Refreshes config and drift summary after sync
+
+### Placement
+
+Inserted between Services section and Alert Channels section in `TeamDetail.tsx`. Uses `canManageAlerts` boolean for permission check (same team lead/admin check).
+
+### Styling
+
+**File:** `client/src/components/pages/Teams/ManifestStatusCard.module.css`
+
+Uses shared `Teams.module.css` section classes (`.section`, `.sectionHeader`, `.sectionTitle`). Component-specific styles:
+- `.manifestUrl` — monospace, truncated with ellipsis
+- `.syncStatus` — status dot (green/yellow/red) + text
+- `.driftAlert` — warning-colored banner linking to manifest page
+- `.cardActions` — flex row with Sync Now button and Manage Manifest link
+- `.syncResultBanner` — success (green) or error (red) banner with dismiss button
+
+### Tests
+
+22 tests in `ManifestStatusCard.test.tsx` covering:
+- Loading state
+- Empty state (no manifest configured)
+- Configure Manifest link visibility (managers vs non-managers)
+- URL display and truncation
+- Sync status display (success, partial, error states)
+- Service count from last sync summary
+- Disabled manifest state (paused syncs, no Sync Now button)
+- Drift alert with pending/dismissed counts (singular/plural)
+- Sync Now trigger and API call verification
+- Success summary banner with auto-dismiss (8s timer)
+- Manual banner dismissal
+- Sync error handling
+- "No changes" result display

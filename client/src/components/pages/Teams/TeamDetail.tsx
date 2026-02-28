@@ -8,6 +8,7 @@ import TeamForm from './TeamForm';
 import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
+import ManifestStatusCard from './ManifestStatusCard';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
 
@@ -331,6 +332,9 @@ function TeamDetail() {
           </div>
         )}
       </div>
+
+      {/* Manifest Sync Section */}
+      <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
 
       {/* Alert Channels Section */}
       <AlertChannels teamId={id!} canManage={canManageAlerts} />
