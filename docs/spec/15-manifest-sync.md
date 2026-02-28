@@ -589,7 +589,7 @@ Full manifest management page with back navigation, configuration, sync results,
 - Error banner for API errors (dismissible)
 - Empty state when no manifest configured (description text + "Configure Manifest" button for leads)
 - When configured: Configuration section, Last Sync Result section, Sync History section
-- Drift Review placeholder reserved for DPS-63
+- When configured: Configuration section, Last Sync Result section, Drift Review section, Sync History section
 
 **Permission model:** Team leads and admins can manage (edit, toggle, remove, sync). Members have read-only access.
 
@@ -633,6 +633,54 @@ Last sync result display with manual sync trigger.
 - Inline sync result banner (success/error) with 8s auto-dismiss
 - Expandable per-service change list with action icons (+/~/=/⚠/×) and warnings
 
+### DriftReview (DPS-63)
+
+**File:** `client/src/components/pages/Manifest/DriftReview.tsx`
+
+Drift review inbox using `useDriftFlags` hook. Provides sub-navigation, filtering, selection, and bulk actions for drift flags.
+
+**Props:** `teamId`, `canManage`
+
+**Features:**
+- Sub-navigation toggle between Pending and Dismissed views with live counts from `DriftSummary`
+- Type filter dropdown (All types / Field changes / Service removals)
+- Service filter dropdown (only shown when multiple services have flags)
+- Select all checkbox with count label
+- Bulk Accept All / Dismiss All buttons with `ConfirmDialog` modal
+- Error banner with dismiss button
+- Loading state
+- Empty states per view ("No pending drift flags..." / "No dismissed drift flags.")
+
+### DriftFlagCard
+
+**File:** `client/src/components/pages/Manifest/DriftFlagCard.tsx`
+
+Individual drift flag card with type-specific rendering, actions, and permission gating.
+
+**Props:** `flag`, `isSelected`, `canManage`, `onToggleSelect`, `onAccept`, `onDismiss`, `onReopen`
+
+**Field change cards:**
+- Service name and manifest key header
+- "Field Change" badge
+- Human-readable field label (FIELD_LABELS mapping for common fields)
+- Side-by-side current vs manifest value diff with color-coded borders
+- Special formatting for `poll_interval_ms` (ms/s/m) and `schema_config` ("Schema changed")
+- Detection timestamps (first detected date, last seen relative time)
+
+**Service removal cards:**
+- "Service Removal" badge (red)
+- Removal message: "This service is no longer in the manifest."
+- "Accept (Deactivate)" label instead of plain "Accept"
+- Inline confirmation before accept (3-second auto-dismiss timeout)
+
+**Dismissed cards:**
+- Muted opacity styling
+- "Dismissed by [name]" with resolved date
+- Re-open and Accept buttons (no Dismiss)
+
+**Permission gating:**
+- Checkbox and action buttons hidden when `canManage=false`
+
 ### SyncHistory
 
 **File:** `client/src/components/pages/Manifest/SyncHistory.tsx`
@@ -649,13 +697,15 @@ Paginated timeline of past syncs using `useSyncHistory` hook.
 
 ### Styling
 
-**File:** `client/src/components/pages/Manifest/ManifestPage.module.css`
-
-All styles for the manifest management page in a single CSS module. Follows the Teams page section pattern with CSS custom properties for theming.
+**Files:**
+- `client/src/components/pages/Manifest/ManifestPage.module.css` — Configuration, sync result, and history styles
+- `client/src/components/pages/Manifest/DriftReview.module.css` — Drift review inbox styles (view toggle, toolbar, filters, bulk actions, flag cards, field diff, inline confirmation, responsive breakpoints)
 
 ### Tests
 
-- 9 tests in `ManifestPage.test.tsx` — loading state, team error, back link with team name, page title, empty state, configure button visibility (lead/member/admin), sections rendering
+- 9 tests in `ManifestPage.test.tsx` — loading state, team error, back link with team name, page title, empty state, configure button visibility (lead/member/admin), sections rendering (incl. drift review)
 - 25 tests in `ManifestConfig.test.tsx` — display mode (URL, status, policy labels, action visibility), edit mode (pre-fill, validation, save, cancel, delete warning, saving state), remove confirmation dialog
 - 17 tests in `ManifestSyncResult.test.tsx` — no syncs state, sync button visibility, sync status display, summary counts, manual sync trigger, success/error banners, auto-dismiss, expandable details
 - 10 tests in `SyncHistory.test.tsx` — loading/empty/error states, entry rendering, summary counts, duration, load more, error entries, expandable warnings
+- 25 tests in `DriftFlagCard.test.tsx` — field change rendering (field labels, values, formatting), service removal (badge, message, inline confirmation, auto-dismiss), dismissed state (re-open, resolved-by info), permissions (checkbox/action visibility), unknown/null fields
+- 22 tests in `DriftReview.test.tsx` — loading/error states, pending/dismissed toggle with counts, view switching, flag card rendering, empty states per view, type/service filters, select all (manager/non-manager), bulk actions (accept/dismiss confirmation dialogs, confirm, cancel), loadFlags on mount, permission gating

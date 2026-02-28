@@ -5,6 +5,7 @@ import { useManifestConfig } from '../../../hooks/useManifestConfig';
 import { fetchTeam } from '../../../api/teams';
 import ManifestConfig from './ManifestConfig';
 import ManifestSyncResult from './ManifestSyncResult';
+import DriftReview from './DriftReview';
 import SyncHistory from './SyncHistory';
 import styles from './ManifestPage.module.css';
 
@@ -164,7 +165,13 @@ function ManifestPage() {
             />
           </div>
 
-          {/* Drift Review Section — placeholder for DPS-63 */}
+          {/* Drift Review Section */}
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <h2 className={styles.sectionTitle}>Drift Review</h2>
+            </div>
+            <DriftReview teamId={id!} canManage={canManage} />
+          </div>
 
           {/* Sync History Section */}
           <div className={styles.section}>

@@ -30,6 +30,12 @@ jest.mock('./ManifestSyncResult', () => {
   return ManifestSyncResult;
 });
 
+jest.mock('./DriftReview', () => {
+  const DriftReview = () => <div data-testid="drift-review" />;
+  DriftReview.displayName = 'DriftReview';
+  return DriftReview;
+});
+
 jest.mock('./SyncHistory', () => {
   const SyncHistory = () => <div data-testid="sync-history" />;
   SyncHistory.displayName = 'SyncHistory';
@@ -177,6 +183,8 @@ describe('ManifestPage', () => {
     });
     expect(screen.getByTestId('manifest-config')).toBeInTheDocument();
     expect(screen.getByTestId('manifest-sync-result')).toBeInTheDocument();
+    expect(screen.getByText('Drift Review')).toBeInTheDocument();
+    expect(screen.getByTestId('drift-review')).toBeInTheDocument();
     expect(screen.getByText('Sync History')).toBeInTheDocument();
     expect(screen.getByTestId('sync-history')).toBeInTheDocument();
   });
