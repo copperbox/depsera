@@ -526,6 +526,37 @@ Contains all types specific to the manifest sync engine:
 - Abort/timeout → `Manifest fetch timed out (10s)`
 - Network errors → sanitized via `sanitizePollError()`
 
+### ManifestDiffer **[Implemented]**
+
+`server/src/services/manifest/ManifestDiffer.ts` — Pure-logic diff engine that computes the difference between validated manifest entries and existing DB services, applying the team's sync policy to categorize changes. No DB access — receives pre-loaded data.
+
+**Public API:** `diffManifest(manifestEntries: ManifestServiceEntry[], existingServices: Service[], policy: ManifestSyncPolicy): ManifestDiffResult`
+
+**Syncable fields:** `name`, `health_endpoint`, `description`, `metrics_endpoint`, `poll_interval_ms`, `schema_config`
+
+**Matching:** By `manifest_key` only (never by name). Builds a lookup map of existing services by `manifest_key`.
+
+**Diff categories:**
+- `toCreate` — manifest entries with no matching DB service
+- `toUpdate` — entries with safe-to-update fields (no manual edits, or `manifest_wins` policy)
+- `toDrift` — per-field entries where manual edits were detected and policy is `flag`
+- `toKeepLocal` — per-field entries where manual edits were detected and policy is `local_wins`
+- `unchanged` — service IDs where all syncable fields match
+- `removalDrift` / `toDeactivate` / `toDelete` — existing services not in manifest, by `on_removal` policy
+
+**Drift detection logic:**
+- Compares DB value against `manifest_last_synced_values` to detect manual edits
+- `db_value === last_synced_value` → not manually edited → safe to update (always)
+- `db_value !== last_synced_value` → manual edit detected → apply `on_field_drift` policy
+- First sync (`manifest_last_synced_values` is NULL or corrupt) → all fields treated as safe
+- Undefined manifest fields (optional, not specified) → skipped, not compared
+
+**Design decisions:**
+- `schema_config` compared via JSON string serialization for reliable equality
+- Mixed entries (some fields safe, some drifted) produce entries in both `toUpdate` and `toDrift`
+- Services without `manifest_key` in existing services are ignored (not treated as removed)
+- Null and empty string are treated as equivalent in value normalization
+
 ## Migration History
 
 | ID | Name | Changes |
