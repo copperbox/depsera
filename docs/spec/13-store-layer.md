@@ -18,6 +18,8 @@ class StoreRegistry {
   public readonly settings: ISettingsStore;
   public readonly canonicalOverrides: ICanonicalOverrideStore;
   public readonly statusChangeEvents: IStatusChangeEventStore;
+  public readonly manifestConfig: IManifestConfigStore;
+  public readonly manifestSyncHistory: IManifestSyncHistoryStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -192,3 +194,32 @@ deleteOlderThan(timestamp: string): number
 ```
 
 `UnstableDependencyRow`: `{ dependency_name, service_name, service_id, change_count, current_healthy, last_change_at }`. Aggregates status changes within the time window grouped by dependency name. Returns the service from the most recent event for each dependency.
+
+### IManifestConfigStore **[Implemented]**
+```typescript
+create(input: ManifestConfigCreateInput): TeamManifestConfig
+findByTeamId(teamId: string): TeamManifestConfig | undefined
+update(teamId: string, input: ManifestConfigUpdateInput): TeamManifestConfig | undefined
+delete(teamId: string): boolean
+findAllEnabled(): TeamManifestConfig[]
+updateSyncResult(teamId: string, result: ManifestSyncResultInput): boolean
+```
+
+`ManifestConfigCreateInput`: `{ team_id: string; manifest_url: string; is_enabled?: boolean; sync_policy?: ManifestSyncPolicy }`. Uses `INSERT ... ON CONFLICT(team_id) DO UPDATE` for upsert semantics. Types imported from `server/src/services/manifest/types.ts`.
+
+`ManifestConfigUpdateInput`: `{ manifest_url?: string; is_enabled?: boolean; sync_policy?: Partial<ManifestSyncPolicy> }`. Partial sync_policy is merged with existing policy (or `DEFAULT_SYNC_POLICY` if no existing policy). Dynamic field building for partial updates.
+
+`ManifestSyncResultInput`: `{ last_sync_at: string; last_sync_status: string; last_sync_error: string | null; last_sync_summary: string | null }`. Updates only the sync result columns without touching config fields.
+
+`findAllEnabled()` returns all configs where `is_enabled = 1`, ordered by `created_at ASC`. Used by the scheduled sync loop.
+
+### IManifestSyncHistoryStore **[Implemented]**
+```typescript
+create(entry: ManifestSyncHistoryCreateInput): ManifestSyncHistoryEntry
+findByTeamId(teamId: string, options?: { limit?: number; offset?: number }): { history: ManifestSyncHistoryEntry[]; total: number }
+deleteOlderThan(timestamp: string): number
+```
+
+`ManifestSyncHistoryCreateInput`: `{ team_id, trigger_type, triggered_by, manifest_url, status, summary, errors, warnings, duration_ms }`. `triggered_by` is null for scheduled syncs. `summary`, `errors`, `warnings` are JSON strings.
+
+`findByTeamId` returns paginated results (default limit 20, max 100) ordered by `created_at DESC` (most recent first), along with a total count for pagination UI. Types imported from `server/src/services/manifest/types.ts`.

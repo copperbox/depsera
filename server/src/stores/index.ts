@@ -18,6 +18,8 @@ import type { IAlertHistoryStore } from './interfaces/IAlertHistoryStore';
 import type { ICanonicalOverrideStore } from './interfaces/ICanonicalOverrideStore';
 import type { IStatusChangeEventStore } from './interfaces/IStatusChangeEventStore';
 import type { IServicePollHistoryStore } from './interfaces/IServicePollHistoryStore';
+import type { IManifestConfigStore } from './interfaces/IManifestConfigStore';
+import type { IManifestSyncHistoryStore } from './interfaces/IManifestSyncHistoryStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -36,6 +38,8 @@ import { AlertHistoryStore } from './impl/AlertHistoryStore';
 import { CanonicalOverrideStore } from './impl/CanonicalOverrideStore';
 import { StatusChangeEventStore } from './impl/StatusChangeEventStore';
 import { ServicePollHistoryStore } from './impl/ServicePollHistoryStore';
+import { ManifestConfigStore } from './impl/ManifestConfigStore';
+import { ManifestSyncHistoryStore } from './impl/ManifestSyncHistoryStore';
 
 /**
  * Central registry providing access to all stores.
@@ -60,6 +64,8 @@ export class StoreRegistry {
   public readonly canonicalOverrides: ICanonicalOverrideStore;
   public readonly statusChangeEvents: IStatusChangeEventStore;
   public readonly servicePollHistory: IServicePollHistoryStore;
+  public readonly manifestConfig: IManifestConfigStore;
+  public readonly manifestSyncHistory: IManifestSyncHistoryStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -78,6 +84,8 @@ export class StoreRegistry {
     this.canonicalOverrides = new CanonicalOverrideStore(database);
     this.statusChangeEvents = new StatusChangeEventStore(database);
     this.servicePollHistory = new ServicePollHistoryStore(database);
+    this.manifestConfig = new ManifestConfigStore(database);
+    this.manifestSyncHistory = new ManifestSyncHistoryStore(database);
   }
 
   /**
