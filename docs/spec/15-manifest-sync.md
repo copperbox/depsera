@@ -356,3 +356,79 @@ All `as any` casts in manifest routes, drift routes, and ManifestSyncService hav
 - Terminal drift flags cleanup (only `accepted` and `resolved` statuses)
 - Fixed 90-day retention independent of configurable retention days
 - Manifest counts included in cleanup result logging
+
+## Client Layer
+
+**[Implemented]** (DPS-60)
+
+### Types
+
+**File:** `client/src/types/manifest.ts`
+
+Client-side TypeScript types mirroring server types for the manifest and drift flag domain:
+
+- **Sync policy:** `ManifestSyncPolicy`, `FieldDriftPolicy`, `RemovalPolicy`, `MetadataRemovalPolicy`
+- **Config:** `TeamManifestConfig`, `ManifestConfigInput`
+- **Sync results:** `ManifestSyncResult`, `ManifestSyncSummary`, `ManifestSyncChange`
+- **Sync history:** `ManifestSyncHistoryEntry`
+- **Validation:** `ManifestValidationResult`, `ManifestValidationIssue`, `ManifestValidationSeverity`
+- **Drift flags:** `DriftFlagWithContext`, `DriftSummary`, `DriftType`, `DriftFlagStatus`, `BulkDriftActionResult`
+- **API responses:** `DriftFlagsResponse`, `SyncHistoryResponse`, `DriftFlagListOptions`, `SyncHistoryListOptions`
+
+### API Client
+
+**File:** `client/src/api/manifest.ts`
+
+All functions use `credentials: 'include'` and `withCsrfToken` for mutations.
+
+| Function | Method | Endpoint | Returns |
+|---|---|---|---|
+| `getManifestConfig(teamId)` | GET | `/api/teams/:id/manifest` | `TeamManifestConfig \| null` |
+| `saveManifestConfig(teamId, input)` | PUT | `/api/teams/:id/manifest` | `TeamManifestConfig` |
+| `removeManifestConfig(teamId)` | DELETE | `/api/teams/:id/manifest` | `void` |
+| `triggerSync(teamId)` | POST | `/api/teams/:id/manifest/sync` | `ManifestSyncResult` |
+| `getSyncHistory(teamId, options?)` | GET | `/api/teams/:id/manifest/sync-history` | `SyncHistoryResponse` |
+| `validateManifest(manifestJson)` | POST | `/api/manifest/validate` | `ManifestValidationResult` |
+| `getDriftFlags(teamId, options?)` | GET | `/api/teams/:id/drifts` | `DriftFlagsResponse` |
+| `getDriftSummary(teamId)` | GET | `/api/teams/:id/drifts/summary` | `DriftSummary` |
+| `acceptDrift(teamId, driftId)` | PUT | `.../drifts/:id/accept` | `DriftFlagWithContext` |
+| `dismissDrift(teamId, driftId)` | PUT | `.../drifts/:id/dismiss` | `DriftFlagWithContext` |
+| `reopenDrift(teamId, driftId)` | PUT | `.../drifts/:id/reopen` | `DriftFlagWithContext` |
+| `bulkAcceptDrifts(teamId, flagIds)` | POST | `.../drifts/bulk-accept` | `BulkDriftActionResult` |
+| `bulkDismissDrifts(teamId, flagIds)` | POST | `.../drifts/bulk-dismiss` | `BulkDriftActionResult` |
+
+### Hooks
+
+**`useManifestConfig(teamId)`** — `client/src/hooks/useManifestConfig.ts`
+
+State management for manifest configuration and sync triggering. Follows `useAlertChannels` pattern.
+
+- State: `config`, `isLoading`, `error`, `isSaving`, `isSyncing`, `syncResult`
+- Actions: `loadConfig`, `saveConfig`, `removeConfig`, `toggleEnabled`, `triggerSync`, `clearError`, `clearSyncResult`
+- `triggerSync` reloads config after completion to reflect updated sync status
+
+**`useDriftFlags(teamId)`** — `client/src/hooks/useDriftFlags.ts`
+
+State management for drift flag listing, filtering, selection, and actions. Follows `useSuggestions` pattern.
+
+- State: `flags`, `filtered`, `summary`, `isLoading`, `error`
+- View: `view` (`pending`/`dismissed`), `setView` (clears selection on change)
+- Filters: `typeFilter`, `serviceFilter` with setters — client-side filtering via `useMemo`
+- Selection: `selectedIds` (Set), `toggleSelected`, `selectAll`, `clearSelection`
+- Actions: `accept`, `dismiss`, `reopen`, `bulkAccept`, `bulkDismiss` — all auto-reload after completion
+- Bulk operations clear selection on success
+
+**`useSyncHistory(teamId)`** — `client/src/hooks/useSyncHistory.ts`
+
+Paginated sync history with load-more pattern. Page size of 20.
+
+- State: `history`, `total`, `isLoading`, `hasMore`, `error`
+- Actions: `loadHistory` (reset to page 1), `loadMore` (append next page), `clearError`
+- Internal offset tracking via `useRef`
+
+### Tests
+
+- 34 tests in `manifest.test.ts` covering all 13 API client functions (success, error, query params, response unwrapping)
+- 26 tests in `useManifestConfig.test.ts` covering load/save/remove/toggle/sync with error handling
+- 25 tests in `useDriftFlags.test.ts` covering load/filter/select/accept/dismiss/reopen/bulk with error handling
+- 12 tests in `useSyncHistory.test.ts` covering load/loadMore/pagination/offset reset with error handling
