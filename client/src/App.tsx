@@ -13,6 +13,7 @@ import AdminSettings from './components/pages/Admin/AdminSettings';
 import { DependencyGraph } from './components/pages/DependencyGraph/DependencyGraph';
 import AssociationsPage from './components/pages/Associations/AssociationsPage';
 import Wallboard from './components/pages/Wallboard/Wallboard';
+import ManifestPage from './components/pages/Manifest/ManifestPage';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="services/:id" element={<ServiceDetail />} />
         <Route path="teams" element={<TeamsList />} />
         <Route path="teams/:id" element={<TeamDetail />} />
+        <Route path="teams/:id/manifest" element={<ManifestPage />} />
         <Route path="graph" element={<DependencyGraph />} />
         <Route
           path="admin/associations"

@@ -564,3 +564,98 @@ Uses shared `Teams.module.css` section classes (`.section`, `.sectionHeader`, `.
 - Manual banner dismissal
 - Sync error handling
 - "No changes" result display
+
+## Manifest Management Page
+
+**[Implemented]** (DPS-62)
+
+### Routing
+
+**File:** `client/src/App.tsx`
+
+Route `teams/:id/manifest` renders `ManifestPage` component within the protected layout.
+
+### ManifestPage
+
+**File:** `client/src/components/pages/Manifest/ManifestPage.tsx`
+
+Full manifest management page with back navigation, configuration, sync results, and history.
+
+**Dependencies:** `useManifestConfig`, `useSyncHistory`, `fetchTeam`
+
+**Layout:**
+- Back link: "← Back to {teamName}" linking to `/teams/:id`
+- Page title: "Manifest Configuration"
+- Error banner for API errors (dismissible)
+- Empty state when no manifest configured (description text + "Configure Manifest" button for leads)
+- When configured: Configuration section, Last Sync Result section, Sync History section
+- Drift Review placeholder reserved for DPS-63
+
+**Permission model:** Team leads and admins can manage (edit, toggle, remove, sync). Members have read-only access.
+
+### ManifestConfig
+
+**File:** `client/src/components/pages/Manifest/ManifestConfig.tsx`
+
+Configuration CRUD with display and edit modes.
+
+**Props:** `config`, `canManage`, `isSaving`, `onSave`, `onRemove`, `onToggleEnabled`
+
+**Display mode:**
+- Manifest URL (monospace code block)
+- Enabled/Disabled status indicator
+- Field drift policy label (Flag for review / Use manifest value / Keep local value)
+- Removal policy label (Flag for review / Deactivate service / Delete service)
+- Action buttons (leads only): Edit, Disable/Enable, Remove Manifest
+
+**Edit mode:**
+- URL text input (type=url, required) with client-side validation (HTTP/HTTPS only)
+- "On field drift" dropdown with description hints
+- "On service removal" dropdown with description hints + delete warning
+- Cancel + Save Configuration buttons
+- Remove: `ConfirmDialog` with destructive confirmation
+- Enable/disable toggle: immediate API call, no confirmation
+
+### ManifestSyncResult
+
+**File:** `client/src/components/pages/Manifest/ManifestSyncResult.tsx`
+
+Last sync result display with manual sync trigger.
+
+**Props:** `config`, `isSyncing`, `syncResult`, `onSync`, `onClearSyncResult`
+
+**States:**
+- No syncs: "No syncs yet. Click Sync Now to run the first sync."
+- Success: green status dot + time ago + summary counts grid (Created, Updated, Unchanged, Drift Flagged, Deactivated, Deleted)
+- Partial: yellow status dot
+- Failed: red status dot + error message
+- Sync Now button (hidden when disabled), loading state "Syncing..."
+- Inline sync result banner (success/error) with 8s auto-dismiss
+- Expandable per-service change list with action icons (+/~/=/⚠/×) and warnings
+
+### SyncHistory
+
+**File:** `client/src/components/pages/Manifest/SyncHistory.tsx`
+
+Paginated timeline of past syncs using `useSyncHistory` hook.
+
+**Props:** `teamId`
+
+**Features:**
+- Timeline of entries with status dot, timestamp, trigger type badge, triggered by (manual), summary counts, duration
+- Expandable detail view per entry (errors, warnings)
+- "Load more" button with pagination (page size 20)
+- Empty state: "No sync history yet."
+
+### Styling
+
+**File:** `client/src/components/pages/Manifest/ManifestPage.module.css`
+
+All styles for the manifest management page in a single CSS module. Follows the Teams page section pattern with CSS custom properties for theming.
+
+### Tests
+
+- 9 tests in `ManifestPage.test.tsx` — loading state, team error, back link with team name, page title, empty state, configure button visibility (lead/member/admin), sections rendering
+- 25 tests in `ManifestConfig.test.tsx` — display mode (URL, status, policy labels, action visibility), edit mode (pre-fill, validation, save, cancel, delete warning, saving state), remove confirmation dialog
+- 17 tests in `ManifestSyncResult.test.tsx` — no syncs state, sync button visibility, sync status display, summary counts, manual sync trigger, success/error banners, auto-dismiss, expandable details
+- 10 tests in `SyncHistory.test.tsx` — loading/empty/error states, entry rendering, summary counts, duration, load more, error entries, expandable warnings
