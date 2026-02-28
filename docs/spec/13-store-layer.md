@@ -20,6 +20,7 @@ class StoreRegistry {
   public readonly statusChangeEvents: IStatusChangeEventStore;
   public readonly manifestConfig: IManifestConfigStore;
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
+  public readonly driftFlags: IDriftFlagStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -223,3 +224,47 @@ deleteOlderThan(timestamp: string): number
 `ManifestSyncHistoryCreateInput`: `{ team_id, trigger_type, triggered_by, manifest_url, status, summary, errors, warnings, duration_ms }`. `triggered_by` is null for scheduled syncs. `summary`, `errors`, `warnings` are JSON strings.
 
 `findByTeamId` returns paginated results (default limit 20, max 100) ordered by `created_at DESC` (most recent first), along with a total count for pagination UI. Types imported from `server/src/services/manifest/types.ts`.
+
+### IDriftFlagStore **[Implemented]**
+```typescript
+// Read
+findById(id: string): DriftFlag | undefined
+findByTeamId(teamId: string, options?: DriftFlagListOptions): { flags: DriftFlagWithContext[]; total: number }
+findActiveByServiceId(serviceId: string): DriftFlag[]
+findActiveByServiceAndField(serviceId: string, fieldName: string): DriftFlag | undefined
+findActiveRemovalByServiceId(serviceId: string): DriftFlag | undefined
+countByTeamId(teamId: string): DriftSummary
+
+// Write
+create(input: DriftFlagCreateInput): DriftFlag
+resolve(id: string, status: 'dismissed' | 'accepted' | 'resolved', userId: string | null): boolean
+reopen(id: string): boolean
+updateDetection(id: string, manifestValue: string | null, currentValue: string | null): boolean
+updateLastDetectedAt(id: string): boolean
+
+// Bulk
+bulkResolve(ids: string[], status: 'dismissed' | 'accepted' | 'resolved', userId: string | null): number
+resolveAllForService(serviceId: string): number
+resolveAllForTeam(teamId: string): number
+
+// Upsert (sync engine)
+upsertFieldDrift(serviceId: string, fieldName: string, manifestValue: string, currentValue: string, syncHistoryId: string | null): DriftFlagUpsertResult
+upsertRemovalDrift(serviceId: string, syncHistoryId: string | null): DriftFlagUpsertResult
+
+// Cleanup
+deleteOlderThan(timestamp: string, statuses?: DriftFlagStatus[]): number
+```
+
+`DriftFlagListOptions`: `{ status?: DriftFlagStatus; drift_type?: string; service_id?: string; limit?: number; offset?: number }`. Default limit 50, max 250. Filters are composable.
+
+`findByTeamId` returns paginated results joined with `services` (for `service_name`, `manifest_key`) and `users` (for `resolved_by_name`), ordered by `last_detected_at DESC`.
+
+`countByTeamId` uses a single query with `SUM(CASE ...)` expressions for efficient summary counts: `pending_count`, `dismissed_count`, `field_change_pending`, `service_removal_pending`.
+
+`resolve` only transitions flags in `pending` or `dismissed` status. `reopen` only transitions `dismissed` → `pending`.
+
+**Upsert deduplication logic** (critical for preventing alert fatigue):
+- `upsertFieldDrift`: pending exists → update values; dismissed with same manifest_value → update last_detected_at only (stay dismissed); dismissed with different manifest_value → re-flag as pending; not found → create new
+- `upsertRemovalDrift`: pending or dismissed exists → update last_detected_at (stay in current status); not found → create new
+
+`deleteOlderThan` supports optional status filter array for targeted cleanup (e.g., only delete terminal statuses like `accepted`, `resolved`).

@@ -20,6 +20,7 @@ import type { IStatusChangeEventStore } from './interfaces/IStatusChangeEventSto
 import type { IServicePollHistoryStore } from './interfaces/IServicePollHistoryStore';
 import type { IManifestConfigStore } from './interfaces/IManifestConfigStore';
 import type { IManifestSyncHistoryStore } from './interfaces/IManifestSyncHistoryStore';
+import type { IDriftFlagStore } from './interfaces/IDriftFlagStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -40,6 +41,7 @@ import { StatusChangeEventStore } from './impl/StatusChangeEventStore';
 import { ServicePollHistoryStore } from './impl/ServicePollHistoryStore';
 import { ManifestConfigStore } from './impl/ManifestConfigStore';
 import { ManifestSyncHistoryStore } from './impl/ManifestSyncHistoryStore';
+import { DriftFlagStore } from './impl/DriftFlagStore';
 
 /**
  * Central registry providing access to all stores.
@@ -66,6 +68,7 @@ export class StoreRegistry {
   public readonly servicePollHistory: IServicePollHistoryStore;
   public readonly manifestConfig: IManifestConfigStore;
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
+  public readonly driftFlags: IDriftFlagStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -86,6 +89,7 @@ export class StoreRegistry {
     this.servicePollHistory = new ServicePollHistoryStore(database);
     this.manifestConfig = new ManifestConfigStore(database);
     this.manifestSyncHistory = new ManifestSyncHistoryStore(database);
+    this.driftFlags = new DriftFlagStore(database);
   }
 
   /**
