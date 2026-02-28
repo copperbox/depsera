@@ -628,3 +628,111 @@ Read-only aggregated view of all tracked dependencies, grouped by canonical name
 - `effective_contact`, `effective_impact`: resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
 - `type`: most common type across reporters
 - Sorted by health status (worst first), then alphabetically
+
+## 4.16 Manifest Configuration & Sync
+
+**[Implemented]** (DPS-57)
+
+Team-scoped manifest configuration, sync operations, and manifest validation. All team-scoped endpoints are nested under `/api/teams/:id`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/manifest` | requireTeamAccess | Get manifest config for team. Returns `{ config: null }` if none exists. |
+| PUT | `/api/teams/:id/manifest` | requireTeamLead | Create or update manifest config. |
+| DELETE | `/api/teams/:id/manifest` | requireTeamLead | Remove manifest config. Does NOT delete managed services. Returns 204. |
+| POST | `/api/teams/:id/manifest/sync` | requireTeamAccess | Trigger manual sync. |
+| GET | `/api/teams/:id/manifest/sync-history` | requireTeamAccess | List paginated sync history. Query: `limit` (default 20, max 100), `offset`. |
+| POST | `/api/manifest/validate` | requireAuth | Validate manifest JSON (dry run, no persistence). |
+
+**PUT /api/teams/:id/manifest request:**
+
+```json
+{
+  "manifest_url": "https://example.com/manifest.json (required, SSRF-validated)",
+  "is_enabled": true,
+  "sync_policy": {
+    "on_field_drift": "flag | manifest_wins | local_wins",
+    "on_removal": "flag | deactivate | delete",
+    "on_alias_removal": "remove | keep",
+    "on_override_removal": "remove | keep",
+    "on_association_removal": "remove | keep"
+  }
+}
+```
+
+- `manifest_url`: required, validated with `validateUrlHostname()` (sync SSRF check)
+- `sync_policy`: optional partial object, fields validated against allowed enums
+- `is_enabled`: optional boolean (defaults to true on creation)
+- Upsert behavior: creates if no config exists, updates if present
+
+**PUT /api/teams/:id/manifest response:**
+
+```json
+{
+  "config": {
+    "id": "uuid",
+    "team_id": "uuid",
+    "manifest_url": "https://example.com/manifest.json",
+    "is_enabled": 1,
+    "sync_policy": "{\"on_field_drift\":\"flag\",\"on_removal\":\"flag\",...}",
+    "last_sync_at": null,
+    "last_sync_status": null,
+    "last_sync_error": null,
+    "last_sync_summary": null,
+    "created_at": "2026-02-28T10:00:00.000Z",
+    "updated_at": "2026-02-28T10:00:00.000Z"
+  }
+}
+```
+
+**POST /api/teams/:id/manifest/sync response codes:**
+
+- `200` — sync completed, returns `{ result: ManifestSyncResult }`
+- `404` — no manifest configured for this team
+- `400` — manifest sync is disabled
+- `409` — sync already in progress
+- `429` — cooldown not elapsed (60s), includes `Retry-After` header and `retry_after_ms` in body
+
+**GET /api/teams/:id/manifest/sync-history response:**
+
+```json
+{
+  "history": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "trigger_type": "manual | scheduled",
+      "triggered_by": "user-uuid | null",
+      "manifest_url": "https://example.com/manifest.json",
+      "status": "success | partial | failed",
+      "summary": "{...}",
+      "errors": "[...]",
+      "warnings": "[...]",
+      "duration_ms": 150,
+      "created_at": "2026-02-28T10:00:00.000Z"
+    }
+  ],
+  "total": 42
+}
+```
+
+**POST /api/manifest/validate request:**
+
+Accepts raw manifest JSON in request body. No persistence, no side effects.
+
+**POST /api/manifest/validate response:**
+
+```json
+{
+  "result": {
+    "valid": true,
+    "version": 1,
+    "service_count": 5,
+    "valid_count": 5,
+    "errors": [],
+    "warnings": []
+  }
+}
+```
+
+**Audit actions:** `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted` (resource type: `team`)

@@ -23,6 +23,7 @@ import externalServicesRouter from './routes/external-services';
 import wallboardRouter from './routes/wallboard';
 import canonicalOverridesRouter from './routes/canonicalOverrides';
 import activityRouter from './routes/activity';
+import { manifestTeamRouter, manifestRouter } from './routes/manifest';
 import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
 import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
@@ -89,6 +90,8 @@ app.use('/api/activity', requireAuth, activityRouter);
 app.use('/api', requireAuth, associationsRouter);
 app.use('/api/admin', requireAuth, adminRouter);
 app.use('/api/teams', requireAuth, alertsRouter);
+app.use('/api/teams', requireAuth, manifestTeamRouter);
+app.use('/api/manifest', requireAuth, manifestRouter);
 
 // Global error handler — catches body-parser errors, unhandled route errors, etc.
 // Must be registered after all routes (Express identifies error handlers by 4-param signature).

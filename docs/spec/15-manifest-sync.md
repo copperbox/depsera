@@ -153,3 +153,52 @@ interface ManifestSyncResult {
 - Alias sync (creates team-scoped aliases)
 - Override sync (creates team-scoped overrides)
 - Auto-resolve stale drift (resolves removal drift when service reappears)
+
+## API Routes
+
+**[Implemented]** (DPS-57)
+
+**File:** `server/src/routes/manifest/index.ts`
+
+Exports two routers:
+- `manifestTeamRouter` — team-scoped routes mounted under `/api/teams`
+- `manifestRouter` — standalone routes mounted at `/api/manifest`
+
+### Configuration Routes
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/manifest` | requireTeamAccess | Get manifest config (returns `null` if none) |
+| PUT | `/api/teams/:id/manifest` | requireTeamLead | Upsert manifest config with SSRF URL validation |
+| DELETE | `/api/teams/:id/manifest` | requireTeamLead | Remove config (does not delete services) |
+
+### Sync Routes
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/teams/:id/manifest/sync` | requireTeamAccess | Trigger manual sync (409/429/404/400 guards) |
+| GET | `/api/teams/:id/manifest/sync-history` | requireTeamAccess | Paginated sync history (limit/offset) |
+
+### Validation Route
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/manifest/validate` | requireAuth | Dry-run manifest validation |
+
+### Validation
+
+- `manifest_url`: required, validated with `validateUrlHostname()` synchronous SSRF check
+- `sync_policy`: optional partial object, each field validated against allowed enum values
+- Sync guards: config existence check → disabled check → in-progress check → cooldown check
+
+### Tests
+
+28 tests in `manifest.test.ts` covering:
+
+- Configuration CRUD (GET returns null/config, PUT creates/updates with validation, DELETE removes)
+- SSRF URL rejection (localhost, private IPs blocked)
+- Sync policy validation (invalid enum values rejected, non-object rejected)
+- Auth enforcement (team leads for mutations, members for reads, non-members denied)
+- Sync trigger guards (404 no config, 400 disabled, 409 in-progress, 429 cooldown with Retry-After)
+- Sync history pagination
+- Manifest validation endpoint (valid/invalid/warnings)
