@@ -126,6 +126,15 @@ export class DataRetentionService {
       const statusChangeDeleted = stores.statusChangeEvents.deleteOlderThan(cutoffTimestamp);
       const pollHistoryDeleted = stores.servicePollHistory.deleteOlderThan(cutoffTimestamp);
 
+      // Manifest-related cleanup uses a fixed 90-day retention period
+      const manifestCutoff = new Date();
+      manifestCutoff.setDate(manifestCutoff.getDate() - 90);
+      const manifestCutoffTimestamp = manifestCutoff.toISOString();
+
+      const syncHistoryDeleted = stores.manifestSyncHistory.deleteOlderThan(manifestCutoffTimestamp);
+      // Only delete terminal drift flags (accepted, resolved); pending and dismissed are preserved
+      const driftFlagsDeleted = stores.driftFlags.deleteOlderThan(manifestCutoffTimestamp, ['accepted', 'resolved']);
+
       const result: CleanupResult = {
         latencyDeleted,
         errorDeleted,
@@ -133,6 +142,8 @@ export class DataRetentionService {
         alertHistoryDeleted,
         statusChangeDeleted,
         pollHistoryDeleted,
+        syncHistoryDeleted,
+        driftFlagsDeleted,
         retentionDays,
         cutoffTimestamp,
       };
@@ -183,6 +194,8 @@ export interface CleanupResult {
   alertHistoryDeleted: number;
   statusChangeDeleted: number;
   pollHistoryDeleted: number;
+  syncHistoryDeleted: number;
+  driftFlagsDeleted: number;
   retentionDays: number;
   cutoffTimestamp: string;
 }

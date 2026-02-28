@@ -355,9 +355,20 @@ export type AuditAction =
   | 'canonical_override.upserted'
   | 'canonical_override.deleted'
   | 'dependency_override.updated'
-  | 'dependency_override.cleared';
+  | 'dependency_override.cleared'
+  | 'manifest_sync'
+  | 'manifest_config.created'
+  | 'manifest_config.updated'
+  | 'manifest_config.deleted'
+  | 'drift.detected'
+  | 'drift.accepted'
+  | 'drift.dismissed'
+  | 'drift.reopened'
+  | 'drift.resolved'
+  | 'drift.bulk_accepted'
+  | 'drift.bulk_dismissed';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag';
 
 export interface AuditLogEntry {
   id: string;

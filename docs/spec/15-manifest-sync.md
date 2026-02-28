@@ -288,3 +288,71 @@ Exports `driftRouter` — team-scoped routes mounted under `/api/teams`.
 - Bulk dismiss with transaction
 - Bulk validation (empty array, max 100 limit)
 - Audit events for all single and bulk operations
+
+## Server Integration
+
+**[Implemented]** (DPS-59)
+
+**File:** `server/src/index.ts`
+
+### Startup Sequence
+
+ManifestSyncService is initialized and started after AlertService and DataRetentionService:
+
+1. SettingsService → HealthPollingService → AlertService → DataRetentionService → **ManifestSyncService** → pollingService.startAll()
+
+```typescript
+const manifestSyncService = ManifestSyncService.getInstance();
+manifestSyncService.start();
+```
+
+### Route Registration
+
+Routes are mounted in `server/src/index.ts`:
+
+```typescript
+app.use('/api/teams', requireAuth, manifestTeamRouter);  // team-scoped config/sync
+app.use('/api/teams', requireAuth, driftRouter);          // team-scoped drift flags
+app.use('/api/manifest', requireAuth, manifestRouter);    // standalone validate endpoint
+```
+
+### Shutdown Sequence
+
+Shutdown order: AlertService → DataRetentionService → **ManifestSyncService** → HealthPollingService → closeDatabase
+
+ManifestSyncService shuts down before HealthPollingService because sync operations may start/restart polls for services.
+
+### Data Retention
+
+**File:** `server/src/services/retention/DataRetentionService.ts`
+
+Extended to clean up manifest-related data using a fixed 90-day retention period (independent of the configurable `data_retention_days` setting):
+
+- `manifest_sync_history` — records older than 90 days are deleted
+- `drift_flags` — only terminal flags (`accepted`, `resolved`) older than 90 days are deleted; `pending` and `dismissed` flags are never auto-deleted
+
+New fields in `CleanupResult`: `syncHistoryDeleted`, `driftFlagsDeleted`.
+
+### Audit Action Types
+
+**File:** `server/src/db/types.ts`
+
+Added to `AuditAction` type union:
+
+- `manifest_sync` — sync operations (manual and scheduled)
+- `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted` — config CRUD
+- `drift.detected`, `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.resolved` — single flag actions
+- `drift.bulk_accepted`, `drift.bulk_dismissed` — bulk actions
+
+Added to `AuditResourceType`: `manifest_config`, `drift_flag`.
+
+All `as any` casts in manifest routes, drift routes, and ManifestSyncService have been removed now that proper types are registered.
+
+### Tests
+
+4 tests added to `DataRetentionService.test.ts` covering:
+
+- Manifest sync history cleanup with 90-day fixed cutoff
+- Terminal drift flags cleanup (only `accepted` and `resolved` statuses)
+- Fixed 90-day retention independent of configurable retention days
+- Manifest counts included in cleanup result logging

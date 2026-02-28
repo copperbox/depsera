@@ -32,6 +32,7 @@ import { DataRetentionService } from './services/retention/DataRetentionService'
 import { AlertService } from './services/alerts';
 import { SlackSender } from './services/alerts/senders/SlackSender';
 import { WebhookSender } from './services/alerts/senders/WebhookSender';
+import { ManifestSyncService } from './services/manifest/ManifestSyncService';
 import { getStores } from './stores';
 import { errorHandler } from './utils/errors';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
@@ -182,6 +183,10 @@ async function start() {
   const retentionService = DataRetentionService.getInstance();
   retentionService.start();
 
+  // Start manifest sync scheduler
+  const manifestSyncService = ManifestSyncService.getInstance();
+  manifestSyncService.start();
+
   // Start polling all active services
   pollingService.startAll();
 
@@ -234,6 +239,9 @@ async function start() {
 
     // Stop data retention scheduler
     retentionService.stop();
+
+    // Stop manifest sync service (wait for in-progress syncs before stopping polling)
+    await manifestSyncService.shutdown();
 
     await pollingService.shutdown();
 

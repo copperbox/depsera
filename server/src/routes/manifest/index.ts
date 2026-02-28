@@ -146,8 +146,8 @@ function saveManifestConfig(req: Request, res: Response): void {
 
       auditFromRequest(
         req,
-        'manifest_config.updated' as any,
-        'team' as any,
+        'manifest_config.updated',
+        'team',
         teamId,
         { manifest_url: manifestUrl },
       );
@@ -162,8 +162,8 @@ function saveManifestConfig(req: Request, res: Response): void {
 
       auditFromRequest(
         req,
-        'manifest_config.created' as any,
-        'team' as any,
+        'manifest_config.created',
+        'team',
         teamId,
         { manifest_url: manifestUrl },
       );
@@ -184,8 +184,8 @@ function deleteManifestConfig(req: Request, res: Response): void {
 
     auditFromRequest(
       req,
-      'manifest_config.deleted' as any,
-      'team' as any,
+      'manifest_config.deleted',
+      'team',
       teamId,
     );
 

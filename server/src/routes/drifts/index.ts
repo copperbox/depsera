@@ -276,8 +276,8 @@ function acceptDrift(req: Request, res: Response): void {
     // Audit log
     auditFromRequest(
       req,
-      'drift.accepted' as any,
-      'service' as any,
+      'drift.accepted',
+      'service',
       flag.service_id,
       {
         drift_id: driftId,
@@ -316,8 +316,8 @@ function dismissDrift(req: Request, res: Response): void {
 
     auditFromRequest(
       req,
-      'drift.dismissed' as any,
-      'service' as any,
+      'drift.dismissed',
+      'service',
       flag.service_id,
       { drift_id: driftId, drift_type: flag.drift_type },
     );
@@ -347,8 +347,8 @@ function reopenDrift(req: Request, res: Response): void {
 
     auditFromRequest(
       req,
-      'drift.reopened' as any,
-      'service' as any,
+      'drift.reopened',
+      'service',
       flag.service_id,
       { drift_id: driftId, drift_type: flag.drift_type },
     );
@@ -444,8 +444,8 @@ function bulkAccept(req: Request, res: Response): void {
 
     auditFromRequest(
       req,
-      'drift.bulk_accepted' as any,
-      'team' as any,
+      'drift.bulk_accepted',
+      'team',
       teamId,
       { flag_count: flagIds.length, succeeded: result.succeeded, failed: result.failed },
     );
@@ -494,8 +494,8 @@ function bulkDismiss(req: Request, res: Response): void {
 
     auditFromRequest(
       req,
-      'drift.bulk_dismissed' as any,
-      'team' as any,
+      'drift.bulk_dismissed',
+      'team',
       teamId,
       { flag_count: flagIds.length, succeeded: result.succeeded, failed: result.failed },
     );

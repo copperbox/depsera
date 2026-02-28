@@ -980,8 +980,8 @@ export class ManifestSyncService extends EventEmitter {
     try {
       logAuditEvent({
         userId: triggeredBy ?? 'system',
-        action: 'manifest_sync' as any,
-        resourceType: 'team' as any,
+        action: 'manifest_sync',
+        resourceType: 'team',
         resourceId: teamId,
         details: {
           trigger_type: triggerType,
