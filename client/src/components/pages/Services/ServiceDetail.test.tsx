@@ -287,6 +287,18 @@ describe('ServiceDetail', () => {
     });
   });
 
+  it('renders View in Graph link with isolation URL', async () => {
+    setupDefaultMocks();
+
+    renderServiceDetail('s1');
+
+    await waitFor(() => {
+      const link = screen.getByText('View in Graph');
+      expect(link).toBeInTheDocument();
+      expect(link.closest('a')).toHaveAttribute('href', '/graph?isolateService=s1');
+    });
+  });
+
   it('shows admin actions for admin users', async () => {
     setupDefaultMocks();
 
