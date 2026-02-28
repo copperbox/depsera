@@ -44,7 +44,7 @@ export function listExternalServices(req: Request, res: Response): void {
     // Format with health data (same pattern as GET /api/services)
     const result = rows.map((row) => {
       const dependencies = stores.dependencies.findByServiceId(row.id);
-      const resolvedDeps = resolveDependencyOverridesWithCanonical(dependencies, canonicalOverrides);
+      const resolvedDeps = resolveDependencyOverridesWithCanonical(dependencies, canonicalOverrides, row.team_id);
       const dependentReports = getDependentReports(row.id);
       return formatServiceDetail(row, resolvedDeps, dependentReports);
     });

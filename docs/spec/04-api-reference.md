@@ -445,31 +445,35 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 
 ## 4.12 Canonical Overrides
 
-**[Implemented]** (DPS-14b)
+**[Implemented]** (DPS-14b, DPS-52)
 
-Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Merge hierarchy: instance override > canonical override > polled data.
+Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Supports both global and team-scoped overrides. Merge hierarchy (4-tier): instance override > team canonical override > global canonical override > polled data.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. |
-| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Returns 404 if not found. |
-| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Creates or updates. |
-| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Returns 204. |
+| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. Optional `?team_id=` to filter by team. |
+| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Optional `?team_id=` for team-scoped lookup. Returns 404 if not found. |
+| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Optional `team_id` in body for team-scoped override. |
+| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Optional `?team_id=` for team-scoped deletion. Returns 204. |
 
-**Permissions (mutations):** Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+**Permissions (mutations):**
+- **Global overrides** (no `team_id`): Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+- **Team-scoped overrides** (with `team_id`): Admin OR team lead of the specified team. Checked via `AuthorizationService.checkTeamLeadAccess()`.
 
 **PUT /api/canonical-overrides/:canonicalName request:**
 
 ```json
 {
   "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
-  "impact_override": "Critical — all downstream services depend on this"
+  "impact_override": "Critical — all downstream services depend on this",
+  "team_id": "optional-team-uuid"
 }
 ```
 
 - `contact_override`: object or `null` (setting to `null` clears the override). Stored as JSON string.
 - `impact_override`: string or `null` (setting to `null` clears the override). Stored as plain text.
-- At least one field must be provided (400 otherwise).
+- `team_id`: string (optional). When provided, creates/updates a team-scoped override. When omitted, creates/updates a global override.
+- At least one of `contact_override` or `impact_override` must be provided (400 otherwise).
 
 **PUT /api/canonical-overrides/:canonicalName response:**
 
@@ -477,21 +481,23 @@ Manage canonical-level dependency overrides that apply as defaults across all se
 {
   "id": "uuid",
   "canonical_name": "PostgreSQL",
+  "team_id": null,
   "contact_override": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
   "impact_override": "Critical — all downstream services depend on this",
+  "manifest_managed": 0,
   "created_at": "2026-02-24T10:00:00.000Z",
   "updated_at": "2026-02-24T10:00:00.000Z",
   "updated_by": "user-uuid"
 }
 ```
 
-**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`).
+**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`). Audit detail includes `team_id` when applicable.
 
 ## 4.13 Per-Instance Dependency Overrides
 
 **[Implemented]** (DPS-15b)
 
-Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the merge hierarchy: instance override > canonical override > polled data.
+Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the 4-tier merge hierarchy: instance override > team canonical override > global canonical override > polled data.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|

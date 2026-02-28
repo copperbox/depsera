@@ -7,18 +7,31 @@ import { sendErrorResponse } from '../../utils/errors';
 export function deleteCanonicalOverride(req: Request, res: Response): void {
   try {
     const { canonicalName } = req.params;
+    const { team_id } = req.query;
+    const teamId = typeof team_id === 'string' ? team_id : undefined;
 
-    // Check permissions: admin or team lead of a team with a service reporting this canonical dep
-    const authResult = AuthorizationService.checkCanonicalOverrideAccess(
-      req.user!,
-      canonicalName,
-    );
-    if (!authResult.authorized) {
-      res.status(authResult.statusCode!).json({ error: authResult.error });
-      return;
+    // Permission check: team-scoped requires team lead of that team; global uses existing check
+    if (teamId) {
+      const authResult = AuthorizationService.checkTeamLeadAccess(req.user!, teamId);
+      if (!authResult.authorized) {
+        res.status(authResult.statusCode!).json({ error: authResult.error });
+        return;
+      }
+    } else {
+      const authResult = AuthorizationService.checkCanonicalOverrideAccess(
+        req.user!,
+        canonicalName,
+      );
+      if (!authResult.authorized) {
+        res.status(authResult.statusCode!).json({ error: authResult.error });
+        return;
+      }
     }
 
-    const deleted = getStores().canonicalOverrides.delete(canonicalName);
+    const stores = getStores();
+    const deleted = teamId
+      ? stores.canonicalOverrides.deleteByTeam(canonicalName, teamId)
+      : stores.canonicalOverrides.delete(canonicalName);
 
     if (!deleted) {
       res.status(404).json({ error: 'Canonical override not found' });
@@ -27,6 +40,7 @@ export function deleteCanonicalOverride(req: Request, res: Response): void {
 
     auditFromRequest(req, 'canonical_override.deleted', 'canonical_override', canonicalName, {
       canonical_name: canonicalName,
+      team_id: teamId ?? null,
     });
 
     res.status(204).send();

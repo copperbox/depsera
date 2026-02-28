@@ -52,7 +52,7 @@ export function listServices(req: Request, res: Response): void {
     // Format each service with dependencies (including resolved overrides) and dependent reports
     const servicesWithDetails = rows.map((row) => {
       const dependencies = stores.dependencies.findByServiceId(row.id);
-      const resolvedDeps = resolveDependencyOverridesWithCanonical(dependencies, canonicalOverrides);
+      const resolvedDeps = resolveDependencyOverridesWithCanonical(dependencies, canonicalOverrides, row.team_id);
       const dependentReports = getDependentReports(row.id);
       return formatServiceDetail(row, resolvedDeps, dependentReports);
     });

@@ -106,7 +106,7 @@ count(options?: DependencyListOptions): number
 
 `DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
 
-`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides()` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses.
+`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides(dependencies, teamId?)` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses. Uses a 4-tier override hierarchy: instance override > team canonical override > global canonical override > polled data. When `teamId` is provided, team-scoped overrides take precedence over global ones.
 
 ### IAssociationStore
 ```typescript
@@ -176,15 +176,28 @@ upsertMany(entries: Array<{ key: string; value: string | null }>, updatedBy: str
 delete(key: string): boolean
 ```
 
-### ICanonicalOverrideStore
+### ICanonicalOverrideStore **[Updated for team-scoping]**
 ```typescript
-findAll(): DependencyCanonicalOverride[]
+findAll(teamId?: string): DependencyCanonicalOverride[]
 findByCanonicalName(canonicalName: string): DependencyCanonicalOverride | undefined
+findByTeamAndCanonicalName(teamId: string, canonicalName: string): DependencyCanonicalOverride | undefined
+findForHierarchy(canonicalName: string, teamId?: string): DependencyCanonicalOverride | undefined
 upsert(input: CanonicalOverrideUpsertInput): DependencyCanonicalOverride
 delete(canonicalName: string): boolean
+deleteByTeam(canonicalName: string, teamId: string): boolean
 ```
 
-`CanonicalOverrideUpsertInput`: `{ canonical_name: string; contact_override?: string | null; impact_override?: string | null; updated_by: string }`. Upsert uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` to update override values and audit fields while preserving the original `created_at`.
+`CanonicalOverrideUpsertInput`: `{ canonical_name: string; team_id?: string | null; contact_override?: string | null; impact_override?: string | null; manifest_managed?: number; updated_by: string }`. When `team_id` is provided, upserts against the `(team_id, canonical_name) WHERE team_id IS NOT NULL` partial unique index. When `team_id` is null/omitted, upserts against the `(canonical_name) WHERE team_id IS NULL` global index. Preserves `created_at` on conflict.
+
+`findAll(teamId?)`: Without argument returns all overrides (global + team-scoped). With `teamId` filters to only that team's overrides.
+
+`findByCanonicalName`: Returns only global overrides (where `team_id IS NULL`).
+
+`findByTeamAndCanonicalName`: Returns only the team-scoped override for a specific team.
+
+`findForHierarchy(canonicalName, teamId?)`: Resolves the best override using the hierarchy: team-scoped first, then global fallback. Returns `undefined` if neither exists.
+
+`deleteByTeam`: Deletes a team-scoped override without affecting global overrides.
 
 ### IStatusChangeEventStore
 ```typescript

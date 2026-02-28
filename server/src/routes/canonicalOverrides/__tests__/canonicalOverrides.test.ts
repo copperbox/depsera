@@ -149,14 +149,25 @@ describe('Canonical Overrides API', () => {
 
       CREATE TABLE IF NOT EXISTS dependency_canonical_overrides (
         id TEXT PRIMARY KEY,
-        canonical_name TEXT NOT NULL UNIQUE,
+        canonical_name TEXT NOT NULL,
+        team_id TEXT,
         contact_override TEXT,
         impact_override TEXT,
+        manifest_managed INTEGER DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_by TEXT,
+        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
         FOREIGN KEY (updated_by) REFERENCES users(id)
       );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_overrides_team_scoped
+        ON dependency_canonical_overrides(team_id, canonical_name)
+        WHERE team_id IS NOT NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_overrides_global
+        ON dependency_canonical_overrides(canonical_name)
+        WHERE team_id IS NULL;
 
       -- Seed data
       INSERT INTO users (id, email, name, role) VALUES ('admin-user-id', 'admin@test.com', 'Admin User', 'admin');
