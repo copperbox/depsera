@@ -22,6 +22,7 @@
 | 12 | [12-planned-features.md](./12-planned-features.md) | Security hardening, team-scoped access, admin settings, data retention, custom schema, alerting, charts, local auth, deployment, Docker | planned, roadmap, 1.0, security hardening, team-scoped, admin settings, retention, schema mapping, alerts, charts, Docker, deployment |
 | 13 | [13-store-layer.md](./13-store-layer.md) | StoreRegistry, all store interfaces and method signatures | stores, StoreRegistry, interfaces, IServiceStore, ITeamStore, IUserStore, IDependencyStore, IAssociationStore |
 | 14 | [14-isolated-tree-view.md](./14-isolated-tree-view.md) | Isolated dependency tree view, graph isolation, context menu, deep linking | graph, isolation, isolate, tree view, context menu, deep linking, filter |
+| 15 | [15-manifest-sync.md](./15-manifest-sync.md) | ManifestSyncService orchestrator, sync pipeline, drift detection, scheduling, concurrency, shutdown | manifest, sync, drift, ManifestSyncService, scheduling, concurrency, polling integration, audit |
 
 ## Cross-Reference Guide
 
@@ -36,4 +37,5 @@ When working on a task, use these mappings to find the right sections:
 - **Frontend component changes** → 10 (Client Architecture) + 04 (API Reference)
 - **Configuration/env var changes** → 11 (Configuration)
 - **Schema mapping / custom health endpoints** → 12 (Planned Features §12.5) + 05 (Health Polling)
+- **Manifest sync / drift detection** → 15 (Manifest Sync) + 13 (Store Layer) + 08 (SSRF)
 - **Deployment / Docker** → 12 (Planned Features §12.9) + 11 (Configuration)
