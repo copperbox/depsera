@@ -385,7 +385,7 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
 }
 ```
 
-**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`
+**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`, `manifest_sync`, `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted`, `drift.detected`, `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.resolved`, `drift.bulk_accepted`, `drift.bulk_dismissed`
 
 ## 4.11 Alerts
 

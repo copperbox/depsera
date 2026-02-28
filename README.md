@@ -277,7 +277,8 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 |-------|-------------|
 | `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
-| `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
+| `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, and history |
+| `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
 | `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
@@ -302,6 +303,8 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
+| Manifest | `GET/PUT/DELETE /api/teams/:id/manifest`, `POST /:id/manifest/sync`, `GET /:id/manifest/sync-history`, `POST /api/manifest/validate` |
+| Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
 
 ## Security
@@ -330,6 +333,7 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 | [Installation Guide](docs/installation.md) | Docker, Docker Compose, bare Node.js, reverse proxy, backups |
 | [Admin Guide](docs/admin-guide.md) | First-run setup, user/team management, alerts, settings, troubleshooting |
 | [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |
+| [Manifest Schema Reference](docs/manifest-schema.md) | Full manifest JSON schema, validation rules, sync policies, and example manifests |
 | [Health Endpoint Spec](docs/health-endpoint-spec.md) | Proactive-deps format, custom schema mapping, examples (Spring Boot, ASP.NET) |
 | [Testing with Keycloak](docs/testing-with-keycloak.md) | Local Keycloak OIDC testing with Docker Compose |
 | [Testing with Auth0](docs/testing-with-auth0.md) | OIDC testing with Auth0 (free tier) |

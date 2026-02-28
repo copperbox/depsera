@@ -37,5 +37,5 @@ When working on a task, use these mappings to find the right sections:
 - **Frontend component changes** → 10 (Client Architecture) + 04 (API Reference)
 - **Configuration/env var changes** → 11 (Configuration)
 - **Schema mapping / custom health endpoints** → 12 (Planned Features §12.5) + 05 (Health Polling)
-- **Manifest sync / drift detection** → 15 (Manifest Sync) + 13 (Store Layer) + 08 (SSRF)
+- **Manifest sync / drift detection** → 15 (Manifest Sync) + 13 (Store Layer) + 08 (SSRF) + [Manifest Schema Reference](../manifest-schema.md)
 - **Deployment / Docker** → 12 (Planned Features §12.9) + 11 (Configuration)
