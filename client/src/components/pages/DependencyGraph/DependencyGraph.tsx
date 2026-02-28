@@ -7,6 +7,7 @@ import {
   MiniMap,
   Background,
   useOnSelectionChange,
+  useReactFlow,
   type EdgeMouseHandler,
   type NodeMouseHandler,
   BackgroundVariant,
@@ -123,6 +124,21 @@ function DependencyGraphInner() {
     }
     setSearchParams(params, { replace: true });
   }, [isolationTarget, setSearchParams]);
+
+  // Re-center viewport when isolation changes (nodes re-layout to new positions)
+  const { fitView } = useReactFlow();
+  const skipFitViewRef = useRef(true);
+  useEffect(() => {
+    // Skip initial render — ReactFlow's fitView prop handles that
+    if (skipFitViewRef.current) {
+      skipFitViewRef.current = false;
+      return;
+    }
+    // Wait for ReactFlow to process the new nodes before fitting
+    requestAnimationFrame(() => {
+      fitView({ padding: 0.2, duration: 300 });
+    });
+  }, [isolationTarget, fitView]);
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
