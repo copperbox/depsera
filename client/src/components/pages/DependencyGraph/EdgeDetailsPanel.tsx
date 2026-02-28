@@ -16,6 +16,7 @@ interface EdgeDetailsPanelProps {
   sourceNode?: AppNode;
   targetNode?: AppNode;
   onClose: () => void;
+  onIsolate?: (dependencyId: string) => void;
 }
 
 const healthStatusLabels: Record<HealthStatus, string> = {
@@ -48,7 +49,7 @@ function parseContact(contactJson: string | null | undefined): Record<string, st
   }
 }
 
-function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: EdgeDetailsPanelProps) {
+function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIsolate }: EdgeDetailsPanelProps) {
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [currentView, setCurrentView] = useState<PanelView>('details');
 
@@ -276,16 +277,27 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose }: Ed
         )}
       </div>
 
-      {targetNode && (
-        <div className={styles.actions}>
+      <div className={styles.actions}>
+        {onIsolate && data.dependencyId && (
+          <button
+            className={styles.isolateButton}
+            onClick={() => onIsolate(data.dependencyId!)}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+            Isolate tree
+          </button>
+        )}
+        {targetNode && (
           <Link to={`/services/${targetNode.id}`} className={styles.viewDetailsButton}>
             View Service Details
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 12l4-4-4-4" />
             </svg>
           </Link>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -30,7 +30,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
 **Visualization**
-- Interactive dependency graph (React Flow) with team filtering, search, layout controls, and automatic high-latency detection
+- Interactive dependency graph (React Flow) with team filtering, search, layout controls, automatic high-latency detection, and isolated tree view
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
 - Edge selection shows per-dependency latency chart, contact info, impact, and error history
 - Node selection shows aggregate latency chart across all dependents and merged contact info
@@ -269,7 +269,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
-| `/graph` | Interactive dependency graph with team filter, search, layout controls, and automatic high-latency detection |
+| `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
 | `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |

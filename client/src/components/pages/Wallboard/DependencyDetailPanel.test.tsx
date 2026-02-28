@@ -167,7 +167,7 @@ describe('DependencyDetailPanel', () => {
 
     const link = screen.getByText('View in Graph');
     expect(link).toBeInTheDocument();
-    expect(link.closest('a')).toHaveAttribute('href', '/graph?dependency=dep-1');
+    expect(link.closest('a')).toHaveAttribute('href', '/graph?isolateDep=dep-1');
   });
 
   it('renders View Linked Service link when linked_service exists', () => {
