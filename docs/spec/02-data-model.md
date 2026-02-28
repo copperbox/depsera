@@ -481,6 +481,25 @@ Contains all types specific to the manifest sync engine:
 - `DependencyCanonicalOverride`: added `team_id: string | null`, `manifest_managed: number`
 - `DependencyAssociation`: added `manifest_managed: number`
 
+### ManifestValidator **[Implemented]**
+
+`server/src/services/manifest/ManifestValidator.ts` — Stateless validation of raw manifest JSON before the sync engine processes it. Returns a structured `ManifestValidationResult` with all errors and warnings.
+
+**Public API:** `validateManifest(data: unknown): ManifestValidationResult`
+
+**Validation levels:**
+
+1. **Structure** — `version` must be present and equal `1`; `services` must be present and an array; unknown top-level keys produce warnings
+2. **Per-service entry** — Required fields: `key`, `name`, `health_endpoint`. `key` format: regex `^[a-z0-9][a-z0-9_-]*$`, max 128 chars. URL fields validated via `isValidUrl()` + SSRF hostname check (warning, not error). `poll_interval_ms` bounds: 5000–3600000. `schema_config` validated via `validateSchemaConfig()`. Unknown entry-level fields produce warnings.
+3. **Optional sections** — Aliases: `alias` + `canonical_name` required, duplicate alias → error. Canonical overrides: `canonical_name` required, at least one of `contact` (object) or `impact` (string), duplicate → error. Associations: `service_key` + `dependency_name` + `association_type` required, valid enum, `service_key` must reference services array, duplicate tuples → error.
+4. **Cross-reference** — Duplicate `key` values → error. Duplicate `name` values → warning.
+
+**Design decisions:**
+- SSRF checks at validation time use `validateUrlHostname()` (sync, no DNS) and produce warnings to allow validation to complete
+- Each section is validated independently — failure in one does not block others
+- Empty `services` array is valid (not an error)
+- Reuses existing `validateSchemaConfig()` and `VALID_ASSOCIATION_TYPES` from `server/src/utils/validation.ts`
+
 ## Migration History
 
 | ID | Name | Changes |
