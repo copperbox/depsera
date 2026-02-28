@@ -22,6 +22,8 @@ import * as migration020 from './migrations/020_add_service_poll_history';
 import * as migration021 from './migrations/021_add_performance_indexes';
 import * as migration022 from './migrations/022_add_poll_warnings';
 import * as migration023 from './migrations/023_add_skipped_column';
+import * as migration024 from './migrations/024_add_manifest_sync';
+import * as migration025 from './migrations/025_add_drift_flags';
 
 interface Migration {
   id: string;
@@ -168,6 +170,18 @@ const migrations: Migration[] = [
     name: 'add_skipped_column',
     up: migration023.up,
     down: migration023.down
+  },
+  {
+    id: '024',
+    name: 'add_manifest_sync',
+    up: migration024.up,
+    down: migration024.down
+  },
+  {
+    id: '025',
+    name: 'add_drift_flags',
+    up: migration025.up,
+    down: migration025.down
   }
 ];
 

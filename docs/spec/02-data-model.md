@@ -330,6 +330,87 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 
 Nullable `TEXT` column added to `users` table for local auth mode. Stores bcryptjs hashes (12 rounds). Only populated when `LOCAL_AUTH=true`.
 
+### team_manifest_config **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, UNIQUE, FK → teams.id CASCADE | |
+| manifest_url | TEXT | NOT NULL | |
+| is_enabled | INTEGER | NOT NULL | 1 |
+| sync_policy | TEXT | | NULL |
+| last_sync_at | TEXT | | NULL |
+| last_sync_status | TEXT | | NULL |
+| last_sync_error | TEXT | | NULL |
+| last_sync_summary | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+
+Per-team manifest configuration. One manifest URL per team. `sync_policy` stored as JSON string. `last_sync_*` columns track most recent sync execution state.
+
+### manifest_sync_history **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id | |
+| trigger_type | TEXT | NOT NULL | |
+| triggered_by | TEXT | FK → users.id | NULL |
+| manifest_url | TEXT | NOT NULL | |
+| status | TEXT | NOT NULL | |
+| summary | TEXT | | NULL |
+| errors | TEXT | | NULL |
+| warnings | TEXT | | NULL |
+| duration_ms | INTEGER | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+Records each sync execution. `trigger_type` is `manual` or `scheduled`. `triggered_by` is NULL for scheduled syncs. `summary`, `errors`, `warnings` are JSON strings.
+
+### drift_flags **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| drift_type | TEXT | NOT NULL | |
+| field_name | TEXT | | NULL |
+| manifest_value | TEXT | | NULL |
+| current_value | TEXT | | NULL |
+| status | TEXT | NOT NULL | |
+| first_detected_at | TEXT | NOT NULL | |
+| last_detected_at | TEXT | NOT NULL | |
+| resolved_at | TEXT | | NULL |
+| resolved_by | TEXT | FK → users.id SET NULL | NULL |
+| sync_history_id | TEXT | FK → manifest_sync_history.id SET NULL | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+**Indexes:** `idx_drift_flags_team_id`, `idx_drift_flags_service_id`, `idx_drift_flags_status`, `idx_drift_flags_team_status`
+
+Tracks drift between manifest-defined values and local state. `drift_type` is `field_change` or `service_removal`. `status` is `pending`, `dismissed`, `accepted`, or `resolved`. `resolved_by` and `resolved_at` set when a user acts on the flag.
+
+### Manifest columns on existing tables **[Implemented]**
+
+**services** — Added columns:
+- `manifest_key TEXT` (nullable) — unique key from manifest for matching
+- `manifest_managed INTEGER DEFAULT 0` — whether this service is managed by a manifest
+- `manifest_last_synced_values TEXT` (nullable) — JSON snapshot of last synced field values for drift detection
+- Partial unique index `idx_services_team_manifest_key` on `(team_id, manifest_key) WHERE manifest_key IS NOT NULL`
+
+**dependency_aliases** — Added column:
+- `manifest_team_id TEXT` (nullable, FK → teams.id ON DELETE SET NULL) — team-scoping for manifest-managed aliases
+
+**dependency_canonical_overrides** — Rebuilt for team-scoping:
+- `team_id TEXT` (nullable, FK → teams.id CASCADE) — NULL for global overrides, non-NULL for team-scoped
+- `manifest_managed INTEGER DEFAULT 0` — whether this override is managed by a manifest
+- Removed single UNIQUE on `canonical_name`, replaced with partial unique indexes:
+  - `idx_canonical_overrides_team_scoped` on `(team_id, canonical_name) WHERE team_id IS NOT NULL`
+  - `idx_canonical_overrides_global` on `(canonical_name) WHERE team_id IS NULL`
+- Existing data migrated with `team_id = NULL`
+
+**dependency_associations** — Added column:
+- `manifest_managed INTEGER DEFAULT 0` — whether this association is managed by a manifest
+
 ## Migration History
 
 | ID | Name | Changes |
@@ -357,5 +438,7 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 021 | add_performance_indexes | Adds performance indexes for common query patterns |
 | 022 | add_poll_warnings | Adds nullable `poll_warnings TEXT` column to services for storing schema mapping warnings as JSON array |
 | 023 | add_skipped_column | Adds `skipped INTEGER NOT NULL DEFAULT 0` column to dependencies |
+| 024 | add_manifest_sync | Creates `team_manifest_config` and `manifest_sync_history` tables; adds `manifest_key`, `manifest_managed`, `manifest_last_synced_values` to services; adds `manifest_team_id` to dependency_aliases; rebuilds `dependency_canonical_overrides` with `team_id` and `manifest_managed`; adds `manifest_managed` to dependency_associations |
+| 025 | add_drift_flags | Creates `drift_flags` table with indexes for tracking manifest drift |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
