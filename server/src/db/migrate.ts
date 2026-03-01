@@ -25,6 +25,7 @@ import * as migration023 from './migrations/023_add_skipped_column';
 import * as migration024 from './migrations/024_add_manifest_sync';
 import * as migration025 from './migrations/025_add_drift_flags';
 import * as migration026 from './migrations/026_remove_auto_suggestions';
+import * as migration027 from './migrations/027_add_team_key';
 
 interface Migration {
   id: string;
@@ -189,6 +190,12 @@ const migrations: Migration[] = [
     name: 'remove_auto_suggestions',
     up: migration026.up,
     down: migration026.down
+  },
+  {
+    id: '027',
+    name: 'add_team_key',
+    up: migration027.up,
+    down: migration027.down
   }
 ];
 

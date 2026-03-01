@@ -55,6 +55,7 @@ describe('GET /api/services/catalog', () => {
       CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -137,8 +138,8 @@ describe('GET /api/services/catalog', () => {
     // Create two teams
     teamAId = randomUUID();
     teamBId = randomUUID();
-    testDb.prepare('INSERT INTO teams (id, name, description) VALUES (?, ?, ?)').run(teamAId, 'Team Alpha', 'First team');
-    testDb.prepare('INSERT INTO teams (id, name, description) VALUES (?, ?, ?)').run(teamBId, 'Team Beta', 'Second team');
+    testDb.prepare('INSERT INTO teams (id, name, key, description) VALUES (?, ?, ?, ?)').run(teamAId, 'Team Alpha', 'team-alpha', 'First team');
+    testDb.prepare('INSERT INTO teams (id, name, key, description) VALUES (?, ?, ?, ?)').run(teamBId, 'Team Beta', 'team-beta', 'Second team');
   });
 
   beforeEach(() => {
@@ -202,6 +203,7 @@ describe('GET /api/services/catalog', () => {
     expect(entry).toHaveProperty('is_active', 1);
     expect(entry).toHaveProperty('team_id', teamAId);
     expect(entry).toHaveProperty('team_name', 'Team Alpha');
+    expect(entry).toHaveProperty('team_key', 'team-alpha');
 
     // Ensure sensitive fields are NOT present
     expect(entry).not.toHaveProperty('health_endpoint');

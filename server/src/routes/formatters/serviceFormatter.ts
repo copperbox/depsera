@@ -146,6 +146,7 @@ export function formatUpdatedService(serviceId: string): FormattedServiceMutatio
   const team: Team = {
     id: service.team_id,
     name: service.team_name,
+    key: service.team_key ?? null,
     description: service.team_description ?? null,
     created_at: service.team_created_at ?? service.created_at,
     updated_at: service.team_updated_at ?? service.updated_at,

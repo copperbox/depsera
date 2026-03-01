@@ -521,6 +521,40 @@ curl -X DELETE http://localhost:3001/api/external-services/<service-id> \
 
 ---
 
+### `GET /api/services/catalog`
+
+List all services with their team and manifest key information. Used for discovering namespaced keys when authoring manifest associations. Requires authentication.
+
+| Query Param | Type | Description |
+|-------------|------|-------------|
+| `search` | string | Optional. Filter by service name, manifest key, or team key |
+| `team_id` | uuid | Optional. Filter by team |
+
+```bash
+curl http://localhost:3001/api/services/catalog -b cookies.txt
+```
+
+**Response (200):** Array of catalog entry objects.
+
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Payment Service",
+    "manifest_key": "payment-api",
+    "description": "Handles payment processing",
+    "is_active": 1,
+    "team_id": "uuid",
+    "team_name": "Platform",
+    "team_key": "platform"
+  }
+]
+```
+
+The `team_key` field enables constructing the namespaced `team_key/manifest_key` format used in manifest `linked_service_key` fields.
+
+---
+
 ## Teams
 
 ### `GET /api/teams`
@@ -538,6 +572,7 @@ curl http://localhost:3001/api/teams -b cookies.txt
   {
     "id": "uuid",
     "name": "Platform",
+    "key": "platform",
     "description": "Platform infrastructure team",
     "member_count": 5,
     "service_count": 3,
@@ -562,6 +597,7 @@ curl http://localhost:3001/api/teams/<team-id> -b cookies.txt
 {
   "id": "uuid",
   "name": "Platform",
+  "key": "platform",
   "description": "Platform infrastructure team",
   "created_at": "2024-01-10T08:00:00.000Z",
   "members": [
@@ -588,7 +624,7 @@ curl -X POST http://localhost:3001/api/teams \
   -H "Content-Type: application/json" \
   -H "X-CSRF-Token: <token>" \
   -b cookies.txt \
-  -d '{ "name": "Platform", "description": "Platform infrastructure team" }'
+  -d '{ "name": "Platform", "key": "platform", "description": "Platform infrastructure team" }'
 ```
 
 **Request body:**
@@ -596,6 +632,7 @@ curl -X POST http://localhost:3001/api/teams \
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Team name (must be unique) |
+| `key` | string | Yes | URL-friendly team identifier. Must match `^[a-z0-9][a-z0-9_-]*$`, max 128 chars. Must be unique. |
 | `description` | string | No | Team description |
 
 **Response (201):** The created team object.
@@ -604,6 +641,7 @@ curl -X POST http://localhost:3001/api/teams \
 
 | Status | Reason |
 |--------|--------|
+| `400` | Validation error — missing or invalid key |
 | `409` | Team name already exists |
 
 ---

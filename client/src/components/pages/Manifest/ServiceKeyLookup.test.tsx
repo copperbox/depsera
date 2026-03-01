@@ -21,6 +21,7 @@ const mockCatalog = [
     is_active: 1,
     team_id: 't1',
     team_name: 'Team Alpha',
+    team_key: 'team-alpha',
   },
   {
     id: 's2',
@@ -30,6 +31,7 @@ const mockCatalog = [
     is_active: 1,
     team_id: 't2',
     team_name: 'Team Beta',
+    team_key: 'team-beta',
   },
   {
     id: 's3',
@@ -39,6 +41,7 @@ const mockCatalog = [
     is_active: 1,
     team_id: 't1',
     team_name: 'Team Alpha',
+    team_key: 'team-alpha',
   },
 ];
 
@@ -73,15 +76,15 @@ describe('ServiceKeyLookup', () => {
     expect(mockFetch).toHaveBeenCalledWith('/api/services/catalog', { credentials: 'include' });
   });
 
-  it('should show manifest keys in code elements', async () => {
+  it('should show namespaced manifest keys in code elements', async () => {
     render(<ServiceKeyLookup />);
     fireEvent.click(screen.getByText('Service Key Lookup'));
 
     await waitFor(() => {
-      expect(screen.getByText('auth-svc')).toBeInTheDocument();
+      expect(screen.getByText('team-alpha/auth-svc')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('pay-svc')).toBeInTheDocument();
+    expect(screen.getByText('team-beta/pay-svc')).toBeInTheDocument();
   });
 
   it('should show team names', async () => {
@@ -166,11 +169,27 @@ describe('ServiceKeyLookup', () => {
     fireEvent.click(screen.getByText('Service Key Lookup'));
 
     await waitFor(() => {
-      expect(screen.getByText('auth-svc')).toBeInTheDocument();
+      expect(screen.getByText('team-alpha/auth-svc')).toBeInTheDocument();
     });
 
     const copyButtons = screen.getAllByTitle('Copy key');
     expect(copyButtons).toHaveLength(2); // Two entries with keys
+  });
+
+  it('should copy namespaced key format', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(<ServiceKeyLookup />);
+    fireEvent.click(screen.getByText('Service Key Lookup'));
+
+    await waitFor(() => {
+      expect(screen.getByText('team-alpha/auth-svc')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Copy team-alpha/auth-svc'));
+
+    expect(writeText).toHaveBeenCalledWith('team-alpha/auth-svc');
   });
 
   it('should not re-fetch data when collapsed and re-expanded', async () => {

@@ -10,13 +10,14 @@ import {
   VALID_ASSOCIATION_TYPES,
   MIN_POLL_INTERVAL_MS,
   MAX_POLL_INTERVAL_MS,
+  TEAM_KEY_REGEX,
+  MAX_KEY_LENGTH,
 } from '../../utils/validation';
 import { validateUrlHostname } from '../../utils/ssrf';
 
 // --- Constants ---
 
-const MANIFEST_KEY_REGEX = /^[a-z0-9][a-z0-9_-]*$/;
-const MAX_KEY_LENGTH = 128;
+const MANIFEST_KEY_REGEX = TEAM_KEY_REGEX;
 
 const KNOWN_TOP_LEVEL_KEYS = new Set([
   'version',
@@ -402,9 +403,38 @@ function validateAssociations(
       continue;
     }
 
-    // Required: linked_service_key
+    // Required: linked_service_key (must be in "team_key/service_key" format)
     if (!isNonEmptyString(assoc.linked_service_key)) {
       addError(errors, `${path}.linked_service_key`, 'linked_service_key is required and must be a non-empty string');
+      continue;
+    }
+
+    // Validate namespaced format: team_key/service_key
+    const slashIndex = assoc.linked_service_key.indexOf('/');
+    if (slashIndex === -1) {
+      addError(
+        errors,
+        `${path}.linked_service_key`,
+        'linked_service_key must be in "team_key/service_key" format',
+      );
+      continue;
+    }
+    const teamKeyPart = assoc.linked_service_key.slice(0, slashIndex);
+    const serviceKeyPart = assoc.linked_service_key.slice(slashIndex + 1);
+    if (!teamKeyPart || !MANIFEST_KEY_REGEX.test(teamKeyPart)) {
+      addError(
+        errors,
+        `${path}.linked_service_key`,
+        'linked_service_key team_key portion must match ^[a-z0-9][a-z0-9_-]*$',
+      );
+      continue;
+    }
+    if (!serviceKeyPart || !MANIFEST_KEY_REGEX.test(serviceKeyPart)) {
+      addError(
+        errors,
+        `${path}.linked_service_key`,
+        'linked_service_key service_key portion must match ^[a-z0-9][a-z0-9_-]*$',
+      );
       continue;
     }
 

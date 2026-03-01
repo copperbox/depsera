@@ -10,6 +10,7 @@ export type HealthStatus =
 export interface Team {
   id: string;
   name: string;
+  key: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -162,4 +163,5 @@ export interface CatalogEntry {
   is_active: number;
   team_id: string;
   team_name: string;
+  team_key: string | null;
 }

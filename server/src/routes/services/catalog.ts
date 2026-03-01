@@ -31,15 +31,17 @@ export function listServiceCatalog(req: Request, res: Response): void {
       is_active: row.is_active,
       team_id: row.team_id,
       team_name: row.team_name,
+      team_key: row.team_key ?? null,
     }));
 
-    // In-memory text search on name and manifest_key
+    // In-memory text search on name, manifest_key, and team_key
     if (search && typeof search === 'string') {
       const term = search.toLowerCase();
       entries = entries.filter(
         (e) =>
           e.name.toLowerCase().includes(term) ||
-          (e.manifest_key && e.manifest_key.toLowerCase().includes(term)),
+          (e.manifest_key && e.manifest_key.toLowerCase().includes(term)) ||
+          (e.team_key && e.team_key.toLowerCase().includes(term)),
       );
     }
 

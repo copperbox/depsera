@@ -49,7 +49,7 @@ Typed events via `EventEmitter`:
 9. **Sync metadata** (within same transaction):
    - Aliases — team-scoped via raw DB insert (DependencyAliasStore doesn't support `manifest_team_id`)
    - Canonical overrides — team-scoped via `canonicalOverrides.upsert()`
-   - Associations — manifest-managed via raw DB for `manifest_managed` column
+   - Associations — manifest-managed via raw DB for `manifest_managed` column. `linked_service_key` uses `team_key/service_key` format for unambiguous cross-team resolution.
 10. **Polling integration** — Start/restart/stop polling for affected services
 11. **Record results** — Update config sync status, create sync history entry
 12. **Audit log** — Fire-and-forget audit event

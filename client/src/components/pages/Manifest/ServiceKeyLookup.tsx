@@ -41,9 +41,16 @@ function ServiceKeyLookup() {
     return entries.filter(
       (e) =>
         e.name.toLowerCase().includes(term) ||
-        (e.manifest_key && e.manifest_key.toLowerCase().includes(term)),
+        (e.manifest_key && e.manifest_key.toLowerCase().includes(term)) ||
+        (e.team_key && e.team_key.toLowerCase().includes(term)),
     );
   }, [entries, searchQuery]);
+
+  const getNamespacedKey = (entry: CatalogEntry): string | null => {
+    if (!entry.manifest_key) return null;
+    if (entry.team_key) return `${entry.team_key}/${entry.manifest_key}`;
+    return entry.manifest_key;
+  };
 
   const handleCopy = async (key: string, id: string) => {
     try {
@@ -148,30 +155,33 @@ function ServiceKeyLookup() {
                         <tr key={entry.id}>
                           <td>{entry.name}</td>
                           <td>
-                            {entry.manifest_key ? (
-                              <span className={styles.lookupKey}>
-                                <code>{entry.manifest_key}</code>
-                                <button
-                                  className={`${styles.lookupCopy} ${copiedId === entry.id ? styles.lookupCopied : ''}`}
-                                  onClick={() => handleCopy(entry.manifest_key!, entry.id)}
-                                  title="Copy key"
-                                  aria-label={`Copy ${entry.manifest_key}`}
-                                >
-                                  {copiedId === entry.id ? (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  ) : (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                    </svg>
-                                  )}
-                                </button>
-                              </span>
-                            ) : (
-                              <span className={styles.lookupNoKey}>-</span>
-                            )}
+                            {(() => {
+                              const nsKey = getNamespacedKey(entry);
+                              return nsKey ? (
+                                <span className={styles.lookupKey}>
+                                  <code>{nsKey}</code>
+                                  <button
+                                    className={`${styles.lookupCopy} ${copiedId === entry.id ? styles.lookupCopied : ''}`}
+                                    onClick={() => handleCopy(nsKey, entry.id)}
+                                    title="Copy key"
+                                    aria-label={`Copy ${nsKey}`}
+                                  >
+                                    {copiedId === entry.id ? (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    ) : (
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </span>
+                              ) : (
+                                <span className={styles.lookupNoKey}>-</span>
+                              );
+                            })()}
                           </td>
                           <td className={styles.lookupTeam}>{entry.team_name}</td>
                         </tr>

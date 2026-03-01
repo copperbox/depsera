@@ -26,6 +26,7 @@ export interface ITeamStore {
   // Find operations
   findById(id: string): Team | undefined;
   findByName(name: string): Team | undefined;
+  findByKey(key: string): Team | undefined;
   findAll(): Team[];
 
   // Write operations

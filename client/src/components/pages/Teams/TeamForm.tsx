@@ -55,6 +55,7 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
       } else {
         const createData: CreateTeamInput = {
           name: formData.name,
+          key: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
           description: formData.description || undefined,
         };
         await createTeam(createData);

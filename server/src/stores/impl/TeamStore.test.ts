@@ -11,6 +11,7 @@ describe('TeamStore', () => {
       CREATE TABLE teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT NOT NULL UNIQUE,
         description TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -77,21 +78,22 @@ describe('TeamStore', () => {
 
   describe('create and findById', () => {
     it('should create team with name only', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
 
       expect(team.name).toBe('Test Team');
+      expect(team.key).toBe('test-team');
       expect(team.description).toBeNull();
     });
 
     it('should create team with description', () => {
-      const team = store.create({ name: 'Test Team', description: 'A test team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team', description: 'A test team' });
 
       expect(team.name).toBe('Test Team');
       expect(team.description).toBe('A test team');
     });
 
     it('should find team by id', () => {
-      const created = store.create({ name: 'Find Me' });
+      const created = store.create({ name: 'Find Me', key: 'find-me' });
       const found = store.findById(created.id);
 
       expect(found?.name).toBe('Find Me');
@@ -105,7 +107,7 @@ describe('TeamStore', () => {
 
   describe('findByName', () => {
     it('should find team by name', () => {
-      store.create({ name: 'Unique Name' });
+      store.create({ name: 'Unique Name', key: 'unique-name' });
       const found = store.findByName('Unique Name');
 
       expect(found?.name).toBe('Unique Name');
@@ -117,11 +119,26 @@ describe('TeamStore', () => {
     });
   });
 
+  describe('findByKey', () => {
+    it('should find team by key', () => {
+      store.create({ name: 'Key Team', key: 'key-team' });
+      const found = store.findByKey('key-team');
+
+      expect(found?.key).toBe('key-team');
+      expect(found?.name).toBe('Key Team');
+    });
+
+    it('should return undefined for non-existent key', () => {
+      const found = store.findByKey('nonexistent');
+      expect(found).toBeUndefined();
+    });
+  });
+
   describe('findAll', () => {
     it('should return all teams ordered by name', () => {
-      store.create({ name: 'Zebra Team' });
-      store.create({ name: 'Alpha Team' });
-      store.create({ name: 'Beta Team' });
+      store.create({ name: 'Zebra Team', key: 'zebra-team' });
+      store.create({ name: 'Alpha Team', key: 'alpha-team' });
+      store.create({ name: 'Beta Team', key: 'beta-team' });
 
       const teams = store.findAll();
 
@@ -134,21 +151,28 @@ describe('TeamStore', () => {
 
   describe('update', () => {
     it('should update name', () => {
-      const team = store.create({ name: 'Original' });
+      const team = store.create({ name: 'Original', key: 'original' });
       const updated = store.update(team.id, { name: 'Updated' });
 
       expect(updated?.name).toBe('Updated');
     });
 
+    it('should update key', () => {
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
+      const updated = store.update(team.id, { key: 'new-key' });
+
+      expect(updated?.key).toBe('new-key');
+    });
+
     it('should update description', () => {
-      const team = store.create({ name: 'Test', description: 'Old desc' });
+      const team = store.create({ name: 'Test', key: 'test', description: 'Old desc' });
       const updated = store.update(team.id, { description: 'New desc' });
 
       expect(updated?.description).toBe('New desc');
     });
 
     it('should return existing if no updates provided', () => {
-      const team = store.create({ name: 'Test' });
+      const team = store.create({ name: 'Test', key: 'test' });
       const result = store.update(team.id, {});
 
       expect(result?.name).toBe('Test');
@@ -162,7 +186,7 @@ describe('TeamStore', () => {
 
   describe('delete', () => {
     it('should delete team and return true', () => {
-      const team = store.create({ name: 'To Delete' });
+      const team = store.create({ name: 'To Delete', key: 'to-delete' });
       const result = store.delete(team.id);
 
       expect(result).toBe(true);
@@ -177,7 +201,7 @@ describe('TeamStore', () => {
 
   describe('findMembers', () => {
     beforeEach(() => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       store.addMember(team.id, 'user-1', 'lead');
       store.addMember(team.id, 'user-2', 'member');
     });
@@ -214,7 +238,7 @@ describe('TeamStore', () => {
 
   describe('getMembership', () => {
     it('should return membership for existing member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       store.addMember(team.id, 'user-1', 'lead');
 
       const membership = store.getMembership(team.id, 'user-1');
@@ -223,7 +247,7 @@ describe('TeamStore', () => {
     });
 
     it('should return undefined for non-member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       const membership = store.getMembership(team.id, 'user-1');
 
       expect(membership).toBeUndefined();
@@ -232,8 +256,8 @@ describe('TeamStore', () => {
 
   describe('getMembershipsByUserId', () => {
     it('should return user memberships with team info', () => {
-      const team1 = store.create({ name: 'Team One' });
-      const team2 = store.create({ name: 'Team Two' });
+      const team1 = store.create({ name: 'Team One', key: 'team-one' });
+      const team2 = store.create({ name: 'Team Two', key: 'team-two' });
       store.addMember(team1.id, 'user-1', 'lead');
       store.addMember(team2.id, 'user-1', 'member');
 
@@ -252,7 +276,7 @@ describe('TeamStore', () => {
 
   describe('addMember and removeMember', () => {
     it('should add member to team', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       const member = store.addMember(team.id, 'user-1', 'member');
 
       expect(member.team_id).toBe(team.id);
@@ -261,7 +285,7 @@ describe('TeamStore', () => {
     });
 
     it('should remove member from team', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       store.addMember(team.id, 'user-1', 'member');
 
       const result = store.removeMember(team.id, 'user-1');
@@ -271,7 +295,7 @@ describe('TeamStore', () => {
     });
 
     it('should return false when removing non-existent member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       const result = store.removeMember(team.id, 'user-1');
 
       expect(result).toBe(false);
@@ -280,8 +304,8 @@ describe('TeamStore', () => {
 
   describe('removeAllMembershipsForUser', () => {
     it('should remove user from all teams', () => {
-      const team1 = store.create({ name: 'Team One' });
-      const team2 = store.create({ name: 'Team Two' });
+      const team1 = store.create({ name: 'Team One', key: 'team-one' });
+      const team2 = store.create({ name: 'Team Two', key: 'team-two' });
       store.addMember(team1.id, 'user-1', 'member');
       store.addMember(team2.id, 'user-1', 'member');
 
@@ -299,7 +323,7 @@ describe('TeamStore', () => {
 
   describe('updateMemberRole', () => {
     it('should update member role', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       store.addMember(team.id, 'user-1', 'member');
 
       const result = store.updateMemberRole(team.id, 'user-1', 'lead');
@@ -309,7 +333,7 @@ describe('TeamStore', () => {
     });
 
     it('should return false for non-existent member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       const result = store.updateMemberRole(team.id, 'user-1', 'lead');
 
       expect(result).toBe(false);
@@ -318,14 +342,14 @@ describe('TeamStore', () => {
 
   describe('isMember', () => {
     it('should return true for team member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       store.addMember(team.id, 'user-1', 'member');
 
       expect(store.isMember(team.id, 'user-1')).toBe(true);
     });
 
     it('should return false for non-member', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
 
       expect(store.isMember(team.id, 'user-1')).toBe(false);
     });
@@ -333,7 +357,7 @@ describe('TeamStore', () => {
 
   describe('exists', () => {
     it('should return true for existing team', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
       expect(store.exists(team.id)).toBe(true);
     });
 
@@ -346,8 +370,8 @@ describe('TeamStore', () => {
     it('should return count of teams', () => {
       expect(store.count()).toBe(0);
 
-      store.create({ name: 'Team 1' });
-      store.create({ name: 'Team 2' });
+      store.create({ name: 'Team 1', key: 'team-1' });
+      store.create({ name: 'Team 2', key: 'team-2' });
 
       expect(store.count()).toBe(2);
     });
@@ -355,7 +379,7 @@ describe('TeamStore', () => {
 
   describe('getMemberCount', () => {
     it('should return count of team members', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
 
       expect(store.getMemberCount(team.id)).toBe(0);
 
@@ -368,7 +392,7 @@ describe('TeamStore', () => {
 
   describe('getServiceCount', () => {
     it('should return count of team services', () => {
-      const team = store.create({ name: 'Test Team' });
+      const team = store.create({ name: 'Test Team', key: 'test-team' });
 
       expect(store.getServiceCount(team.id)).toBe(0);
 

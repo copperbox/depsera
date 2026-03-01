@@ -59,6 +59,7 @@ describe('Wallboard API', () => {
       CREATE TABLE teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        key TEXT,
         description TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))

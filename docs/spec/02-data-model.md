@@ -52,6 +52,7 @@ erDiagram
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
 | name | TEXT | NOT NULL, UNIQUE | |
+| key | TEXT | UNIQUE (partial, WHERE key IS NOT NULL) | NULL |
 | description | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
@@ -131,6 +132,7 @@ erDiagram
 | id | TEXT | PRIMARY KEY | |
 | dependency_id | TEXT | NOT NULL, FK → dependencies.id CASCADE | |
 | linked_service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| linked_service_key | TEXT | | NULL |
 | association_type | TEXT | NOT NULL, CHECK (see below) | `'other'` |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 
@@ -412,6 +414,7 @@ Tracks drift between manifest-defined values and local state. `drift_type` is `f
 
 **dependency_associations** — Added column:
 - `manifest_managed INTEGER DEFAULT 0` — whether this association is managed by a manifest
+- `linked_service_key TEXT` (nullable) — the namespaced `team_key/service_key` identifying the target service, used by manifest-authored associations
 
 ## Manifest System TypeScript Types **[Implemented]**
 
@@ -437,7 +440,7 @@ Contains all types specific to the manifest sync engine:
 - `ManifestServiceEntry`: `key`, `name`, `health_endpoint` (required); `description`, `metrics_endpoint`, `poll_interval_ms`, `schema_config` (optional)
 - `ManifestAliasEntry`: `alias`, `canonical_name`
 - `ManifestCanonicalOverrideEntry`: `canonical_name`, optional `contact`, `impact`
-- `ManifestAssociationEntry`: `service_key`, `dependency_name`, `linked_service_key`, `association_type`
+- `ManifestAssociationEntry`: `service_key`, `dependency_name`, `linked_service_key` (format: `team_key/service_key`), `association_type`
 - `ParsedManifest`: `version`, `services` (required); `aliases`, `canonical_overrides`, `associations` (optional)
 
 **Validation types:**
@@ -488,7 +491,7 @@ Contains all types specific to the manifest sync engine:
 
 1. **Structure** — `version` must be present and equal `1`; `services` must be present and an array; unknown top-level keys produce warnings
 2. **Per-service entry** — Required fields: `key`, `name`, `health_endpoint`. `key` format: regex `^[a-z0-9][a-z0-9_-]*$`, max 128 chars. URL fields validated via `isValidUrl()` + SSRF hostname check (warning, not error). `poll_interval_ms` bounds: 5000–3600000. `schema_config` validated via `validateSchemaConfig()`. Unknown entry-level fields produce warnings.
-3. **Optional sections** — Aliases: `alias` + `canonical_name` required, duplicate alias → error. Canonical overrides: `canonical_name` required, at least one of `contact` (object) or `impact` (string), duplicate → error. Associations: `service_key` + `dependency_name` + `linked_service_key` + `association_type` required, valid enum, `service_key` must reference services array, duplicate `(service_key, dependency_name, linked_service_key)` tuples → error.
+3. **Optional sections** — Aliases: `alias` + `canonical_name` required, duplicate alias → error. Canonical overrides: `canonical_name` required, at least one of `contact` (object) or `impact` (string), duplicate → error. Associations: `service_key` + `dependency_name` + `linked_service_key` + `association_type` required, valid enum, `service_key` must reference services array, `linked_service_key` must be in `team_key/service_key` format (both parts matching `^[a-z0-9][a-z0-9_-]*$`), duplicate `(service_key, dependency_name, linked_service_key)` tuples → error.
 4. **Cross-reference** — Duplicate `key` values → error. Duplicate `name` values → warning.
 
 **Design decisions:**
@@ -583,5 +586,7 @@ Contains all types specific to the manifest sync engine:
 | 023 | add_skipped_column | Adds `skipped INTEGER NOT NULL DEFAULT 0` column to dependencies |
 | 024 | add_manifest_sync | Creates `team_manifest_config` and `manifest_sync_history` tables; adds `manifest_key`, `manifest_managed`, `manifest_last_synced_values` to services; adds `manifest_team_id` to dependency_aliases; rebuilds `dependency_canonical_overrides` with `team_id` and `manifest_managed`; adds `manifest_managed` to dependency_associations |
 | 025 | add_drift_flags | Creates `drift_flags` table with indexes for tracking manifest drift |
+| 026 | add_linked_service_key | Adds `linked_service_key TEXT` column to `dependency_associations` |
+| 027 | add_team_key | Adds `key TEXT` column to teams; backfills from name; creates partial unique index `idx_teams_key ON teams(key) WHERE key IS NOT NULL` |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

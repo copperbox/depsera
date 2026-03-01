@@ -27,7 +27,7 @@ function makeService(overrides = {}) {
     poll_warnings: null,
     created_at: '2025-01-01',
     updated_at: '2025-01-01',
-    team: { id: 'team-1', name: 'Team One', description: null, created_at: '2025-01-01', updated_at: '2025-01-01' },
+    team: { id: 'team-1', name: 'Team One', key: null, description: null, created_at: '2025-01-01', updated_at: '2025-01-01' },
     health: { status: 'healthy' as const, healthy_reports: 1, warning_reports: 0, critical_reports: 0, total_reports: 1, dependent_count: 1, last_report: null },
     dependencies: [
       { id: 'dep-1', service_id: 'svc-1', name: 'DB Connection', canonical_name: null, description: null, impact: null, contact: null, contact_override: null, impact_override: null, effective_contact: null, effective_impact: null, healthy: 1, health_state: 0 as const, health_code: null, latency_ms: null, skipped: 0, last_checked: null, last_status_change: null, created_at: '', updated_at: '' },
@@ -90,7 +90,7 @@ describe('AssociationForm', () => {
     const onSuccess = jest.fn();
     mockFetchServices.mockResolvedValue([
       makeService(),
-      makeService({ id: 'svc-2', name: 'Service Beta', team: { id: 'team-2', name: 'Team Two', description: null, created_at: '', updated_at: '' } }),
+      makeService({ id: 'svc-2', name: 'Service Beta', team: { id: 'team-2', name: 'Team Two', key: null, description: null, created_at: '', updated_at: '' } }),
     ]);
     mockCreateAssociation.mockResolvedValue({ id: 'assoc-1' } as never);
 

@@ -110,6 +110,12 @@ function createMockStores() {
   });
 
   return {
+    teams: {
+      findAll: jest.fn().mockReturnValue([
+        { id: 'team-1', name: 'Team One', key: 'team-one', description: null, created_at: '', updated_at: '' },
+        { id: 'team-2', name: 'Team Two', key: 'team-two', description: null, created_at: '', updated_at: '' },
+      ]),
+    },
     manifestConfig: {
       findByTeamId: jest.fn(),
       findAllEnabled: jest.fn().mockReturnValue([]),
@@ -774,7 +780,7 @@ describe('ManifestSyncService', () => {
         data: {
           version: 1,
           services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
-          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'team-two/payment-api', association_type: 'api_call' }],
         },
         url: 'https://example.com/manifest.json',
       });
@@ -812,7 +818,7 @@ describe('ManifestSyncService', () => {
         data: {
           version: 1,
           services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
-          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'nonexistent-key', association_type: 'database' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'team-two/nonexistent-key', association_type: 'database' }],
         },
         url: 'https://example.com/manifest.json',
       });
@@ -848,7 +854,7 @@ describe('ManifestSyncService', () => {
         data: {
           version: 1,
           services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
-          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'postgres-db', association_type: 'database' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'team-two/postgres-db', association_type: 'database' }],
         },
         url: 'https://example.com/manifest.json',
       });
@@ -899,7 +905,7 @@ describe('ManifestSyncService', () => {
         data: {
           version: 1,
           services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
-          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'team-two/payment-api', association_type: 'api_call' }],
         },
         url: 'https://example.com/manifest.json',
       });
@@ -946,7 +952,7 @@ describe('ManifestSyncService', () => {
         data: {
           version: 1,
           services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
-          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'team-two/payment-api', association_type: 'api_call' }],
         },
         url: 'https://example.com/manifest.json',
       });

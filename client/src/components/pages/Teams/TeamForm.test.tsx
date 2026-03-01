@@ -15,6 +15,7 @@ function jsonResponse(data: unknown, status = 200) {
 const mockTeam = {
   id: 't1',
   name: 'Test Team',
+  key: null,
   description: 'Test description',
   members: [],
   services: [],
@@ -95,7 +96,7 @@ describe('TeamForm', () => {
         '/api/teams',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ name: 'New Team' }),
+          body: JSON.stringify({ name: 'New Team', key: 'new-team' }),
         })
       );
     });
@@ -124,6 +125,7 @@ describe('TeamForm', () => {
         expect.objectContaining({
           body: JSON.stringify({
             name: 'New Team',
+            key: 'new-team',
             description: 'Team description',
           }),
         })

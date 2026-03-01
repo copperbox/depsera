@@ -3,8 +3,12 @@ import { fetchServiceCatalog, fetchTeams } from '../../../api/services';
 import type { CatalogEntry, TeamWithCounts } from '../../../types/service';
 import styles from './ServiceCatalog.module.css';
 
-type SortColumn = 'name' | 'manifest_key' | 'team_name' | 'description' | 'is_active';
-type SortDirection = 'asc' | 'desc';
+interface TeamGroup {
+  teamName: string;
+  teamKey: string | null;
+  teamId: string;
+  entries: CatalogEntry[];
+}
 
 function ServiceCatalog() {
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
@@ -14,8 +18,7 @@ function ServiceCatalog() {
   const [searchQuery, setSearchQuery] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [collapsedTeams, setCollapsedTeams] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -38,15 +41,6 @@ function ServiceCatalog() {
     loadData();
   }, [loadData]);
 
-  const handleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
-  };
-
   const filteredEntries = useMemo(() => {
     let result = entries;
 
@@ -59,26 +53,59 @@ function ServiceCatalog() {
       result = result.filter(
         (e) =>
           e.name.toLowerCase().includes(term) ||
-          (e.manifest_key && e.manifest_key.toLowerCase().includes(term)),
+          (e.manifest_key && e.manifest_key.toLowerCase().includes(term)) ||
+          (e.team_key && e.team_key.toLowerCase().includes(term)),
       );
     }
 
-    const sorted = [...result].sort((a, b) => {
-      const dir = sortDirection === 'asc' ? 1 : -1;
+    return result.sort((a, b) => a.name.localeCompare(b.name));
+  }, [entries, searchQuery, teamFilter]);
 
-      if (sortColumn === 'is_active') {
-        return (a.is_active - b.is_active) * dir;
+  const teamGroups = useMemo(() => {
+    const groupMap = new Map<string, TeamGroup>();
+
+    for (const entry of filteredEntries) {
+      let group = groupMap.get(entry.team_id);
+      if (!group) {
+        group = {
+          teamName: entry.team_name,
+          teamKey: entry.team_key,
+          teamId: entry.team_id,
+          entries: [],
+        };
+        groupMap.set(entry.team_id, group);
       }
+      group.entries.push(entry);
+    }
 
-      const aVal = (a[sortColumn] ?? '').toLowerCase();
-      const bVal = (b[sortColumn] ?? '').toLowerCase();
-      if (aVal < bVal) return -1 * dir;
-      if (aVal > bVal) return 1 * dir;
-      return 0;
+    return Array.from(groupMap.values()).sort((a, b) =>
+      a.teamName.localeCompare(b.teamName),
+    );
+  }, [filteredEntries]);
+
+  // When searching, auto-expand all teams
+  const effectiveCollapsed = useMemo(() => {
+    if (searchQuery) return new Set<string>();
+    return collapsedTeams;
+  }, [searchQuery, collapsedTeams]);
+
+  const toggleTeam = (teamId: string) => {
+    setCollapsedTeams((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) {
+        next.delete(teamId);
+      } else {
+        next.add(teamId);
+      }
+      return next;
     });
+  };
 
-    return sorted;
-  }, [entries, searchQuery, teamFilter, sortColumn, sortDirection]);
+  const getNamespacedKey = (entry: CatalogEntry): string | null => {
+    if (!entry.manifest_key) return null;
+    if (entry.team_key) return `${entry.team_key}/${entry.manifest_key}`;
+    return entry.manifest_key;
+  };
 
   const handleCopy = async (key: string, id: string) => {
     try {
@@ -168,85 +195,96 @@ function ServiceCatalog() {
           )}
         </div>
       ) : (
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {([
-                  ['name', 'Name'],
-                  ['manifest_key', 'Manifest Key'],
-                  ['team_name', 'Team'],
-                  ['description', 'Description'],
-                  ['is_active', 'Status'],
-                ] as const).map(([col, label]) => (
-                  <th
-                    key={col}
-                    className={styles.sortableHeader}
-                    onClick={() => handleSort(col)}
-                    aria-sort={sortColumn === col ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+        <div className={styles.teamSections}>
+          {teamGroups.map((group) => {
+            const isCollapsed = effectiveCollapsed.has(group.teamId);
+
+            return (
+              <div key={group.teamId} className={styles.teamSection}>
+                <button
+                  className={styles.teamHeader}
+                  onClick={() => toggleTeam(group.teamId)}
+                  aria-expanded={!isCollapsed}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`${styles.chevron} ${!isCollapsed ? styles.chevronOpen : ''}`}
                   >
-                    <span className={styles.headerContent}>
-                      {label}
-                      <span className={`${styles.sortIndicator} ${sortColumn === col ? styles.sortActive : ''}`}>
-                        {sortColumn === col ? (
-                          sortDirection === 'asc' ? '\u2191' : '\u2193'
-                        ) : '\u2195'}
-                      </span>
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEntries.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{entry.name}</td>
-                  <td>
-                    {entry.manifest_key ? (
-                      <span className={styles.manifestKey}>
-                        <code className={styles.manifestKeyCode}>
-                          {entry.manifest_key}
-                        </code>
-                        <button
-                          className={`${styles.copyButton} ${copiedId === entry.id ? styles.copyButtonCopied : ''}`}
-                          onClick={() => handleCopy(entry.manifest_key!, entry.id)}
-                          title="Copy manifest key"
-                          aria-label={`Copy ${entry.manifest_key}`}
-                        >
-                          {copiedId === entry.id ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                  <span className={styles.teamName}>{group.teamName}</span>
+                  {group.teamKey && (
+                    <code className={styles.teamKeyBadge}>{group.teamKey}</code>
+                  )}
+                  <span className={styles.serviceCount}>
+                    {group.entries.length} {group.entries.length === 1 ? 'service' : 'services'}
+                  </span>
+                </button>
+
+                {!isCollapsed && (
+                  <div className={styles.serviceGrid}>
+                    {group.entries.map((entry) => {
+                      const namespacedKey = getNamespacedKey(entry);
+
+                      return (
+                        <div key={entry.id} className={styles.serviceCard}>
+                          <div className={styles.cardHeader}>
+                            <span className={styles.cardName}>{entry.name}</span>
+                            <span
+                              className={`${styles.statusBadge} ${entry.is_active ? styles.statusActive : styles.statusInactive}`}
+                            >
+                              <span
+                                className={`${styles.statusDot} ${entry.is_active ? styles.statusDotActive : styles.statusDotInactive}`}
+                              />
+                              {entry.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+
+                          {namespacedKey ? (
+                            <div className={styles.cardKey}>
+                              <code className={styles.manifestKeyCode}>
+                                {namespacedKey}
+                              </code>
+                              <button
+                                className={`${styles.copyButton} ${copiedId === entry.id ? styles.copyButtonCopied : ''}`}
+                                onClick={() => handleCopy(namespacedKey, entry.id)}
+                                title="Copy manifest key"
+                                aria-label={`Copy ${namespacedKey}`}
+                              >
+                                {copiedId === entry.id ? (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
                           ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
+                            <div className={styles.cardKey}>
+                              <span className={styles.noKey}>No key</span>
+                            </div>
                           )}
-                        </button>
-                      </span>
-                    ) : (
-                      <span className={styles.noKey}>No key</span>
-                    )}
-                  </td>
-                  <td className={styles.teamCell}>{entry.team_name}</td>
-                  <td className={styles.descriptionCell} title={entry.description ?? undefined}>
-                    {entry.description || '-'}
-                  </td>
-                  <td>
-                    <span
-                      className={`${styles.statusBadge} ${entry.is_active ? styles.statusActive : styles.statusInactive}`}
-                    >
-                      <span
-                        className={`${styles.statusDot} ${entry.is_active ? styles.statusDotActive : styles.statusDotInactive}`}
-                      />
-                      {entry.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+                          <div className={styles.cardDescription}>
+                            {entry.description || 'No description'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

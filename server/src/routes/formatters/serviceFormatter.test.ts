@@ -48,6 +48,7 @@ describe('serviceFormatter', () => {
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
     team_name: 'Test Team',
+    team_key: null,
     team_description: 'A test team',
     team_created_at: '2024-01-01T00:00:00.000Z',
     team_updated_at: '2024-01-01T00:00:00.000Z',
@@ -91,6 +92,7 @@ describe('serviceFormatter', () => {
       CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -325,6 +327,7 @@ describe('serviceFormatter', () => {
       const team: Team = {
         id: teamId,
         name: 'Test Team',
+        key: null,
         description: 'A test team',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
@@ -367,6 +370,7 @@ describe('serviceFormatter', () => {
       const team: Team = {
         id: teamId,
         name: 'Test Team',
+        key: null,
         description: 'A test team',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',

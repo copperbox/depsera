@@ -81,94 +81,135 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-/* Table */
-.tableWrapper {
+/* Team Sections */
+.teamSections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.teamSection {
   background-color: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   overflow: hidden;
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table th {
-  text-align: left;
-  padding: 0.75rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  background-color: var(--color-bg-hover);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.sortableHeader {
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s;
-}
-
-.sortableHeader:hover {
-  color: var(--color-text-primary);
-}
-
-.headerContent {
-  display: inline-flex;
+.teamHeader {
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
-}
-
-.sortIndicator {
-  font-size: 0.625rem;
-  color: var(--color-border-input);
-  transition: color 0.15s;
-}
-
-.sortActive {
-  color: var(--color-accent);
-}
-
-.table td {
+  gap: 0.5rem;
+  width: 100%;
   padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
   font-size: 0.875rem;
   color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
+  text-align: left;
+  transition: background-color 0.15s;
 }
 
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.table tbody tr:hover {
+.teamHeader:hover {
   background-color: var(--color-bg-hover);
 }
 
-.manifestKey {
-  display: inline-flex;
+.chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: var(--color-text-muted);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.teamName {
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.teamKeyBadge {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  padding: 0.0625rem 0.375rem;
+  background-color: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.serviceCount {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* Service Grid */
+.serviceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+}
+
+.serviceCard {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  transition: border-color 0.15s;
+}
+
+.serviceCard:hover {
+  border-color: var(--color-text-muted);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cardName {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardKey {
+  display: flex;
   align-items: center;
   gap: 0.375rem;
+  min-height: 1.5rem;
 }
 
 .manifestKeyCode {
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   padding: 0.125rem 0.375rem;
   background-color: var(--color-bg-hover);
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .copyButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 1px solid var(--color-border);
   background: var(--color-bg-card);
@@ -190,27 +231,28 @@
   border-color: var(--color-success);
 }
 
-.teamCell {
-  color: var(--color-text-muted);
-}
-
-.descriptionCell {
-  max-width: 250px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-text-muted);
+.cardDescription {
   font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
 }
 
+.noKey {
+  color: var(--color-text-muted);
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+/* Status */
 .statusBadge {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
+  padding: 0.0625rem 0.375rem;
+  font-size: 0.6875rem;
   font-weight: 500;
   border-radius: 9999px;
+  flex-shrink: 0;
 }
 
 .statusActive {
@@ -224,8 +266,8 @@
 }
 
 .statusDot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -236,12 +278,6 @@
 
 .statusDotInactive {
   background-color: var(--color-text-muted);
-}
-
-.noKey {
-  color: var(--color-text-muted);
-  font-style: italic;
-  font-size: 0.8125rem;
 }
 
 /* States */
@@ -327,5 +363,9 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+
+  .serviceGrid {
+    grid-template-columns: 1fr;
   }
 }

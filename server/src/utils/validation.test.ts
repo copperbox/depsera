@@ -397,32 +397,45 @@ describe('Association Validation', () => {
 describe('Team Validation', () => {
   describe('validateTeamCreate', () => {
     it('should validate correct input', () => {
-      const result = validateTeamCreate({ name: 'Test Team' });
+      const result = validateTeamCreate({ name: 'Test Team', key: 'test-team' });
       expect(result.name).toBe('Test Team');
+      expect(result.key).toBe('test-team');
       expect(result.description).toBeNull();
     });
 
     it('should trim name', () => {
-      const result = validateTeamCreate({ name: '  Team  ' });
+      const result = validateTeamCreate({ name: '  Team  ', key: 'team' });
       expect(result.name).toBe('Team');
     });
 
     it('should accept description', () => {
-      const result = validateTeamCreate({ name: 'Team', description: 'A test team' });
+      const result = validateTeamCreate({ name: 'Team', key: 'team', description: 'A test team' });
       expect(result.description).toBe('A test team');
     });
 
     it('should handle empty description', () => {
-      const result = validateTeamCreate({ name: 'Team', description: '' });
+      const result = validateTeamCreate({ name: 'Team', key: 'team', description: '' });
       expect(result.description).toBeNull();
     });
 
     it('should throw on missing name', () => {
-      expect(() => validateTeamCreate({})).toThrow(ValidationError);
+      expect(() => validateTeamCreate({ key: 'some-key' })).toThrow(ValidationError);
+    });
+
+    it('should throw on missing key', () => {
+      expect(() => validateTeamCreate({ name: 'Team' })).toThrow(ValidationError);
+    });
+
+    it('should throw on invalid key format', () => {
+      expect(() => validateTeamCreate({ name: 'Team', key: 'Invalid Key!' })).toThrow(ValidationError);
+    });
+
+    it('should throw on key exceeding max length', () => {
+      expect(() => validateTeamCreate({ name: 'Team', key: 'a'.repeat(129) })).toThrow(ValidationError);
     });
 
     it('should throw on invalid description type', () => {
-      expect(() => validateTeamCreate({ name: 'Team', description: 123 }))
+      expect(() => validateTeamCreate({ name: 'Team', key: 'team', description: 123 }))
         .toThrow(ValidationError);
     });
   });

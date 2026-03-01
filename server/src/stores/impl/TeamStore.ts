@@ -22,6 +22,12 @@ export class TeamStore implements ITeamStore {
       .get(name) as Team | undefined;
   }
 
+  findByKey(key: string): Team | undefined {
+    return this.db
+      .prepare('SELECT * FROM teams WHERE key = ?')
+      .get(key) as Team | undefined;
+  }
+
   findAll(): Team[] {
     return this.db
       .prepare('SELECT * FROM teams ORDER BY name ASC')
@@ -34,10 +40,10 @@ export class TeamStore implements ITeamStore {
 
     this.db
       .prepare(`
-        INSERT INTO teams (id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO teams (id, name, key, description, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
       `)
-      .run(id, input.name, input.description ?? null, now, now);
+      .run(id, input.name, input.key, input.description ?? null, now, now);
 
     return this.findById(id)!;
   }
@@ -54,6 +60,10 @@ export class TeamStore implements ITeamStore {
     if (input.name !== undefined) {
       updates.push('name = ?');
       params.push(input.name);
+    }
+    if (input.key !== undefined) {
+      updates.push('key = ?');
+      params.push(input.key);
     }
     if (input.description !== undefined) {
       updates.push('description = ?');

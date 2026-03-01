@@ -53,6 +53,7 @@ export interface TeamMemberListOptions extends ListOptions {
  */
 export interface ServiceWithTeam extends Service {
   team_name: string;
+  team_key: string | null;
   team_description?: string | null;
   team_created_at?: string;
   team_updated_at?: string;
@@ -165,11 +166,13 @@ export interface ServiceUpdateInput {
 
 export interface TeamCreateInput {
   name: string;
+  key: string;
   description?: string | null;
 }
 
 export interface TeamUpdateInput {
   name?: string;
+  key?: string;
   description?: string | null;
 }
 

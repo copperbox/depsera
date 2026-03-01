@@ -34,6 +34,7 @@ export type TeamMemberRole = 'lead' | 'member';
 export interface Team {
   id: string;
   name: string;
+  key: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -41,11 +42,13 @@ export interface Team {
 
 export interface CreateTeamInput {
   name: string;
+  key: string;
   description?: string;
 }
 
 export interface UpdateTeamInput {
   name?: string;
+  key?: string;
   description?: string;
 }
 

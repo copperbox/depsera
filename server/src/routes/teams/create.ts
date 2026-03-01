@@ -18,8 +18,15 @@ export function createTeam(req: Request, res: Response): void {
       throw new ConflictError('A team with this name already exists');
     }
 
+    // Check for duplicate key
+    const existingKey = stores.teams.findByKey(validated.key);
+    if (existingKey) {
+      throw new ConflictError('A team with this key already exists');
+    }
+
     const team = stores.teams.create({
       name: validated.name,
+      key: validated.key,
       description: validated.description,
     });
 

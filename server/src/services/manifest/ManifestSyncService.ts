@@ -785,17 +785,27 @@ export class ManifestSyncService extends EventEmitter {
         .map((s: Service) => [s.manifest_key!, s]),
     );
 
-    // Build a cross-team lookup by manifest_key for resolving dependencies to services on other teams
+    // Build team key lookup: team_id → team_key
+    const allTeams = this.stores.teams.findAll();
+    const teamKeyById = new Map(
+      allTeams
+        .filter(t => t.key)
+        .map(t => [t.id, t.key!]),
+    );
+
+    // Build a cross-team lookup by namespaced key (team_key/manifest_key) for resolving associations
     const allServices = this.stores.services.findAll();
     const globalServiceByKey = new Map(
       allServices
-        .filter((s: Service) => s.manifest_key)
-        .map((s: Service) => [s.manifest_key!, s]),
+        .filter((s: Service) => s.manifest_key && teamKeyById.get(s.team_id))
+        .map((s: Service) => [`${teamKeyById.get(s.team_id)!}/${s.manifest_key!}`, s]),
     );
 
-    // Reverse lookup: service ID → manifest_key (for removal detection)
+    // Reverse lookup: service ID → namespaced key (for removal detection)
     const manifestKeyByServiceId = new Map(
-      allServices.filter((s: Service) => s.manifest_key).map((s: Service) => [s.id, s.manifest_key!]),
+      allServices
+        .filter((s: Service) => s.manifest_key && teamKeyById.get(s.team_id))
+        .map((s: Service) => [s.id, `${teamKeyById.get(s.team_id)!}/${s.manifest_key!}`]),
     );
 
     // Build a set of manifest association tuples for removal detection
