@@ -114,14 +114,10 @@ findById(id: string): DependencyAssociation | undefined
 findByDependencyId(dependencyId: string): DependencyAssociation[]
 findByDependencyIdWithService(dependencyId: string): AssociationWithService[]
 findByLinkedServiceId(linkedServiceId: string): DependencyAssociation[]
-findPendingSuggestions(): AssociationWithContext[]
 existsForDependencyAndService(dependencyId: string, linkedServiceId: string): boolean
 create(input: AssociationCreateInput): DependencyAssociation
 delete(id: string): boolean
 deleteByDependencyId(dependencyId: string): number
-acceptSuggestion(id: string): boolean
-dismissSuggestion(id: string): boolean
-reactivateDismissed(id: string, associationType: AssociationType): boolean
 exists(id: string): boolean
 count(options?: AssociationListOptions): number
 ```

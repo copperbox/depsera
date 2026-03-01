@@ -3,11 +3,10 @@ import type { IDependencyStore, ILatencyHistoryStore, IDependencyAliasStore } fr
 import { Service, ProactiveDepsStatus } from '../../db/types';
 import { StatusChangeEvent } from './types';
 import { ErrorHistoryRecorder, getErrorHistoryRecorder } from './ErrorHistoryRecorder';
-import { AssociationMatcher } from '../matching';
 
 /**
  * Handles upserting dependencies from health endpoint responses.
- * Manages INSERT/UPDATE logic, status change detection, latency history, and suggestion generation.
+ * Manages INSERT/UPDATE logic, status change detection, and latency history.
  */
 export class DependencyUpsertService {
   private errorRecorder: ErrorHistoryRecorder;
@@ -31,7 +30,6 @@ export class DependencyUpsertService {
    */
   upsert(service: Service, deps: ProactiveDepsStatus[]): StatusChangeEvent[] {
     const changes: StatusChangeEvent[] = [];
-    const newDependencyIds: string[] = [];
     const now = new Date().toISOString();
 
     for (const dep of deps) {
@@ -84,34 +82,9 @@ export class DependencyUpsertService {
       if (dep.health.latency > 0) {
         this.latencyStore.record(result.dependency.id, dep.health.latency, now);
       }
-
-      // Track new dependencies for suggestion generation
-      if (result.isNew) {
-        newDependencyIds.push(result.dependency.id);
-      }
     }
-
-    // Generate association suggestions for new dependencies
-    this.generateSuggestions(newDependencyIds);
 
     return changes;
-  }
-
-  /**
-   * Generate association suggestions for new dependencies.
-   */
-  private generateSuggestions(dependencyIds: string[]): void {
-    if (dependencyIds.length === 0) return;
-
-    try {
-      const matcher = AssociationMatcher.getInstance();
-      for (const depId of dependencyIds) {
-        matcher.generateSuggestions(depId);
-      }
-    } catch (error) /* istanbul ignore next -- Suggestion generation failure is non-critical */ {
-      // Don't fail the upsert if suggestion generation fails
-      console.error('[Matching] Error generating suggestions:', error);
-    }
   }
 }
 

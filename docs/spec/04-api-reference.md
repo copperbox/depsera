@@ -203,15 +203,9 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
 | GET | `/api/dependencies/:depId/associations` | requireAuth | Get associations for dependency (non-dismissed). |
 | POST | `/api/dependencies/:depId/associations` | requireAuth | Create manual association. Body: `{ linked_service_id, association_type }`. |
 | DELETE | `/api/dependencies/:depId/associations/:serviceId` | requireAuth | Remove association. Returns 204. |
-| POST | `/api/dependencies/:depId/suggestions/generate` | requireAuth | Generate suggestions for one dependency. |
-| POST | `/api/services/:serviceId/suggestions/generate` | requireAuth | Generate suggestions for all dependencies of a service. |
-| GET | `/api/associations/suggestions` | requireAuth | List pending (undismissed) suggestions. |
-| POST | `/api/associations/suggestions/:id/accept` | requireAuth | Accept suggestion (converts to manual). |
-| POST | `/api/associations/suggestions/:id/dismiss` | requireAuth | Dismiss suggestion. Returns 204. |
-
 **Validation:**
 - Cannot link dependency to its own owning service (400)
-- Duplicate association returns 409 (unless reactivating a dismissed one)
+- Duplicate association returns 409
 
 ## 4.8 Graph
 
@@ -264,8 +258,6 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
         "latencyMs": 12,
         "avgLatencyMs24h": 15.3,
         "associationType": "database",
-        "isAutoSuggested": false,
-        "confidenceScore": null,
         "impact": "critical",
         "errorMessage": null,
         "skipped": false

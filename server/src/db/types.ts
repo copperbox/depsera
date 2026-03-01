@@ -201,10 +201,6 @@ export interface DependencyAssociation {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
-  is_auto_suggested: number; // SQLite boolean
-  confidence_score: number | null;
-  is_dismissed: number; // SQLite boolean
-  match_reason: string | null;
   manifest_managed: number; // SQLite boolean — 1 if managed by manifest
   created_at: string;
 }
@@ -213,8 +209,6 @@ export interface CreateAssociationInput {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
-  is_auto_suggested?: boolean;
-  confidence_score?: number;
 }
 
 export interface DependencyWithAssociations extends Dependency {

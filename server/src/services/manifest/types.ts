@@ -91,6 +91,7 @@ export interface ManifestCanonicalOverrideEntry {
 export interface ManifestAssociationEntry {
   service_key: string;
   dependency_name: string;
+  linked_service_key: string;
   association_type: AssociationType;
 }
 

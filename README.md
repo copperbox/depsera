@@ -40,8 +40,8 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 **Team Management**
 - Organize services by team with lead/member roles
 - Team-scoped service access — non-admin users see only their team's services
-- Association engine automatically suggests links between dependencies and services
 - External service registry for unmonitored third-party dependencies (shown in graph and association dropdowns)
+- Cross-team service catalog for discovering manifest keys when authoring manifest associations
 
 **Alerting**
 - Slack notifications with Block Kit formatting and deep links
@@ -280,7 +280,8 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, and history |
 | `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
-| `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
+| `/associations` | Manage associations (accordion browser with inline create/delete), alias management, and external service registry |
+| `/catalog` | Cross-team service catalog — browse and search all services' manifest keys for use in manifest associations |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
@@ -293,13 +294,13 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 |------|-----------|
 | Health | `GET /api/health` |
 | Auth | `GET /api/auth/mode`, `/login`, `/callback`, `/me`; `POST /api/auth/login` (local), `/logout` |
-| Services | CRUD on `/api/services` (team-scoped), `POST /:id/poll`, `POST /test-schema` |
+| Services | CRUD on `/api/services` (team-scoped), `GET /catalog`, `POST /:id/poll`, `POST /test-schema` |
 | External Services | CRUD on `/api/external-services` (team-scoped) — unmonitored service entries for association targets |
 | Teams | CRUD on `/api/teams`, member management via `/:id/members` |
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
 | Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
-| Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
+| Associations | CRUD on `/api/dependencies/:id/associations` |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |

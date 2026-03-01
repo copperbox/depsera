@@ -6,6 +6,7 @@ import { ValidationError, AppError } from '../../utils/errors';
 import { validateUrlHostname } from '../../utils/ssrf';
 import { ManifestSyncService } from '../../services/manifest/ManifestSyncService';
 import { validateManifest as runManifestValidation } from '../../services/manifest/ManifestValidator';
+import { fetchManifest } from '../../services/manifest/ManifestFetcher';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 import type { ManifestSyncPolicy, ManifestConfigUpdateInput } from '../../services/manifest/types';
 
@@ -275,6 +276,63 @@ function validateManifestEndpoint(req: Request, res: Response): void {
   }
 }
 
+// --- Test URL route ---
+
+async function testManifestUrl(req: Request, res: Response): Promise<void> {
+  try {
+    const url = req.body?.url;
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      throw new ValidationError('url is required', 'url');
+    }
+
+    const trimmedUrl = url.trim();
+
+    // Basic URL format check
+    try {
+      new URL(trimmedUrl);
+    } catch {
+      throw new ValidationError('url must be a valid URL', 'url');
+    }
+
+    // SSRF hostname check (synchronous)
+    try {
+      validateUrlHostname(trimmedUrl);
+    } catch (err) {
+      throw new ValidationError(
+        `URL is not allowed: ${err instanceof Error ? err.message : 'blocked'}`,
+        'url',
+      );
+    }
+
+    // Fetch the manifest
+    const fetchResult = await fetchManifest(trimmedUrl);
+
+    if (!fetchResult.success) {
+      res.json({
+        result: {
+          fetch_success: false,
+          fetch_error: fetchResult.error,
+          validation: null,
+        },
+      });
+      return;
+    }
+
+    // Validate the fetched manifest
+    const validation = runManifestValidation(fetchResult.data);
+
+    res.json({
+      result: {
+        fetch_success: true,
+        fetch_error: null,
+        validation,
+      },
+    });
+  } catch (error) {
+    sendErrorResponse(res, error, 'testing manifest URL');
+  }
+}
+
 // --- Router setup ---
 
 /**
@@ -306,6 +364,7 @@ manifestTeamRouter.get('/:id/manifest/sync-history', requireTeamAccess, getSyncH
 const manifestRouter = Router();
 
 manifestRouter.post('/validate', validateManifestEndpoint);
+manifestRouter.post('/test-url', testManifestUrl);
 
 export { manifestTeamRouter, manifestRouter };
 export default manifestTeamRouter;

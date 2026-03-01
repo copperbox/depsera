@@ -23,23 +23,6 @@ jest.mock('../../auth', () => ({
   requireBodyTeamLead: jest.fn((_req: Request, _res: Response, next: NextFunction) => next()),
 }));
 
-// Mock the AssociationMatcher
-const mockAcceptSuggestion = jest.fn();
-const mockDismissSuggestion = jest.fn();
-const mockGenerateSuggestions = jest.fn();
-const mockGenerateSuggestionsForService = jest.fn();
-
-jest.mock('../../services/matching', () => ({
-  AssociationMatcher: {
-    getInstance: () => ({
-      acceptSuggestion: mockAcceptSuggestion,
-      dismissSuggestion: mockDismissSuggestion,
-      generateSuggestions: mockGenerateSuggestions,
-      generateSuggestionsForService: mockGenerateSuggestionsForService,
-    }),
-  },
-}));
-
 import associationsRouter from './index';
 
 // Test users
@@ -157,10 +140,7 @@ describe('Associations API - Authorization (IDOR)', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT NOT NULL DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
         FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,
@@ -370,172 +350,6 @@ describe('Associations API - Authorization (IDOR)', () => {
         .delete(`/api/dependencies/${dependencyId}/associations/${linkedServiceId}`);
 
       expect(response.status).toBe(204);
-    });
-  });
-
-  describe('POST /api/dependencies/:dependencyId/suggestions/generate - authorization', () => {
-    it('should allow admin to generate suggestions for any dependency', async () => {
-      currentUser = adminUser;
-      mockGenerateSuggestions.mockReturnValue([]);
-
-      const response = await request(app)
-        .post(`/api/dependencies/${otherTeamDependencyId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should allow team member to generate suggestions for own team dependency', async () => {
-      currentUser = teamMemberUser;
-      mockGenerateSuggestions.mockReturnValue([]);
-
-      const response = await request(app)
-        .post(`/api/dependencies/${dependencyId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should return 403 for non-member generating suggestions for another team dependency', async () => {
-      currentUser = teamMemberUser;
-
-      const response = await request(app)
-        .post(`/api/dependencies/${otherTeamDependencyId}/suggestions/generate`);
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Team access required');
-    });
-  });
-
-  describe('POST /api/services/:serviceId/suggestions/generate - authorization', () => {
-    it('should allow admin to generate suggestions for any service', async () => {
-      currentUser = adminUser;
-      mockGenerateSuggestionsForService.mockReturnValue([]);
-
-      const response = await request(app)
-        .post(`/api/services/${otherTeamServiceId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should allow team member to generate suggestions for own team service', async () => {
-      currentUser = teamMemberUser;
-      mockGenerateSuggestionsForService.mockReturnValue([]);
-
-      const response = await request(app)
-        .post(`/api/services/${serviceId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should return 403 for non-member generating suggestions for another team service', async () => {
-      currentUser = teamMemberUser;
-
-      const response = await request(app)
-        .post(`/api/services/${otherTeamServiceId}/suggestions/generate`);
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Team access required');
-    });
-  });
-
-  describe('POST /api/associations/suggestions/:suggestionId/accept - authorization', () => {
-    let suggestionId: string;
-    let otherTeamSuggestionId: string;
-
-    beforeEach(() => {
-      // Create suggestion on own team dependency
-      suggestionId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(suggestionId, dependencyId, linkedServiceId, 'api_call', 1);
-
-      // Create suggestion on other team dependency
-      otherTeamSuggestionId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(otherTeamSuggestionId, otherTeamDependencyId, linkedServiceId, 'api_call', 1);
-    });
-
-    it('should allow admin to accept any suggestion', async () => {
-      currentUser = adminUser;
-      mockAcceptSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${otherTeamSuggestionId}/accept`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should allow team member to accept suggestion for own team dependency', async () => {
-      currentUser = teamMemberUser;
-      mockAcceptSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${suggestionId}/accept`);
-
-      expect(response.status).toBe(200);
-    });
-
-    it('should return 403 for non-member accepting suggestion on another team dependency', async () => {
-      currentUser = teamMemberUser;
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${otherTeamSuggestionId}/accept`);
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Team access required');
-    });
-  });
-
-  describe('POST /api/associations/suggestions/:suggestionId/dismiss - authorization', () => {
-    let suggestionId: string;
-    let otherTeamSuggestionId: string;
-
-    beforeEach(() => {
-      // Create suggestion on own team dependency
-      suggestionId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(suggestionId, dependencyId, linkedServiceId, 'api_call', 1);
-
-      // Create suggestion on other team dependency
-      otherTeamSuggestionId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(otherTeamSuggestionId, otherTeamDependencyId, linkedServiceId, 'api_call', 1);
-    });
-
-    it('should allow admin to dismiss any suggestion', async () => {
-      currentUser = adminUser;
-      mockDismissSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${otherTeamSuggestionId}/dismiss`);
-
-      expect(response.status).toBe(204);
-    });
-
-    it('should allow team member to dismiss suggestion for own team dependency', async () => {
-      currentUser = teamMemberUser;
-      mockDismissSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${suggestionId}/dismiss`);
-
-      expect(response.status).toBe(204);
-    });
-
-    it('should return 403 for non-member dismissing suggestion on another team dependency', async () => {
-      currentUser = teamMemberUser;
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${otherTeamSuggestionId}/dismiss`);
-
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Team access required');
     });
   });
 });

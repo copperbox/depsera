@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireBodyTeamLead, requireServiceTeamAccess, requireServiceTeamLead } from '../../auth';
 import { listServices } from './list';
+import { listServiceCatalog } from './catalog';
 import { getService } from './get';
 import { createService } from './create';
 import { updateService } from './update';
@@ -13,6 +14,7 @@ const router = Router();
 
 // Read requires auth; results scoped to user's teams (unless admin)
 router.get('/', requireAuth, listServices);
+router.get('/catalog', requireAuth, listServiceCatalog);
 router.get('/:id', requireAuth, getService);
 
 // Write requires team lead (of the service's team) or admin

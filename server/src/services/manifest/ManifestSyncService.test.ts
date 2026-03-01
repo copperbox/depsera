@@ -121,6 +121,7 @@ function createMockStores() {
     },
     services: {
       findByTeamId: jest.fn().mockReturnValue([]),
+      findAll: jest.fn().mockReturnValue([]),
       findById: jest.fn(),
       create: jest.fn().mockReturnValue(makeService()),
       update: jest.fn().mockReturnValue(makeService()),
@@ -747,6 +748,221 @@ describe('ManifestSyncService', () => {
 
       await service.syncTeam('team-1', 'manual', 'user-1');
       expect(stores.driftFlags.resolve).toHaveBeenCalledWith('drift-1', 'resolved', null);
+    });
+  });
+
+  // =========================================================================
+  // Cross-team association sync
+  // =========================================================================
+  describe('cross-team association sync', () => {
+    it('resolves linked service by manifest_key across teams', async () => {
+      const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
+      const remoteService = makeService({ id: 'svc-remote', name: 'Payment API', manifest_key: 'payment-api', manifest_managed: 1, team_id: 'team-2' });
+      const dep = { id: 'dep-1', service_id: 'svc-local', name: 'payment-api', canonical_name: null };
+
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([localService]);
+      stores.services.findAll.mockReturnValue([localService, remoteService]);
+      stores.dependencies.findByServiceId.mockReturnValue([dep]);
+      stores.associations.findByDependencyId.mockReturnValue([]);
+
+      const dbRun = jest.fn();
+      stores.associations.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-local'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(stores.associations.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dependency_id: 'dep-1',
+          linked_service_id: 'svc-remote',
+          association_type: 'api_call',
+        }),
+      );
+      expect(result.summary.associations.created).toBe(1);
+    });
+
+    it('skips association when linked_service_key has no global match', async () => {
+      const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
+      const dep = { id: 'dep-1', service_id: 'svc-local', name: 'pg-main', canonical_name: null };
+
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([localService]);
+      stores.services.findAll.mockReturnValue([localService]);
+      stores.dependencies.findByServiceId.mockReturnValue([dep]);
+      stores.associations.findByDependencyId.mockReturnValue([]);
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'nonexistent-key', association_type: 'database' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-local'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(stores.associations.create).not.toHaveBeenCalled();
+      expect(result.summary.associations.created).toBe(0);
+    });
+
+    it('resolves by linked_service_key independently of dependency_name', async () => {
+      const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
+      const remoteService = makeService({ id: 'svc-remote', name: 'PostgreSQL DB', manifest_key: 'postgres-db', manifest_managed: 1, team_id: 'team-2' });
+      const dep = { id: 'dep-1', service_id: 'svc-local', name: 'pg-main', canonical_name: null };
+
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([localService]);
+      stores.services.findAll.mockReturnValue([localService, remoteService]);
+      stores.dependencies.findByServiceId.mockReturnValue([dep]);
+      stores.associations.findByDependencyId.mockReturnValue([]);
+
+      const dbRun = jest.fn();
+      stores.associations.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'pg-main', linked_service_key: 'postgres-db', association_type: 'database' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-local'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(stores.associations.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dependency_id: 'dep-1',
+          linked_service_id: 'svc-remote',
+          association_type: 'database',
+        }),
+      );
+      expect(result.summary.associations.created).toBe(1);
+    });
+
+    it('adopts existing non-manifest-managed association instead of creating a duplicate', async () => {
+      const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
+      const remoteService = makeService({ id: 'svc-remote', name: 'Payment API', manifest_key: 'payment-api', manifest_managed: 1, team_id: 'team-2' });
+      const dep = { id: 'dep-1', service_id: 'svc-local', name: 'payment-api', canonical_name: null };
+
+      // Existing non-manifest-managed association (e.g. created manually)
+      const existingAssoc = {
+        id: 'assoc-existing',
+        dependency_id: 'dep-1',
+        linked_service_id: 'svc-remote',
+        association_type: 'api_call',
+        manifest_managed: 0,
+      };
+
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([localService]);
+      stores.services.findAll.mockReturnValue([localService, remoteService]);
+      stores.dependencies.findByServiceId.mockReturnValue([dep]);
+      stores.associations.findByDependencyId.mockReturnValue([existingAssoc]);
+
+      const dbRun = jest.fn();
+      stores.associations.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-local'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+
+      // Should NOT call create — would cause UNIQUE constraint violation
+      expect(stores.associations.create).not.toHaveBeenCalled();
+
+      // Should adopt existing association by updating it to manifest_managed
+      expect(dbRun).toHaveBeenCalledWith('api_call', 'assoc-existing');
+      expect(result.summary.associations.created).toBe(1);
+    });
+
+    it('counts existing manifest-managed association as unchanged', async () => {
+      const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
+      const remoteService = makeService({ id: 'svc-remote', name: 'Payment API', manifest_key: 'payment-api', manifest_managed: 1, team_id: 'team-2' });
+      const dep = { id: 'dep-1', service_id: 'svc-local', name: 'payment-api', canonical_name: null };
+
+      // Existing manifest-managed association (from previous sync)
+      const existingAssoc = {
+        id: 'assoc-existing',
+        dependency_id: 'dep-1',
+        linked_service_id: 'svc-remote',
+        association_type: 'api_call',
+        manifest_managed: 1,
+      };
+
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([localService]);
+      stores.services.findAll.mockReturnValue([localService, remoteService]);
+      stores.dependencies.findByServiceId.mockReturnValue([dep]);
+      stores.associations.findByDependencyId.mockReturnValue([existingAssoc]);
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'payment-api', association_type: 'api_call' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-local'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+
+      expect(stores.associations.create).not.toHaveBeenCalled();
+      expect(result.summary.associations.unchanged).toBe(1);
+      expect(result.summary.associations.created).toBe(0);
     });
   });
 });

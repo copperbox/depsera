@@ -785,9 +785,22 @@ export class ManifestSyncService extends EventEmitter {
         .map((s: Service) => [s.manifest_key!, s]),
     );
 
+    // Build a cross-team lookup by manifest_key for resolving dependencies to services on other teams
+    const allServices = this.stores.services.findAll();
+    const globalServiceByKey = new Map(
+      allServices
+        .filter((s: Service) => s.manifest_key)
+        .map((s: Service) => [s.manifest_key!, s]),
+    );
+
+    // Reverse lookup: service ID → manifest_key (for removal detection)
+    const manifestKeyByServiceId = new Map(
+      allServices.filter((s: Service) => s.manifest_key).map((s: Service) => [s.id, s.manifest_key!]),
+    );
+
     // Build a set of manifest association tuples for removal detection
     const manifestTuples = new Set(
-      manifest.associations.map(a => `${a.service_key}|${a.dependency_name}|${a.association_type}`),
+      manifest.associations.map(a => `${a.service_key}|${a.dependency_name}|${a.linked_service_key}`),
     );
 
     // Process manifest associations
@@ -810,39 +823,39 @@ export class ManifestSyncService extends EventEmitter {
         continue;
       }
 
-      // Check if association already exists
+      // Find the linked service by linked_service_key across all teams
+      const linkedService = globalServiceByKey.get(assocEntry.linked_service_key);
+
+      if (!linkedService) continue;
+
+      // Check if an association already exists for this (dependency, linked_service) pair
       const existingAssocs = this.stores.associations.findByDependencyId(dep.id);
-      const matchingAssoc = existingAssocs.find(
-        a => a.association_type === assocEntry.association_type && a.manifest_managed === 1,
-      );
+      const existingForTarget = existingAssocs.find(a => a.linked_service_id === linkedService.id);
 
-      if (matchingAssoc) {
-        summary.associations.unchanged++;
-      } else {
-        // Find the linked service by dependency name (resolve through aliases)
-        const canonicalName = this.stores.aliases.resolveAlias(assocEntry.dependency_name) ?? assocEntry.dependency_name;
-        const linkedService = allTeamServices.find((s: Service) => s.name === canonicalName);
-
-        if (linkedService) {
-          this.stores.associations.create({
-            dependency_id: dep.id,
-            linked_service_id: linkedService.id,
-            association_type: assocEntry.association_type,
-            is_auto_suggested: false,
-          });
-
-          // Mark as manifest managed via raw DB
+      if (existingForTarget) {
+        // Adopt existing association as manifest-managed if it isn't already
+        if (existingForTarget.manifest_managed !== 1) {
           const db = (this.stores.associations as any).db;
-          const lastInserted = db.prepare(
-            `SELECT id FROM dependency_associations WHERE dependency_id = ? AND linked_service_id = ? ORDER BY created_at DESC LIMIT 1`,
-          ).get(dep.id, linkedService.id) as { id: string } | undefined;
-          if (lastInserted) {
-            db.prepare(`UPDATE dependency_associations SET manifest_managed = 1 WHERE id = ?`)
-              .run(lastInserted.id);
-          }
-
+          db.prepare(`UPDATE dependency_associations SET manifest_managed = 1, association_type = ? WHERE id = ?`)
+            .run(assocEntry.association_type, existingForTarget.id);
           summary.associations.created++;
+        } else {
+          summary.associations.unchanged++;
         }
+      } else {
+        this.stores.associations.create({
+          dependency_id: dep.id,
+          linked_service_id: linkedService.id,
+          association_type: assocEntry.association_type,
+        });
+
+        // Mark as manifest managed via raw DB
+        const db = (this.stores.associations as any).db;
+        db.prepare(
+          `UPDATE dependency_associations SET manifest_managed = 1 WHERE dependency_id = ? AND linked_service_id = ?`,
+        ).run(dep.id, linkedService.id);
+
+        summary.associations.created++;
       }
     }
 
@@ -860,7 +873,8 @@ export class ManifestSyncService extends EventEmitter {
 
             // Check if this association is still in the manifest
             const depName = dep.canonical_name || dep.name;
-            const tuple = `${service.manifest_key}|${depName}|${assoc.association_type}`;
+            const linkedKey = manifestKeyByServiceId.get(assoc.linked_service_id) ?? '';
+            const tuple = `${service.manifest_key}|${depName}|${linkedKey}`;
             if (!manifestTuples.has(tuple)) {
               this.stores.associations.delete(assoc.id);
               summary.associations.removed++;

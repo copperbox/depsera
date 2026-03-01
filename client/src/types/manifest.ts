@@ -116,6 +116,14 @@ export interface ManifestValidationResult {
   warnings: ManifestValidationIssue[];
 }
 
+// --- Test URL result types ---
+
+export interface ManifestTestUrlResult {
+  fetch_success: boolean;
+  fetch_error: string | null;
+  validation: ManifestValidationResult | null;
+}
+
 // --- Drift flag types ---
 
 export type DriftType = 'field_change' | 'service_removal';

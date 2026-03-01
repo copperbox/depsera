@@ -13,6 +13,7 @@ import AdminSettings from './components/pages/Admin/AdminSettings';
 import { DependencyGraph } from './components/pages/DependencyGraph/DependencyGraph';
 import AssociationsPage from './components/pages/Associations/AssociationsPage';
 import Wallboard from './components/pages/Wallboard/Wallboard';
+import ServiceCatalog from './components/pages/Catalog/ServiceCatalog';
 import ManifestPage from './components/pages/Manifest/ManifestPage';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
           }
         />
         <Route path="wallboard" element={<Wallboard />} />
+        <Route path="catalog" element={<ServiceCatalog />} />
         <Route
           path="admin/users"
           element={

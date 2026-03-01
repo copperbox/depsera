@@ -7,6 +7,7 @@ import ManifestConfig from './ManifestConfig';
 import ManifestSyncResult from './ManifestSyncResult';
 import DriftReview from './DriftReview';
 import SyncHistory from './SyncHistory';
+import ServiceKeyLookup from './ServiceKeyLookup';
 import styles from './ManifestPage.module.css';
 
 function ManifestPage() {
@@ -16,6 +17,7 @@ function ManifestPage() {
   const [teamName, setTeamName] = useState<string | null>(null);
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamError, setTeamError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const canManage = useMemo(() => {
     if (isAdmin) return true;
@@ -88,8 +90,7 @@ function ManifestPage() {
   }
 
   const handleConfigureClick = () => {
-    // Start with empty config — save will create it
-    saveConfig({ manifest_url: '' });
+    setIsCreating(true);
   };
 
   return (
@@ -123,7 +124,7 @@ function ManifestPage() {
       )}
 
       {/* No manifest configured — empty state */}
-      {!config && (
+      {!config && !isCreating && (
         <div className={styles.emptyState}>
           <p>
             No manifest configured for this team. A manifest lets you declaratively define services, aliases,
@@ -134,6 +135,25 @@ function ManifestPage() {
               Configure Manifest
             </button>
           )}
+        </div>
+      )}
+
+      {/* Create mode — show config form for new manifest */}
+      {!config && isCreating && (
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Configuration</h2>
+          </div>
+          <ManifestConfig
+            config={null}
+            canManage={canManage}
+            isSaving={isSaving}
+            isNew
+            onSave={saveConfig}
+            onRemove={removeConfig}
+            onToggleEnabled={toggleEnabled}
+            onCancelCreate={() => setIsCreating(false)}
+          />
         </div>
       )}
 
@@ -153,6 +173,9 @@ function ManifestPage() {
               onToggleEnabled={toggleEnabled}
             />
           </div>
+
+          {/* Service Key Lookup */}
+          <ServiceKeyLookup />
 
           {/* Last Sync Result Section */}
           <div className={styles.section}>

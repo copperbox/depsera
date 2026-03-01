@@ -139,12 +139,13 @@ Each entry in the `canonical_overrides` array sets contact and/or impact metadat
 
 ## Associations
 
-Each entry in the `associations` array declares an explicit dependency relationship between a service in the manifest and a dependency by name.
+Each entry in the `associations` array declares an explicit dependency relationship between a service in the manifest and a dependency by name, linking it to a target service identified by its manifest key.
 
 ```json
 {
   "service_key": "payment-api",
   "dependency_name": "PostgreSQL",
+  "linked_service_key": "postgres-db",
   "association_type": "database"
 }
 ```
@@ -154,14 +155,16 @@ Each entry in the `associations` array declares an explicit dependency relations
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `service_key` | string | Yes | Must reference a `key` from the `services` array. |
-| `dependency_name` | string | Yes | Canonical name of the dependency. |
+| `dependency_name` | string | Yes | Name of the dependency as reported by the health endpoint. |
+| `linked_service_key` | string | Yes | Manifest key of the target service. Resolved globally across all teams. Use the service catalog (`/api/services/catalog`) to discover other teams' manifest keys. |
 | `association_type` | string | Yes | One of: `api_call`, `database`, `message_queue`, `cache`, `other`. |
 
 ### Rules
 
 - `service_key` must match a key defined in the `services` array (error if not)
+- `linked_service_key` does **not** need to be in the manifest's `services` array — it references services on other teams
 - `association_type` must be a valid enum value (error if not)
-- No duplicate tuples of `(service_key, dependency_name, association_type)` (error)
+- No duplicate tuples of `(service_key, dependency_name, linked_service_key)` (error)
 
 ---
 
@@ -375,26 +378,31 @@ A complete manifest using all features:
     {
       "service_key": "payment-api",
       "dependency_name": "PostgreSQL",
+      "linked_service_key": "postgres-db",
       "association_type": "database"
     },
     {
       "service_key": "payment-api",
       "dependency_name": "RabbitMQ",
+      "linked_service_key": "rabbitmq",
       "association_type": "message_queue"
     },
     {
       "service_key": "notification-svc",
       "dependency_name": "RabbitMQ",
+      "linked_service_key": "rabbitmq",
       "association_type": "message_queue"
     },
     {
       "service_key": "notification-svc",
       "dependency_name": "Redis",
+      "linked_service_key": "redis-cache",
       "association_type": "cache"
     },
     {
       "service_key": "gateway",
       "dependency_name": "Payment API",
+      "linked_service_key": "payment-api",
       "association_type": "api_call"
     }
   ]
@@ -452,6 +460,7 @@ Two separate team manifests demonstrating shared canonical names and aliases:
     {
       "service_key": "billing-api",
       "dependency_name": "PostgreSQL",
+      "linked_service_key": "postgres-db",
       "association_type": "database"
     }
   ]
@@ -477,13 +486,14 @@ Two separate team manifests demonstrating shared canonical names and aliases:
     {
       "service_key": "analytics-api",
       "dependency_name": "PostgreSQL",
+      "linked_service_key": "postgres-db",
       "association_type": "database"
     }
   ]
 }
 ```
 
-Both teams' aliases resolve to the same canonical "PostgreSQL" dependency, allowing shared visibility in the dependency graph and wallboard.
+Both teams reference `linked_service_key: "postgres-db"` — the manifest key of the shared PostgreSQL service, regardless of which team owns it. Use the service catalog (`GET /api/services/catalog`) to discover manifest keys across teams.
 
 ---
 

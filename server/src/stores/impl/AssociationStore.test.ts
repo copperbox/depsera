@@ -35,10 +35,7 @@ describe('AssociationStore', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
       );
@@ -71,34 +68,6 @@ describe('AssociationStore', () => {
       expect(assoc.dependency_id).toBe(testDependencyId);
       expect(assoc.linked_service_id).toBe(testLinkedServiceId);
       expect(assoc.association_type).toBe('api_call');
-      expect(assoc.is_auto_suggested).toBe(0);
-      expect(assoc.is_dismissed).toBe(0);
-    });
-
-    it('should create auto-suggested association', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'database',
-        is_auto_suggested: true,
-        confidence_score: 85,
-      });
-
-      expect(assoc.is_auto_suggested).toBe(1);
-      expect(assoc.confidence_score).toBe(85);
-    });
-
-    it('should create association with match_reason', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 75,
-        match_reason: 'Name pattern match',
-      });
-
-      expect(assoc.match_reason).toBe('Name pattern match');
     });
   });
 
@@ -162,110 +131,6 @@ describe('AssociationStore', () => {
     });
   });
 
-  describe('findPendingSuggestions', () => {
-    it('should find pending auto-suggested associations', () => {
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 0.85,
-      });
-
-      const suggestions = store.findPendingSuggestions();
-      expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].dependency_name).toBe('Test Dependency');
-      expect(suggestions[0].service_name).toBe('Test Service');
-      expect(suggestions[0].linked_service_name).toBe('Linked Service');
-    });
-
-    it('should not include dismissed suggestions', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-      });
-      store.dismissSuggestion(assoc.id);
-
-      const suggestions = store.findPendingSuggestions();
-      expect(suggestions).toHaveLength(0);
-    });
-
-    it('should return only highest-confidence suggestion per dependency', () => {
-      // Create two suggestions for the same dependency with different confidence scores
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 60,
-      });
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: 'svc-789',
-        association_type: 'database',
-        is_auto_suggested: true,
-        confidence_score: 90,
-      });
-
-      const suggestions = store.findPendingSuggestions();
-      expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].confidence_score).toBe(90);
-      expect(suggestions[0].linked_service_name).toBe('Another Service');
-    });
-
-    it('should return one suggestion per dependency when multiple dependencies exist', () => {
-      // Suggestions for dep-123
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 80,
-      });
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: 'svc-789',
-        association_type: 'database',
-        is_auto_suggested: true,
-        confidence_score: 50,
-      });
-
-      // Suggestion for dep-456
-      store.create({
-        dependency_id: 'dep-456',
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 70,
-      });
-
-      const suggestions = store.findPendingSuggestions();
-      expect(suggestions).toHaveLength(2);
-      // Should be ordered by confidence_score DESC
-      expect(suggestions[0].confidence_score).toBe(80);
-      expect(suggestions[0].dependency_name).toBe('Test Dependency');
-      expect(suggestions[1].confidence_score).toBe(70);
-      expect(suggestions[1].dependency_name).toBe('Other Dependency');
-    });
-
-    it('should include match_reason when present', () => {
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 85,
-        match_reason: 'Name pattern match',
-      });
-
-      const suggestions = store.findPendingSuggestions();
-      expect(suggestions).toHaveLength(1);
-      expect(suggestions[0].match_reason).toBe('Name pattern match');
-    });
-  });
-
   describe('existsForDependencyAndService', () => {
     it('should return true when association exists', () => {
       store.create({
@@ -314,163 +179,6 @@ describe('AssociationStore', () => {
     });
   });
 
-  describe('acceptSuggestion', () => {
-    it('should accept auto-suggested association', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-      });
-
-      const accepted = store.acceptSuggestion(assoc.id);
-      expect(accepted).toBe(true);
-
-      const updated = store.findById(assoc.id);
-      expect(updated?.is_auto_suggested).toBe(0);
-    });
-
-    it('should return false for non-suggested association', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: false,
-      });
-
-      const accepted = store.acceptSuggestion(assoc.id);
-      expect(accepted).toBe(false);
-    });
-  });
-
-  describe('dismissSuggestion', () => {
-    it('should dismiss auto-suggested association', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-      });
-
-      const dismissed = store.dismissSuggestion(assoc.id);
-      expect(dismissed).toBe(true);
-
-      const updated = store.findById(assoc.id);
-      expect(updated?.is_dismissed).toBe(1);
-    });
-
-    it('should return false for non-suggested association', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: false,
-      });
-
-      const dismissed = store.dismissSuggestion(assoc.id);
-      expect(dismissed).toBe(false);
-    });
-  });
-
-  describe('dismissAllForDependency', () => {
-    it('should dismiss all pending suggestions for a dependency', () => {
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 80,
-      });
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: 'svc-789',
-        association_type: 'database',
-        is_auto_suggested: true,
-        confidence_score: 60,
-      });
-
-      const dismissed = store.dismissAllForDependency(testDependencyId);
-      expect(dismissed).toBe(2);
-
-      // Verify all are dismissed
-      const remaining = store.findPendingSuggestions();
-      expect(remaining).toHaveLength(0);
-    });
-
-    it('should not dismiss suggestions for other dependencies', () => {
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 80,
-      });
-      store.create({
-        dependency_id: 'dep-456',
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-        confidence_score: 70,
-      });
-
-      store.dismissAllForDependency(testDependencyId);
-
-      const remaining = store.findPendingSuggestions();
-      expect(remaining).toHaveLength(1);
-      expect(remaining[0].dependency_name).toBe('Other Dependency');
-    });
-
-    it('should not dismiss manual associations', () => {
-      store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: false,
-      });
-
-      const dismissed = store.dismissAllForDependency(testDependencyId);
-      expect(dismissed).toBe(0);
-    });
-
-    it('should not dismiss already-dismissed suggestions', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-      });
-      store.dismissSuggestion(assoc.id);
-
-      const dismissed = store.dismissAllForDependency(testDependencyId);
-      expect(dismissed).toBe(0);
-    });
-
-    it('should return 0 when no suggestions exist for the dependency', () => {
-      const dismissed = store.dismissAllForDependency('non-existent');
-      expect(dismissed).toBe(0);
-    });
-  });
-
-  describe('reactivateDismissed', () => {
-    it('should reactivate dismissed association with new type', () => {
-      const assoc = store.create({
-        dependency_id: testDependencyId,
-        linked_service_id: testLinkedServiceId,
-        association_type: 'api_call',
-        is_auto_suggested: true,
-      });
-      store.dismissSuggestion(assoc.id);
-
-      const reactivated = store.reactivateDismissed(assoc.id, 'database');
-      expect(reactivated).toBe(true);
-
-      const updated = store.findById(assoc.id);
-      expect(updated?.is_dismissed).toBe(0);
-      expect(updated?.is_auto_suggested).toBe(0);
-      expect(updated?.association_type).toBe('database');
-    });
-  });
-
   describe('exists', () => {
     it('should return true for existing association', () => {
       const assoc = store.create({
@@ -493,7 +201,6 @@ describe('AssociationStore', () => {
         dependency_id: testDependencyId,
         linked_service_id: testLinkedServiceId,
         association_type: 'api_call',
-        is_auto_suggested: true,
       });
     });
 
@@ -508,16 +215,6 @@ describe('AssociationStore', () => {
 
     it('should count with linkedServiceId filter', () => {
       expect(store.count({ linkedServiceId: testLinkedServiceId })).toBe(1);
-    });
-
-    it('should count with isAutoSuggested filter', () => {
-      expect(store.count({ isAutoSuggested: true })).toBe(1);
-      expect(store.count({ isAutoSuggested: false })).toBe(0);
-    });
-
-    it('should count with isDismissed filter', () => {
-      expect(store.count({ isDismissed: false })).toBe(1);
-      expect(store.count({ isDismissed: true })).toBe(0);
     });
   });
 });

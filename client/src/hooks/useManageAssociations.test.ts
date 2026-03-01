@@ -97,9 +97,6 @@ function makeAssociation(overrides = {}) {
     dependency_id: 'dep-1',
     linked_service_id: 'svc-2',
     association_type: 'api_call' as const,
-    is_auto_suggested: 0,
-    confidence_score: null,
-    is_dismissed: 0,
     created_at: '2024-01-01T00:00:00Z',
     linked_service: {
       id: 'svc-2',

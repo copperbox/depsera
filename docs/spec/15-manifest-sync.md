@@ -409,7 +409,7 @@ State management for manifest configuration and sync triggering. Follows `useAle
 
 **`useDriftFlags(teamId)`** — `client/src/hooks/useDriftFlags.ts`
 
-State management for drift flag listing, filtering, selection, and actions. Follows `useSuggestions` pattern.
+State management for drift flag listing, filtering, selection, and actions.
 
 - State: `flags`, `filtered`, `summary`, `isLoading`, `error`
 - View: `view` (`pending`/`dismissed`), `setView` (clears selection on change)

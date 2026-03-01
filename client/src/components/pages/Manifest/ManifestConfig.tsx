@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import ConfirmDialog from '../../common/ConfirmDialog';
-import type { TeamManifestConfig, ManifestConfigInput, ManifestSyncPolicy } from '../../../types/manifest';
+import { testManifestUrl } from '../../../api/manifest';
+import type { TeamManifestConfig, ManifestConfigInput, ManifestSyncPolicy, ManifestTestUrlResult } from '../../../types/manifest';
 import styles from './ManifestPage.module.css';
 
 interface ManifestConfigProps {
-  config: TeamManifestConfig;
+  config: TeamManifestConfig | null;
   canManage: boolean;
   isSaving: boolean;
+  isNew?: boolean;
   onSave: (input: ManifestConfigInput) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
   onToggleEnabled: () => Promise<boolean>;
+  onCancelCreate?: () => void;
 }
 
 const FIELD_DRIFT_LABELS: Record<string, string> = {
@@ -46,32 +49,73 @@ function ManifestConfig({
   config,
   canManage,
   isSaving,
+  isNew,
   onSave,
   onRemove,
   onToggleEnabled,
+  onCancelCreate,
 }: ManifestConfigProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(!!isNew);
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   // Form state
-  const policy = parseSyncPolicy(config.sync_policy);
-  const [formUrl, setFormUrl] = useState(config.manifest_url);
+  const policy = parseSyncPolicy(config?.sync_policy ?? null);
+  const [formUrl, setFormUrl] = useState(config?.manifest_url ?? '');
   const [formFieldDrift, setFormFieldDrift] = useState(policy.on_field_drift || 'flag');
   const [formRemoval, setFormRemoval] = useState(policy.on_removal || 'flag');
   const [urlError, setUrlError] = useState<string | null>(null);
 
+  // Test URL state
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<ManifestTestUrlResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
   const handleEdit = () => {
-    const p = parseSyncPolicy(config.sync_policy);
-    setFormUrl(config.manifest_url);
+    const p = parseSyncPolicy(config?.sync_policy ?? null);
+    setFormUrl(config?.manifest_url ?? '');
     setFormFieldDrift(p.on_field_drift || 'flag');
     setFormRemoval(p.on_removal || 'flag');
     setUrlError(null);
+    setTestResult(null);
+    setTestError(null);
     setIsEditing(true);
   };
 
   const handleCancel = () => {
+    if (isNew && onCancelCreate) {
+      onCancelCreate();
+      return;
+    }
     setIsEditing(false);
     setUrlError(null);
+    setTestResult(null);
+    setTestError(null);
+  };
+
+  const handleTestUrl = async () => {
+    const trimmedUrl = formUrl.trim();
+    if (!trimmedUrl) {
+      setUrlError('Manifest URL is required');
+      return;
+    }
+    if (!isValidUrl(trimmedUrl)) {
+      setUrlError('Please enter a valid HTTP or HTTPS URL');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    setUrlError(null);
+
+    try {
+      const result = await testManifestUrl(trimmedUrl);
+      setTestResult(result);
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'Failed to test URL');
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -114,19 +158,81 @@ function ManifestConfig({
             <label className={styles.label} htmlFor="manifest-url">
               Manifest URL
             </label>
-            <input
-              id="manifest-url"
-              type="url"
-              className={`${styles.input} ${urlError ? styles.inputError : ''}`}
-              value={formUrl}
-              onChange={(e) => {
-                setFormUrl(e.target.value);
-                setUrlError(null);
-              }}
-              placeholder="https://example.com/manifest.json"
-              required
-            />
+            <div className={styles.urlInputRow}>
+              <input
+                id="manifest-url"
+                type="url"
+                className={`${styles.input} ${styles.urlInput} ${urlError ? styles.inputError : ''}`}
+                value={formUrl}
+                onChange={(e) => {
+                  setFormUrl(e.target.value);
+                  setUrlError(null);
+                  setTestResult(null);
+                  setTestError(null);
+                }}
+                placeholder="https://example.com/manifest.json"
+                required
+              />
+              <button
+                type="button"
+                className={styles.testButton}
+                onClick={handleTestUrl}
+                disabled={isTesting || !formUrl.trim()}
+              >
+                {isTesting ? 'Testing...' : 'Test URL'}
+              </button>
+            </div>
             {urlError && <span className={styles.fieldError}>{urlError}</span>}
+            {testError && (
+              <div className={styles.testResultBox} data-status="error">
+                <span className={styles.testResultIcon}>&#x2716;</span>
+                <span>{testError}</span>
+              </div>
+            )}
+            {testResult && !testResult.fetch_success && (
+              <div className={styles.testResultBox} data-status="error">
+                <span className={styles.testResultIcon}>&#x2716;</span>
+                <div>
+                  <strong>Fetch failed</strong>
+                  <p className={styles.testResultDetail}>{testResult.fetch_error}</p>
+                </div>
+              </div>
+            )}
+            {testResult && testResult.fetch_success && testResult.validation && (
+              <div
+                className={styles.testResultBox}
+                data-status={testResult.validation.valid ? 'success' : 'error'}
+              >
+                <span className={styles.testResultIcon}>
+                  {testResult.validation.valid ? '\u2714' : '\u2716'}
+                </span>
+                <div className={styles.testResultContent}>
+                  <strong>
+                    {testResult.validation.valid
+                      ? `Valid manifest — ${testResult.validation.service_count} service${testResult.validation.service_count !== 1 ? 's' : ''} found`
+                      : 'Invalid manifest'}
+                  </strong>
+                  {testResult.validation.errors.length > 0 && (
+                    <ul className={styles.testIssueList} data-severity="error">
+                      {testResult.validation.errors.map((e, i) => (
+                        <li key={i}>
+                          <code>{e.path}</code> {e.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {testResult.validation.warnings.length > 0 && (
+                    <ul className={styles.testIssueList} data-severity="warning">
+                      {testResult.validation.warnings.map((w, i) => (
+                        <li key={i}>
+                          <code>{w.path}</code> {w.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={styles.field}>
@@ -193,7 +299,8 @@ function ManifestConfig({
     );
   }
 
-  // Display mode
+  // Display mode — should not render if config is null (would be in editing/create mode)
+  if (!config) return null;
   const isEnabled = config.is_enabled === 1;
 
   return (

@@ -224,20 +224,6 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
                   <span className={styles.detailValue}>{data.associationType.replace('_', ' ')}</span>
                 </div>
               )}
-              {data.isAutoSuggested !== undefined && (
-                <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>Source</span>
-                  <span className={styles.detailValue}>
-                    {data.isAutoSuggested ? 'Auto-suggested' : 'Manual'}
-                  </span>
-                </div>
-              )}
-              {data.confidenceScore !== null && data.confidenceScore !== undefined && (
-                <div className={styles.detailItem}>
-                  <span className={styles.detailLabel}>Confidence</span>
-                  <span className={styles.detailValue}>{Math.round(data.confidenceScore * 100)}%</span>
-                </div>
-              )}
             </div>
           </div>
         )}

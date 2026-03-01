@@ -22,25 +22,6 @@ jest.mock('../../auth', () => ({
   requireBodyTeamLead: jest.fn((_req, _res, next) => next()),
 }));
 
-// Mock the AssociationMatcher
-const mockGetPendingSuggestions = jest.fn();
-const mockAcceptSuggestion = jest.fn();
-const mockDismissSuggestion = jest.fn();
-const mockGenerateSuggestions = jest.fn();
-const mockGenerateSuggestionsForService = jest.fn();
-
-jest.mock('../../services/matching', () => ({
-  AssociationMatcher: {
-    getInstance: () => ({
-      getPendingSuggestions: mockGetPendingSuggestions,
-      acceptSuggestion: mockAcceptSuggestion,
-      dismissSuggestion: mockDismissSuggestion,
-      generateSuggestions: mockGenerateSuggestions,
-      generateSuggestionsForService: mockGenerateSuggestionsForService,
-    }),
-  },
-}));
-
 import associationsRouter from './index';
 
 // Admin user used for all existing tests (authorization checks pass for admin)
@@ -133,10 +114,7 @@ describe('Associations API', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT NOT NULL DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
         FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,
@@ -209,9 +187,9 @@ describe('Associations API', () => {
       // Create an association
       associationId = randomUUID();
       testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested, is_dismissed)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(associationId, dependencyId, linkedServiceId, 'api_call', 0, 0);
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type)
+        VALUES (?, ?, ?, ?)
+      `).run(associationId, dependencyId, linkedServiceId, 'api_call');
 
       const response = await request(app)
         .get(`/api/dependencies/${dependencyId}/associations`);
@@ -220,21 +198,6 @@ describe('Associations API', () => {
       expect(response.body).toHaveLength(1);
       expect(response.body[0].linked_service).toBeDefined();
       expect(response.body[0].linked_service.id).toBe(linkedServiceId);
-    });
-
-    it('should filter out dismissed associations', async () => {
-      // Create a dismissed association
-      associationId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested, is_dismissed)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(associationId, dependencyId, linkedServiceId, 'api_call', 0, 1);
-
-      const response = await request(app)
-        .get(`/api/dependencies/${dependencyId}/associations`);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveLength(0);
     });
   });
 
@@ -307,26 +270,6 @@ describe('Associations API', () => {
       expect(response.status).toBe(409);
       expect(response.body.error).toContain('already exists');
     });
-
-    it('should reactivate dismissed association', async () => {
-      // Create dismissed association
-      associationId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_dismissed)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(associationId, dependencyId, linkedServiceId, 'api_call', 1);
-
-      const response = await request(app)
-        .post(`/api/dependencies/${dependencyId}/associations`)
-        .send({
-          linked_service_id: linkedServiceId,
-          association_type: 'database',
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body.is_dismissed).toBe(0);
-      expect(response.body.association_type).toBe('database');
-    });
   });
 
   describe('DELETE /api/dependencies/:dependencyId/associations/:serviceId', () => {
@@ -364,242 +307,6 @@ describe('Associations API', () => {
         SELECT * FROM dependency_associations WHERE id = ?
       `).get(associationId);
       expect(remaining).toBeUndefined();
-    });
-  });
-
-  describe('GET /api/associations/suggestions', () => {
-    it('should return pending suggestions', async () => {
-      const mockSuggestions = [
-        { id: '1', dependency_id: dependencyId, linked_service_id: linkedServiceId },
-      ];
-      mockGetPendingSuggestions.mockReturnValue(mockSuggestions);
-
-      const response = await request(app)
-        .get('/api/associations/suggestions');
-
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(mockSuggestions);
-    });
-
-    it('should return 500 on error', async () => {
-      mockGetPendingSuggestions.mockImplementation(() => {
-        throw new Error('Database error');
-      });
-
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const response = await request(app)
-        .get('/api/associations/suggestions');
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Internal server error');
-
-      errorSpy.mockRestore();
-    });
-  });
-
-  describe('POST /api/associations/suggestions/:suggestionId/accept', () => {
-    beforeEach(() => {
-      // Create an auto-suggested association
-      associationId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(associationId, dependencyId, linkedServiceId, 'api_call', 1);
-    });
-
-    it('should return 404 for non-existent suggestion', async () => {
-      const response = await request(app)
-        .post('/api/associations/suggestions/non-existent-id/accept');
-
-      expect(response.status).toBe(404);
-      expect(response.body.error).toContain('not found');
-    });
-
-    it('should return 404 for non-auto-suggested association', async () => {
-      // First delete the existing auto-suggested one to avoid unique constraint
-      testDb.prepare('DELETE FROM dependency_associations WHERE id = ?').run(associationId);
-
-      // Create a manual association
-      const manualId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(manualId, dependencyId, linkedServiceId, 'api_call', 0);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${manualId}/accept`);
-
-      expect(response.status).toBe(404);
-    });
-
-    it('should accept suggestion successfully', async () => {
-      mockAcceptSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/accept`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.linked_service).toBeDefined();
-    });
-
-    it('should return 500 when accept fails', async () => {
-      mockAcceptSuggestion.mockReturnValue(false);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/accept`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to accept suggestion');
-    });
-
-    it('should return 500 on error', async () => {
-      mockAcceptSuggestion.mockImplementation(() => {
-        throw new Error('Database error');
-      });
-
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/accept`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Internal server error');
-      expect(response.body.message).toBeUndefined();
-
-      errorSpy.mockRestore();
-    });
-  });
-
-  describe('POST /api/associations/suggestions/:suggestionId/dismiss', () => {
-    beforeEach(() => {
-      // Create an auto-suggested association
-      associationId = randomUUID();
-      testDb.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(associationId, dependencyId, linkedServiceId, 'api_call', 1);
-    });
-
-    it('should return 404 for non-existent suggestion', async () => {
-      const response = await request(app)
-        .post('/api/associations/suggestions/non-existent-id/dismiss');
-
-      expect(response.status).toBe(404);
-    });
-
-    it('should dismiss suggestion successfully', async () => {
-      mockDismissSuggestion.mockReturnValue(true);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/dismiss`);
-
-      expect(response.status).toBe(204);
-    });
-
-    it('should return 500 when dismiss fails', async () => {
-      mockDismissSuggestion.mockReturnValue(false);
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/dismiss`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Failed to dismiss suggestion');
-    });
-
-    it('should return 500 on error', async () => {
-      mockDismissSuggestion.mockImplementation(() => {
-        throw new Error('Database error');
-      });
-
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const response = await request(app)
-        .post(`/api/associations/suggestions/${associationId}/dismiss`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Internal server error');
-      expect(response.body.message).toBeUndefined();
-
-      errorSpy.mockRestore();
-    });
-  });
-
-  describe('POST /api/dependencies/:dependencyId/generate-suggestions', () => {
-    it('should return 404 for non-existent dependency', async () => {
-      const response = await request(app)
-        .post('/api/dependencies/non-existent-id/suggestions/generate');
-
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Dependency not found');
-    });
-
-    it('should generate suggestions for dependency', async () => {
-      const mockSuggestions = [{ id: '1', linked_service_id: linkedServiceId }];
-      mockGenerateSuggestions.mockReturnValue(mockSuggestions);
-
-      const response = await request(app)
-        .post(`/api/dependencies/${dependencyId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.dependency_id).toBe(dependencyId);
-      expect(response.body.suggestions_created).toBe(1);
-      expect(response.body.suggestions).toEqual(mockSuggestions);
-    });
-
-    it('should return 500 on error', async () => {
-      mockGenerateSuggestions.mockImplementation(() => {
-        throw new Error('Generation failed');
-      });
-
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const response = await request(app)
-        .post(`/api/dependencies/${dependencyId}/suggestions/generate`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Internal server error');
-
-      errorSpy.mockRestore();
-    });
-  });
-
-  describe('POST /api/services/:serviceId/suggestions/generate', () => {
-    it('should return 404 for non-existent service', async () => {
-      const response = await request(app)
-        .post('/api/services/non-existent-id/suggestions/generate');
-
-      expect(response.status).toBe(404);
-      expect(response.body.error).toBe('Service not found');
-    });
-
-    it('should generate suggestions for service', async () => {
-      const mockSuggestions = [{ id: '1', dependency_id: dependencyId }];
-      mockGenerateSuggestionsForService.mockReturnValue(mockSuggestions);
-
-      const response = await request(app)
-        .post(`/api/services/${serviceId}/suggestions/generate`);
-
-      expect(response.status).toBe(200);
-      expect(response.body.service_id).toBe(serviceId);
-      expect(response.body.suggestions_created).toBe(1);
-      expect(response.body.suggestions).toEqual(mockSuggestions);
-    });
-
-    it('should return 500 on error', async () => {
-      mockGenerateSuggestionsForService.mockImplementation(() => {
-        throw new Error('Generation failed');
-      });
-
-      const errorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const response = await request(app)
-        .post(`/api/services/${serviceId}/suggestions/generate`);
-
-      expect(response.status).toBe(500);
-      expect(response.body.error).toBe('Internal server error');
-
-      errorSpy.mockRestore();
     });
   });
 });

@@ -597,7 +597,7 @@ describe('ManifestValidator', () => {
         version: 1,
         services: [validService({ key: 'my-service' })],
         associations: [
-          { service_key: 'my-service', dependency_name: 'postgresql', association_type: 'database' },
+          { service_key: 'my-service', dependency_name: 'postgresql', linked_service_key: 'postgres-db', association_type: 'database' },
         ],
       });
       expect(result.valid).toBe(true);
@@ -609,7 +609,7 @@ describe('ManifestValidator', () => {
         const result = validateManifest({
           version: 1,
           services: [validService({ key: 'svc' })],
-          associations: [{ service_key: 'svc', dependency_name: `dep-${type}`, association_type: type }],
+          associations: [{ service_key: 'svc', dependency_name: `dep-${type}`, linked_service_key: `target-${type}`, association_type: type }],
         });
         expect(result.errors.filter(e => e.path.includes('association_type'))).toHaveLength(0);
       }
@@ -619,7 +619,7 @@ describe('ManifestValidator', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
-        associations: [{ service_key: 'svc', dependency_name: 'dep', association_type: 'invalid' }],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'invalid' }],
       });
       expect(result.valid).toBe(false);
       expect(result.errors).toEqual(
@@ -631,7 +631,7 @@ describe('ManifestValidator', () => {
       const result = validateManifest({
         version: 1,
         services: [],
-        associations: [{ dependency_name: 'dep', association_type: 'database' }],
+        associations: [{ dependency_name: 'dep', linked_service_key: 'target', association_type: 'database' }],
       });
       expect(result.valid).toBe(false);
       expect(result.errors).toEqual(
@@ -643,16 +643,40 @@ describe('ManifestValidator', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
-        associations: [{ service_key: 'svc', association_type: 'database' }],
+        associations: [{ service_key: 'svc', linked_service_key: 'target', association_type: 'database' }],
       });
       expect(result.valid).toBe(false);
+    });
+
+    it('rejects missing linked_service_key', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ key: 'svc' })],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', association_type: 'database' }],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: 'associations[0].linked_service_key' })]),
+      );
+    });
+
+    it('rejects empty linked_service_key', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ key: 'svc' })],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', linked_service_key: '', association_type: 'database' }],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: 'associations[0].linked_service_key' })]),
+      );
     });
 
     it('rejects missing association_type', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
-        associations: [{ service_key: 'svc', dependency_name: 'dep' }],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target' }],
       });
       expect(result.valid).toBe(false);
     });
@@ -661,7 +685,7 @@ describe('ManifestValidator', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc-a' })],
-        associations: [{ service_key: 'svc-b', dependency_name: 'dep', association_type: 'database' }],
+        associations: [{ service_key: 'svc-b', dependency_name: 'dep', linked_service_key: 'target', association_type: 'database' }],
       });
       expect(result.valid).toBe(false);
       expect(result.errors).toEqual(
@@ -674,13 +698,22 @@ describe('ManifestValidator', () => {
       );
     });
 
+    it('allows linked_service_key not in services array (cross-team)', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ key: 'svc' })],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', linked_service_key: 'other-team-service', association_type: 'api_call' }],
+      });
+      expect(result.valid).toBe(true);
+    });
+
     it('rejects duplicate association tuples', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
         associations: [
-          { service_key: 'svc', dependency_name: 'dep', association_type: 'database' },
-          { service_key: 'svc', dependency_name: 'dep', association_type: 'database' },
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'database' },
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'database' },
         ],
       });
       expect(result.valid).toBe(false);
@@ -689,13 +722,28 @@ describe('ManifestValidator', () => {
       );
     });
 
-    it('allows same service+dep with different association_type', () => {
+    it('rejects same service+dep+linked_service_key with different association_type as duplicate', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
         associations: [
-          { service_key: 'svc', dependency_name: 'dep', association_type: 'database' },
-          { service_key: 'svc', dependency_name: 'dep', association_type: 'cache' },
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'database' },
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'cache' },
+        ],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: 'associations[1]', message: expect.stringContaining('Duplicate') })]),
+      );
+    });
+
+    it('allows same service+dep with different linked_service_key', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ key: 'svc' })],
+        associations: [
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target-a', association_type: 'database' },
+          { service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target-b', association_type: 'database' },
         ],
       });
       expect(result.errors.filter(e => e.message.includes('Duplicate'))).toHaveLength(0);
@@ -710,7 +758,7 @@ describe('ManifestValidator', () => {
       const result = validateManifest({
         version: 1,
         services: [validService({ key: 'svc' })],
-        associations: [{ service_key: 'svc', dependency_name: 'dep', association_type: 'database', extra: true }],
+        associations: [{ service_key: 'svc', dependency_name: 'dep', linked_service_key: 'target', association_type: 'database', extra: true }],
       });
       expect(result.warnings).toEqual(
         expect.arrayContaining([expect.objectContaining({ path: 'associations[0].extra' })]),

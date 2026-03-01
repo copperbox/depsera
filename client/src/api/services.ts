@@ -6,6 +6,7 @@ import type {
   TeamWithCounts,
   SchemaMapping,
   TestSchemaResult,
+  CatalogEntry,
 } from '../types/service';
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
@@ -68,6 +69,19 @@ export async function testSchemaMapping(
     credentials: 'include',
   });
   return handleResponse<TestSchemaResult>(response);
+}
+
+export async function fetchServiceCatalog(options?: {
+  search?: string;
+  teamId?: string;
+}): Promise<CatalogEntry[]> {
+  const params = new URLSearchParams();
+  if (options?.search) params.set('search', options.search);
+  if (options?.teamId) params.set('team_id', options.teamId);
+  const qs = params.toString();
+  const url = `/api/services/catalog${qs ? `?${qs}` : ''}`;
+  const response = await fetch(url, { credentials: 'include' });
+  return handleResponse<CatalogEntry[]>(response);
 }
 
 export async function fetchTeams(): Promise<TeamWithCounts[]> {

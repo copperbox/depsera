@@ -50,16 +50,6 @@ export function createAssociation(req: Request, res: Response): void {
     );
 
     if (existing) {
-      // If it was dismissed, reactivate it
-      if (existing.is_dismissed) {
-        stores.associations.reactivateDismissed(existing.id, validated.association_type);
-
-        const updated = stores.associations.findById(existing.id)!;
-
-        res.json(formatAssociation(updated, linkedService));
-        return;
-      }
-
       throw new ConflictError('Association already exists');
     }
 
@@ -68,7 +58,6 @@ export function createAssociation(req: Request, res: Response): void {
       dependency_id: dependencyId,
       linked_service_id: validated.linked_service_id,
       association_type: validated.association_type,
-      is_auto_suggested: false,
     });
 
     res.status(201).json(formatAssociation(association, linkedService));

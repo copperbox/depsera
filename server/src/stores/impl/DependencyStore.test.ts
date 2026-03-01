@@ -60,10 +60,7 @@ describe('DependencyStore', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE
       );
@@ -584,9 +581,9 @@ describe('DependencyStore', () => {
 
       // Add association
       db.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run('assoc-1', result.dependency.id, testServiceId2, 'api_call', 0);
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type)
+        VALUES (?, ?, ?, ?)
+      `).run('assoc-1', result.dependency.id, testServiceId2, 'api_call');
 
       const deps = store.findByServiceIdWithTargets(testServiceId);
       expect(deps).toHaveLength(1);
@@ -765,9 +762,9 @@ describe('DependencyStore', () => {
       });
 
       db.prepare(`
-        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
-        VALUES (?, ?, ?, ?, ?)
-      `).run('assoc-1', result.dependency.id, testServiceId2, 'api_call', 0);
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type)
+        VALUES (?, ?, ?, ?)
+      `).run('assoc-1', result.dependency.id, testServiceId2, 'api_call');
 
       const reports = store.findDependentReports(testServiceId2);
       expect(reports).toHaveLength(1);

@@ -41,6 +41,7 @@ const KNOWN_OVERRIDE_FIELDS = new Set(['canonical_name', 'contact', 'impact']);
 const KNOWN_ASSOCIATION_FIELDS = new Set([
   'service_key',
   'dependency_name',
+  'linked_service_key',
   'association_type',
 ]);
 
@@ -401,6 +402,12 @@ function validateAssociations(
       continue;
     }
 
+    // Required: linked_service_key
+    if (!isNonEmptyString(assoc.linked_service_key)) {
+      addError(errors, `${path}.linked_service_key`, 'linked_service_key is required and must be a non-empty string');
+      continue;
+    }
+
     // Required: association_type (valid enum)
     if (!isNonEmptyString(assoc.association_type)) {
       addError(errors, `${path}.association_type`, 'association_type is required and must be a non-empty string');
@@ -424,13 +431,13 @@ function validateAssociations(
       );
     }
 
-    // Duplicate tuple check (service_key + dependency_name + association_type)
-    const tuple = `${assoc.service_key}|${assoc.dependency_name}|${assoc.association_type}`;
+    // Duplicate tuple check (service_key + dependency_name + linked_service_key)
+    const tuple = `${assoc.service_key}|${assoc.dependency_name}|${assoc.linked_service_key}`;
     if (seenTuples.has(tuple)) {
       addError(
         errors,
         path,
-        `Duplicate association: service_key="${assoc.service_key}", dependency_name="${assoc.dependency_name}", association_type="${assoc.association_type}"`,
+        `Duplicate association: service_key="${assoc.service_key}", dependency_name="${assoc.dependency_name}", linked_service_key="${assoc.linked_service_key}"`,
       );
     } else {
       seenTuples.add(tuple);

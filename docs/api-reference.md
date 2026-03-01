@@ -1007,66 +1007,6 @@ curl -X DELETE http://localhost:3001/api/dependencies/<dep-id>/associations/<ser
 
 ---
 
-### `POST /api/dependencies/:dependencyId/suggestions/generate`
-
-Generate association suggestions for a single dependency.
-
-```bash
-curl -X POST http://localhost:3001/api/dependencies/<dep-id>/suggestions/generate \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `POST /api/services/:serviceId/suggestions/generate`
-
-Generate association suggestions for all dependencies of a service.
-
-```bash
-curl -X POST http://localhost:3001/api/services/<service-id>/suggestions/generate \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `GET /api/associations/suggestions`
-
-List all pending (undismissed) suggestions.
-
-```bash
-curl http://localhost:3001/api/associations/suggestions -b cookies.txt
-```
-
----
-
-### `POST /api/associations/suggestions/:id/accept`
-
-Accept a suggestion, converting it to a manual association.
-
-```bash
-curl -X POST http://localhost:3001/api/associations/suggestions/<suggestion-id>/accept \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `POST /api/associations/suggestions/:id/dismiss`
-
-Dismiss a suggestion.
-
-```bash
-curl -X POST http://localhost:3001/api/associations/suggestions/<suggestion-id>/dismiss \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
-**Response:** `204 No Content`
-
----
-
 ## Graph
 
 ### `GET /api/graph`
@@ -1127,8 +1067,6 @@ curl "http://localhost:3001/api/graph?team=<team-id>" -b cookies.txt
         "latencyMs": 12,
         "avgLatencyMs24h": 15.3,
         "associationType": "database",
-        "isAutoSuggested": false,
-        "confidenceScore": null,
         "impact": "critical",
         "errorMessage": null
       }

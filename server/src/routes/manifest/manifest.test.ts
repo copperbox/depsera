@@ -144,6 +144,12 @@ jest.mock('../../services/manifest/ManifestValidator', () => ({
   validateManifest: mockValidateManifest,
 }));
 
+// Mock ManifestFetcher
+const mockFetchManifest = jest.fn();
+jest.mock('../../services/manifest/ManifestFetcher', () => ({
+  fetchManifest: mockFetchManifest,
+}));
+
 // Mock audit
 jest.mock('../../services/audit/AuditLogService', () => ({
   auditFromRequest: jest.fn(),
@@ -251,6 +257,7 @@ describe('Manifest API Routes', () => {
     mockCanManualSync.mockReset();
     mockIsSyncing.mockReset();
     mockValidateManifest.mockReset();
+    mockFetchManifest.mockReset();
   });
 
   // ─── Configuration Routes (DPS-57a) ────────────────────────────
@@ -703,6 +710,138 @@ describe('Manifest API Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.result.valid).toBe(true);
       expect(res.body.result.warnings).toHaveLength(1);
+    });
+  });
+
+  // ─── Test URL Route ───────────────────────────────────────────
+
+  describe('POST /api/manifest/test-url', () => {
+    it('should reject missing url', async () => {
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({});
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject empty url', async () => {
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: '   ' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject invalid url format', async () => {
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: 'not-a-url' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject SSRF-blocked urls', async () => {
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: 'https://localhost/manifest.json' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should return fetch error when fetch fails', async () => {
+      mockFetchManifest.mockResolvedValue({
+        success: false,
+        error: 'HTTP 404: Not Found',
+        url: 'https://example.com/manifest.json',
+      });
+
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.fetch_success).toBe(false);
+      expect(res.body.result.fetch_error).toBe('HTTP 404: Not Found');
+      expect(res.body.result.validation).toBeNull();
+      expect(mockFetchManifest).toHaveBeenCalledWith('https://example.com/manifest.json');
+    });
+
+    it('should return validation result when fetch succeeds', async () => {
+      const manifestData = { version: 1, services: [{ key: 'svc', name: 'Svc', health_endpoint: 'https://svc.com/h' }] };
+      mockFetchManifest.mockResolvedValue({
+        success: true,
+        data: manifestData,
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidateManifest.mockReturnValue({
+        valid: true,
+        version: 1,
+        service_count: 1,
+        valid_count: 1,
+        errors: [],
+        warnings: [],
+      });
+
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.fetch_success).toBe(true);
+      expect(res.body.result.fetch_error).toBeNull();
+      expect(res.body.result.validation.valid).toBe(true);
+      expect(res.body.result.validation.service_count).toBe(1);
+      expect(mockFetchManifest).toHaveBeenCalledWith('https://example.com/manifest.json');
+      expect(mockValidateManifest).toHaveBeenCalledWith(manifestData);
+    });
+
+    it('should return validation errors for invalid manifest content', async () => {
+      mockFetchManifest.mockResolvedValue({
+        success: true,
+        data: { not_a_manifest: true },
+        url: 'https://example.com/bad.json',
+      });
+      mockValidateManifest.mockReturnValue({
+        valid: false,
+        version: null,
+        service_count: 0,
+        valid_count: 0,
+        errors: [{ severity: 'error', path: 'version', message: 'Missing required field: version' }],
+        warnings: [],
+      });
+
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: 'https://example.com/bad.json' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.result.fetch_success).toBe(true);
+      expect(res.body.result.validation.valid).toBe(false);
+      expect(res.body.result.validation.errors).toHaveLength(1);
+      expect(res.body.result.validation.errors[0].path).toBe('version');
+    });
+
+    it('should trim whitespace from url', async () => {
+      mockFetchManifest.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidateManifest.mockReturnValue({
+        valid: true,
+        version: 1,
+        service_count: 0,
+        valid_count: 0,
+        errors: [],
+        warnings: [],
+      });
+
+      const res = await request(app)
+        .post('/api/manifest/test-url')
+        .send({ url: '  https://example.com/manifest.json  ' });
+
+      expect(res.status).toBe(200);
+      expect(mockFetchManifest).toHaveBeenCalledWith('https://example.com/manifest.json');
     });
   });
 });

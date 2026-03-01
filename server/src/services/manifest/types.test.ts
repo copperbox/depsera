@@ -162,6 +162,7 @@ describe('Manifest types', () => {
       const association: ManifestAssociationEntry = {
         service_key: 'my-service',
         dependency_name: 'postgresql',
+        linked_service_key: 'postgres-db',
         association_type: 'database',
       };
 
@@ -657,10 +658,6 @@ describe('Updated existing types with manifest columns', () => {
         dependency_id: 'dep-1',
         linked_service_id: 'svc-2',
         association_type: 'api_call',
-        is_auto_suggested: 0,
-        confidence_score: null,
-        is_dismissed: 0,
-        match_reason: null,
         manifest_managed: 1,
         created_at: '2026-01-01T00:00:00Z',
       };

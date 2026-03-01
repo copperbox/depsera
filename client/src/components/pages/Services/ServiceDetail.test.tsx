@@ -129,7 +129,6 @@ function setupDefaultMocks(service: any = mockService) {
     if (url.includes('/api/teams')) return Promise.resolve(jsonResponse(mockTeams));
     if (url.includes('/api/aliases/canonical-names')) return Promise.resolve(jsonResponse([]));
     if (url.includes('/api/aliases')) return Promise.resolve(jsonResponse([]));
-    if (url.includes('/associations/suggestions')) return Promise.resolve(jsonResponse([]));
     if (url.includes('/associations')) return Promise.resolve(jsonResponse([]));
     return Promise.resolve(jsonResponse({}));
   });

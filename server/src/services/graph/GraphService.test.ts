@@ -463,8 +463,6 @@ function createDependency(
     service_name: 'Test Service',
     target_service_id: targetServiceId,
     association_type: 'api_call',
-    is_auto_suggested: 0,
-    confidence_score: 90,
     avg_latency_24h: null,
   };
 }

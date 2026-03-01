@@ -3,6 +3,7 @@ import type {
   ManifestConfigInput,
   ManifestSyncResult,
   ManifestValidationResult,
+  ManifestTestUrlResult,
   DriftFlagWithContext,
   DriftSummary,
   DriftFlagsResponse,
@@ -91,6 +92,19 @@ export async function validateManifest(
     credentials: 'include',
   });
   const data = await handleResponse<{ result: ManifestValidationResult }>(response);
+  return data.result;
+}
+
+export async function testManifestUrl(
+  url: string
+): Promise<ManifestTestUrlResult> {
+  const response = await fetch('/api/manifest/test-url', {
+    method: 'POST',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ url }),
+    credentials: 'include',
+  });
+  const data = await handleResponse<{ result: ManifestTestUrlResult }>(response);
   return data.result;
 }
 

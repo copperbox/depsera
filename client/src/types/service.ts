@@ -153,3 +153,13 @@ export interface TestSchemaDependency {
   type: string;
   skipped: boolean;
 }
+
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  manifest_key: string | null;
+  description: string | null;
+  is_active: number;
+  team_id: string;
+  team_name: string;
+}

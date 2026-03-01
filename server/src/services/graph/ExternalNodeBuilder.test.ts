@@ -34,8 +34,6 @@ function createDep(
     service_name: 'Test Service',
     target_service_id: targetServiceId,
     association_type: null,
-    is_auto_suggested: null,
-    confidence_score: null,
     avg_latency_24h: null,
   };
 }

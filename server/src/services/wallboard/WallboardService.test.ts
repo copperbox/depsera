@@ -45,8 +45,6 @@ function makeDep(overrides: Partial<DependencyForWallboard> = {}): DependencyFor
     service_team_name: 'Team One',
     target_service_id: null,
     association_type: null,
-    is_auto_suggested: null,
-    confidence_score: null,
     avg_latency_24h: null,
     linked_service_name: null,
     ...overrides,

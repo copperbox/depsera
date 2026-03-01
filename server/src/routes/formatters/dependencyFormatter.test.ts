@@ -33,10 +33,6 @@ describe('dependencyFormatter', () => {
     dependency_id: 'dep-1',
     linked_service_id: 'service-1',
     association_type: 'api_call',
-    is_auto_suggested: 0,
-    confidence_score: null,
-    is_dismissed: 0,
-    match_reason: null,
     manifest_managed: 0,
     created_at: '2024-01-01T00:00:00.000Z',
   };
