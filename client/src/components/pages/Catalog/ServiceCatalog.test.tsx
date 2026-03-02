@@ -286,7 +286,81 @@ describe('ServiceCatalog', () => {
     renderCatalog();
 
     await waitFor(() => {
-      expect(screen.getByText('Service Catalog')).toBeInTheDocument();
+      expect(screen.getByText('Catalog')).toBeInTheDocument();
+    });
+  });
+
+  describe('tab switching', () => {
+    it('should default to Services tab', async () => {
+      renderCatalog();
+
+      await waitFor(() => {
+        expect(screen.getByText('Auth Service')).toBeInTheDocument();
+      });
+
+      // Services tab should be active
+      const servicesTab = screen.getByRole('button', { name: 'Services' });
+      expect(servicesTab.className).toContain('tabActive');
+    });
+
+    it('should switch to External Dependencies tab', async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.startsWith('/api/services/catalog')) return Promise.resolve(jsonResponse(mockCatalog));
+        if (url === '/api/teams') return Promise.resolve(jsonResponse(mockTeams));
+        if (url.startsWith('/api/catalog/external-dependencies')) return Promise.resolve(jsonResponse([]));
+        return Promise.resolve(jsonResponse([], 404));
+      });
+
+      renderCatalog();
+
+      await waitFor(() => {
+        expect(screen.getByText('Auth Service')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'External Dependencies' }));
+
+      // Services content should be hidden
+      expect(screen.queryByText('Auth Service')).not.toBeInTheDocument();
+      // External dependencies empty state should show
+      await waitFor(() => {
+        expect(screen.getByText('No external dependencies found.')).toBeInTheDocument();
+      });
+    });
+
+    it('should switch back to Services tab', async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url.startsWith('/api/services/catalog')) return Promise.resolve(jsonResponse(mockCatalog));
+        if (url === '/api/teams') return Promise.resolve(jsonResponse(mockTeams));
+        if (url.startsWith('/api/catalog/external-dependencies')) return Promise.resolve(jsonResponse([]));
+        return Promise.resolve(jsonResponse([], 404));
+      });
+
+      renderCatalog();
+
+      await waitFor(() => {
+        expect(screen.getByText('Auth Service')).toBeInTheDocument();
+      });
+
+      // Switch to external
+      fireEvent.click(screen.getByRole('button', { name: 'External Dependencies' }));
+      await waitFor(() => {
+        expect(screen.getByText('No external dependencies found.')).toBeInTheDocument();
+      });
+
+      // Switch back to services
+      fireEvent.click(screen.getByRole('button', { name: 'Services' }));
+      expect(screen.getByText('Auth Service')).toBeInTheDocument();
+    });
+
+    it('should show both tab buttons', async () => {
+      renderCatalog();
+
+      await waitFor(() => {
+        expect(screen.getByText('Auth Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Services' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'External Dependencies' })).toBeInTheDocument();
     });
   });
 

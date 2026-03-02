@@ -459,7 +459,7 @@ describe('ManifestStatusCard', () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
       .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockRejectedValueOnce(new Error('Sync failed'));
+      .mockRejectedValueOnce(new Error('Failed to trigger sync'));
 
     renderCard();
 
@@ -470,8 +470,106 @@ describe('ManifestStatusCard', () => {
     fireEvent.click(screen.getByText('Sync Now'));
 
     await waitFor(() => {
-      expect(screen.getByText('Sync failed')).toBeInTheDocument();
+      expect(screen.getByText('Failed to trigger sync')).toBeInTheDocument();
     });
+  });
+
+  it('shows 429 cooldown error from hook', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
+      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(jsonResponse({ error: 'Please wait before syncing again' }, 429));
+
+    renderCard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Sync Now'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Please wait before syncing again')).toBeInTheDocument();
+    });
+  });
+
+  it('shows cooldown timer after sync and disables button', async () => {
+    const syncResult = {
+      status: 'success',
+      summary: {
+        services: { created: 1, updated: 0, deactivated: 0, deleted: 0, drift_flagged: 0, unchanged: 0 },
+        aliases: { created: 0, updated: 0, removed: 0, unchanged: 0 },
+        overrides: { created: 0, updated: 0, removed: 0, unchanged: 0 },
+        associations: { created: 0, removed: 0, unchanged: 0 },
+      },
+      errors: [],
+      warnings: [],
+      changes: [],
+      duration_ms: 500,
+    };
+
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
+      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
+      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+
+    renderCard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Sync Now'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeDisabled();
+      expect(screen.getByText(/Available in \d+s/)).toBeInTheDocument();
+    });
+  });
+
+  it('re-enables button after cooldown expires', async () => {
+    const syncResult = {
+      status: 'success',
+      summary: {
+        services: { created: 0, updated: 0, deactivated: 0, deleted: 0, drift_flagged: 0, unchanged: 0 },
+        aliases: { created: 0, updated: 0, removed: 0, unchanged: 0 },
+        overrides: { created: 0, updated: 0, removed: 0, unchanged: 0 },
+        associations: { created: 0, removed: 0, unchanged: 0 },
+      },
+      errors: [],
+      warnings: [],
+      changes: [],
+      duration_ms: 100,
+    };
+
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
+      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
+      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+
+    renderCard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Sync Now'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Available in/)).toBeInTheDocument();
+    });
+
+    // Advance past the 60s cooldown
+    act(() => {
+      jest.advanceTimersByTime(61000);
+    });
+
+    expect(screen.getByText('Sync Now')).not.toBeDisabled();
+    expect(screen.queryByText(/Available in/)).not.toBeInTheDocument();
   });
 
   it('calls triggerSync API on Sync Now click', async () => {

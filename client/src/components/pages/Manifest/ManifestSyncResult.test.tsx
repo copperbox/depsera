@@ -219,4 +219,54 @@ describe('ManifestSyncResult', () => {
     fireEvent.click(screen.getByText('▾ Hide details'));
     expect(screen.queryByText('Service A')).not.toBeInTheDocument();
   });
+
+  it('shows cooldown timer after sync and disables button', async () => {
+    const onSync = jest.fn().mockResolvedValue(mockSyncResult);
+    renderSyncResult({ onSync });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Sync Now'));
+    });
+
+    // After sync completes, button should be disabled with cooldown text
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeDisabled();
+      expect(screen.getByText(/Available in \d+s/)).toBeInTheDocument();
+    });
+  });
+
+  it('re-enables button after cooldown expires', async () => {
+    const onSync = jest.fn().mockResolvedValue(mockSyncResult);
+    renderSyncResult({ onSync });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Sync Now'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Available in/)).toBeInTheDocument();
+    });
+
+    // Advance past the 60s cooldown
+    act(() => {
+      jest.advanceTimersByTime(61000);
+    });
+
+    expect(screen.getByText('Sync Now')).not.toBeDisabled();
+    expect(screen.queryByText(/Available in/)).not.toBeInTheDocument();
+  });
+
+  it('shows cooldown after failed sync too', async () => {
+    const onSync = jest.fn().mockResolvedValue(null);
+    renderSyncResult({ onSync });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Sync Now'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Sync Now')).toBeDisabled();
+      expect(screen.getByText(/Available in \d+s/)).toBeInTheDocument();
+    });
+  });
 });

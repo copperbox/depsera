@@ -6,6 +6,8 @@ import type { DriftSummary, ManifestSyncSummary } from '../../../types/manifest'
 import styles from './ManifestStatusCard.module.css';
 import teamStyles from './Teams.module.css';
 
+const SYNC_COOLDOWN_MS = 60_000;
+
 interface ManifestStatusCardProps {
   teamId: string;
   canManage: boolean;
@@ -44,6 +46,7 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
   const {
     config,
     isLoading,
+    error: hookError,
     isSyncing,
     loadConfig,
     triggerSync,
@@ -53,6 +56,8 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
   const [driftSummary, setDriftSummary] = useState<DriftSummary | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncMessageType, setSyncMessageType] = useState<'success' | 'error'>('success');
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadDriftSummary = useCallback(async () => {
@@ -81,26 +86,46 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
     }
   }, [syncMessage, syncMessageType]);
 
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (!cooldownEnd) {
+      setCooldownSeconds(0);
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, cooldownEnd - Date.now());
+      const secs = Math.ceil(remaining / 1000);
+      setCooldownSeconds(secs);
+      if (remaining <= 0) {
+        setCooldownEnd(null);
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownEnd]);
+
+  const isCoolingDown = cooldownSeconds > 0;
+
   const handleSync = async () => {
     setSyncMessage(null);
+    setSyncMessageType('success');
     const result = await triggerSync();
     if (result) {
       try {
         const summary: ManifestSyncSummary = result.summary;
-        setSyncMessageType('success');
         setSyncMessage(formatSyncSummary(summary));
       } catch {
-        setSyncMessageType('success');
         setSyncMessage('Sync completed');
       }
       // Refresh drift summary after sync
       loadDriftSummary();
-    } else {
-      // triggerSync returned null — check for error in hook
-      // The hook sets error state, but we also handle 429 specifically
-      setSyncMessageType('error');
-      setSyncMessage('Sync failed');
     }
+    // On failure, hookError is set by the hook (e.g. "Please wait before syncing again")
+    // and rendered directly — no need to duplicate the message in syncMessage
+    setCooldownEnd(Date.now() + SYNC_COOLDOWN_MS);
   };
 
   const handleDismissBanner = () => {
@@ -247,16 +272,30 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
           </Link>
         )}
 
+        {/* Hook error (e.g. 429 cooldown message) */}
+        {hookError && (
+          <div className={`${styles.syncResultBanner} ${styles.syncResultError}`}>
+            <span>{hookError}</span>
+          </div>
+        )}
+
         {/* Actions */}
         <div className={styles.cardActions}>
           {!isDisabled && canManage && (
-            <button
-              onClick={handleSync}
-              disabled={isSyncing}
-              className={styles.syncButton}
-            >
-              {isSyncing ? 'Syncing...' : 'Sync Now'}
-            </button>
+            <div className={styles.syncButtonGroup}>
+              <button
+                onClick={handleSync}
+                disabled={isSyncing || isCoolingDown}
+                className={styles.syncButton}
+              >
+                {isSyncing ? 'Syncing...' : 'Sync Now'}
+              </button>
+              {isCoolingDown && !isSyncing && (
+                <span className={styles.cooldownText}>
+                  Available in {cooldownSeconds}s
+                </span>
+              )}
+            </div>
           )}
           <Link to={`/teams/${teamId}/manifest`} className={styles.manageLink}>
             Manage Manifest →

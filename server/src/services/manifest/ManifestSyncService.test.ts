@@ -290,6 +290,30 @@ describe('ManifestSyncService', () => {
       );
     });
 
+    it('produces detailed error on service creation FOREIGN KEY constraint', async () => {
+      const entry = { key: 'new-svc', name: 'New Service', health_endpoint: 'https://new.example.com/health' };
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      stores.services.create.mockImplementation(() => {
+        throw new Error('FOREIGN KEY constraint failed');
+      });
+      mockFetch.mockResolvedValue({
+        success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [entry], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('failed');
+      expect(result.errors[0]).toContain('missing reference');
+      expect(result.errors[0]).toContain('team-1');
+    });
+
     it('updates services from diff.toUpdate', async () => {
       const entry = { key: 'svc-a', name: 'Updated Name', health_endpoint: 'https://svc-a.example.com/health' };
       stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
@@ -338,7 +362,7 @@ describe('ManifestSyncService', () => {
       expect(stores.driftFlags.upsertFieldDrift).toHaveBeenCalledWith(
         'svc-1', 'health_endpoint',
         'https://new.example.com/health', 'https://old.example.com/health',
-        expect.any(String),
+        null,
       );
     });
 
@@ -691,6 +715,67 @@ describe('ManifestSyncService', () => {
       const result = await service.syncTeam('team-1', 'manual', 'user-1');
       expect(result.summary.aliases.created).toBe(1);
     });
+
+    it('produces detailed error on alias UNIQUE constraint instead of crashing', async () => {
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      stores.aliases.findAll.mockReturnValue([]);
+
+      // Make the raw DB INSERT throw a UNIQUE constraint error
+      const dbRun = jest.fn().mockImplementation(() => {
+        throw new Error('UNIQUE constraint failed: dependency_aliases.alias');
+      });
+      stores.aliases.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [], aliases: [{ alias: 'pg', canonical_name: 'postgresql' }] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 0, valid_count: 0, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('partial');
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0]).toContain('Alias "pg"');
+      expect(result.errors[0]).toContain('postgresql');
+      expect(result.errors[0]).toContain('unique');
+    });
+
+    it('produces detailed error on alias FOREIGN KEY constraint', async () => {
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      stores.aliases.findAll.mockReturnValue([]);
+
+      const dbRun = jest.fn().mockImplementation(() => {
+        throw new Error('FOREIGN KEY constraint failed');
+      });
+      stores.aliases.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [], aliases: [{ alias: 'pg', canonical_name: 'postgresql' }] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 0, valid_count: 0, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('partial');
+      expect(result.errors[0]).toContain('Alias "pg"');
+      expect(result.errors[0]).toContain('team no longer exists');
+    });
   });
 
   // =========================================================================
@@ -719,6 +804,33 @@ describe('ManifestSyncService', () => {
       expect(stores.canonicalOverrides.upsert).toHaveBeenCalledWith(
         expect.objectContaining({ canonical_name: 'pg', team_id: 'team-1', manifest_managed: 1 }),
       );
+    });
+
+    it('produces detailed error on override FOREIGN KEY constraint', async () => {
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      stores.canonicalOverrides.findAll.mockReturnValue([]);
+      stores.canonicalOverrides.upsert.mockImplementation(() => {
+        throw new Error('FOREIGN KEY constraint failed');
+      });
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [], canonical_overrides: [{ canonical_name: 'pg', impact: 'High' }] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 0, valid_count: 0, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('partial');
+      expect(result.errors[0]).toContain('Override "pg"');
+      expect(result.errors[0]).toContain('team or user no longer exists');
     });
   });
 
@@ -969,6 +1081,47 @@ describe('ManifestSyncService', () => {
       expect(stores.associations.create).not.toHaveBeenCalled();
       expect(result.summary.associations.unchanged).toBe(1);
       expect(result.summary.associations.created).toBe(0);
+    });
+
+    it('produces detailed error on association FOREIGN KEY constraint', async () => {
+      const existingService = makeService({ id: 'svc-gw', name: 'Gateway', manifest_key: 'gateway' });
+      const linkedService = makeService({ id: 'svc-pay', name: 'Payment', team_id: 'team-2', manifest_key: 'payment-api' });
+      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([existingService]);
+      stores.services.findAll.mockReturnValue([existingService, linkedService]);
+      stores.dependencies.findByServiceId.mockReturnValue([
+        { id: 'dep-1', service_id: 'svc-gw', name: 'payment-api', canonical_name: 'payment-api' },
+      ]);
+      stores.associations.findByDependencyId.mockReturnValue([]);
+      stores.associations.create.mockImplementation(() => {
+        throw new Error('FOREIGN KEY constraint failed');
+      });
+
+      const dbRun = jest.fn();
+      stores.associations.db = { prepare: jest.fn().mockReturnValue({ run: dbRun }) };
+
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: {
+          version: 1,
+          services: [{ key: 'gateway', name: 'Gateway', health_endpoint: 'https://gw.example.com/health' }],
+          associations: [{ service_key: 'gateway', dependency_name: 'payment-api', linked_service_key: 'team-two/payment-api', association_type: 'api_call' }],
+        },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: ['svc-gw'], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('partial');
+      expect(result.errors[0]).toContain('gateway');
+      expect(result.errors[0]).toContain('payment-api');
+      expect(result.errors[0]).toContain('dependency or linked service was removed');
     });
   });
 });

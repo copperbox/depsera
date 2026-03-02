@@ -345,21 +345,34 @@ export class ManifestSyncService extends EventEmitter {
     const diff = diffManifest(safeServices, existingServices, policy);
 
     // Step 6: Apply changes in transaction
-    const { summary, changes, syncHistoryId } = this.applyChanges(
-      teamId,
-      diff,
-      safeServices,
-      policy,
-      triggerType,
-      triggeredBy,
-      config.manifest_url,
-      ssrfSafe,
-    );
+    let applyResult: { summary: ManifestSyncSummary; changes: ManifestSyncChange[] };
+    try {
+      applyResult = this.applyChanges(
+        teamId,
+        diff,
+        safeServices,
+        policy,
+        triggerType,
+        triggeredBy,
+        config.manifest_url,
+        ssrfSafe,
+      );
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('FOREIGN KEY constraint')) {
+        return this.failResult(
+          `Service sync failed due to a missing reference — verify that team "${teamId}" still exists and has not been deleted`,
+          startTime,
+        );
+      }
+      throw error;
+    }
+    const { summary, changes } = applyResult;
 
     // Step 7: Sync metadata (aliases, overrides, associations)
-    this.syncAliases(teamId, manifest, policy, summary);
-    this.syncCanonicalOverrides(teamId, manifest, policy, summary, triggeredBy);
-    this.syncAssociations(teamId, manifest, existingServices, policy, summary);
+    this.syncAliases(teamId, manifest, policy, summary, errors);
+    this.syncCanonicalOverrides(teamId, manifest, policy, summary, triggeredBy, errors);
+    this.syncAssociations(teamId, manifest, existingServices, policy, summary, errors);
 
     // Step 8: Polling integration (outside transaction)
     this.updatePolling(diff, changes);
@@ -387,12 +400,9 @@ export class ManifestSyncService extends EventEmitter {
     triggeredBy: string | null,
     manifestUrl: string,
     ssrfSafe: Set<string>,
-  ): { summary: ManifestSyncSummary; changes: ManifestSyncChange[]; syncHistoryId: string } {
+  ): { summary: ManifestSyncSummary; changes: ManifestSyncChange[] } {
     const summary = this.emptySummary();
     const changes: ManifestSyncChange[] = [];
-
-    // Generate a sync history ID upfront (the final entry is created in recordSyncCompletion)
-    const syncHistoryId = crypto.randomUUID();
 
     withTransaction((txStores) => {
       // Create new services
@@ -456,7 +466,7 @@ export class ManifestSyncService extends EventEmitter {
           driftEntry.field_name,
           driftEntry.manifest_value,
           driftEntry.current_value,
-          syncHistoryId,
+          null,
         );
 
         summary.services.drift_flagged++;
@@ -500,7 +510,7 @@ export class ManifestSyncService extends EventEmitter {
 
       // Upsert removal drift flags
       for (const serviceId of diff.removalDrift) {
-        txStores.driftFlags.upsertRemovalDrift(serviceId, syncHistoryId);
+        txStores.driftFlags.upsertRemovalDrift(serviceId, null);
 
         const svc = txStores.services.findById(serviceId);
         summary.services.drift_flagged++;
@@ -543,7 +553,7 @@ export class ManifestSyncService extends EventEmitter {
       }
     });
 
-    return { summary, changes, syncHistoryId };
+    return { summary, changes };
   }
 
   /** Set manifest_key, manifest_managed, manifest_last_synced_values on a service. */
@@ -614,6 +624,7 @@ export class ManifestSyncService extends EventEmitter {
     manifest: ParsedManifest,
     policy: ManifestSyncPolicy,
     summary: ManifestSyncSummary,
+    errors: string[],
   ): void {
     if (!manifest.aliases || manifest.aliases.length === 0) {
       // If policy says remove and there are no aliases, remove team-scoped aliases
@@ -633,13 +644,31 @@ export class ManifestSyncService extends EventEmitter {
     for (const [alias, canonicalName] of manifestAliases) {
       const existing = existingByAlias.get(alias);
       if (!existing) {
-        // Create new alias
-        this.createTeamAlias(teamId, alias, canonicalName);
-        summary.aliases.created++;
+        try {
+          this.createTeamAlias(teamId, alias, canonicalName);
+          summary.aliases.created++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('UNIQUE constraint')) {
+            errors.push(`Alias "${alias}" (→ ${canonicalName}) conflicts with an existing alias — each alias must be unique across all teams`);
+          } else if (msg.includes('FOREIGN KEY constraint')) {
+            errors.push(`Alias "${alias}" (→ ${canonicalName}) failed — the owning team no longer exists (team may have been deleted)`);
+          } else {
+            errors.push(`Failed to create alias "${alias}" (→ ${canonicalName}): ${msg}`);
+          }
+        }
       } else if (existing.canonical_name !== canonicalName) {
-        // Update canonical name
-        this.stores.aliases.update(existing.id, canonicalName);
-        summary.aliases.updated++;
+        try {
+          this.stores.aliases.update(existing.id, canonicalName);
+          summary.aliases.updated++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('FOREIGN KEY constraint')) {
+            errors.push(`Alias "${alias}" update failed — the owning team no longer exists (team may have been deleted)`);
+          } else {
+            errors.push(`Failed to update alias "${alias}" (→ ${canonicalName}): ${msg}`);
+          }
+        }
       } else {
         summary.aliases.unchanged++;
       }
@@ -687,6 +716,7 @@ export class ManifestSyncService extends EventEmitter {
     policy: ManifestSyncPolicy,
     summary: ManifestSyncSummary,
     triggeredBy: string | null,
+    errors: string[],
   ): void {
     if (!manifest.canonical_overrides || manifest.canonical_overrides.length === 0) {
       if (policy.on_override_removal === 'remove') {
@@ -711,28 +741,46 @@ export class ManifestSyncService extends EventEmitter {
       const impactStr = override.impact ?? null;
 
       if (!existing) {
-        this.stores.canonicalOverrides.upsert({
-          canonical_name: canonicalName,
-          team_id: teamId,
-          contact_override: contactStr,
-          impact_override: impactStr,
-          manifest_managed: 1,
-          updated_by: triggeredBy ?? 'system',
-        });
-        summary.overrides.created++;
+        try {
+          this.stores.canonicalOverrides.upsert({
+            canonical_name: canonicalName,
+            team_id: teamId,
+            contact_override: contactStr,
+            impact_override: impactStr,
+            manifest_managed: 1,
+            updated_by: triggeredBy ?? 'system',
+          });
+          summary.overrides.created++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('FOREIGN KEY constraint')) {
+            errors.push(`Override "${canonicalName}" failed — the referenced team or user no longer exists (triggered_by: ${triggeredBy ?? 'scheduled sync'})`);
+          } else {
+            errors.push(`Failed to create override for "${canonicalName}": ${msg}`);
+          }
+        }
       } else if (
         existing.contact_override !== contactStr ||
         existing.impact_override !== impactStr
       ) {
-        this.stores.canonicalOverrides.upsert({
-          canonical_name: canonicalName,
-          team_id: teamId,
-          contact_override: contactStr,
-          impact_override: impactStr,
-          manifest_managed: 1,
-          updated_by: triggeredBy ?? 'system',
-        });
-        summary.overrides.updated++;
+        try {
+          this.stores.canonicalOverrides.upsert({
+            canonical_name: canonicalName,
+            team_id: teamId,
+            contact_override: contactStr,
+            impact_override: impactStr,
+            manifest_managed: 1,
+            updated_by: triggeredBy ?? 'system',
+          });
+          summary.overrides.updated++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('FOREIGN KEY constraint')) {
+            errors.push(`Override "${canonicalName}" update failed — the referenced team or user no longer exists (triggered_by: ${triggeredBy ?? 'scheduled sync'})`);
+          } else {
+            errors.push(`Failed to update override for "${canonicalName}": ${msg}`);
+          }
+        }
       } else {
         summary.overrides.unchanged++;
       }
@@ -769,6 +817,7 @@ export class ManifestSyncService extends EventEmitter {
     existingServices: Service[],
     policy: ManifestSyncPolicy,
     summary: ManifestSyncSummary,
+    errors: string[],
   ): void {
     if (!manifest.associations || manifest.associations.length === 0) {
       if (policy.on_association_removal === 'remove') {
@@ -845,27 +894,47 @@ export class ManifestSyncService extends EventEmitter {
       if (existingForTarget) {
         // Adopt existing association as manifest-managed if it isn't already
         if (existingForTarget.manifest_managed !== 1) {
-          const db = (this.stores.associations as any).db;
-          db.prepare(`UPDATE dependency_associations SET manifest_managed = 1, association_type = ? WHERE id = ?`)
-            .run(assocEntry.association_type, existingForTarget.id);
-          summary.associations.created++;
+          try {
+            const db = (this.stores.associations as any).db;
+            db.prepare(`UPDATE dependency_associations SET manifest_managed = 1, association_type = ? WHERE id = ?`)
+              .run(assocEntry.association_type, existingForTarget.id);
+            summary.associations.created++;
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            errors.push(`Failed to adopt association: service "${assocEntry.service_key}" dependency "${assocEntry.dependency_name}" → "${assocEntry.linked_service_key}": ${msg}`);
+          }
         } else {
           summary.associations.unchanged++;
         }
       } else {
-        this.stores.associations.create({
-          dependency_id: dep.id,
-          linked_service_id: linkedService.id,
-          association_type: assocEntry.association_type,
-        });
+        try {
+          this.stores.associations.create({
+            dependency_id: dep.id,
+            linked_service_id: linkedService.id,
+            association_type: assocEntry.association_type,
+          });
 
-        // Mark as manifest managed via raw DB
-        const db = (this.stores.associations as any).db;
-        db.prepare(
-          `UPDATE dependency_associations SET manifest_managed = 1 WHERE dependency_id = ? AND linked_service_id = ?`,
-        ).run(dep.id, linkedService.id);
+          // Mark as manifest managed via raw DB
+          const db = (this.stores.associations as any).db;
+          db.prepare(
+            `UPDATE dependency_associations SET manifest_managed = 1 WHERE dependency_id = ? AND linked_service_id = ?`,
+          ).run(dep.id, linkedService.id);
 
-        summary.associations.created++;
+          summary.associations.created++;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          if (msg.includes('UNIQUE constraint')) {
+            errors.push(`Association already exists: service "${assocEntry.service_key}" dependency "${assocEntry.dependency_name}" → "${assocEntry.linked_service_key}"`);
+          } else if (msg.includes('FOREIGN KEY constraint')) {
+            errors.push(
+              `Association "${assocEntry.service_key}" dependency "${assocEntry.dependency_name}" → "${assocEntry.linked_service_key}" ` +
+              `failed — the dependency or linked service was removed before the association could be created. ` +
+              `Ensure the linked service "${assocEntry.linked_service_key}" exists and the dependency "${assocEntry.dependency_name}" has been discovered by polling`,
+            );
+          } else {
+            errors.push(`Failed to create association: service "${assocEntry.service_key}" dependency "${assocEntry.dependency_name}" → "${assocEntry.linked_service_key}": ${msg}`);
+          }
+        }
       }
     }
 

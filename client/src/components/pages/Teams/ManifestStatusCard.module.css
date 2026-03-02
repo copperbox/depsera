@@ -146,6 +146,17 @@
   align-items: center;
 }
 
+.syncButtonGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cooldownText {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
 .syncButton {
   display: inline-flex;
   align-items: center;

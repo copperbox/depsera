@@ -135,6 +135,9 @@ function TeamDetail() {
       <div className={styles.detailHeader}>
         <div className={styles.teamTitle}>
           <h1>{team.name}</h1>
+          {team.key && (
+            <code className={styles.teamKey}>{team.key}</code>
+          )}
           {team.description && (
             <p className={styles.teamDescription}>{team.description}</p>
           )}
@@ -289,6 +292,9 @@ function TeamDetail() {
         )}
       </div>
 
+      {/* Manifest Sync Section */}
+      <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
+
       {/* Services Section */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -333,14 +339,11 @@ function TeamDetail() {
         )}
       </div>
 
-      {/* Manifest Sync Section */}
-      <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
-
-      {/* Alert Channels Section */}
-      <AlertChannels teamId={id!} canManage={canManageAlerts} />
-
-      {/* Alert Rules Section */}
-      <AlertRules teamId={id!} canManage={canManageAlerts} />
+      {/* Alert Channels & Rules (side-by-side on wider screens) */}
+      <div className={styles.alertGrid}>
+        <AlertChannels teamId={id!} canManage={canManageAlerts} />
+        <AlertRules teamId={id!} canManage={canManageAlerts} />
+      </div>
 
       {/* Alert History Section */}
       <AlertHistory teamId={id!} channels={alertChannels} />

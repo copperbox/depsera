@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useSyncHistory } from '../../../hooks/useSyncHistory';
 import type { ManifestSyncHistoryEntry, ManifestSyncSummary } from '../../../types/manifest';
 import styles from './ManifestPage.module.css';
@@ -41,7 +41,6 @@ function formatEntrySummary(entry: ManifestSyncHistoryEntry): string {
 }
 
 function HistoryEntry({ entry }: { entry: ManifestSyncHistoryEntry }) {
-  const [expanded, setExpanded] = useState(false);
   const hasError = entry.status === 'failed';
   const isPartial = entry.status === 'partial';
 
@@ -64,7 +63,6 @@ function HistoryEntry({ entry }: { entry: ManifestSyncHistoryEntry }) {
   }
 
   const summaryText = formatEntrySummary(entry);
-  const hasExpandableContent = errors.length > 0 || warnings.length > 0;
 
   return (
     <div className={styles.historyItem}>
@@ -93,41 +91,22 @@ function HistoryEntry({ entry }: { entry: ManifestSyncHistoryEntry }) {
         {summaryText && (
           <div className={styles.historySummary}>{summaryText}</div>
         )}
-        {hasError && errors.length > 0 && !expanded && (
+        {errors.length > 0 && (
           <div className={styles.syncError} style={{ marginTop: '0.25rem', padding: '0.375rem 0.5rem' }}>
-            {errors[0]}
+            {errors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
           </div>
         )}
-        {hasExpandableContent && (
-          <>
-            <button
-              className={styles.detailsToggle}
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? '▾ Hide details' : '▸ Show details'}
-            </button>
-            {expanded && (
-              <>
-                {errors.length > 0 && (
-                  <div className={styles.syncError} style={{ marginTop: '0.5rem' }}>
-                    {errors.map((e, i) => (
-                      <div key={i}>{e}</div>
-                    ))}
-                  </div>
-                )}
-                {warnings.length > 0 && (
-                  <div className={styles.warningsList} style={{ marginTop: '0.5rem' }}>
-                    <strong>Warnings:</strong>
-                    <ul>
-                      {warnings.map((w, i) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
-          </>
+        {warnings.length > 0 && (
+          <div className={styles.warningsList} style={{ marginTop: '0.25rem' }}>
+            <strong>Warnings:</strong>
+            <ul>
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

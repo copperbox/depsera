@@ -609,6 +609,41 @@ describe('TeamDetail', () => {
     });
   });
 
+  describe('team key badge', () => {
+    it('displays key badge when team has a key', async () => {
+      const teamWithKey = { ...mockTeam, key: 'platform-team' };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamWithKey))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('platform-team')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('platform-team').tagName).toBe('CODE');
+    });
+
+    it('does not render key badge when team key is null', async () => {
+      const teamNoKey = { ...mockTeam, key: null };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamNoKey))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Team')).toBeInTheDocument();
+      });
+
+      const codeElements = document.querySelectorAll('code');
+      codeElements.forEach((el) => {
+        expect(el.textContent).not.toBe('');
+      });
+    });
+  });
+
   describe('manifest badges', () => {
     it('shows [M] badge for manifest-managed services', async () => {
       const teamWithManifest = {

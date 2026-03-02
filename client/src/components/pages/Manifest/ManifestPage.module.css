@@ -526,6 +526,18 @@
   cursor: not-allowed;
 }
 
+.syncButtonGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cooldownText {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .syncStatus {
   display: flex;
   align-items: center;

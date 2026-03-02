@@ -281,7 +281,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
 | `/associations` | Manage associations (accordion browser with inline create/delete), alias management, and external service registry |
-| `/catalog` | Cross-team service catalog — browse and search all services' manifest keys for use in manifest associations |
+| `/catalog` | Cross-team catalog with two tabs: **Services** (browse/search manifest keys) and **External Dependencies** (canonical name registry showing usage across teams, descriptions, and aliases) |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
@@ -306,6 +306,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
 | Manifest | `GET/PUT/DELETE /api/teams/:id/manifest`, `POST /:id/manifest/sync`, `GET /:id/manifest/sync-history`, `POST /api/manifest/validate` |
 | Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
+| Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
 
 ## Security

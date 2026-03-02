@@ -7,6 +7,8 @@ import type {
 } from '../../../types/manifest';
 import styles from './ManifestPage.module.css';
 
+const SYNC_COOLDOWN_MS = 60_000;
+
 interface ManifestSyncResultProps {
   config: TeamManifestConfig;
   isSyncing: boolean;
@@ -84,6 +86,8 @@ function ManifestSyncResultComponent({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncMessageType, setSyncMessageType] = useState<'success' | 'error'>('success');
   const [showDetails, setShowDetails] = useState(false);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-dismiss sync result banner after 8s
@@ -98,6 +102,27 @@ function ManifestSyncResultComponent({
     }
   }, [syncMessage, syncMessageType]);
 
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (!cooldownEnd) {
+      setCooldownSeconds(0);
+      return;
+    }
+
+    const tick = () => {
+      const remaining = Math.max(0, cooldownEnd - Date.now());
+      const secs = Math.ceil(remaining / 1000);
+      setCooldownSeconds(secs);
+      if (remaining <= 0) {
+        setCooldownEnd(null);
+      }
+    };
+
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownEnd]);
+
   const handleSync = async () => {
     setSyncMessage(null);
     const result = await onSync();
@@ -108,7 +133,10 @@ function ManifestSyncResultComponent({
       setSyncMessageType('error');
       setSyncMessage('Sync failed');
     }
+    setCooldownEnd(Date.now() + SYNC_COOLDOWN_MS);
   };
+
+  const isCoolingDown = cooldownSeconds > 0;
 
   const handleDismissBanner = () => {
     setSyncMessage(null);
@@ -138,13 +166,20 @@ function ManifestSyncResultComponent({
       <div className={styles.syncHeader}>
         <h3 className={styles.sectionTitle}>Last Sync Result</h3>
         {!isDisabled && (
-          <button
-            className={styles.syncButton}
-            onClick={handleSync}
-            disabled={isSyncing}
-          >
-            {isSyncing ? 'Syncing...' : 'Sync Now'}
-          </button>
+          <div className={styles.syncButtonGroup}>
+            <button
+              className={styles.syncButton}
+              onClick={handleSync}
+              disabled={isSyncing || isCoolingDown}
+            >
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+            {isCoolingDown && !isSyncing && (
+              <span className={styles.cooldownText}>
+                Available in {cooldownSeconds}s
+              </span>
+            )}
+          </div>
         )}
       </div>
 

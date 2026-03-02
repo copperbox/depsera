@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, FormEvent } from 'react';
 import { createTeam, updateTeam } from '../../../api/teams';
 import type { TeamWithDetails, CreateTeamInput, UpdateTeamInput } from '../../../types/team';
 import styles from './TeamForm.module.css';
@@ -11,6 +11,11 @@ interface TeamFormProps {
 
 interface FormErrors {
   name?: string;
+  key?: string;
+}
+
+function deriveKey(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
@@ -18,17 +23,30 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
 
   const [formData, setFormData] = useState({
     name: team?.name ?? '',
+    key: team?.key ?? '',
     description: team?.description ?? '',
   });
+  const keyTouched = useRef(isEdit);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
+    }
+
+    const keyVal = formData.key.trim();
+    if (!keyVal) {
+      newErrors.key = 'Key is required';
+    } else if (!KEY_PATTERN.test(keyVal)) {
+      newErrors.key = 'Key must start with a letter or number and contain only lowercase letters, numbers, hyphens, and underscores';
+    } else if (keyVal.length > 128) {
+      newErrors.key = 'Key must be 128 characters or fewer';
     }
 
     setErrors(newErrors);
@@ -49,13 +67,14 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
       if (isEdit && team) {
         const updateData: UpdateTeamInput = {
           name: formData.name,
+          key: formData.key,
           description: formData.description || undefined,
         };
         await updateTeam(team.id, updateData);
       } else {
         const createData: CreateTeamInput = {
           name: formData.name,
-          key: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+          key: formData.key,
           description: formData.description || undefined,
         };
         await createTeam(createData);
@@ -66,6 +85,14 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleNameChange = (value: string) => {
+    const next = { ...formData, name: value };
+    if (!keyTouched.current) {
+      next.key = deriveKey(value);
+    }
+    setFormData(next);
   };
 
   return (
@@ -80,7 +107,7 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
           id="name"
           type="text"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => handleNameChange(e.target.value)}
           className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
           placeholder="e.g., Platform Team"
           disabled={isSubmitting}
@@ -89,6 +116,34 @@ function TeamForm({ team, onSuccess, onCancel }: TeamFormProps) {
         {errors.name && (
           <span id="name-error" className={styles.fieldError}>
             {errors.name}
+          </span>
+        )}
+      </div>
+
+      <div className={styles.field}>
+        <label htmlFor="key" className={styles.label}>
+          Key <span className={styles.required}>*</span>
+        </label>
+        <input
+          id="key"
+          type="text"
+          value={formData.key}
+          onChange={(e) => {
+            keyTouched.current = true;
+            setFormData({ ...formData, key: e.target.value });
+          }}
+          className={`${styles.input} ${styles.keyInput} ${errors.key ? styles.inputError : ''}`}
+          placeholder="e.g., platform-team"
+          disabled={isSubmitting}
+          aria-describedby={errors.key ? 'key-error' : 'key-hint'}
+        />
+        {errors.key ? (
+          <span id="key-error" className={styles.fieldError}>
+            {errors.key}
+          </span>
+        ) : (
+          <span id="key-hint" className={styles.hint}>
+            Lowercase letters, numbers, hyphens, and underscores. Used in manifest references.
           </span>
         )}
       </div>

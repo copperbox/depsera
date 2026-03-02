@@ -168,7 +168,7 @@ describe('SyncHistory', () => {
     });
   });
 
-  it('shows expandable warnings', async () => {
+  it('shows warnings inline without toggle', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         history: [mockEntry('h1', {
@@ -180,10 +180,30 @@ describe('SyncHistory', () => {
     render(<SyncHistory teamId="t1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('▸ Show details')).toBeInTheDocument();
+      expect(screen.getByText('Service X has unknown field')).toBeInTheDocument();
     });
+    expect(screen.queryByText('▸ Show details')).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByText('▸ Show details'));
-    expect(screen.getByText('Service X has unknown field')).toBeInTheDocument();
+  it('shows all errors inline for failed entries', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        history: [mockEntry('h1', {
+          status: 'failed',
+          summary: null,
+          errors: JSON.stringify([
+            'Alias "pg" (→ postgresql) conflicts with an existing alias — each alias must be unique across all teams',
+            'Failed to create override for "redis": connection error',
+          ]),
+        })],
+        total: 1,
+      })
+    );
+    render(<SyncHistory teamId="t1" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Alias "pg"/)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to create override/)).toBeInTheDocument();
+    });
   });
 });

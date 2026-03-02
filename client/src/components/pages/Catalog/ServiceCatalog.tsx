@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchServiceCatalog, fetchTeams } from '../../../api/services';
 import type { CatalogEntry, TeamWithCounts } from '../../../types/service';
+import ExternalDependencies from './ExternalDependencies';
 import styles from './ServiceCatalog.module.css';
+
+type CatalogTab = 'services' | 'external';
 
 interface TeamGroup {
   teamName: string;
@@ -11,6 +14,7 @@ interface TeamGroup {
 }
 
 function ServiceCatalog() {
+  const [activeTab, setActiveTab] = useState<CatalogTab>('services');
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [teams, setTeams] = useState<TeamWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -144,148 +148,169 @@ function ServiceCatalog() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Service Catalog</h1>
+        <h1 className={styles.title}>Catalog</h1>
       </div>
 
-      <div className={styles.filters}>
-        <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M13 13l4 4" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search by name or manifest key..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
-        {teams.length > 1 && (
-          <select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-            className={styles.teamSelect}
-            aria-label="Filter by team"
-          >
-            <option value="">All Teams</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        )}
+      <div className={styles.tabBar}>
+        <button
+          className={`${styles.tab} ${activeTab === 'services' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('services')}
+        >
+          Services
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'external' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('external')}
+        >
+          External Dependencies
+        </button>
       </div>
 
-      {filteredEntries.length === 0 ? (
-        <div className={styles.emptyState}>
-          {entries.length === 0 ? (
-            <p>No services have been registered yet.</p>
-          ) : (
-            <p>No services match your search criteria.</p>
-          )}
-        </div>
+      {activeTab === 'external' ? (
+        <ExternalDependencies />
       ) : (
-        <div className={styles.teamSections}>
-          {teamGroups.map((group) => {
-            const isCollapsed = effectiveCollapsed.has(group.teamId);
+        <>
+          <div className={styles.filters}>
+            <div className={styles.searchWrapper}>
+              <svg
+                className={styles.searchIcon}
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="9" cy="9" r="6" />
+                <path d="M13 13l4 4" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search by name or manifest key..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+              />
+            </div>
+            {teams.length > 1 && (
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className={styles.teamSelect}
+                aria-label="Filter by team"
+              >
+                <option value="">All Teams</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
 
-            return (
-              <div key={group.teamId} className={styles.teamSection}>
-                <button
-                  className={styles.teamHeader}
-                  onClick={() => toggleTeam(group.teamId)}
-                  aria-expanded={!isCollapsed}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`${styles.chevron} ${!isCollapsed ? styles.chevronOpen : ''}`}
-                  >
-                    <polyline points="9 18 15 12 9 6" />
-                  </svg>
-                  <span className={styles.teamName}>{group.teamName}</span>
-                  {group.teamKey && (
-                    <code className={styles.teamKeyBadge}>{group.teamKey}</code>
-                  )}
-                  <span className={styles.serviceCount}>
-                    {group.entries.length} {group.entries.length === 1 ? 'service' : 'services'}
-                  </span>
-                </button>
+          {filteredEntries.length === 0 ? (
+            <div className={styles.emptyState}>
+              {entries.length === 0 ? (
+                <p>No services have been registered yet.</p>
+              ) : (
+                <p>No services match your search criteria.</p>
+              )}
+            </div>
+          ) : (
+            <div className={styles.teamSections}>
+              {teamGroups.map((group) => {
+                const isCollapsed = effectiveCollapsed.has(group.teamId);
 
-                {!isCollapsed && (
-                  <div className={styles.serviceGrid}>
-                    {group.entries.map((entry) => {
-                      const namespacedKey = getNamespacedKey(entry);
+                return (
+                  <div key={group.teamId} className={styles.teamSection}>
+                    <button
+                      className={styles.teamHeader}
+                      onClick={() => toggleTeam(group.teamId)}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className={`${styles.chevron} ${!isCollapsed ? styles.chevronOpen : ''}`}
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                      <span className={styles.teamName}>{group.teamName}</span>
+                      {group.teamKey && (
+                        <code className={styles.teamKeyBadge}>{group.teamKey}</code>
+                      )}
+                      <span className={styles.serviceCount}>
+                        {group.entries.length} {group.entries.length === 1 ? 'service' : 'services'}
+                      </span>
+                    </button>
 
-                      return (
-                        <div key={entry.id} className={styles.serviceCard}>
-                          <div className={styles.cardHeader}>
-                            <span className={styles.cardName}>{entry.name}</span>
-                            <span
-                              className={`${styles.statusBadge} ${entry.is_active ? styles.statusActive : styles.statusInactive}`}
-                            >
-                              <span
-                                className={`${styles.statusDot} ${entry.is_active ? styles.statusDotActive : styles.statusDotInactive}`}
-                              />
-                              {entry.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
+                    {!isCollapsed && (
+                      <div className={styles.serviceGrid}>
+                        {group.entries.map((entry) => {
+                          const namespacedKey = getNamespacedKey(entry);
 
-                          {namespacedKey ? (
-                            <div className={styles.cardKey}>
-                              <code className={styles.manifestKeyCode}>
-                                {namespacedKey}
-                              </code>
-                              <button
-                                className={`${styles.copyButton} ${copiedId === entry.id ? styles.copyButtonCopied : ''}`}
-                                onClick={() => handleCopy(namespacedKey, entry.id)}
-                                title="Copy manifest key"
-                                aria-label={`Copy ${namespacedKey}`}
-                              >
-                                {copiedId === entry.id ? (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                ) : (
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                  </svg>
-                                )}
-                              </button>
+                          return (
+                            <div key={entry.id} className={styles.serviceCard}>
+                              <div className={styles.cardHeader}>
+                                <span className={styles.cardName}>{entry.name}</span>
+                                <span
+                                  className={`${styles.statusBadge} ${entry.is_active ? styles.statusActive : styles.statusInactive}`}
+                                >
+                                  <span
+                                    className={`${styles.statusDot} ${entry.is_active ? styles.statusDotActive : styles.statusDotInactive}`}
+                                  />
+                                  {entry.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+
+                              {namespacedKey ? (
+                                <div className={styles.cardKey}>
+                                  <code className={styles.manifestKeyCode}>
+                                    {namespacedKey}
+                                  </code>
+                                  <button
+                                    className={`${styles.copyButton} ${copiedId === entry.id ? styles.copyButtonCopied : ''}`}
+                                    onClick={() => handleCopy(namespacedKey, entry.id)}
+                                    title="Copy manifest key"
+                                    aria-label={`Copy ${namespacedKey}`}
+                                  >
+                                    {copiedId === entry.id ? (
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                    ) : (
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className={styles.cardKey}>
+                                  <span className={styles.noKey}>No key</span>
+                                </div>
+                              )}
+
+                              <div className={styles.cardDescription}>
+                                {entry.description || 'No description'}
+                              </div>
                             </div>
-                          ) : (
-                            <div className={styles.cardKey}>
-                              <span className={styles.noKey}>No key</span>
-                            </div>
-                          )}
-
-                          <div className={styles.cardDescription}>
-                            {entry.description || 'No description'}
-                          </div>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

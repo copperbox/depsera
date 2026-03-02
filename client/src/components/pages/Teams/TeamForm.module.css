@@ -123,3 +123,12 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.keyInput {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
