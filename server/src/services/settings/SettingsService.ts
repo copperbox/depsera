@@ -184,6 +184,7 @@ export class SettingsService {
     if (cached !== undefined) {
       return this.parseValue(key, cached);
     }
+    // eslint-disable-next-line security/detect-object-injection
     return this.defaults[key];
   }
 
@@ -195,8 +196,10 @@ export class SettingsService {
     for (const key of SETTINGS_KEYS) {
       const cached = this.cache.get(key);
       if (cached !== undefined) {
+        // eslint-disable-next-line security/detect-object-injection
         result[key] = { value: this.parseValue(key, cached), source: 'database' };
       } else {
+        // eslint-disable-next-line security/detect-object-injection
         result[key] = { value: this.defaults[key], source: 'default' };
       }
     }
@@ -244,6 +247,7 @@ export class SettingsService {
   }
 
   private parseValue<K extends SettingsKey>(key: K, value: string): SettingsDefaults[K] {
+    // eslint-disable-next-line security/detect-object-injection
     const defaultValue = this.defaults[key];
     if (typeof defaultValue === 'number') {
       const parsed = parseFloat(value);

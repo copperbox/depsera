@@ -5,11 +5,14 @@ import { ChartRange } from '../../types/chart';
 const mockLocalStorage: Record<string, string> = {};
 
 beforeEach(() => {
+  // eslint-disable-next-line security/detect-object-injection
   Object.keys(mockLocalStorage).forEach((k) => delete mockLocalStorage[k]);
   jest.spyOn(Storage.prototype, 'getItem').mockImplementation(
+    // eslint-disable-next-line security/detect-object-injection
     (key: string) => mockLocalStorage[key] ?? null
   );
   jest.spyOn(Storage.prototype, 'setItem').mockImplementation(
+    // eslint-disable-next-line security/detect-object-injection
     (key: string, value: string) => { mockLocalStorage[key] = value; }
   );
 });

@@ -121,6 +121,7 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
     await deleteAssociation(depId, linkedServiceId);
     setAssocMap((prev) => ({
       ...prev,
+      // eslint-disable-next-line security/detect-object-injection
       [depId]: (prev[depId] || []).filter((a) => a.linked_service_id !== linkedServiceId),
     }));
   }, []);

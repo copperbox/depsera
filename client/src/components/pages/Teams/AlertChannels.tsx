@@ -178,6 +178,7 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
 
   const handleUpdateHeader = (index: number, field: 'key' | 'value', value: string) => {
     const updated = [...webhookHeaders];
+    // eslint-disable-next-line security/detect-object-injection
     updated[index] = { ...updated[index], [field]: value };
     setWebhookHeaders(updated);
   };

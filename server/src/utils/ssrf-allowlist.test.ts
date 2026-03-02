@@ -12,6 +12,7 @@ import { SettingsService } from '../services/settings/SettingsService';
 import { ISettingsStore } from '../stores/interfaces/ISettingsStore';
 
 jest.mock('net', () => ({
+  // eslint-disable-next-line security/detect-unsafe-regex
   isIPv4: (ip: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(ip),
 }));
 

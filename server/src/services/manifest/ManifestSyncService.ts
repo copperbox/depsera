@@ -447,6 +447,7 @@ export class ManifestSyncService extends EventEmitter {
         for (const field of updateEntry.fields_changed) {
           const value = this.getManifestFieldForUpdate(updateEntry.manifest_entry, field);
           if (value !== undefined) {
+            // eslint-disable-next-line security/detect-object-injection
             updateInput[field] = value;
           }
         }

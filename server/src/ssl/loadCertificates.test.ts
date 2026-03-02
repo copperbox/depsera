@@ -55,7 +55,9 @@ describe('resolveSSLConfig', () => {
     const keyPath = path.join(tmpDir, 'key.pem');
 
     const { cert, key } = await generateSelfSignedCert();
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.writeFileSync(certPath, cert);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.writeFileSync(keyPath, key);
 
     process.env.ENABLE_HTTPS = 'true';

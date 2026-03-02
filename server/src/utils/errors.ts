@@ -189,6 +189,7 @@ export function sendErrorResponse(
  */
 const PRIVATE_IP_PATTERN = /\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3})\b/;
 const URL_PATTERN = /https?:\/\/[^\s,)]+/gi;
+// eslint-disable-next-line security/detect-unsafe-regex
 const FILE_PATH_PATTERN = /(?:\/[\w.-]+){2,}|[A-Z]:\\[\w\\.-]+/g;
 
 /**

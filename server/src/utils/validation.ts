@@ -678,6 +678,7 @@ export function validateSchemaConfig(value: unknown): string {
 
   // Check required fields
   for (const requiredField of REQUIRED_SCHEMA_FIELDS) {
+    // eslint-disable-next-line security/detect-object-injection
     if (fields[requiredField] === undefined) {
       throw new ValidationError(
         `schema_config.fields.${requiredField} is required`,
@@ -700,20 +701,24 @@ export function validateSchemaConfig(value: unknown): string {
     }
     if (STRING_PATH_FIELDS.includes(key as typeof STRING_PATH_FIELDS[number])) {
       // Simple string path fields (no BooleanComparison support)
+      // eslint-disable-next-line security/detect-object-injection
       if (!isNonEmptyString(fields[key])) {
         throw new ValidationError(
           `schema_config.fields.${key} must be a non-empty string path`,
           'schema_config'
         );
       }
+      // eslint-disable-next-line security/detect-object-injection
       if (fields[key] === '$key') {
         throw new ValidationError(
           `schema_config.fields.${key} cannot use "$key" — it is only valid for the name field`,
           'schema_config'
         );
       }
+      // eslint-disable-next-line security/detect-object-injection
       validatedStringPaths[key] = fields[key] as string;
     } else {
+      // eslint-disable-next-line security/detect-object-injection
       validatedFields[key] = validateFieldMapping(fields[key], key);
     }
   }

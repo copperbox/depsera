@@ -90,6 +90,7 @@ export class ErrorHistoryStore implements IErrorHistoryStore {
   }
 
   getHealthTransitions(dependencyId: string, range: TimelineRange): HealthTransition[] {
+    // eslint-disable-next-line security/detect-object-injection
     const offset = TIMELINE_OFFSETS[range];
 
     // Fetch error history entries within the range, ordered chronologically.

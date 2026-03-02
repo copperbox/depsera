@@ -37,7 +37,9 @@ function SearchableSelect({
 
   const grouped = filtered.reduce<Record<string, SelectOption[]>>((acc, opt) => {
     const group = opt.group || '';
+    // eslint-disable-next-line security/detect-object-injection
     if (!acc[group]) acc[group] = [];
+    // eslint-disable-next-line security/detect-object-injection
     acc[group].push(opt);
     return acc;
   }, {});

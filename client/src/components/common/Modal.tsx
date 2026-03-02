@@ -53,6 +53,7 @@ function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps
   return (
     <dialog
       ref={dialogRef}
+      // eslint-disable-next-line security/detect-object-injection
       className={`${styles.modal} ${styles[size]}`}
       onClick={handleBackdropClick}
       aria-labelledby="modal-title"

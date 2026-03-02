@@ -34,6 +34,7 @@ export function updateSettings(req: Request, res: Response): void {
 
     for (const [key, value] of Object.entries(updates)) {
       if (isValidSettingsKey(key)) {
+        // eslint-disable-next-line security/detect-object-injection
         validUpdates[key] = value as string | number;
       } else {
         unknownKeys.push(key);

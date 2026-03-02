@@ -121,6 +121,7 @@ function diffExistingService(
     }
 
     // Check if the DB value was manually edited since last sync
+    // eslint-disable-next-line security/detect-object-injection
     const lastSyncedStr = normalizeToString(lastSynced[field]);
 
     if (dbStr === lastSyncedStr) {

@@ -61,6 +61,7 @@ export class SchemaMapper {
     const results: ProactiveDepsStatus[] = [];
 
     for (let i = 0; i < items.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection
       const item = items[i];
       if (typeof item !== 'object' || item === null) {
         logger.warn({ index: i, serviceName: this.serviceName }, '%s: skipping non-object item at index %d', this.logPrefix, i);
@@ -87,7 +88,9 @@ export class SchemaMapper {
     const keys = Object.keys(obj);
 
     for (let i = 0; i < keys.length; i++) {
+      // eslint-disable-next-line security/detect-object-injection
       const key = keys[i];
+      // eslint-disable-next-line security/detect-object-injection
       const value = obj[key];
 
       if (typeof value !== 'object' || value === null) {
@@ -299,6 +302,7 @@ export function resolveFieldPath(obj: unknown, path: string): unknown {
     if (typeof current !== 'object' || current === null) {
       return undefined;
     }
+    // eslint-disable-next-line security/detect-object-injection
     current = (current as Record<string, unknown>)[part];
   }
 

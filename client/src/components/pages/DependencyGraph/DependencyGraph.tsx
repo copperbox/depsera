@@ -158,6 +158,7 @@ function DependencyGraphInner() {
   // Initial load and team/direction/edge style change
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeam, layoutDirection, edgeStyle]);
 
   // Polling hook

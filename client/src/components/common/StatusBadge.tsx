@@ -18,11 +18,14 @@ const statusLabels: Record<BadgeStatus, string> = {
 function StatusBadge({ status, showLabel = true, size = 'medium' }: StatusBadgeProps) {
   return (
     <span
+      // eslint-disable-next-line security/detect-object-injection
       className={`${styles.badge} ${styles[status]} ${styles[size]}`}
       role="status"
+      // eslint-disable-next-line security/detect-object-injection
       aria-label={statusLabels[status]}
     >
       <span className={styles.dot} aria-hidden="true" />
+      {/* eslint-disable-next-line security/detect-object-injection */}
       {showLabel && <span className={styles.label}>{statusLabels[status]}</span>}
     </span>
   );

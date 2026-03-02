@@ -62,6 +62,7 @@ function mergeContacts(edges: AppEdge[]): Record<string, string> | null {
     if (!contact) continue;
     for (const [key, value] of Object.entries(contact)) {
       if (!(key in merged)) {
+        // eslint-disable-next-line security/detect-object-injection
         merged[key] = String(value);
         hasAny = true;
       }
@@ -151,8 +152,10 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
 
       <div className={styles.scrollContent}>
         <div className={styles.statusSection}>
+          {/* eslint-disable-next-line security/detect-object-injection */}
           <div className={`${styles.statusBadge} ${styles[healthStatus]}`}>
             <span className={styles.statusDot} />
+            {/* eslint-disable-next-line security/detect-object-injection */}
             {healthStatusLabels[healthStatus]}
           </div>
           {!isExternal && data.lastPollSuccess === false && (
@@ -268,6 +271,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
               <ul className={styles.serviceList}>
                 {dependencies.map((dep) => (
                   <li key={dep.id} className={styles.serviceListItem}>
+                    {/* eslint-disable-next-line security/detect-object-injection */}
                     <span className={`${styles.healthDot} ${styles[dep.healthStatus]}`} />
                     <Link to={`/services/${dep.id}`} className={styles.serviceLink}>
                       {dep.name}

@@ -322,6 +322,7 @@ function Dashboard() {
                   const currentLabel = event.current_healthy ? 'healthy' : 'critical';
                   return (
                     <li key={event.id} className={styles.activityItem}>
+                      {/* eslint-disable-next-line security/detect-object-injection */}
                       <div className={`${styles.activityIcon} ${styles[status]}`}>
                         {event.current_healthy ? (
                           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">

@@ -230,22 +230,23 @@ function CustomEdgeComponent({
   const isHighLatency = data?.isHighLatency ?? false;
   const opacity = Number(style?.opacity ?? 1);
 
-  // Determine edge class: skipped and high latency take precedence
-  let edgeClass = isHealthy ? styles.healthyEdge : styles.unhealthyEdge;
+  // Determine edge class — precedence: skipped → unhealthy → high latency → healthy
+  let edgeClass = styles.healthyEdge;
   if (isSkipped) {
     edgeClass = styles.skippedEdge;
+  } else if (!isHealthy) {
+    edgeClass = styles.unhealthyEdge;
   } else if (isHighLatency) {
     edgeClass = styles.highLatencyEdge;
   }
 
-  // Determine label class
+  // Determine label class — same precedence as edge: skipped → unhealthy → high latency
   let labelClass = styles.edgeLabel;
   if (isSkipped) {
     labelClass += ` ${styles.edgeLabelSkipped}`;
   } else if (!isHealthy) {
     labelClass += ` ${styles.edgeLabelUnhealthy}`;
-  }
-  if (isHighLatency) {
+  } else if (isHighLatency) {
     labelClass += ` ${styles.edgeLabelHighLatency}`;
   }
   if (isSelected) {

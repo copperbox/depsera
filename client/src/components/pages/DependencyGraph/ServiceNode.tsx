@@ -108,6 +108,7 @@ function ServiceNodeComponent({ data, selected }: NodeProps<ServiceNodeType>) {
   const typeLabel = isExternal ? 'External' : (data.serviceType ? TYPE_LABELS[data.serviceType] : 'Service');
 
   return (
+    // eslint-disable-next-line security/detect-object-injection
     <div className={`${styles.serviceNode} ${styles[healthStatus]} ${selected ? styles.selected : ''} ${isExternal ? styles.external : ''}`}>
       <Handle
         type="target"

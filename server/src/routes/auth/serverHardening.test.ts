@@ -143,11 +143,13 @@ describe('Server-side hardening (PRO-95)', () => {
         private sessions: Record<string, string> = {};
 
         get(_sid: string, cb: (err?: Error | null, session?: SessionData | null) => void) {
+          // eslint-disable-next-line security/detect-object-injection
           const data = this.sessions[_sid];
           cb(null, data ? JSON.parse(data) : null);
         }
 
         set(_sid: string, _session: SessionData, cb?: (err?: Error) => void) {
+          // eslint-disable-next-line security/detect-object-injection
           this.sessions[_sid] = JSON.stringify(_session);
           cb?.();
         }

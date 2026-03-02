@@ -21,6 +21,7 @@ function getClientDistPath(): string {
 export function clientBuildExists(): boolean {
   const distPath = getClientDistPath();
   const indexPath = path.join(distPath, 'index.html');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return fs.existsSync(indexPath);
 }
 

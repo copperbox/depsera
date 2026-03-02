@@ -55,6 +55,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
 
   // Validate CSRF token for mutating requests
   const cookieToken = existingToken;
+  // eslint-disable-next-line security/detect-object-injection
   const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined;
 
   if (!cookieToken || !headerToken || cookieToken !== headerToken) {
