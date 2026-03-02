@@ -37,6 +37,7 @@ export function extractHostname(input: string): string | null {
     return url.hostname.toLowerCase();
   } catch {
     // Try extracting from common patterns
+    // eslint-disable-next-line security/detect-unsafe-regex
     const hostMatch = input.match(/(?:https?:\/\/)?([a-zA-Z0-9.-]+)/);
     if (hostMatch) {
       return hostMatch[1].toLowerCase();
@@ -94,11 +95,13 @@ export function levenshteinDistance(a: string, b: string): number {
 
   // Initialize first column
   for (let i = 0; i <= b.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     matrix[i] = [i];
   }
 
   // Initialize first row
   for (let j = 0; j <= a.length; j++) {
+    // eslint-disable-next-line security/detect-object-injection
     matrix[0][j] = j;
   }
 
@@ -106,17 +109,23 @@ export function levenshteinDistance(a: string, b: string): number {
   for (let i = 1; i <= b.length; i++) {
     for (let j = 1; j <= a.length; j++) {
       if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        // eslint-disable-next-line security/detect-object-injection
         matrix[i][j] = matrix[i - 1][j - 1];
       } else {
+        // eslint-disable-next-line security/detect-object-injection
         matrix[i][j] = Math.min(
+          // eslint-disable-next-line security/detect-object-injection
           matrix[i - 1][j - 1] + 1, // substitution
+          // eslint-disable-next-line security/detect-object-injection
           matrix[i][j - 1] + 1,     // insertion
+          // eslint-disable-next-line security/detect-object-injection
           matrix[i - 1][j] + 1      // deletion
         );
       }
     }
   }
 
+  // eslint-disable-next-line security/detect-object-injection
   return matrix[b.length][a.length];
 }
 

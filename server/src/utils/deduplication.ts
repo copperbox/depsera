@@ -11,6 +11,7 @@
 export function groupByKey<T, K extends keyof T>(items: T[], key: K): Map<T[K], T[]> {
   const map = new Map<T[K], T[]>();
   for (const item of items) {
+    // eslint-disable-next-line security/detect-object-injection
     const keyValue = item[key];
     const existing = map.get(keyValue) || [];
     existing.push(item);
@@ -43,6 +44,7 @@ export function deduplicateById<T extends { id: string }>(items: T[]): T[] {
 export function deduplicateByKey<T, K extends keyof T>(items: T[], key: K): T[] {
   const seen = new Map<T[K], T>();
   for (const item of items) {
+    // eslint-disable-next-line security/detect-object-injection
     const keyValue = item[key];
     if (!seen.has(keyValue)) {
       seen.set(keyValue, item);

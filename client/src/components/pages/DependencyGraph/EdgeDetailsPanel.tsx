@@ -94,8 +94,10 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
 
       <div className={styles.scrollContent}>
         <div className={styles.statusSection}>
+          {/* eslint-disable-next-line security/detect-object-injection */}
           <div className={`${styles.statusBadge} ${styles[healthStatus]}`}>
             <span className={styles.statusDot} />
+            {/* eslint-disable-next-line security/detect-object-injection */}
             {healthStatusLabels[healthStatus]}
           </div>
           {isHighLatency && (

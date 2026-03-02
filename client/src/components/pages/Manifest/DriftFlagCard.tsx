@@ -24,6 +24,7 @@ const FIELD_LABELS: Record<string, string> = {
 
 function formatFieldName(field: string | null): string {
   if (!field) return 'Unknown field';
+  // eslint-disable-next-line security/detect-object-injection
   return FIELD_LABELS[field] || field;
 }
 

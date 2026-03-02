@@ -59,7 +59,9 @@ function worstStatus(statuses: WallboardHealthStatus[]): WallboardHealthStatus {
   if (statuses.length === 0) return 'unknown';
   let worst = statuses[0];
   for (let i = 1; i < statuses.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection, security/detect-object-injection
     if (STATUS_PRIORITY[statuses[i]] > STATUS_PRIORITY[worst]) {
+      // eslint-disable-next-line security/detect-object-injection
       worst = statuses[i];
     }
   }

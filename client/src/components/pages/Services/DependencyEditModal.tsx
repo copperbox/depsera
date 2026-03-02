@@ -194,6 +194,7 @@ function DependencyEditModal({
                 value={entry.key}
                 onChange={(e) => {
                   const next = [...contactEntries];
+                  // eslint-disable-next-line security/detect-object-injection
                   next[index] = { ...next[index], key: e.target.value };
                   setContactEntries(next);
                 }}
@@ -205,6 +206,7 @@ function DependencyEditModal({
                 value={entry.value}
                 onChange={(e) => {
                   const next = [...contactEntries];
+                  // eslint-disable-next-line security/detect-object-injection
                   next[index] = { ...next[index], value: e.target.value };
                   setContactEntries(next);
                 }}

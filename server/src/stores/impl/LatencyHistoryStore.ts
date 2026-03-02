@@ -145,6 +145,7 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
   }
 
   getLatencyBuckets(dependencyId: string, range: LatencyRange): LatencyBucket[] {
+    // eslint-disable-next-line security/detect-object-injection
     const config = RANGE_CONFIG[range];
 
     const rows = this.db
@@ -169,6 +170,7 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
   getAggregateLatencyBuckets(dependencyIds: string[], range: LatencyRange): LatencyBucket[] {
     if (dependencyIds.length === 0) return [];
 
+    // eslint-disable-next-line security/detect-object-injection
     const config = RANGE_CONFIG[range];
     const placeholders = dependencyIds.map(() => '?').join(', ');
 

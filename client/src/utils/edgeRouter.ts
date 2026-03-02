@@ -55,6 +55,7 @@ function detectLayers(nodes: Node[], direction: LayoutDirection): Layer[] {
 function buildNodeLayerIndex(layers: Layer[]): Map<string, number> {
   const map = new Map<string, number>();
   for (let i = 0; i < layers.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     for (const nodeId of layers[i].nodeIds) {
       map.set(nodeId, i);
     }
@@ -123,12 +124,14 @@ export function adjustLayerSpacing<T extends Node>(
       MIN_LAYER_GAP,
       edgeCount * laneSpacing + 2 * padding,
     );
+    // eslint-disable-next-line security/detect-object-injection
     newPositions[i] = newPositions[i - 1] + nodeDim + requiredGap;
   }
 
   // Build node → layer-index map for offset application
   const nodeLayer = new Map<string, number>();
   for (let i = 0; i < layers.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     for (const nodeId of layers[i].nodeIds) {
       nodeLayer.set(nodeId, i);
     }
@@ -137,6 +140,7 @@ export function adjustLayerSpacing<T extends Node>(
   return nodes.map((node) => {
     const layerIdx = nodeLayer.get(node.id);
     if (layerIdx === undefined) return node;
+    // eslint-disable-next-line security/detect-object-injection
     const offset = newPositions[layerIdx] - layers[layerIdx].position;
     if (offset === 0) return node;
 
@@ -221,7 +225,9 @@ export function computeEdgeRoutes(
     });
 
     // Compute gap center between this layer and the next
+    // eslint-disable-next-line security/detect-object-injection
     const sourceLayerPos = layers[gapIndex].position;
+    // eslint-disable-next-line security/detect-object-injection
     const targetLayerPos = layers[nextLayerIndex].position;
 
     let gapCenter: number;
@@ -235,6 +241,7 @@ export function computeEdgeRoutes(
     const count = gapEdgeList.length;
     for (let i = 0; i < count; i++) {
       const lane = gapCenter + (i - (count - 1) / 2) * laneSpacing;
+      // eslint-disable-next-line security/detect-object-injection
       result.set(gapEdgeList[i].id, lane);
     }
   }

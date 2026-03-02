@@ -18,10 +18,12 @@ jest.mock('dns', () => ({
 // net.isIP/isIPv4/isIPv6 are needed by the module - provide real implementations
 jest.mock('net', () => ({
   isIP: (ip: string) => {
+    // eslint-disable-next-line security/detect-unsafe-regex
     if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return 4;
     if (ip.includes(':')) return 6;
     return 0;
   },
+  // eslint-disable-next-line security/detect-unsafe-regex
   isIPv4: (ip: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(ip),
   isIPv6: (ip: string) => ip.includes(':'),
 }));

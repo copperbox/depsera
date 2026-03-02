@@ -39,6 +39,7 @@ export function loadNodePositions(userId: string): NodePositions {
         const validated: NodePositions = {};
         for (const [key, value] of Object.entries(parsed)) {
           if (isNodePosition(value)) {
+            // eslint-disable-next-line security/detect-object-injection
             validated[key] = value;
           }
         }

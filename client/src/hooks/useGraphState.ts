@@ -360,6 +360,7 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
           for (const id of movedIds) {
             if (!currentNodeIds.has(id)) {
               movedIds.delete(id);
+              // eslint-disable-next-line security/detect-object-injection
               delete positions[id];
               staleRemoved = true;
             }

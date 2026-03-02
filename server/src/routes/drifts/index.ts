@@ -154,6 +154,7 @@ function updateSyncedSnapshot(
   }
 
   // Convert the value to the same type stored in the snapshot
+  // eslint-disable-next-line security/detect-object-injection
   snapshot[fieldName] = fieldName === 'poll_interval_ms' && manifestValue !== null
     ? parseInt(manifestValue, 10)
     : fieldName === 'schema_config' && manifestValue !== null

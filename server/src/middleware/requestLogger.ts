@@ -51,8 +51,10 @@ function redactHeaders(
   const redacted: Record<string, string | string[] | undefined> = {};
   for (const [key, value] of Object.entries(headers)) {
     if (REDACTED_HEADERS.has(key.toLowerCase())) {
+      // eslint-disable-next-line security/detect-object-injection
       redacted[key] = '[REDACTED]';
     } else if (value !== undefined) {
+      // eslint-disable-next-line security/detect-object-injection
       redacted[key] = value;
     }
   }

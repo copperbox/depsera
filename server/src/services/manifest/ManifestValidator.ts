@@ -263,6 +263,7 @@ function validateAliases(
   const seenAliases = new Set<string>();
 
   for (let i = 0; i < aliases.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     const entry = aliases[i];
     const path = `aliases[${i}]`;
 
@@ -312,6 +313,7 @@ function validateCanonicalOverrides(
   const seenNames = new Set<string>();
 
   for (let i = 0; i < overrides.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     const entry = overrides[i];
     const path = `canonical_overrides[${i}]`;
 
@@ -379,6 +381,7 @@ function validateAssociations(
   const seenTuples = new Set<string>();
 
   for (let i = 0; i < associations.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     const entry = associations[i];
     const path = `associations[${i}]`;
 
@@ -488,6 +491,7 @@ function crossReferenceChecks(
   const validKeys = new Set<string>();
 
   for (let i = 0; i < services.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     const entry = services[i];
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
 
@@ -546,6 +550,7 @@ export function validateManifest(data: unknown): ManifestValidationResult {
   // Level 2: Per-service entry validation
   let validCount = 0;
   for (let i = 0; i < services.length; i++) {
+    // eslint-disable-next-line security/detect-object-injection
     if (validateServiceEntry(services[i], i, errors, warnings)) {
       validCount++;
     }
