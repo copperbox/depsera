@@ -4,6 +4,8 @@
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
 
+**New team?** Start with the **[Onboarding Guide](docs/onboarding-guide.md)** — a step-by-step walkthrough for instrumenting your services, registering them, and building your dependency graph.
+
 ## Quick Start
 
 The fastest way to get running is with Docker Compose:
@@ -334,6 +336,7 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 
 | Document | Description |
 |----------|-------------|
+| [Onboarding Guide](docs/onboarding-guide.md) | Step-by-step guide for teams: instrument services, register them, build dependency graph, set up alerts |
 | [Installation Guide](docs/installation.md) | Docker, Docker Compose, bare Node.js, reverse proxy, backups |
 | [Admin Guide](docs/admin-guide.md) | First-run setup, user/team management, alerts, settings, troubleshooting |
 | [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |

@@ -35,7 +35,7 @@ This document covers the health endpoint format that Depsera expects, and how to
 
 ## Default Format (proactive-deps)
 
-By default, Depsera expects your health endpoint to return a JSON array of dependency status objects. This is the [proactive-deps](https://github.com/your-org/proactive-deps) format.
+By default, Depsera expects your health endpoint to return a JSON array of dependency status objects. This is the [proactive-deps](https://github.com/copperbox/proactive-deps) format.
 
 ### Response Structure
 
