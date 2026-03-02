@@ -40,10 +40,10 @@ export class TeamStore implements ITeamStore {
 
     this.db
       .prepare(`
-        INSERT INTO teams (id, name, key, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO teams (id, name, key, description, contact, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
-      .run(id, input.name, input.key, input.description ?? null, now, now);
+      .run(id, input.name, input.key, input.description ?? null, input.contact ?? null, now, now);
 
     return this.findById(id)!;
   }
@@ -68,6 +68,10 @@ export class TeamStore implements ITeamStore {
     if (input.description !== undefined) {
       updates.push('description = ?');
       params.push(input.description);
+    }
+    if (input.contact !== undefined) {
+      updates.push('contact = ?');
+      params.push(input.contact);
     }
 
     if (updates.length === 0) {

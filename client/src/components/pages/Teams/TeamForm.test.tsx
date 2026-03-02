@@ -17,6 +17,7 @@ const mockTeam = {
   name: 'Test Team',
   key: 'test-team',
   description: 'Test description',
+  contact: null,
   members: [],
   services: [],
   created_at: '2024-01-01',

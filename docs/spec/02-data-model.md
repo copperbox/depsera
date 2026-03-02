@@ -54,8 +54,11 @@ erDiagram
 | name | TEXT | NOT NULL, UNIQUE | |
 | key | TEXT | UNIQUE (partial, WHERE key IS NOT NULL) | NULL |
 | description | TEXT | | NULL |
+| contact | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
+
+**contact:** JSON string of key-value pairs (e.g. `{"email":"team@example.com","slack":"#team-channel"}`). Nullable.
 
 ### team_members
 

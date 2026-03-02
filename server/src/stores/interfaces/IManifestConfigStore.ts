@@ -16,6 +16,7 @@ export interface IManifestConfigStore {
   findByTeamId(teamId: string): TeamManifestConfig | undefined;
   update(teamId: string, input: ManifestConfigUpdateInput): TeamManifestConfig | undefined;
   delete(teamId: string): boolean;
+  findAll(): TeamManifestConfig[];
   findAllEnabled(): TeamManifestConfig[];
   updateSyncResult(teamId: string, result: ManifestSyncResultInput): boolean;
 }

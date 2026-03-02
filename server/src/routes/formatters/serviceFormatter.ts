@@ -148,6 +148,7 @@ export function formatUpdatedService(serviceId: string): FormattedServiceMutatio
     name: service.team_name,
     key: service.team_key ?? null,
     description: service.team_description ?? null,
+    contact: null,
     created_at: service.team_created_at ?? service.created_at,
     updated_at: service.team_updated_at ?? service.updated_at,
   };

@@ -61,6 +61,7 @@ describe('Wallboard API', () => {
         name TEXT NOT NULL,
         key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );

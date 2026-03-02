@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useManifestConfig } from '../../../hooks/useManifestConfig';
 import { getDriftSummary } from '../../../api/manifest';
 import type { DriftSummary, ManifestSyncSummary } from '../../../types/manifest';
+import { formatRelativeTime } from '../../../utils/formatting';
 import styles from './ManifestStatusCard.module.css';
 import teamStyles from './Teams.module.css';
 
@@ -11,19 +12,6 @@ const SYNC_COOLDOWN_MS = 60_000;
 interface ManifestStatusCardProps {
   teamId: string;
   canManage: boolean;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
 }
 
 function formatSyncSummary(summary: ManifestSyncSummary): string {
@@ -244,7 +232,7 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
             <span>
               {hasError ? 'Last sync failed' : `Last sync ${config.last_sync_status || 'success'}`}
             </span>
-            <span className={styles.syncTime}>{formatTimeAgo(config.last_sync_at)}</span>
+            <span className={styles.syncTime}>{formatRelativeTime(config.last_sync_at)}</span>
             {serviceCount !== null && !hasError && (
               <span className={styles.syncTime}>
                 · {serviceCount} {serviceCount === 1 ? 'service' : 'services'}

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
+import { parseContact } from '../../../utils/dependency';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import TeamForm from './TeamForm';
@@ -141,6 +142,20 @@ function TeamDetail() {
           {team.description && (
             <p className={styles.teamDescription}>{team.description}</p>
           )}
+          {team.contact && (() => {
+            const contactData = parseContact(team.contact);
+            if (!contactData) return null;
+            return (
+              <div className={styles.contactInfo}>
+                {Object.entries(contactData).map(([label, value]) => (
+                  <span key={label} className={styles.contactItem}>
+                    <span className={styles.contactLabel}>{label}:</span>{' '}
+                    <span className={styles.contactValue}>{String(value)}</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
         {isAdmin && (
           <div className={styles.actions}>

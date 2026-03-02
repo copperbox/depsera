@@ -39,6 +39,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 
 **Team Management**
 - Organize services by team with lead/member roles
+- Team contact metadata (email, Slack, on-call, etc.) stored as key-value pairs
 - Team-scoped service access — non-admin users see only their team's services
 - External service registry for unmonitored third-party dependencies (shown in graph and association dropdowns)
 - Cross-team service catalog for discovering manifest keys when authoring manifest associations
@@ -56,6 +57,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Field-level drift detection when local edits diverge from the manifest
 - Sync policies: configurable behavior for field drift (flag/manifest wins/local wins) and service removal (flag/deactivate/delete)
 - Drift review inbox with accept, dismiss, reopen, and bulk actions
+- Admin manifest overview page with cross-team sync status, drift counts, and bulk sync-all
 - Scheduled sync (default hourly) with manual trigger and 60s cooldown
 - Full sync history with per-entry detail
 

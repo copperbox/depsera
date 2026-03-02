@@ -58,6 +58,7 @@ describe('Teams API', () => {
         name TEXT NOT NULL UNIQUE,
         key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -210,6 +211,43 @@ describe('Teams API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain('key');
+    });
+
+    it('should create a team with contact metadata', async () => {
+      const contact = JSON.stringify({ email: 'team@example.com', slack: '#team-channel' });
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Contact Team', key: 'contact-team', contact });
+
+      expect(response.status).toBe(201);
+      expect(response.body.contact).toBe(contact);
+    });
+
+    it('should create a team without contact (defaults to null)', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'No Contact Team', key: 'no-contact-team' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.contact).toBeNull();
+    });
+
+    it('should reject invalid contact JSON', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Bad Contact Team', key: 'bad-contact', contact: 'not-json' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
+    });
+
+    it('should reject non-object contact JSON (array)', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Array Contact Team', key: 'array-contact', contact: '["a","b"]' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
     });
   });
 
@@ -379,6 +417,49 @@ describe('Teams API', () => {
         .send({});
 
       expect(response.status).toBe(400);
+    });
+
+    it('should update team contact', async () => {
+      const contact = JSON.stringify({ email: 'updated@example.com' });
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact });
+
+      expect(response.status).toBe(200);
+      expect(response.body.contact).toBe(contact);
+    });
+
+    it('should clear team contact with null', async () => {
+      // First set contact
+      await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: JSON.stringify({ email: 'test@example.com' }) });
+
+      // Now clear it
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.contact).toBeNull();
+    });
+
+    it('should reject invalid contact on update', async () => {
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: 'not-valid-json' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
+    });
+
+    it('should reject non-object contact on update', async () => {
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: '"just a string"' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
     });
   });
 

@@ -277,6 +277,28 @@
   margin: 0;
 }
 
+.contactInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.25rem;
+}
+
+.contactItem {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.contactLabel {
+  font-weight: 500;
+  color: var(--color-text-secondary, var(--color-text-muted));
+  text-transform: capitalize;
+}
+
+.contactValue {
+  color: var(--color-text-primary);
+}
+
 .actions {
   display: flex;
   gap: 0.5rem;

@@ -5,6 +5,7 @@ import type {
   ManifestSyncSummary,
   ManifestSyncChange,
 } from '../../../types/manifest';
+import { formatRelativeTime } from '../../../utils/formatting';
 import styles from './ManifestPage.module.css';
 
 const SYNC_COOLDOWN_MS = 60_000;
@@ -17,18 +18,6 @@ interface ManifestSyncResultProps {
   onClearSyncResult: () => void;
 }
 
-function formatTimeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
-}
 
 function formatSyncSummaryText(summary: ManifestSyncSummary): string {
   const parts: string[] = [];
@@ -219,7 +208,7 @@ function ManifestSyncResultComponent({
               }`}
             />
             <span>{hasError ? 'Failed' : config.last_sync_status === 'partial' ? 'Partial' : 'Success'}</span>
-            <span className={styles.syncMeta}>{formatTimeAgo(config.last_sync_at)}</span>
+            <span className={styles.syncMeta}>{formatRelativeTime(config.last_sync_at)}</span>
           </div>
 
           {/* Error detail */}

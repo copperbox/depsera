@@ -352,6 +352,8 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
 | GET | `/api/admin/audit-log` | requireAdmin | Paginated audit log. Query: `limit`, `offset`, `startDate`, `endDate`, `userId`, `action`, `resourceType`. |
 | GET | `/api/admin/settings` | requireAdmin | Returns all settings with current values and source (`database` or `default`). |
 | PUT | `/api/admin/settings` | requireAdmin | Update settings. Body: partial object of `{ key: value }` pairs. Validates values before persisting. |
+| GET | `/api/admin/manifests` | requireAdmin | List all teams with manifest config status, drift counts, and contact info. |
+| POST | `/api/admin/manifests/sync-all` | requireAdmin | Trigger sync for all enabled manifest configs. Returns per-team results. |
 
 **GET /api/admin/audit-log response:**
 

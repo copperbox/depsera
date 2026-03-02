@@ -97,6 +97,12 @@ export class ManifestConfigStore implements IManifestConfigStore {
     return result.changes > 0;
   }
 
+  findAll(): TeamManifestConfig[] {
+    return this.db
+      .prepare('SELECT * FROM team_manifest_config ORDER BY created_at ASC')
+      .all() as TeamManifestConfig[];
+  }
+
   findAllEnabled(): TeamManifestConfig[] {
     return this.db
       .prepare(

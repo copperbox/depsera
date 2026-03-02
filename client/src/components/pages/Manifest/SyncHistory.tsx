@@ -1,20 +1,11 @@
 import { useEffect } from 'react';
 import { useSyncHistory } from '../../../hooks/useSyncHistory';
 import type { ManifestSyncHistoryEntry, ManifestSyncSummary } from '../../../types/manifest';
+import { formatTimestamp } from '../../../utils/formatting';
 import styles from './ManifestPage.module.css';
 
 interface SyncHistoryProps {
   teamId: string;
-}
-
-function formatTimestamp(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function formatDuration(ms: number | null): string {

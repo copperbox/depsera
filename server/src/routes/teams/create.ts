@@ -28,6 +28,7 @@ export function createTeam(req: Request, res: Response): void {
       name: validated.name,
       key: validated.key,
       description: validated.description,
+      contact: validated.contact,
     });
 
     auditFromRequest(req, 'team.created', 'team', team.id, {

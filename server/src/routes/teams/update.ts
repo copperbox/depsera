@@ -58,8 +58,26 @@ export function updateTeam(req: Request, res: Response): void {
       }
     }
 
+    // Validate contact if provided
+    if (input.contact !== undefined && input.contact !== null) {
+      if (typeof input.contact !== 'string') {
+        res.status(400).json({ error: 'contact must be a JSON string or null' });
+        return;
+      }
+      try {
+        const parsed = JSON.parse(input.contact);
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          res.status(400).json({ error: 'contact must be a valid JSON object string' });
+          return;
+        }
+      } catch {
+        res.status(400).json({ error: 'contact must be a valid JSON object string' });
+        return;
+      }
+    }
+
     // Check if there are any valid fields to update
-    if (input.name === undefined && input.key === undefined && input.description === undefined) {
+    if (input.name === undefined && input.key === undefined && input.description === undefined && input.contact === undefined) {
       res.status(400).json({ error: 'No valid fields to update' });
       return;
     }
@@ -69,6 +87,7 @@ export function updateTeam(req: Request, res: Response): void {
       name: input.name?.trim(),
       key: input.key,
       description: input.description,
+      contact: input.contact,
     })!;
 
     auditFromRequest(req, 'team.updated', 'team', id, {

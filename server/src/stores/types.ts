@@ -168,12 +168,14 @@ export interface TeamCreateInput {
   name: string;
   key: string;
   description?: string | null;
+  contact?: string | null;
 }
 
 export interface TeamUpdateInput {
   name?: string;
   key?: string;
   description?: string | null;
+  contact?: string | null;
 }
 
 export interface UserCreateInput {

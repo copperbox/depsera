@@ -94,6 +94,7 @@ describe('serviceFormatter', () => {
         name TEXT NOT NULL UNIQUE,
         key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -329,6 +330,7 @@ describe('serviceFormatter', () => {
         name: 'Test Team',
         key: null,
         description: 'A test team',
+        contact: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };
@@ -372,6 +374,7 @@ describe('serviceFormatter', () => {
         name: 'Test Team',
         key: null,
         description: 'A test team',
+        contact: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };

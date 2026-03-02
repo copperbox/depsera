@@ -36,6 +36,7 @@ export interface Team {
   name: string;
   key: string | null;
   description: string | null;
+  contact: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,12 +45,14 @@ export interface CreateTeamInput {
   name: string;
   key: string;
   description?: string;
+  contact?: string;
 }
 
 export interface UpdateTeamInput {
   name?: string;
   key?: string;
   description?: string;
+  contact?: string;
 }
 
 export interface TeamMember {

@@ -410,6 +410,7 @@ export interface ValidatedTeamInput {
   name: string;
   key: string;
   description: string | null;
+  contact: string | null;
 }
 
 export interface ValidatedTeamUpdateInput {
@@ -451,10 +452,29 @@ export function validateTeamCreate(input: Record<string, unknown>): ValidatedTea
     description = input.description || null;
   }
 
+  // Optional: contact (JSON object string)
+  let contact: string | null = null;
+  if (input.contact !== undefined && input.contact !== null) {
+    if (!isString(input.contact)) {
+      throw new ValidationError('contact must be a JSON string or null', 'contact');
+    }
+    try {
+      const parsed = JSON.parse(input.contact);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new ValidationError('contact must be a valid JSON object string', 'contact');
+      }
+      contact = input.contact;
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      throw new ValidationError('contact must be a valid JSON object string', 'contact');
+    }
+  }
+
   return {
     name: input.name.trim(),
     key: input.key,
     description,
+    contact,
   };
 }
 

@@ -15,6 +15,7 @@ import AssociationsPage from './components/pages/Associations/AssociationsPage';
 import Wallboard from './components/pages/Wallboard/Wallboard';
 import ServiceCatalog from './components/pages/Catalog/ServiceCatalog';
 import ManifestPage from './components/pages/Manifest/ManifestPage';
+import ManifestAdmin from './components/pages/Admin/ManifestAdmin';
 
 function App() {
   return (
@@ -58,6 +59,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <AdminSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/manifests"
+          element={
+            <ProtectedRoute requireAdmin>
+              <ManifestAdmin />
             </ProtectedRoute>
           }
         />
