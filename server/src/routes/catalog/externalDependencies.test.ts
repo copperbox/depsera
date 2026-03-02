@@ -255,7 +255,7 @@ describe('GET /api/catalog/external-dependencies', () => {
 
   it('should exclude canonical names matching internal service names', async () => {
     // "auth-service" is both a service name and a canonical name used as a dependency
-    const authSvc = insertService({ name: 'auth-service', team_id: teamAId });
+    insertService({ name: 'auth-service', team_id: teamAId });
     const otherSvc = insertService({ name: 'Other Svc', team_id: teamBId });
 
     insertDependency(otherSvc, 'auth-dep', 'auth-service'); // matches service name

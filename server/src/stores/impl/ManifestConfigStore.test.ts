@@ -201,7 +201,7 @@ describe('ManifestConfigStore', () => {
     });
 
     it('should update updated_at timestamp', () => {
-      const created = store.create({
+      store.create({
         team_id: 'team-1',
         manifest_url: 'https://example.com/manifest.json',
       });

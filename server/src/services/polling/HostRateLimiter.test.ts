@@ -111,12 +111,10 @@ describe('HostRateLimiter', () => {
 
     const limiter = new HostRateLimiter();
 
-    // Default is 5
-    expect(limiter.acquire('example.com')).toBe(true);
-    expect(limiter.acquire('example.com')).toBe(true);
-    expect(limiter.acquire('example.com')).toBe(true);
-    expect(limiter.acquire('example.com')).toBe(true);
-    expect(limiter.acquire('example.com')).toBe(true);
+    // Default is 10
+    for (let i = 0; i < 10; i++) {
+      expect(limiter.acquire('example.com')).toBe(true);
+    }
     expect(limiter.acquire('example.com')).toBe(false);
 
     process.env.POLL_MAX_CONCURRENT_PER_HOST = original;

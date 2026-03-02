@@ -322,7 +322,7 @@ describe('DriftFlagStore', () => {
 
   describe('countByTeamId', () => {
     it('should return correct summary counts', () => {
-      const flag1 = store.create({
+      store.create({
         team_id: 'team-1',
         service_id: 'svc-1',
         drift_type: 'field_change',
@@ -552,8 +552,6 @@ describe('DriftFlagStore', () => {
         drift_type: 'field_change',
         field_name: 'name',
       });
-      const originalTime = flag.last_detected_at;
-
       // Small delay to ensure different timestamp
       const result = store.updateLastDetectedAt(flag.id);
       expect(result).toBe(true);

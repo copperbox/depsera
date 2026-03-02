@@ -6,7 +6,8 @@ import { sendErrorResponse, ValidationError, NotFoundError, ConflictError } from
 import { validateUrlHostname } from '../../utils/ssrf';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 import { HealthPollingService } from '../../services/polling/HealthPollingService';
-import type { DriftFlag, DriftFlagStatus, DriftType, BulkDriftActionResult } from '../../db/types';
+import type { DriftFlagStatus, DriftType, BulkDriftActionResult } from '../../db/types';
+import type { ServiceUpdateInput } from '../../stores/types';
 
 // --- Syncable field definitions ---
 
@@ -159,7 +160,7 @@ function updateSyncedSnapshot(
       ? JSON.parse(manifestValue)
       : manifestValue;
 
-  const db = (stores.services as any).db;
+  const db = (stores.services as unknown as { db: import('better-sqlite3').Database }).db;
   db.prepare('UPDATE services SET manifest_last_synced_values = ? WHERE id = ?')
     .run(JSON.stringify(snapshot), serviceId);
 }
@@ -239,7 +240,7 @@ function acceptDrift(req: Request, res: Response): void {
           const updateValue = coerceFieldValue(flag.field_name, flag.manifest_value);
           txStores.services.update(flag.service_id, {
             [flag.field_name]: updateValue,
-          } as any);
+          } as ServiceUpdateInput);
 
           updateSyncedSnapshot(txStores, flag.service_id, flag.field_name, flag.manifest_value);
 
@@ -366,7 +367,6 @@ function bulkAccept(req: Request, res: Response): void {
   try {
     const teamId = req.params.id;
     const flagIds = validateFlagIds(req.body);
-    const stores = getStores();
     const userId = req.user!.id;
 
     const result: BulkDriftActionResult = { succeeded: 0, failed: 0, errors: [] };
@@ -404,7 +404,7 @@ function bulkAccept(req: Request, res: Response): void {
               const updateValue = coerceFieldValue(flag.field_name, flag.manifest_value);
               txStores.services.update(flag.service_id, {
                 [flag.field_name]: updateValue,
-              } as any);
+              } as ServiceUpdateInput);
 
               updateSyncedSnapshot(txStores, flag.service_id, flag.field_name, flag.manifest_value);
 
@@ -460,7 +460,6 @@ function bulkDismiss(req: Request, res: Response): void {
   try {
     const teamId = req.params.id;
     const flagIds = validateFlagIds(req.body);
-    const stores = getStores();
     const userId = req.user!.id;
 
     const result: BulkDriftActionResult = { succeeded: 0, failed: 0, errors: [] };

@@ -16,27 +16,27 @@ jest.mock('../../utils/logger', () => ({
 
 const mockFetch = jest.fn();
 jest.mock('./ManifestFetcher', () => ({
-  fetchManifest: (...args: any[]) => mockFetch(...args),
+  fetchManifest: (...args: unknown[]) => mockFetch(...args),
 }));
 
 const mockValidate = jest.fn();
 jest.mock('./ManifestValidator', () => ({
-  validateManifest: (...args: any[]) => mockValidate(...args),
+  validateManifest: (...args: unknown[]) => mockValidate(...args),
 }));
 
 const mockDiff = jest.fn();
 jest.mock('./ManifestDiffer', () => ({
-  diffManifest: (...args: any[]) => mockDiff(...args),
+  diffManifest: (...args: unknown[]) => mockDiff(...args),
 }));
 
 const mockAudit = jest.fn();
 jest.mock('../audit/AuditLogService', () => ({
-  logAuditEvent: (...args: any[]) => mockAudit(...args),
+  logAuditEvent: (...args: unknown[]) => mockAudit(...args),
 }));
 
 const mockSsrfValidate = jest.fn();
 jest.mock('../../utils/ssrf', () => ({
-  validateUrlNotPrivate: (...args: any[]) => mockSsrfValidate(...args),
+  validateUrlNotPrivate: (...args: unknown[]) => mockSsrfValidate(...args),
 }));
 
 const mockPollingService = {
@@ -51,13 +51,12 @@ jest.mock('../polling/HealthPollingService', () => ({
 }));
 
 // Mock withTransaction to run callback synchronously with provided stores
-let mockTxCallback: ((stores: any) => any) | null = null;
-let mockTxStores: any = {};
+const mockTxStores: Record<string, unknown> = {};
 jest.mock('../../stores', () => ({
   getStores: () => ({}),
   StoreRegistry: { create: () => ({}) },
-  withTransaction: (fn: (stores: any) => any) => fn(mockTxStores),
-  withTransactionAsync: async (fn: (stores: any) => any) => fn(mockTxStores),
+  withTransaction: (fn: (stores: Record<string, unknown>) => unknown) => fn(mockTxStores),
+  withTransactionAsync: async (fn: (stores: Record<string, unknown>) => unknown) => fn(mockTxStores),
 }));
 
 // --- Helpers ---
@@ -163,13 +162,16 @@ function createMockStores() {
     dependencies: {
       findByServiceId: jest.fn().mockReturnValue([]),
     },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createSyncService(stores: any): ManifestSyncService {
   return ManifestSyncService.createForTesting(stores);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setupEmptyManifestSync(stores: any) {
   stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
   stores.services.findByTeamId.mockReturnValue([]);

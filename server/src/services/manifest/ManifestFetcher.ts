@@ -127,7 +127,7 @@ async function readResponseWithLimit(response: Response): Promise<string> {
   let totalSize = 0;
 
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
 

@@ -33,18 +33,6 @@ const adminUser: TestUser = {
   password_hash: null,
 };
 
-const leadUser: TestUser = {
-  id: 'lead-1',
-  email: 'lead@test.com',
-  name: 'Lead User',
-  role: 'user',
-  is_active: 1,
-  created_at: '2024-01-01T00:00:00.000Z',
-  updated_at: '2024-01-01T00:00:00.000Z',
-  oidc_subject: null,
-  password_hash: null,
-};
-
 const memberUser: TestUser = {
   id: 'member-1',
   email: 'member@test.com',

@@ -3,7 +3,6 @@ import {
   ManifestServiceEntry,
   ManifestSyncPolicy,
   ManifestDiffResult,
-  ManifestUpdateEntry,
   ManifestDriftEntry,
 } from './types';
 

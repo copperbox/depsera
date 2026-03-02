@@ -1,5 +1,4 @@
 import { validateManifest } from './ManifestValidator';
-import { ManifestValidationResult } from './types';
 
 // Helper to build a minimal valid manifest
 function validManifest(overrides: Record<string, unknown> = {}): Record<string, unknown> {

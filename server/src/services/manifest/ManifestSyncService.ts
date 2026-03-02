@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { getStores, StoreRegistry, withTransaction } from '../../stores';
 import type { Service } from '../../db/types';
+import type { ServiceUpdateInput } from '../../stores/types';
 import { HealthPollingService } from '../polling/HealthPollingService';
 import { fetchManifest } from './ManifestFetcher';
 import { validateManifest } from './ManifestValidator';
@@ -19,6 +20,13 @@ import {
   ParsedManifest,
   TeamManifestConfig,
 } from './types';
+
+// --- Types ---
+
+/** Helper to access the underlying better-sqlite3 database from a store instance. */
+interface StoreWithDb {
+  db: import('better-sqlite3').Database;
+}
 
 // --- Constants ---
 
@@ -306,7 +314,7 @@ export class ManifestSyncService extends EventEmitter {
     warnings.push(...validationResult.warnings.map(w => `${w.path}: ${w.message}`));
 
     const manifest = fetchResult.data as ParsedManifest;
-    const validServices = manifest.services.filter((_s, i) => {
+    const validServices = manifest.services.filter((_s, _i) => {
       // Only include services that passed individual validation
       // Since the manifest is valid, all services passed
       return true;
@@ -444,7 +452,7 @@ export class ManifestSyncService extends EventEmitter {
         }
 
         if (Object.keys(updateInput).length > 0) {
-          txStores.services.update(updateEntry.existing_service_id, updateInput as any);
+          txStores.services.update(updateEntry.existing_service_id, updateInput as ServiceUpdateInput);
         }
 
         // Update manifest_last_synced_values snapshot
@@ -564,7 +572,7 @@ export class ManifestSyncService extends EventEmitter {
   ): void {
     // Use the raw db from the store registry to set manifest-specific columns
     // that aren't in ServiceUpdateInput
-    const db = (txStores.services as any).db;
+    const db = (txStores.services as unknown as StoreWithDb).db;
     const syncedValues = this.buildSyncedValues(entry);
     db.prepare(`
       UPDATE services
@@ -579,7 +587,7 @@ export class ManifestSyncService extends EventEmitter {
     serviceId: string,
     entry: ManifestServiceEntry,
   ): void {
-    const db = (txStores.services as any).db;
+    const db = (txStores.services as unknown as StoreWithDb).db;
     const syncedValues = this.buildSyncedValues(entry);
     db.prepare(`
       UPDATE services SET manifest_last_synced_values = ? WHERE id = ?
@@ -690,7 +698,7 @@ export class ManifestSyncService extends EventEmitter {
   /** Create a team-scoped alias. */
   private createTeamAlias(teamId: string, alias: string, canonicalName: string): void {
     // Use raw DB to set manifest_team_id (not in the base create interface)
-    const db = (this.stores.aliases as any).db;
+    const db = (this.stores.aliases as unknown as StoreWithDb).db;
     const id = crypto.randomUUID();
     db.prepare(`
       INSERT INTO dependency_aliases (id, alias, canonical_name, manifest_team_id, created_at)
@@ -895,7 +903,7 @@ export class ManifestSyncService extends EventEmitter {
         // Adopt existing association as manifest-managed if it isn't already
         if (existingForTarget.manifest_managed !== 1) {
           try {
-            const db = (this.stores.associations as any).db;
+            const db = (this.stores.associations as unknown as StoreWithDb).db;
             db.prepare(`UPDATE dependency_associations SET manifest_managed = 1, association_type = ? WHERE id = ?`)
               .run(assocEntry.association_type, existingForTarget.id);
             summary.associations.created++;
@@ -915,7 +923,7 @@ export class ManifestSyncService extends EventEmitter {
           });
 
           // Mark as manifest managed via raw DB
-          const db = (this.stores.associations as any).db;
+          const db = (this.stores.associations as unknown as StoreWithDb).db;
           db.prepare(
             `UPDATE dependency_associations SET manifest_managed = 1 WHERE dependency_id = ? AND linked_service_id = ?`,
           ).run(dep.id, linkedService.id);
@@ -994,7 +1002,7 @@ export class ManifestSyncService extends EventEmitter {
         const wasCreated = changes.some(c => c.manifest_key === entry.key && c.action === 'created');
         if (wasCreated) {
           // Find the newly created service by manifest_key
-          const db = (this.stores.services as any).db;
+          const db = (this.stores.services as unknown as StoreWithDb).db;
           const svc = db.prepare('SELECT id FROM services WHERE manifest_key = ? ORDER BY created_at DESC LIMIT 1')
             .get(entry.key) as { id: string } | undefined;
           if (svc) {

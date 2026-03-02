@@ -13,6 +13,7 @@ import {
   TEAM_KEY_REGEX,
   MAX_KEY_LENGTH,
 } from '../../utils/validation';
+import type { AssociationType } from '../../db/types';
 import { validateUrlHostname } from '../../utils/ssrf';
 
 // --- Constants ---
@@ -443,7 +444,7 @@ function validateAssociations(
       addError(errors, `${path}.association_type`, 'association_type is required and must be a non-empty string');
       continue;
     }
-    if (!VALID_ASSOCIATION_TYPES.includes(assoc.association_type as any)) {
+    if (!VALID_ASSOCIATION_TYPES.includes(assoc.association_type as AssociationType)) {
       addError(
         errors,
         `${path}.association_type`,
