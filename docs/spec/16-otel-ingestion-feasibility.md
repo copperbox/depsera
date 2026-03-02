@@ -514,19 +514,19 @@ Note: Prometheus uses underscores (OTEL-to-Prometheus translation: `dependency.h
 | Implementation complexity | Medium | Low | Low (use existing system) |
 | Self-contained? | Yes | Yes | No (requires manifest config) |
 
-### 6.3 Recommendation: Separate Metadata via Existing Infrastructure
+### 6.3 Recommendation: Mixed Approach — Overrides for Static Metadata, Accept Gap for Dynamic Data
 
-**Keep OTEL metrics clean. Use Depsera's existing manifest and override system for metadata.**
+**Keep OTEL metrics clean. Use existing overrides for `contact` (static). Accept the genuine gap for `checkDetails` and `error` (dynamic).**
 
-Justification:
+These three fields have fundamentally different characteristics:
 
-1. **`contact` already has a home.** The manifest system with `canonical_overrides`, the `contact_override`/`impact_override` database columns, and the manual override UI already solve metadata distribution. This is the recommended path for all Depsera services, not just OTEL ones.
+1. **`contact` — static organizational metadata.** Does not change per-check. The manifest system with `canonical_overrides`, the `contact_override`/`impact_override` database columns, and the manual override UI already handle this. This is the recommended path for all Depsera services.
 
-2. **`checkDetails` is diagnostic, not telemetric.** It captures per-check context (DB version, connection pool sizes, replication lag) — diagnostic data about *how* a check was performed, not the health *result*. OTEL emitters report status outcomes. `checkDetails` being absent for OTEL-only services is architecturally correct.
+2. **`checkDetails` — dynamic per-check diagnostic data.** Generated fresh on every health check execution (e.g., connection pool state, DB version, replication lag). This data is inherently runtime-produced by the service performing the check — it cannot be preconfigured via manifests or overrides. For OTEL-only services, `checkDetails` is a **genuine gap**: the service detail UI will show less diagnostic context, but core health monitoring (status, latency, alerting, graph) is unaffected.
 
-3. **`error` degrades gracefully.** The `errorMessage` string attribute carries the human-readable summary displayed in the UI. The raw `error` object is primarily for debugging. Error history recording already handles the absent-error case via the synthetic `{"unhealthy":true}` marker.
+3. **`error` — dynamic per-check failure data.** Changes on every failing check. Also cannot be managed via overrides. However, the `errorMessage` string *is* representable as an OTEL attribute (`dependency.error_message`), which covers the human-readable summary displayed in the UI. The raw `error` object (arbitrary JSON/stack traces) is lost for OTEL-only services. Error history recording already handles the absent-error case via the synthetic `{"unhealthy":true}` marker.
 
-4. **The "less self-contained" trade-off is acceptable.** For OTEL-ingested services, contact info is configured via manifests or manual overrides. This avoids cardinality explosions, opaque blob attributes, and lossy flattening.
+**The trade-off is acceptable.** OTEL-only services lose `checkDetails` and raw `error` objects — diagnostic supplementary data. The core health signals that drive alerting, status tracking, and dependency graphs (`healthy`, `health.state`, `health.latency`, `health.code`, `errorMessage`) are all fully represented. Teams that need full diagnostic context can continue using JSON health endpoints alongside or instead of OTEL.
 
 ---
 
@@ -610,7 +610,7 @@ Refactored from binary "default vs custom" toggle to a multi-format selector:
 | OTLP transport model | **Hybrid: pull (Prometheus) + push (OTLP receiver)** | OTLP is push-based; Prometheus is pull-based. Both converge at DependencyUpsertService. |
 | Parsing approach | **Custom parsers (~200 lines each)** | No maintained libraries exist for either format. Manual parsing is straightforward. |
 | Metric schema design | **Label-based: single metric names with `dependency.name` selector** | Follows OTEL conventions, prevents metric explosion. |
-| Metadata handling | **Separate: use existing manifest/override system** | Keeps OTEL metrics clean. No cardinality risk. |
+| Metadata handling | **Overrides for `contact` (static); accept gap for `checkDetails`/`error` (dynamic)** | Keeps OTEL metrics clean. No cardinality risk. Dynamic diagnostic data is a genuine gap for OTEL-only services. |
 | Integration pattern | **Explicit `health_endpoint_format` column** | Clean dispatch, independent parsers, backward compatible. |
 
 ### 8.3 Estimated Complexity: **Medium**
