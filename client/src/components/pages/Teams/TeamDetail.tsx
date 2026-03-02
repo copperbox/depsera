@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
+import { parseContact } from '../../../utils/dependency';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import TeamForm from './TeamForm';
 import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
+import ManifestStatusCard from './ManifestStatusCard';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
 
@@ -134,9 +136,26 @@ function TeamDetail() {
       <div className={styles.detailHeader}>
         <div className={styles.teamTitle}>
           <h1>{team.name}</h1>
+          {team.key && (
+            <code className={styles.teamKey}>{team.key}</code>
+          )}
           {team.description && (
             <p className={styles.teamDescription}>{team.description}</p>
           )}
+          {team.contact && (() => {
+            const contactData = parseContact(team.contact);
+            if (!contactData) return null;
+            return (
+              <div className={styles.contactInfo}>
+                {Object.entries(contactData).map(([label, value]) => (
+                  <span key={label} className={styles.contactItem}>
+                    <span className={styles.contactLabel}>{label}:</span>{' '}
+                    <span className={styles.contactValue}>{String(value)}</span>
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
         {isAdmin && (
           <div className={styles.actions}>
@@ -288,6 +307,9 @@ function TeamDetail() {
         )}
       </div>
 
+      {/* Manifest Sync Section */}
+      <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
+
       {/* Services Section */}
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
@@ -309,6 +331,9 @@ function TeamDetail() {
                   <Link to={`/services/${service.id}`} className={styles.serviceName}>
                     {service.name}
                   </Link>
+                  {service.manifest_managed === 1 && (
+                    <span className={styles.manifestBadge} title="Managed by manifest">M</span>
+                  )}
                   {!service.is_active && (
                     <span
                       style={{
@@ -329,11 +354,11 @@ function TeamDetail() {
         )}
       </div>
 
-      {/* Alert Channels Section */}
-      <AlertChannels teamId={id!} canManage={canManageAlerts} />
-
-      {/* Alert Rules Section */}
-      <AlertRules teamId={id!} canManage={canManageAlerts} />
+      {/* Alert Channels & Rules (side-by-side on wider screens) */}
+      <div className={styles.alertGrid}>
+        <AlertChannels teamId={id!} canManage={canManageAlerts} />
+        <AlertRules teamId={id!} canManage={canManageAlerts} />
+      </div>
 
       {/* Alert History Section */}
       <AlertHistory teamId={id!} channels={alertChannels} />

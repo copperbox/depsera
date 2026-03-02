@@ -40,6 +40,11 @@ jest.mock('./AlertHistory', () => {
   AlertHistory.displayName = 'AlertHistory';
   return AlertHistory;
 });
+jest.mock('./ManifestStatusCard', () => {
+  const ManifestStatusCard = () => <div data-testid="manifest-status-card" />;
+  ManifestStatusCard.displayName = 'ManifestStatusCard';
+  return ManifestStatusCard;
+});
 
 function jsonResponse(data: unknown, status = 200) {
   return {
@@ -601,6 +606,81 @@ describe('TeamDetail', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Action failed')).toBeInTheDocument();
+    });
+  });
+
+  describe('team key badge', () => {
+    it('displays key badge when team has a key', async () => {
+      const teamWithKey = { ...mockTeam, key: 'platform-team' };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamWithKey))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('platform-team')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('platform-team').tagName).toBe('CODE');
+    });
+
+    it('does not render key badge when team key is null', async () => {
+      const teamNoKey = { ...mockTeam, key: null };
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamNoKey))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Team')).toBeInTheDocument();
+      });
+
+      const codeElements = document.querySelectorAll('code');
+      codeElements.forEach((el) => {
+        expect(el.textContent).not.toBe('');
+      });
+    });
+  });
+
+  describe('manifest badges', () => {
+    it('shows [M] badge for manifest-managed services', async () => {
+      const teamWithManifest = {
+        ...mockTeam,
+        services: [
+          { id: 's1', name: 'Manifest Service', is_active: 1, manifest_managed: 1 },
+          { id: 's2', name: 'Regular Service', is_active: 1, manifest_managed: 0 },
+        ],
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(teamWithManifest))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Manifest Service')).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByTitle('Managed by manifest');
+      expect(badges).toHaveLength(1);
+      expect(badges[0].textContent).toBe('M');
+    });
+
+    it('does not show [M] badge for non-manifest services', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockTeam))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service A')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTitle('Managed by manifest')).not.toBeInTheDocument();
     });
   });
 });

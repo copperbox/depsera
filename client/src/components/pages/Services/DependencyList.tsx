@@ -2,15 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAliases } from '../../../hooks/useAliases';
 import {
   fetchAssociations,
-  fetchSuggestions,
   deleteAssociation,
-  acceptSuggestion,
-  dismissSuggestion,
 } from '../../../api/associations';
 import { updateDependencyOverrides, clearDependencyOverrides } from '../../../api/dependencies';
 import type { Dependency } from '../../../types/service';
-import type { Association, AssociationSuggestion } from '../../../types/association';
-import { ASSOCIATION_TYPE_LABELS } from '../../../types/association';
+import type { Association } from '../../../types/association';
 import DependencyRow from './DependencyRow';
 import DependencyEditModal from './DependencyEditModal';
 import styles from './DependencyList.module.css';
@@ -26,8 +22,6 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingDep, setEditingDep] = useState<Dependency | null>(null);
   const [assocMap, setAssocMap] = useState<Record<string, Association[]>>({});
-  const [pendingSuggestions, setPendingSuggestions] = useState<AssociationSuggestion[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   const {
     aliases,
@@ -64,17 +58,6 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
     }
   }, []);
 
-  // Load pending suggestions
-  const loadPendingSuggestions = useCallback(async () => {
-    try {
-      const all = await fetchSuggestions();
-      const depIds = new Set(dependencies.map((d) => d.id));
-      setPendingSuggestions(all.filter((s) => depIds.has(s.dependency_id)));
-    } catch {
-      // Non-critical
-    }
-  }, [dependencies]);
-
   useEffect(() => {
     loadAliases();
     loadCanonicalNames();
@@ -84,10 +67,6 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
   useEffect(() => {
     loadAllAssociations();
   }, [loadAllAssociations]);
-
-  useEffect(() => {
-    loadPendingSuggestions();
-  }, [loadPendingSuggestions]);
 
   const toggleRow = useCallback((depId: string) => {
     setExpandedRows((prev) => {
@@ -105,27 +84,6 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
     (depName: string) => aliases.find((a) => a.alias === depName),
     [aliases],
   );
-
-  // Suggestion handlers
-  const handleAccept = async (id: string) => {
-    try {
-      const suggestion = pendingSuggestions.find((s) => s.id === id);
-      await acceptSuggestion(id);
-      setPendingSuggestions((prev) => prev.filter((s) => s.id !== id));
-      if (suggestion) await reloadDepAssociations(suggestion.dependency_id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept suggestion');
-    }
-  };
-
-  const handleDismiss = async (id: string) => {
-    try {
-      await dismissSuggestion(id);
-      setPendingSuggestions((prev) => prev.filter((s) => s.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to dismiss suggestion');
-    }
-  };
 
   // Override handlers for the edit modal
   const handleOverrideSave = useCallback(async (depId: string, impact: string | null, contact: Record<string, string> | null) => {
@@ -181,69 +139,6 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
           <span className={styles.sectionSubtitle}>What this service depends on</span>
         </div>
       </div>
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      {pendingSuggestions.length > 0 && (
-        <div className={styles.suggestionsSection}>
-          <h3 className={styles.subsectionTitle}>
-            Pending Suggestions ({pendingSuggestions.length})
-          </h3>
-          <div className={styles.suggestionsTable}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Dependency</th>
-                  <th>Linked Service</th>
-                  <th>Type</th>
-                  <th>Confidence</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingSuggestions.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.dependency_name}</td>
-                    <td>{s.linked_service_name}</td>
-                    <td>
-                      <span className={styles.typeBadge}>
-                        {ASSOCIATION_TYPE_LABELS[s.association_type]}
-                      </span>
-                    </td>
-                    <td className={styles.confidenceCell}>
-                      {s.confidence_score !== null
-                        ? `${Math.round(s.confidence_score * 100)}%`
-                        : '-'}
-                    </td>
-                    <td>
-                      <div className={styles.suggestionActions}>
-                        <button
-                          className={styles.acceptButton}
-                          onClick={() => handleAccept(s.id)}
-                          title="Accept"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M3 8l3.5 3.5L13 5" />
-                          </svg>
-                        </button>
-                        <button
-                          className={styles.dismissButton}
-                          onClick={() => handleDismiss(s.id)}
-                          title="Dismiss"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M4 4l8 8M12 4l-8 8" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {dependencies.length === 0 ? (
         <div className={styles.noDeps}>

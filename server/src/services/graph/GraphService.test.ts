@@ -421,6 +421,9 @@ function createService(id: string, name: string): ServiceWithTeam {
     last_poll_success: null,
     last_poll_error: null,
     poll_warnings: null,
+    manifest_key: null,
+    manifest_managed: 0,
+    manifest_last_synced_values: null,
     is_active: 1,
     is_external: 0,
     description: null,
@@ -460,8 +463,6 @@ function createDependency(
     service_name: 'Test Service',
     target_service_id: targetServiceId,
     association_type: 'api_call',
-    is_auto_suggested: 0,
-    confidence_score: 90,
     avg_latency_24h: null,
   };
 }

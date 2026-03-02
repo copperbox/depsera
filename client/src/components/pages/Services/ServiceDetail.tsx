@@ -126,6 +126,9 @@ function ServiceDetail() {
         <div className={styles.serviceTitle}>
           <h1>{service.name}</h1>
           <StatusBadge status={getHealthBadgeStatus(service.health.status)} />
+          {service.manifest_managed === 1 && (
+            <span className={styles.manifestBadge} title="Managed by manifest">M</span>
+          )}
           {!service.is_active && <span className={styles.inactiveBadge}>Inactive</span>}
         </div>
         <div className={styles.actions}>
@@ -247,6 +250,25 @@ function ServiceDetail() {
             <span className={styles.metadataLabel}>Last Updated</span>
             <span className={styles.metadataValue}>{formatRelativeTime(service.updated_at)}</span>
           </div>
+          {service.manifest_managed === 1 && (
+            <div className={styles.metadataItem}>
+              <span className={styles.metadataLabel}>Manifest</span>
+              <span className={styles.manifestInfo}>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={styles.manifestInfoIcon}
+                >
+                  <path d="M2 2h12v12H2zM5 6h6M5 10h4" />
+                </svg>
+                Managed by manifest{service.manifest_key ? ` · Key: ${service.manifest_key}` : ''}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

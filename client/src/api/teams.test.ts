@@ -63,7 +63,7 @@ describe('fetchTeam', () => {
 
 describe('createTeam', () => {
   it('creates a team', async () => {
-    const input = { name: 'New Team', description: 'A new team' };
+    const input = { name: 'New Team', key: 'new-team', description: 'A new team' };
     const data = { id: '1', ...input };
     mockFetch.mockResolvedValue(jsonResponse(data, 201));
 
@@ -81,7 +81,7 @@ describe('createTeam', () => {
   it('throws on error response', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ message: 'Invalid input' }, 400));
 
-    await expect(createTeam({ name: '' })).rejects.toThrow('Invalid input');
+    await expect(createTeam({ name: '', key: '' })).rejects.toThrow('Invalid input');
   });
 });
 

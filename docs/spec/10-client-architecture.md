@@ -13,7 +13,7 @@
 | `/teams` | TeamsList | Protected | Team listing with counts |
 | `/teams/:id` | TeamDetail | Protected | Members, roles, owned services |
 | `/graph` | DependencyGraph | Protected | Interactive React Flow visualization |
-| `/associations` | Associations | Protected | Suggestions inbox, manual creation, aliases, canonical override management (team lead+/admin) |
+| `/associations` | Associations | Protected | Manual association creation, aliases, canonical override management (team lead+/admin) |
 | `/wallboard` | Wallboard | Protected | Full-screen status board with dependency detail panel showing resolved contact info and impact with override indicators |
 | `/admin/users` | UserManagement | Admin only | User accounts, roles, activation |
 | `/admin/settings` | AdminSettings | Admin only | Application-wide settings management |
@@ -69,7 +69,6 @@ All API modules follow a consistent pattern:
 | `useGraphState` | Complex state management for React Flow graph. Persists node positions per user, layout direction, tier spacing to localStorage. Smart refresh preserves selection state. High latency detection uses an adaptive algorithm (see §10.6). |
 | `useAssociations` | CRUD for associations scoped to a single dependency. |
 | `useAliases` | Global alias management — CRUD + canonical names list. |
-| `useSuggestions` | Suggestion inbox — list, filter, multi-select, accept/dismiss (individual and bulk). |
 | `useCanonicalOverrides` | Canonical override CRUD — load all, save (upsert), remove, lookup by canonical name. |
 
 ## 10.5 Client-Side Storage

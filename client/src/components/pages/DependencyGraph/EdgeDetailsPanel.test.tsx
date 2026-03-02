@@ -267,39 +267,6 @@ describe('EdgeDetailsPanel', () => {
     });
   });
 
-  it('displays auto-suggested source', async () => {
-    const autoSuggestedData = { ...mockEdgeData, dependencyType: 'rest' as const, isAutoSuggested: true };
-
-    renderPanel('e1', autoSuggestedData);
-
-    await waitFor(() => {
-      expect(screen.getByText('Source')).toBeInTheDocument();
-      expect(screen.getByText('Auto-suggested')).toBeInTheDocument();
-    });
-  });
-
-  it('displays manual source', async () => {
-    const manualData = { ...mockEdgeData, dependencyType: 'rest' as const, isAutoSuggested: false };
-
-    renderPanel('e1', manualData);
-
-    await waitFor(() => {
-      expect(screen.getByText('Source')).toBeInTheDocument();
-      expect(screen.getByText('Manual')).toBeInTheDocument();
-    });
-  });
-
-  it('displays confidence score', async () => {
-    const dataWithConfidence = { ...mockEdgeData, dependencyType: 'rest' as const, confidenceScore: 0.85 };
-
-    renderPanel('e1', dataWithConfidence);
-
-    await waitFor(() => {
-      expect(screen.getByText('Confidence')).toBeInTheDocument();
-      expect(screen.getByText('85%')).toBeInTheDocument();
-    });
-  });
-
   it('displays error alert section', async () => {
     const dataWithError = { ...mockEdgeData, errorMessage: 'Connection refused' };
 

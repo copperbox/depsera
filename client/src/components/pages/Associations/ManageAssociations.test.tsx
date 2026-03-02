@@ -93,7 +93,7 @@ function makeService(overrides = {}) {
     poll_warnings: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
-    team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
+    team: { id: 'team-1', name: 'Team One', key: null, description: null, created_at: '', updated_at: '' },
     health: {
       status: 'healthy' as const,
       healthy_reports: 1,
@@ -138,9 +138,6 @@ function makeAssociation(overrides = {}) {
     dependency_id: 'dep-1',
     linked_service_id: 'svc-2',
     association_type: 'api_call' as const,
-    is_auto_suggested: 0,
-    confidence_score: null,
-    is_dismissed: 0,
     created_at: '2024-01-01T00:00:00Z',
     linked_service: {
       id: 'svc-2',
@@ -155,7 +152,7 @@ function makeAssociation(overrides = {}) {
       poll_warnings: null,
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
-      team: { id: 'team-1', name: 'Team One', description: null, created_at: '', updated_at: '' },
+      team: { id: 'team-1', name: 'Team One', key: null, description: null, created_at: '', updated_at: '' },
       health: {
         status: 'healthy' as const,
         healthy_reports: 0,

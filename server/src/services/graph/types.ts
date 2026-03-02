@@ -14,8 +14,6 @@ export interface DependencyWithTarget extends Dependency {
   service_name: string;
   target_service_id: string | null;
   association_type: string | null;
-  is_auto_suggested: number | null;
-  confidence_score: number | null;
   avg_latency_24h: number | null;
 }
 
@@ -65,8 +63,6 @@ export interface GraphEdgeData {
   latencyMs?: number | null;
   avgLatencyMs24h?: number | null;
   associationType?: AssociationType | null;
-  isAutoSuggested?: boolean;
-  confidenceScore?: number | null;
   checkDetails?: Record<string, unknown>;
   error?: unknown;
   errorMessage?: string | null;

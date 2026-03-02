@@ -18,6 +18,9 @@ class StoreRegistry {
   public readonly settings: ISettingsStore;
   public readonly canonicalOverrides: ICanonicalOverrideStore;
   public readonly statusChangeEvents: IStatusChangeEventStore;
+  public readonly manifestConfig: IManifestConfigStore;
+  public readonly manifestSyncHistory: IManifestSyncHistoryStore;
+  public readonly driftFlags: IDriftFlagStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -103,7 +106,7 @@ count(options?: DependencyListOptions): number
 
 `DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
 
-`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides()` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses.
+`DependencyWithResolvedOverrides`: Extends `Dependency` with `effective_contact: string | null` and `effective_impact: string | null`. Computed at the API layer by `resolveDependencyOverrides(dependencies, teamId?)` in `server/src/utils/dependencyOverrideResolver.ts`, not stored in the database. Used in service detail and list API responses. Uses a 4-tier override hierarchy: instance override > team canonical override > global canonical override > polled data. When `teamId` is provided, team-scoped overrides take precedence over global ones.
 
 ### IAssociationStore
 ```typescript
@@ -111,14 +114,10 @@ findById(id: string): DependencyAssociation | undefined
 findByDependencyId(dependencyId: string): DependencyAssociation[]
 findByDependencyIdWithService(dependencyId: string): AssociationWithService[]
 findByLinkedServiceId(linkedServiceId: string): DependencyAssociation[]
-findPendingSuggestions(): AssociationWithContext[]
 existsForDependencyAndService(dependencyId: string, linkedServiceId: string): boolean
 create(input: AssociationCreateInput): DependencyAssociation
 delete(id: string): boolean
 deleteByDependencyId(dependencyId: string): number
-acceptSuggestion(id: string): boolean
-dismissSuggestion(id: string): boolean
-reactivateDismissed(id: string, associationType: AssociationType): boolean
 exists(id: string): boolean
 count(options?: AssociationListOptions): number
 ```
@@ -173,15 +172,28 @@ upsertMany(entries: Array<{ key: string; value: string | null }>, updatedBy: str
 delete(key: string): boolean
 ```
 
-### ICanonicalOverrideStore
+### ICanonicalOverrideStore **[Updated for team-scoping]**
 ```typescript
-findAll(): DependencyCanonicalOverride[]
+findAll(teamId?: string): DependencyCanonicalOverride[]
 findByCanonicalName(canonicalName: string): DependencyCanonicalOverride | undefined
+findByTeamAndCanonicalName(teamId: string, canonicalName: string): DependencyCanonicalOverride | undefined
+findForHierarchy(canonicalName: string, teamId?: string): DependencyCanonicalOverride | undefined
 upsert(input: CanonicalOverrideUpsertInput): DependencyCanonicalOverride
 delete(canonicalName: string): boolean
+deleteByTeam(canonicalName: string, teamId: string): boolean
 ```
 
-`CanonicalOverrideUpsertInput`: `{ canonical_name: string; contact_override?: string | null; impact_override?: string | null; updated_by: string }`. Upsert uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` to update override values and audit fields while preserving the original `created_at`.
+`CanonicalOverrideUpsertInput`: `{ canonical_name: string; team_id?: string | null; contact_override?: string | null; impact_override?: string | null; manifest_managed?: number; updated_by: string }`. When `team_id` is provided, upserts against the `(team_id, canonical_name) WHERE team_id IS NOT NULL` partial unique index. When `team_id` is null/omitted, upserts against the `(canonical_name) WHERE team_id IS NULL` global index. Preserves `created_at` on conflict.
+
+`findAll(teamId?)`: Without argument returns all overrides (global + team-scoped). With `teamId` filters to only that team's overrides.
+
+`findByCanonicalName`: Returns only global overrides (where `team_id IS NULL`).
+
+`findByTeamAndCanonicalName`: Returns only the team-scoped override for a specific team.
+
+`findForHierarchy(canonicalName, teamId?)`: Resolves the best override using the hierarchy: team-scoped first, then global fallback. Returns `undefined` if neither exists.
+
+`deleteByTeam`: Deletes a team-scoped override without affecting global overrides.
 
 ### IStatusChangeEventStore
 ```typescript
@@ -192,3 +204,76 @@ deleteOlderThan(timestamp: string): number
 ```
 
 `UnstableDependencyRow`: `{ dependency_name, service_name, service_id, change_count, current_healthy, last_change_at }`. Aggregates status changes within the time window grouped by dependency name. Returns the service from the most recent event for each dependency.
+
+### IManifestConfigStore **[Implemented]**
+```typescript
+create(input: ManifestConfigCreateInput): TeamManifestConfig
+findByTeamId(teamId: string): TeamManifestConfig | undefined
+update(teamId: string, input: ManifestConfigUpdateInput): TeamManifestConfig | undefined
+delete(teamId: string): boolean
+findAllEnabled(): TeamManifestConfig[]
+updateSyncResult(teamId: string, result: ManifestSyncResultInput): boolean
+```
+
+`ManifestConfigCreateInput`: `{ team_id: string; manifest_url: string; is_enabled?: boolean; sync_policy?: ManifestSyncPolicy }`. Uses `INSERT ... ON CONFLICT(team_id) DO UPDATE` for upsert semantics. Types imported from `server/src/services/manifest/types.ts`.
+
+`ManifestConfigUpdateInput`: `{ manifest_url?: string; is_enabled?: boolean; sync_policy?: Partial<ManifestSyncPolicy> }`. Partial sync_policy is merged with existing policy (or `DEFAULT_SYNC_POLICY` if no existing policy). Dynamic field building for partial updates.
+
+`ManifestSyncResultInput`: `{ last_sync_at: string; last_sync_status: string; last_sync_error: string | null; last_sync_summary: string | null }`. Updates only the sync result columns without touching config fields.
+
+`findAllEnabled()` returns all configs where `is_enabled = 1`, ordered by `created_at ASC`. Used by the scheduled sync loop.
+
+### IManifestSyncHistoryStore **[Implemented]**
+```typescript
+create(entry: ManifestSyncHistoryCreateInput): ManifestSyncHistoryEntry
+findByTeamId(teamId: string, options?: { limit?: number; offset?: number }): { history: ManifestSyncHistoryEntry[]; total: number }
+deleteOlderThan(timestamp: string): number
+```
+
+`ManifestSyncHistoryCreateInput`: `{ team_id, trigger_type, triggered_by, manifest_url, status, summary, errors, warnings, duration_ms }`. `triggered_by` is null for scheduled syncs. `summary`, `errors`, `warnings` are JSON strings.
+
+`findByTeamId` returns paginated results (default limit 20, max 100) ordered by `created_at DESC` (most recent first), along with a total count for pagination UI. Types imported from `server/src/services/manifest/types.ts`.
+
+### IDriftFlagStore **[Implemented]**
+```typescript
+// Read
+findById(id: string): DriftFlag | undefined
+findByTeamId(teamId: string, options?: DriftFlagListOptions): { flags: DriftFlagWithContext[]; total: number }
+findActiveByServiceId(serviceId: string): DriftFlag[]
+findActiveByServiceAndField(serviceId: string, fieldName: string): DriftFlag | undefined
+findActiveRemovalByServiceId(serviceId: string): DriftFlag | undefined
+countByTeamId(teamId: string): DriftSummary
+
+// Write
+create(input: DriftFlagCreateInput): DriftFlag
+resolve(id: string, status: 'dismissed' | 'accepted' | 'resolved', userId: string | null): boolean
+reopen(id: string): boolean
+updateDetection(id: string, manifestValue: string | null, currentValue: string | null): boolean
+updateLastDetectedAt(id: string): boolean
+
+// Bulk
+bulkResolve(ids: string[], status: 'dismissed' | 'accepted' | 'resolved', userId: string | null): number
+resolveAllForService(serviceId: string): number
+resolveAllForTeam(teamId: string): number
+
+// Upsert (sync engine)
+upsertFieldDrift(serviceId: string, fieldName: string, manifestValue: string, currentValue: string, syncHistoryId: string | null): DriftFlagUpsertResult
+upsertRemovalDrift(serviceId: string, syncHistoryId: string | null): DriftFlagUpsertResult
+
+// Cleanup
+deleteOlderThan(timestamp: string, statuses?: DriftFlagStatus[]): number
+```
+
+`DriftFlagListOptions`: `{ status?: DriftFlagStatus; drift_type?: string; service_id?: string; limit?: number; offset?: number }`. Default limit 50, max 250. Filters are composable.
+
+`findByTeamId` returns paginated results joined with `services` (for `service_name`, `manifest_key`) and `users` (for `resolved_by_name`), ordered by `last_detected_at DESC`.
+
+`countByTeamId` uses a single query with `SUM(CASE ...)` expressions for efficient summary counts: `pending_count`, `dismissed_count`, `field_change_pending`, `service_removal_pending`.
+
+`resolve` only transitions flags in `pending` or `dismissed` status. `reopen` only transitions `dismissed` → `pending`.
+
+**Upsert deduplication logic** (critical for preventing alert fatigue):
+- `upsertFieldDrift`: pending exists → update values; dismissed with same manifest_value → update last_detected_at only (stay dismissed); dismissed with different manifest_value → re-flag as pending; not found → create new
+- `upsertRemovalDrift`: pending or dismissed exists → update last_detected_at (stay in current status); not found → create new
+
+`deleteOlderThan` supports optional status filter array for targeted cleanup (e.g., only delete terminal statuses like `accepted`, `resolved`).

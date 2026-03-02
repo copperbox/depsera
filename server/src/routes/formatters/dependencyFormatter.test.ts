@@ -21,6 +21,9 @@ describe('dependencyFormatter', () => {
     last_poll_success: null,
     last_poll_error: null,
     poll_warnings: null,
+    manifest_key: null,
+    manifest_managed: 0,
+    manifest_last_synced_values: null,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   };
@@ -30,10 +33,7 @@ describe('dependencyFormatter', () => {
     dependency_id: 'dep-1',
     linked_service_id: 'service-1',
     association_type: 'api_call',
-    is_auto_suggested: 0,
-    confidence_score: null,
-    is_dismissed: 0,
-    match_reason: null,
+    manifest_managed: 0,
     created_at: '2024-01-01T00:00:00.000Z',
   };
 

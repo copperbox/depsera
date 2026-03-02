@@ -17,6 +17,27 @@ jest.mock('../../utils/logger', () => ({
   },
 }));
 
+// Mock getStores so getInstance() doesn't hit the real database
+jest.mock('../../stores', () => ({
+  getStores: jest.fn(() => ({
+    services: { findById: jest.fn() },
+    alertRules: { findActiveByTeamId: jest.fn().mockReturnValue([]) },
+    alertChannels: { findActiveByTeamId: jest.fn().mockReturnValue([]) },
+    alertHistory: { create: jest.fn() },
+    dependencies: { findByServiceId: jest.fn().mockReturnValue([]) },
+    settings: {},
+  })),
+}));
+
+// Mock SettingsService so getInstance() doesn't query the database
+jest.mock('../settings/SettingsService', () => ({
+  SettingsService: {
+    getInstance: jest.fn(() => ({
+      get: jest.fn(),
+    })),
+  },
+}));
+
 // ---- Mock stores ----
 const mockService: Service = {
   id: 'svc-1',
@@ -32,6 +53,9 @@ const mockService: Service = {
   last_poll_success: 1,
   last_poll_error: null,
   poll_warnings: null,
+  manifest_key: null,
+  manifest_managed: 0,
+  manifest_last_synced_values: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };

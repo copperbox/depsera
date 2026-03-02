@@ -1,10 +1,9 @@
 import { randomUUID } from 'crypto';
 import { Database } from 'better-sqlite3';
-import { DependencyAssociation, AssociationType } from '../../db/types';
+import { DependencyAssociation } from '../../db/types';
 import { IAssociationStore } from '../interfaces/IAssociationStore';
 import {
   AssociationWithService,
-  AssociationWithContext,
   AssociationListOptions,
   AssociationCreateInput,
 } from '../types';
@@ -47,29 +46,6 @@ export class AssociationStore implements IAssociationStore {
       .all(linkedServiceId) as DependencyAssociation[];
   }
 
-  findPendingSuggestions(): AssociationWithContext[] {
-    return this.db
-      .prepare(`
-        WITH ranked AS (
-          SELECT
-            da.*,
-            d.name as dependency_name,
-            s.name as service_name,
-            ls.name as linked_service_name,
-            ROW_NUMBER() OVER (PARTITION BY da.dependency_id ORDER BY da.confidence_score DESC) AS rn
-          FROM dependency_associations da
-          JOIN dependencies d ON da.dependency_id = d.id
-          JOIN services s ON d.service_id = s.id
-          JOIN services ls ON da.linked_service_id = ls.id
-          WHERE da.is_auto_suggested = 1
-            AND da.is_dismissed = 0
-        )
-        SELECT * FROM ranked WHERE rn = 1
-        ORDER BY confidence_score DESC
-      `)
-      .all() as AssociationWithContext[];
-  }
-
   existsForDependencyAndService(dependencyId: string, linkedServiceId: string): boolean {
     const row = this.db
       .prepare(
@@ -86,18 +62,14 @@ export class AssociationStore implements IAssociationStore {
     this.db
       .prepare(`
         INSERT INTO dependency_associations (
-          id, dependency_id, linked_service_id, association_type,
-          is_auto_suggested, confidence_score, is_dismissed, match_reason, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+          id, dependency_id, linked_service_id, association_type, manifest_managed, created_at
+        ) VALUES (?, ?, ?, ?, 0, ?)
       `)
       .run(
         id,
         input.dependency_id,
         input.linked_service_id,
         input.association_type,
-        input.is_auto_suggested ? 1 : 0,
-        input.confidence_score ?? null,
-        input.match_reason ?? null,
         now
       );
 
@@ -116,50 +88,6 @@ export class AssociationStore implements IAssociationStore {
       .prepare('DELETE FROM dependency_associations WHERE dependency_id = ?')
       .run(dependencyId);
     return result.changes;
-  }
-
-  acceptSuggestion(id: string): boolean {
-    const result = this.db
-      .prepare(`
-        UPDATE dependency_associations
-        SET is_auto_suggested = 0
-        WHERE id = ? AND is_auto_suggested = 1
-      `)
-      .run(id);
-    return result.changes > 0;
-  }
-
-  dismissSuggestion(id: string): boolean {
-    const result = this.db
-      .prepare(`
-        UPDATE dependency_associations
-        SET is_dismissed = 1
-        WHERE id = ? AND is_auto_suggested = 1
-      `)
-      .run(id);
-    return result.changes > 0;
-  }
-
-  dismissAllForDependency(dependencyId: string): number {
-    const result = this.db
-      .prepare(`
-        UPDATE dependency_associations
-        SET is_dismissed = 1
-        WHERE dependency_id = ? AND is_auto_suggested = 1 AND is_dismissed = 0
-      `)
-      .run(dependencyId);
-    return result.changes;
-  }
-
-  reactivateDismissed(id: string, associationType: AssociationType): boolean {
-    const result = this.db
-      .prepare(`
-        UPDATE dependency_associations
-        SET is_dismissed = 0, association_type = ?, is_auto_suggested = 0
-        WHERE id = ?
-      `)
-      .run(associationType, id);
-    return result.changes > 0;
   }
 
   exists(id: string): boolean {
@@ -192,16 +120,6 @@ export class AssociationStore implements IAssociationStore {
     if (options?.linkedServiceId) {
       conditions.push('linked_service_id = ?');
       params.push(options.linkedServiceId);
-    }
-
-    if (options?.isAutoSuggested !== undefined) {
-      conditions.push('is_auto_suggested = ?');
-      params.push(options.isAutoSuggested ? 1 : 0);
-    }
-
-    if (options?.isDismissed !== undefined) {
-      conditions.push('is_dismissed = ?');
-      params.push(options.isDismissed ? 1 : 0);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

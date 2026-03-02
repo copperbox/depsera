@@ -7,6 +7,8 @@ const mockDeleteAudit = jest.fn().mockReturnValue(0);
 const mockDeleteAlertHistory = jest.fn().mockReturnValue(0);
 const mockDeleteStatusChange = jest.fn().mockReturnValue(0);
 const mockDeletePollHistory = jest.fn().mockReturnValue(0);
+const mockDeleteSyncHistory = jest.fn().mockReturnValue(0);
+const mockDeleteDriftFlags = jest.fn().mockReturnValue(0);
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -17,6 +19,8 @@ jest.mock('../../stores', () => ({
     alertHistory: { deleteOlderThan: mockDeleteAlertHistory },
     statusChangeEvents: { deleteOlderThan: mockDeleteStatusChange },
     servicePollHistory: { deleteOlderThan: mockDeletePollHistory },
+    manifestSyncHistory: { deleteOlderThan: mockDeleteSyncHistory },
+    driftFlags: { deleteOlderThan: mockDeleteDriftFlags },
     settings: mockSettingsStore,
   }),
 }));
@@ -55,6 +59,8 @@ describe('DataRetentionService', () => {
     mockDeleteAlertHistory.mockReturnValue(0);
     mockDeleteStatusChange.mockReturnValue(0);
     mockDeletePollHistory.mockReturnValue(0);
+    mockDeleteSyncHistory.mockReturnValue(0);
+    mockDeleteDriftFlags.mockReturnValue(0);
 
     // Default settings
     mockGet.mockImplementation((key) => {
@@ -201,6 +207,8 @@ describe('DataRetentionService', () => {
       mockDeleteAudit.mockReturnValue(0);
       mockDeleteAlertHistory.mockReturnValue(0);
       mockDeleteStatusChange.mockReturnValue(0);
+      mockDeleteSyncHistory.mockReturnValue(0);
+      mockDeleteDriftFlags.mockReturnValue(0);
 
       const service = DataRetentionService.getInstance();
       const result = service.runCleanup();
@@ -210,6 +218,8 @@ describe('DataRetentionService', () => {
       expect(result.auditDeleted).toBe(0);
       expect(result.alertHistoryDeleted).toBe(0);
       expect(result.statusChangeDeleted).toBe(0);
+      expect(result.syncHistoryDeleted).toBe(0);
+      expect(result.driftFlagsDeleted).toBe(0);
     });
 
     it('should set lastRunDate after cleanup', () => {
@@ -244,6 +254,88 @@ describe('DataRetentionService', () => {
       mockDeleteLatency.mockReturnValue(0);
       const result = service.runCleanup();
       expect(result.latencyDeleted).toBe(0);
+    });
+  });
+
+  describe('manifest data retention', () => {
+    it('should delete manifest sync history older than 90 days', () => {
+      mockDeleteSyncHistory.mockReturnValue(15);
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.syncHistoryDeleted).toBe(15);
+      expect(mockDeleteSyncHistory).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+
+      // Verify the cutoff is approximately 90 days ago
+      const callArg = mockDeleteSyncHistory.mock.calls[0][0];
+      const cutoff = new Date(callArg);
+      const expected90DaysAgo = new Date(now);
+      expected90DaysAgo.setDate(expected90DaysAgo.getDate() - 90);
+      expect(Math.abs(cutoff.getTime() - expected90DaysAgo.getTime())).toBeLessThan(1000);
+    });
+
+    it('should delete only terminal drift flags (accepted, resolved) older than 90 days', () => {
+      mockDeleteDriftFlags.mockReturnValue(8);
+
+      jest.setSystemTime(new Date('2026-02-21T10:00:00Z'));
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.driftFlagsDeleted).toBe(8);
+      expect(mockDeleteDriftFlags).toHaveBeenCalledWith(
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        ['accepted', 'resolved'],
+      );
+    });
+
+    it('should use fixed 90-day retention regardless of configured retention_days', () => {
+      mockGet.mockImplementation((key) => {
+        if (key === 'data_retention_days') return 30;
+        if (key === 'retention_cleanup_time') return '02:00';
+        return undefined;
+      });
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      // Regular tables use 30-day cutoff
+      const regularCutoff = new Date(mockDeleteLatency.mock.calls[0][0]);
+      const expected30DaysAgo = new Date(now);
+      expected30DaysAgo.setDate(expected30DaysAgo.getDate() - 30);
+      expect(Math.abs(regularCutoff.getTime() - expected30DaysAgo.getTime())).toBeLessThan(1000);
+
+      // Manifest tables always use 90-day cutoff
+      const manifestCutoff = new Date(mockDeleteSyncHistory.mock.calls[0][0]);
+      const expected90DaysAgo = new Date(now);
+      expected90DaysAgo.setDate(expected90DaysAgo.getDate() - 90);
+      expect(Math.abs(manifestCutoff.getTime() - expected90DaysAgo.getTime())).toBeLessThan(1000);
+    });
+
+    it('should include manifest counts in cleanup result', () => {
+      mockDeleteLatency.mockReturnValue(10);
+      mockDeleteSyncHistory.mockReturnValue(3);
+      mockDeleteDriftFlags.mockReturnValue(7);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.syncHistoryDeleted).toBe(3);
+      expect(result.driftFlagsDeleted).toBe(7);
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          syncHistoryDeleted: 3,
+          driftFlagsDeleted: 7,
+        }),
+        'data retention cleanup completed',
+      );
     });
   });
 

@@ -31,7 +31,9 @@ describe('Poll History Route', () => {
       CREATE TABLE teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );

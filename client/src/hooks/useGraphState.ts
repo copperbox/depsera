@@ -401,7 +401,13 @@ export function useGraphState(options: UseGraphStateOptions = {}): UseGraphState
 
       setNodes(nodesWithSelection);
       setEdges(edgesWithSelection);
-      setLayoutVersion(v => v + 1);
+
+      // Only trigger fitView for user-initiated loads (team change, direction change,
+      // reset layout, etc.), NOT for background polling refreshes. Isolation enter/exit
+      // is handled separately by the isolation effect.
+      if (!isBackgroundRefresh) {
+        setLayoutVersion(v => v + 1);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load graph data');
     } finally {

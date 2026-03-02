@@ -41,6 +41,8 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
     poll_warnings: row.poll_warnings ?? null,
+    manifest_managed: row.manifest_managed ?? 0,
+    manifest_key: row.manifest_key ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -144,7 +146,9 @@ export function formatUpdatedService(serviceId: string): FormattedServiceMutatio
   const team: Team = {
     id: service.team_id,
     name: service.team_name,
+    key: service.team_key ?? null,
     description: service.team_description ?? null,
+    contact: null,
     created_at: service.team_created_at ?? service.created_at,
     updated_at: service.team_updated_at ?? service.updated_at,
   };

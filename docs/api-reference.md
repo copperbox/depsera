@@ -521,6 +521,40 @@ curl -X DELETE http://localhost:3001/api/external-services/<service-id> \
 
 ---
 
+### `GET /api/services/catalog`
+
+List all services with their team and manifest key information. Used for discovering namespaced keys when authoring manifest associations. Requires authentication.
+
+| Query Param | Type | Description |
+|-------------|------|-------------|
+| `search` | string | Optional. Filter by service name, manifest key, or team key |
+| `team_id` | uuid | Optional. Filter by team |
+
+```bash
+curl http://localhost:3001/api/services/catalog -b cookies.txt
+```
+
+**Response (200):** Array of catalog entry objects.
+
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Payment Service",
+    "manifest_key": "payment-api",
+    "description": "Handles payment processing",
+    "is_active": 1,
+    "team_id": "uuid",
+    "team_name": "Platform",
+    "team_key": "platform"
+  }
+]
+```
+
+The `team_key` field enables constructing the namespaced `team_key/manifest_key` format used in manifest `linked_service_key` fields.
+
+---
+
 ## Teams
 
 ### `GET /api/teams`
@@ -538,6 +572,7 @@ curl http://localhost:3001/api/teams -b cookies.txt
   {
     "id": "uuid",
     "name": "Platform",
+    "key": "platform",
     "description": "Platform infrastructure team",
     "member_count": 5,
     "service_count": 3,
@@ -562,6 +597,7 @@ curl http://localhost:3001/api/teams/<team-id> -b cookies.txt
 {
   "id": "uuid",
   "name": "Platform",
+  "key": "platform",
   "description": "Platform infrastructure team",
   "created_at": "2024-01-10T08:00:00.000Z",
   "members": [
@@ -588,7 +624,7 @@ curl -X POST http://localhost:3001/api/teams \
   -H "Content-Type: application/json" \
   -H "X-CSRF-Token: <token>" \
   -b cookies.txt \
-  -d '{ "name": "Platform", "description": "Platform infrastructure team" }'
+  -d '{ "name": "Platform", "key": "platform", "description": "Platform infrastructure team" }'
 ```
 
 **Request body:**
@@ -596,6 +632,7 @@ curl -X POST http://localhost:3001/api/teams \
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Team name (must be unique) |
+| `key` | string | Yes | URL-friendly team identifier. Must match `^[a-z0-9][a-z0-9_-]*$`, max 128 chars. Must be unique. |
 | `description` | string | No | Team description |
 
 **Response (201):** The created team object.
@@ -604,6 +641,7 @@ curl -X POST http://localhost:3001/api/teams \
 
 | Status | Reason |
 |--------|--------|
+| `400` | Validation error — missing or invalid key |
 | `409` | Team name already exists |
 
 ---
@@ -1007,66 +1045,6 @@ curl -X DELETE http://localhost:3001/api/dependencies/<dep-id>/associations/<ser
 
 ---
 
-### `POST /api/dependencies/:dependencyId/suggestions/generate`
-
-Generate association suggestions for a single dependency.
-
-```bash
-curl -X POST http://localhost:3001/api/dependencies/<dep-id>/suggestions/generate \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `POST /api/services/:serviceId/suggestions/generate`
-
-Generate association suggestions for all dependencies of a service.
-
-```bash
-curl -X POST http://localhost:3001/api/services/<service-id>/suggestions/generate \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `GET /api/associations/suggestions`
-
-List all pending (undismissed) suggestions.
-
-```bash
-curl http://localhost:3001/api/associations/suggestions -b cookies.txt
-```
-
----
-
-### `POST /api/associations/suggestions/:id/accept`
-
-Accept a suggestion, converting it to a manual association.
-
-```bash
-curl -X POST http://localhost:3001/api/associations/suggestions/<suggestion-id>/accept \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
----
-
-### `POST /api/associations/suggestions/:id/dismiss`
-
-Dismiss a suggestion.
-
-```bash
-curl -X POST http://localhost:3001/api/associations/suggestions/<suggestion-id>/dismiss \
-  -H "X-CSRF-Token: <token>" \
-  -b cookies.txt
-```
-
-**Response:** `204 No Content`
-
----
-
 ## Graph
 
 ### `GET /api/graph`
@@ -1127,8 +1105,6 @@ curl "http://localhost:3001/api/graph?team=<team-id>" -b cookies.txt
         "latencyMs": 12,
         "avgLatencyMs24h": 15.3,
         "associationType": "database",
-        "isAutoSuggested": false,
-        "confidenceScore": null,
         "impact": "critical",
         "errorMessage": null
       }
@@ -1302,7 +1278,7 @@ curl "http://localhost:3001/api/admin/audit-log?limit=20&action=user.role_change
 }
 ```
 
-**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`
+**Audit action types:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`, `manifest_sync`, `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted`, `drift.detected`, `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.resolved`, `drift.bulk_accepted`, `drift.bulk_dismissed`
 
 ---
 
@@ -1753,3 +1729,469 @@ curl -X DELETE http://localhost:3001/api/dependencies/<dep-id>/overrides \
 **Response:** `204 No Content`
 
 **Audit action:** `dependency_override.cleared`
+
+---
+
+## Manifest Configuration
+
+Team-scoped manifest management. Manifests define services, aliases, overrides, and associations declaratively via a JSON URL. See the [Manifest Schema Reference](manifest-schema.md) for the full schema, validation rules, and examples.
+
+### `GET /api/teams/:id/manifest`
+
+Get the manifest configuration for a team. Returns `null` if no manifest is configured.
+
+**Auth:** Team member (any role)
+
+```bash
+curl http://localhost:3001/api/teams/<team-id>/manifest -b cookies.txt
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid",
+  "team_id": "uuid",
+  "manifest_url": "https://example.com/manifest.json",
+  "is_enabled": 1,
+  "sync_policy": "{\"on_field_drift\":\"flag\",\"on_removal\":\"flag\",\"on_alias_removal\":\"keep\",\"on_override_removal\":\"keep\",\"on_association_removal\":\"keep\"}",
+  "last_sync_at": "2026-02-28T10:00:00.000Z",
+  "last_sync_status": "success",
+  "last_sync_error": null,
+  "last_sync_summary": "{\"services\":{\"created\":2,\"updated\":0,\"deactivated\":0,\"deleted\":0,\"drift_flagged\":0,\"unchanged\":1},\"aliases\":{\"created\":1,\"updated\":0,\"removed\":0,\"unchanged\":0},\"overrides\":{\"created\":0,\"updated\":0,\"removed\":0,\"unchanged\":0},\"associations\":{\"created\":1,\"removed\":0,\"unchanged\":0}}",
+  "created_at": "2026-02-28T09:00:00.000Z",
+  "updated_at": "2026-02-28T10:00:00.000Z"
+}
+```
+
+Returns `null` body when no manifest is configured for the team.
+
+---
+
+### `PUT /api/teams/:id/manifest`
+
+Create or update a team's manifest configuration. Requires team lead or admin role.
+
+```bash
+curl -X PUT http://localhost:3001/api/teams/<team-id>/manifest \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{
+    "manifest_url": "https://example.com/manifest.json",
+    "sync_policy": {
+      "on_field_drift": "flag",
+      "on_removal": "deactivate"
+    }
+  }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `manifest_url` | string | Yes | HTTP or HTTPS URL pointing to a JSON manifest. SSRF-validated. |
+| `is_enabled` | boolean | No | Enable/disable scheduled sync (default: true). |
+| `sync_policy` | object | No | Partial sync policy. Unset fields use defaults. |
+
+**Sync policy fields:**
+
+| Field | Values | Default | Description |
+|-------|--------|---------|-------------|
+| `on_field_drift` | `flag`, `manifest_wins`, `local_wins` | `flag` | How to handle manually edited fields. |
+| `on_removal` | `flag`, `deactivate`, `delete` | `flag` | How to handle services removed from manifest. |
+| `on_alias_removal` | `remove`, `keep` | `keep` | How to handle aliases removed from manifest. |
+| `on_override_removal` | `remove`, `keep` | `keep` | How to handle overrides removed from manifest. |
+| `on_association_removal` | `remove`, `keep` | `keep` | How to handle associations removed from manifest. |
+
+**Response (200):** The created or updated manifest config object.
+
+**Errors:**
+
+| Status | Condition |
+|--------|-----------|
+| `400` | Invalid URL format, SSRF-blocked hostname, or invalid sync policy values |
+| `403` | Not a team lead or admin |
+
+**Audit actions:** `manifest_config.created` or `manifest_config.updated`
+
+---
+
+### `DELETE /api/teams/:id/manifest`
+
+Remove a team's manifest configuration. Does **not** delete services that were created by the manifest — they remain active but are no longer manifest-managed.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X DELETE http://localhost:3001/api/teams/<team-id>/manifest \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response:** `204 No Content`
+
+**Audit action:** `manifest_config.deleted`
+
+---
+
+## Manifest Sync
+
+### `POST /api/teams/:id/manifest/sync`
+
+Trigger a manual sync for a team's manifest. Fetches the manifest URL, validates, diffs against current state, and applies changes.
+
+**Auth:** Team member (any role)
+
+```bash
+curl -X POST http://localhost:3001/api/teams/<team-id>/manifest/sync \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response (200):**
+
+```json
+{
+  "status": "success",
+  "summary": {
+    "services": {
+      "created": 2,
+      "updated": 1,
+      "deactivated": 0,
+      "deleted": 0,
+      "drift_flagged": 1,
+      "unchanged": 3
+    },
+    "aliases": {
+      "created": 1,
+      "updated": 0,
+      "removed": 0,
+      "unchanged": 2
+    },
+    "overrides": {
+      "created": 0,
+      "updated": 0,
+      "removed": 0,
+      "unchanged": 1
+    },
+    "associations": {
+      "created": 1,
+      "removed": 0,
+      "unchanged": 2
+    }
+  },
+  "errors": [],
+  "warnings": ["services[2].health_endpoint: URL targets a private or internal address"],
+  "changes": [
+    { "manifest_key": "svc-a", "service_name": "Service A", "action": "created" },
+    { "manifest_key": "svc-b", "service_name": "Service B", "action": "updated", "fields_changed": ["description"] },
+    { "manifest_key": "svc-c", "service_name": "Service C", "action": "drift_flagged", "drift_fields": ["health_endpoint"] }
+  ],
+  "duration_ms": 1250
+}
+```
+
+**Status values:**
+
+| Status | Meaning |
+|--------|---------|
+| `success` | All entries processed without errors |
+| `partial` | Some entries succeeded, others had errors (e.g., SSRF-blocked endpoints) |
+| `failed` | Sync failed entirely (fetch error, validation failure, etc.) |
+
+**Errors:**
+
+| Status | Condition |
+|--------|-----------|
+| `404` | No manifest configured for this team |
+| `400` | Manifest is disabled |
+| `409` | Sync already in progress for this team |
+| `429` | Manual sync cooldown active (60s). Includes `Retry-After` header. |
+
+**Audit action:** `manifest_sync`
+
+---
+
+### `GET /api/teams/:id/manifest/sync-history`
+
+Get paginated sync history for a team.
+
+**Auth:** Team member (any role)
+
+| Query Param | Type | Default | Description |
+|-------------|------|---------|-------------|
+| `limit` | number | 20 | Max results (max 100) |
+| `offset` | number | 0 | Pagination offset |
+
+```bash
+curl "http://localhost:3001/api/teams/<team-id>/manifest/sync-history?limit=10" -b cookies.txt
+```
+
+**Response (200):**
+
+```json
+{
+  "entries": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "trigger_type": "manual",
+      "triggered_by": "user-uuid",
+      "manifest_url": "https://example.com/manifest.json",
+      "status": "success",
+      "summary": "{\"services\":{\"created\":2,\"updated\":0,...}}",
+      "errors": null,
+      "warnings": null,
+      "duration_ms": 850,
+      "created_at": "2026-02-28T10:00:00.000Z"
+    }
+  ],
+  "total": 15
+}
+```
+
+---
+
+### `POST /api/manifest/validate`
+
+Dry-run manifest validation. Validates the provided JSON against the manifest schema without persisting anything or triggering a sync.
+
+**Auth:** Any authenticated user
+
+```bash
+curl -X POST http://localhost:3001/api/manifest/validate \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "version": 1,
+    "services": [
+      {
+        "key": "test-svc",
+        "name": "Test Service",
+        "health_endpoint": "https://test.example.com/health"
+      }
+    ]
+  }'
+```
+
+**Response (200):**
+
+```json
+{
+  "valid": true,
+  "version": 1,
+  "service_count": 1,
+  "valid_count": 1,
+  "errors": [],
+  "warnings": []
+}
+```
+
+---
+
+## Drift Flags
+
+Drift flags are created when the sync engine detects differences between the manifest and local state. Flags require review and action (accept, dismiss, or reopen).
+
+### `GET /api/teams/:id/drifts`
+
+List drift flags for a team with filtering. Defaults to pending flags.
+
+**Auth:** Team member (any role)
+
+| Query Param | Type | Default | Description |
+|-------------|------|---------|-------------|
+| `status` | string | `pending` | Filter: `pending`, `dismissed`, `accepted`, `resolved` |
+| `drift_type` | string | — | Filter: `field_change`, `service_removal` |
+| `service_id` | uuid | — | Filter by service |
+| `limit` | number | 50 | Max results (max 250) |
+| `offset` | number | 0 | Pagination offset |
+
+```bash
+curl "http://localhost:3001/api/teams/<team-id>/drifts?status=pending&drift_type=field_change" -b cookies.txt
+```
+
+**Response (200):**
+
+```json
+{
+  "flags": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "service_id": "uuid",
+      "service_name": "Payment API",
+      "manifest_key": "payment-api",
+      "drift_type": "field_change",
+      "field_name": "health_endpoint",
+      "manifest_value": "https://payment-v2.example.com/health",
+      "current_value": "https://payment.example.com/health",
+      "status": "pending",
+      "first_detected_at": "2026-02-28T10:00:00.000Z",
+      "last_detected_at": "2026-02-28T11:00:00.000Z",
+      "resolved_at": null,
+      "resolved_by": null,
+      "sync_history_id": "uuid",
+      "created_at": "2026-02-28T10:00:00.000Z"
+    }
+  ],
+  "summary": {
+    "pending_count": 3,
+    "dismissed_count": 1,
+    "field_change_pending": 2,
+    "service_removal_pending": 1
+  },
+  "total": 3
+}
+```
+
+---
+
+### `GET /api/teams/:id/drifts/summary`
+
+Get lightweight drift flag counts for badge display.
+
+**Auth:** Team member (any role)
+
+```bash
+curl http://localhost:3001/api/teams/<team-id>/drifts/summary -b cookies.txt
+```
+
+**Response (200):**
+
+```json
+{
+  "pending_count": 3,
+  "dismissed_count": 1,
+  "field_change_pending": 2,
+  "service_removal_pending": 1
+}
+```
+
+---
+
+### `PUT /api/teams/:id/drifts/:driftId/accept`
+
+Accept a drift flag. Applies the manifest value to the service.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X PUT http://localhost:3001/api/teams/<team-id>/drifts/<drift-id>/accept \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Accept behavior by drift type:**
+
+- **`field_change`:** Updates the service field to `manifest_value`. Re-validates SSRF for URL fields. Validates `poll_interval_ms` bounds. Updates the synced snapshot. Restarts polling if `health_endpoint` or `poll_interval_ms` changed.
+- **`service_removal`:** Deactivates the service (`is_active=0`) and stops polling.
+
+**Response (200):** The updated drift flag object.
+
+**Errors:**
+
+| Status | Condition |
+|--------|-----------|
+| `400` | SSRF validation failed for a URL field, or invalid bounds |
+| `404` | Drift flag not found or belongs to a different team |
+| `409` | Flag already accepted or resolved |
+
+**Audit action:** `drift.accepted`
+
+---
+
+### `PUT /api/teams/:id/drifts/:driftId/dismiss`
+
+Dismiss a drift flag. The flag remains visible in the dismissed view.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X PUT http://localhost:3001/api/teams/<team-id>/drifts/<drift-id>/dismiss \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response (200):** The updated drift flag object.
+
+**Audit action:** `drift.dismissed`
+
+---
+
+### `PUT /api/teams/:id/drifts/:driftId/reopen`
+
+Reopen a previously dismissed drift flag back to pending.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X PUT http://localhost:3001/api/teams/<team-id>/drifts/<drift-id>/reopen \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt
+```
+
+**Response (200):** The updated drift flag object with `status: "pending"`.
+
+**Errors:** Returns `400` if the flag is not in `dismissed` status.
+
+**Audit action:** `drift.reopened`
+
+---
+
+### `POST /api/teams/:id/drifts/bulk-accept`
+
+Bulk accept drift flags. Processes up to 100 flags in a transaction. Best-effort: SSRF failures on individual URL fields skip that flag but continue with others.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X POST http://localhost:3001/api/teams/<team-id>/drifts/bulk-accept \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{ "flag_ids": ["drift-id-1", "drift-id-2"] }'
+```
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `flag_ids` | string[] | Yes | Array of drift flag IDs to accept. Max 100. |
+
+**Response (200):**
+
+```json
+{
+  "result": {
+    "succeeded": 2,
+    "failed": 0,
+    "errors": []
+  }
+}
+```
+
+**Audit action:** `drift.bulk_accepted`
+
+---
+
+### `POST /api/teams/:id/drifts/bulk-dismiss`
+
+Bulk dismiss drift flags. Processes up to 100 flags in a transaction.
+
+**Auth:** Team lead or admin
+
+```bash
+curl -X POST http://localhost:3001/api/teams/<team-id>/drifts/bulk-dismiss \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: <token>" \
+  -b cookies.txt \
+  -d '{ "flag_ids": ["drift-id-1", "drift-id-2"] }'
+```
+
+**Request body:** Same as bulk-accept.
+
+**Response (200):** Same shape as bulk-accept.
+
+**Audit action:** `drift.bulk_dismissed`

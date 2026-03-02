@@ -39,8 +39,6 @@ export interface DependencyListOptions extends ListOptions {
 export interface AssociationListOptions extends ListOptions {
   dependencyId?: string;
   linkedServiceId?: string;
-  isAutoSuggested?: boolean;
-  isDismissed?: boolean;
 }
 
 // Team member filter options
@@ -55,6 +53,7 @@ export interface TeamMemberListOptions extends ListOptions {
  */
 export interface ServiceWithTeam extends Service {
   team_name: string;
+  team_key: string | null;
   team_description?: string | null;
   team_created_at?: string;
   team_updated_at?: string;
@@ -76,8 +75,6 @@ export interface DependencyWithTarget extends Dependency {
   service_name: string;
   target_service_id: string | null;
   association_type: AssociationType | null;
-  is_auto_suggested: number | null;
-  confidence_score: number | null;
   avg_latency_24h: number | null;
 }
 
@@ -169,12 +166,16 @@ export interface ServiceUpdateInput {
 
 export interface TeamCreateInput {
   name: string;
+  key: string;
   description?: string | null;
+  contact?: string | null;
 }
 
 export interface TeamUpdateInput {
   name?: string;
+  key?: string;
   description?: string | null;
+  contact?: string | null;
 }
 
 export interface UserCreateInput {
@@ -230,7 +231,4 @@ export interface AssociationCreateInput {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
-  is_auto_suggested?: boolean;
-  confidence_score?: number | null;
-  match_reason?: string | null;
 }

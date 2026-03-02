@@ -29,7 +29,7 @@ export function getService(req: Request, res: Response): void {
 
     // Get this service's own dependencies with resolved overrides
     const dependencies = stores.dependencies.findByServiceId(id);
-    const resolvedDeps = resolveDependencyOverrides(dependencies);
+    const resolvedDeps = resolveDependencyOverrides(dependencies, service.team_id);
 
     // Get detailed reports from services that depend on this one
     const dependentReports = getDependentReports(id);

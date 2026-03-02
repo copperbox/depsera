@@ -40,6 +40,7 @@ export class ServiceStore implements IServiceStore {
         SELECT
           s.*,
           t.name as team_name,
+          t.key as team_key,
           t.description as team_description,
           t.created_at as team_created_at,
           t.updated_at as team_updated_at
@@ -59,6 +60,7 @@ export class ServiceStore implements IServiceStore {
         SELECT
           s.*,
           t.name as team_name,
+          t.key as team_key,
           t.description as team_description,
           t.created_at as team_created_at,
           t.updated_at as team_updated_at
@@ -97,6 +99,7 @@ export class ServiceStore implements IServiceStore {
       SELECT
         s.*,
         t.name as team_name,
+        t.key as team_key,
         t.description as team_description,
         t.created_at as team_created_at,
         t.updated_at as team_updated_at

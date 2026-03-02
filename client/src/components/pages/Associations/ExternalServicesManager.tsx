@@ -9,6 +9,7 @@ import {
 } from '../../../api/external-services';
 import type { ExternalService } from '../../../types/external-service';
 import type { TeamWithCounts } from '../../../types/service';
+import { formatDate } from '../../../utils/formatting';
 import styles from './ExternalServicesManager.module.css';
 
 function ExternalServicesManager() {
@@ -222,7 +223,7 @@ function ExternalServicesManager() {
                         />
                       </td>
                       <td>{svc.team.name}</td>
-                      <td>{new Date(svc.created_at).toLocaleDateString()}</td>
+                      <td>{formatDate(svc.created_at)}</td>
                       <td className={styles.actionsCell}>
                         <button
                           className={styles.saveButton}
@@ -248,7 +249,7 @@ function ExternalServicesManager() {
                         )}
                       </td>
                       <td>{svc.team.name}</td>
-                      <td>{new Date(svc.created_at).toLocaleDateString()}</td>
+                      <td>{formatDate(svc.created_at)}</td>
                       {canManageServices && (
                         <td className={styles.actionsCell}>
                           <button

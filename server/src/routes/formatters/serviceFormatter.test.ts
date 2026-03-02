@@ -42,9 +42,13 @@ describe('serviceFormatter', () => {
     last_poll_success: 1704067200,
     last_poll_error: null,
     poll_warnings: null,
+    manifest_key: null,
+    manifest_managed: 0,
+    manifest_last_synced_values: null,
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
     team_name: 'Test Team',
+    team_key: null,
     team_description: 'A test team',
     team_created_at: '2024-01-01T00:00:00.000Z',
     team_updated_at: '2024-01-01T00:00:00.000Z',
@@ -88,7 +92,9 @@ describe('serviceFormatter', () => {
       CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -145,10 +151,7 @@ describe('serviceFormatter', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT NOT NULL DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
         FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,
@@ -315,6 +318,9 @@ describe('serviceFormatter', () => {
         last_poll_success: null,
         last_poll_error: null,
         poll_warnings: null,
+        manifest_key: null,
+        manifest_managed: 0,
+        manifest_last_synced_values: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };
@@ -322,7 +328,9 @@ describe('serviceFormatter', () => {
       const team: Team = {
         id: teamId,
         name: 'Test Team',
+        key: null,
         description: 'A test team',
+        contact: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };
@@ -354,6 +362,9 @@ describe('serviceFormatter', () => {
         last_poll_success: null,
         last_poll_error: null,
         poll_warnings: null,
+        manifest_key: null,
+        manifest_managed: 0,
+        manifest_last_synced_values: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };
@@ -361,7 +372,9 @@ describe('serviceFormatter', () => {
       const team: Team = {
         id: teamId,
         name: 'Test Team',
+        key: null,
         description: 'A test team',
+        contact: null,
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       };

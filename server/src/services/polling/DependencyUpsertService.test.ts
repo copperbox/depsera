@@ -7,15 +7,7 @@ import { ErrorHistoryRecorder } from './ErrorHistoryRecorder';
 const testDb = new Database(':memory:');
 
 // We'll pass stores directly to avoid the global db mock issue
-jest.mock('../matching', () => ({
-  AssociationMatcher: {
-    getInstance: jest.fn().mockReturnValue({
-      generateSuggestions: jest.fn(),
-    }),
-  },
-}));
 
-// Import after mocks are set up
 import { DependencyUpsertService } from './DependencyUpsertService';
 
 // Mock ErrorHistoryRecorder to avoid foreign key issues
@@ -31,7 +23,9 @@ describe('DependencyUpsertService', () => {
       CREATE TABLE teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -83,10 +77,7 @@ describe('DependencyUpsertService', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
       );
@@ -146,6 +137,9 @@ describe('DependencyUpsertService', () => {
     last_poll_success: null,
     last_poll_error: null,
     poll_warnings: null,
+    manifest_key: null,
+    manifest_managed: 0,
+    manifest_last_synced_values: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });

@@ -200,8 +200,6 @@ export class DependencyGraphBuilder {
       latencyMs: dep.latency_ms,
       avgLatencyMs24h: dep.avg_latency_24h,
       associationType: dep.association_type as GraphEdgeData['associationType'],
-      isAutoSuggested: dep.is_auto_suggested === 1,
-      confidenceScore: dep.confidence_score,
       checkDetails,
       error,
       errorMessage: dep.error_message,

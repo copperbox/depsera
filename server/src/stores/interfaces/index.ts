@@ -14,3 +14,6 @@ export type { IAlertHistoryStore, AlertHistoryListOptions } from './IAlertHistor
 export type { ICanonicalOverrideStore, CanonicalOverrideUpsertInput } from './ICanonicalOverrideStore';
 export type { IStatusChangeEventStore, UnstableDependencyRow } from './IStatusChangeEventStore';
 export type { IServicePollHistoryStore } from './IServicePollHistoryStore';
+export type { IManifestConfigStore, ManifestSyncResultInput } from './IManifestConfigStore';
+export type { IManifestSyncHistoryStore, ManifestSyncHistoryCreateInput } from './IManifestSyncHistoryStore';
+export type { IDriftFlagStore, DriftFlagListOptions } from './IDriftFlagStore';

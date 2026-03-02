@@ -37,6 +37,8 @@ function makeCanonicalOverride(
     canonical_name: 'PostgreSQL',
     contact_override: null,
     impact_override: null,
+    team_id: null,
+    manifest_managed: 0,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     updated_by: null,
@@ -229,5 +231,147 @@ describe('resolveDependencyOverridesWithCanonical', () => {
     expect(result[0].latency_ms).toBe(42);
     expect(result[0]).toHaveProperty('effective_contact');
     expect(result[0]).toHaveProperty('effective_impact');
+  });
+
+  describe('4-tier hierarchy with team-scoped overrides', () => {
+    it('prefers team-scoped override over global when teamId provided', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        impact: 'low',
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-global',
+          canonical_name: 'PostgreSQL',
+          team_id: null,
+          impact_override: 'global-critical',
+        }),
+        makeCanonicalOverride({
+          id: 'co-team',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-1',
+          impact_override: 'team-high',
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals, 'team-1');
+      expect(result[0].effective_impact).toBe('team-high');
+    });
+
+    it('falls back to global override when no team-scoped override matches', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        impact: 'low',
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-global',
+          canonical_name: 'PostgreSQL',
+          team_id: null,
+          impact_override: 'global-critical',
+        }),
+        makeCanonicalOverride({
+          id: 'co-team',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-2',
+          impact_override: 'team-2-high',
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals, 'team-1');
+      expect(result[0].effective_impact).toBe('global-critical');
+    });
+
+    it('uses global override when no teamId provided (backward compat)', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        impact: 'low',
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-global',
+          canonical_name: 'PostgreSQL',
+          team_id: null,
+          impact_override: 'global-critical',
+        }),
+        makeCanonicalOverride({
+          id: 'co-team',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-1',
+          impact_override: 'team-high',
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals);
+      expect(result[0].effective_impact).toBe('global-critical');
+    });
+
+    it('instance override still wins over team-scoped canonical', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        impact: 'low',
+        impact_override: 'instance-override',
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-team',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-1',
+          impact_override: 'team-high',
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals, 'team-1');
+      expect(result[0].effective_impact).toBe('instance-override');
+    });
+
+    it('team-scoped contact merges over global contact', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        contact: JSON.stringify({ email: 'polled@example.com' }),
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-global',
+          canonical_name: 'PostgreSQL',
+          team_id: null,
+          contact_override: JSON.stringify({ slack: '#global-db' }),
+        }),
+        makeCanonicalOverride({
+          id: 'co-team',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-1',
+          contact_override: JSON.stringify({ slack: '#team-1-db', oncall: 'team-1-oncall' }),
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals, 'team-1');
+
+      // Team-scoped override wins over global (only team-scoped is used, not merged with global)
+      expect(JSON.parse(result[0].effective_contact!)).toEqual({
+        email: 'polled@example.com',
+        slack: '#team-1-db',
+        oncall: 'team-1-oncall',
+      });
+    });
+
+    it('ignores team-scoped overrides from other teams', () => {
+      const deps = [makeDependency({
+        canonical_name: 'PostgreSQL',
+        impact: 'low',
+      })];
+      const canonicals = [
+        makeCanonicalOverride({
+          id: 'co-team-other',
+          canonical_name: 'PostgreSQL',
+          team_id: 'team-other',
+          impact_override: 'other-team-impact',
+        }),
+      ];
+
+      const result = resolveDependencyOverridesWithCanonical(deps, canonicals, 'team-1');
+      // No matching team override and no global override — falls through to polled
+      expect(result[0].effective_impact).toBe('low');
+    });
   });
 });

@@ -4,6 +4,8 @@
 
 A dependency monitoring and service health dashboard. Track service health across your organization, visualize dependency relationships, and get alerted when things break.
 
+**New team?** Start with the **[Onboarding Guide](docs/onboarding-guide.md)** — a step-by-step walkthrough for instrumenting your services, registering them, and building your dependency graph.
+
 ## Quick Start
 
 The fastest way to get running is with Docker Compose:
@@ -39,9 +41,10 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 
 **Team Management**
 - Organize services by team with lead/member roles
+- Team contact metadata (email, Slack, on-call, etc.) stored as key-value pairs
 - Team-scoped service access — non-admin users see only their team's services
-- Association engine automatically suggests links between dependencies and services
 - External service registry for unmonitored third-party dependencies (shown in graph and association dropdowns)
+- Cross-team service catalog for discovering manifest keys when authoring manifest associations
 
 **Alerting**
 - Slack notifications with Block Kit formatting and deep links
@@ -49,6 +52,16 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Severity-based alert rules (critical, warning, all) per team
 - Flap protection and per-team hourly rate limiting
 - Full alert delivery history (sent, failed, suppressed)
+
+**Manifest Sync & Drift Detection**
+- Declarative service configuration via JSON manifest URL per team
+- Automated sync engine: fetch, validate, diff, and apply service definitions
+- Field-level drift detection when local edits diverge from the manifest
+- Sync policies: configurable behavior for field drift (flag/manifest wins/local wins) and service removal (flag/deactivate/delete)
+- Drift review inbox with accept, dismiss, reopen, and bulk actions
+- Admin manifest overview page with cross-team sync status, drift counts, and bulk sync-all
+- Scheduled sync (default hourly) with manual trigger and 60s cooldown
+- Full sync history with per-entry detail
 
 **Security**
 - OIDC/SSO authentication with PKCE or local username/password auth
@@ -268,9 +281,11 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 |-------|-------------|
 | `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
-| `/teams` | Team list with member/service counts; team detail with member management, alert channels, rules, and history |
+| `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, and history |
+| `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
-| `/associations` | Suggestions inbox (card-based, one per dependency), manage associations (accordion browser with inline create/delete), alias management, and external service registry |
+| `/associations` | Manage associations (accordion browser with inline create/delete), alias management, and external service registry |
+| `/catalog` | Cross-team catalog with two tabs: **Services** (browse/search manifest keys) and **External Dependencies** (canonical name registry showing usage across teams, descriptions, and aliases) |
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
@@ -283,16 +298,19 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 |------|-----------|
 | Health | `GET /api/health` |
 | Auth | `GET /api/auth/mode`, `/login`, `/callback`, `/me`; `POST /api/auth/login` (local), `/logout` |
-| Services | CRUD on `/api/services` (team-scoped), `POST /:id/poll`, `POST /test-schema` |
+| Services | CRUD on `/api/services` (team-scoped), `GET /catalog`, `POST /:id/poll`, `POST /test-schema` |
 | External Services | CRUD on `/api/external-services` (team-scoped) — unmonitored service entries for association targets |
 | Teams | CRUD on `/api/teams`, member management via `/:id/members` |
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
 | Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
-| Associations | CRUD on `/api/dependencies/:id/associations`, suggestion generate/accept/dismiss |
+| Associations | CRUD on `/api/dependencies/:id/associations` |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
+| Manifest | `GET/PUT/DELETE /api/teams/:id/manifest`, `POST /:id/manifest/sync`, `GET /:id/manifest/sync-history`, `POST /api/manifest/validate` |
+| Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
+| Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
 
 ## Security
@@ -318,9 +336,11 @@ For proxy/HTTPS configuration, see the [Installation Guide](docs/installation.md
 
 | Document | Description |
 |----------|-------------|
+| [Onboarding Guide](docs/onboarding-guide.md) | Step-by-step guide for teams: instrument services, register them, build dependency graph, set up alerts |
 | [Installation Guide](docs/installation.md) | Docker, Docker Compose, bare Node.js, reverse proxy, backups |
 | [Admin Guide](docs/admin-guide.md) | First-run setup, user/team management, alerts, settings, troubleshooting |
 | [API Reference](docs/api-reference.md) | All REST endpoints with request/response schemas and curl examples |
+| [Manifest Schema Reference](docs/manifest-schema.md) | Full manifest JSON schema, validation rules, sync policies, and example manifests |
 | [Health Endpoint Spec](docs/health-endpoint-spec.md) | Proactive-deps format, custom schema mapping, examples (Spring Boot, ASP.NET) |
 | [Testing with Keycloak](docs/testing-with-keycloak.md) | Local Keycloak OIDC testing with Docker Compose |
 | [Testing with Auth0](docs/testing-with-auth0.md) | OIDC testing with Auth0 (free tier) |

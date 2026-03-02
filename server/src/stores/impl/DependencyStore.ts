@@ -48,8 +48,6 @@ export class DependencyStore implements IDependencyStore {
           s.name as service_name,
           da.linked_service_id as target_service_id,
           da.association_type,
-          da.is_auto_suggested,
-          da.confidence_score,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -58,7 +56,7 @@ export class DependencyStore implements IDependencyStore {
           ) as avg_latency_24h
         FROM dependencies d
         JOIN services s ON d.service_id = s.id
-        LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
+        LEFT JOIN dependency_associations da ON d.id = da.dependency_id
         WHERE d.service_id = ?
         ORDER BY d.name ASC
       `)
@@ -96,8 +94,6 @@ export class DependencyStore implements IDependencyStore {
           s.name as service_name,
           da.linked_service_id as target_service_id,
           da.association_type,
-          da.is_auto_suggested,
-          da.confidence_score,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -106,7 +102,7 @@ export class DependencyStore implements IDependencyStore {
           ) as avg_latency_24h
         FROM dependencies d
         JOIN services s ON d.service_id = s.id
-        LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
+        LEFT JOIN dependency_associations da ON d.id = da.dependency_id
         ${activeFilter}
       `)
       .all() as DependencyWithTarget[];
@@ -129,8 +125,6 @@ export class DependencyStore implements IDependencyStore {
           s.name as service_name,
           da.linked_service_id as target_service_id,
           da.association_type,
-          da.is_auto_suggested,
-          da.confidence_score,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -139,7 +133,7 @@ export class DependencyStore implements IDependencyStore {
           ) as avg_latency_24h
         FROM dependencies d
         JOIN services s ON d.service_id = s.id
-        LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
+        LEFT JOIN dependency_associations da ON d.id = da.dependency_id
         WHERE d.service_id IN (${placeholders})
       `)
       .all(...serviceIds) as DependencyWithTarget[];
@@ -155,8 +149,6 @@ export class DependencyStore implements IDependencyStore {
           t.name as service_team_name,
           da.linked_service_id as target_service_id,
           da.association_type,
-          da.is_auto_suggested,
-          da.confidence_score,
           ls.name as linked_service_name,
           (
             SELECT ROUND(AVG(latency_ms))
@@ -167,7 +159,7 @@ export class DependencyStore implements IDependencyStore {
         FROM dependencies d
         JOIN services s ON d.service_id = s.id
         JOIN teams t ON s.team_id = t.id
-        LEFT JOIN dependency_associations da ON d.id = da.dependency_id AND da.is_dismissed = 0
+        LEFT JOIN dependency_associations da ON d.id = da.dependency_id
         LEFT JOIN services ls ON da.linked_service_id = ls.id
         WHERE s.is_active = 1
       `)
@@ -197,7 +189,6 @@ export class DependencyStore implements IDependencyStore {
         JOIN dependencies d ON da.dependency_id = d.id
         JOIN services s ON d.service_id = s.id
         WHERE da.linked_service_id = ?
-          AND da.is_dismissed = 0
           AND s.is_active = 1
         ORDER BY d.last_checked DESC
       `)

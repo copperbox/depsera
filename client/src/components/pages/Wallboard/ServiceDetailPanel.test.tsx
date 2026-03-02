@@ -11,7 +11,7 @@ const mockService = {
   id: 's1',
   name: 'Test Service',
   team_id: 't1',
-  team: { id: 't1', name: 'Team Alpha', description: null, created_at: '', updated_at: '' },
+  team: { id: 't1', name: 'Team Alpha', key: null, description: null, created_at: '', updated_at: '' },
   health_endpoint: 'https://example.com/health',
   metrics_endpoint: null,
   schema_config: null,

@@ -13,15 +13,15 @@ function jsonResponse(data: unknown, status = 200) {
 }
 
 const mockTeams = [
-  { id: 't1', name: 'Team A', description: null, created_at: '', updated_at: '', member_count: 3, service_count: 2 },
-  { id: 't2', name: 'Team B', description: null, created_at: '', updated_at: '', member_count: 2, service_count: 1 },
+  { id: 't1', name: 'Team A', key: null, description: null, created_at: '', updated_at: '', member_count: 3, service_count: 2 },
+  { id: 't2', name: 'Team B', key: null, description: null, created_at: '', updated_at: '', member_count: 2, service_count: 1 },
 ];
 
 const mockService = {
   id: 's1',
   name: 'Test Service',
   team_id: 't1',
-  team: { id: 't1', name: 'Team A', description: null, created_at: '', updated_at: '' },
+  team: { id: 't1', name: 'Team A', key: null, description: null, created_at: '', updated_at: '' },
   health_endpoint: 'https://example.com/health',
   metrics_endpoint: 'https://example.com/metrics',
   schema_config: null,
@@ -553,6 +553,56 @@ describe('ServiceForm', () => {
         const schema = JSON.parse(body.schema_config);
         expect(schema.fields.healthy).toBe('isHealthy');
       });
+    });
+  });
+
+  describe('manifest warning banner', () => {
+    it('shows warning banner when editing a manifest-managed service', () => {
+      const manifestService = { ...mockService, manifest_managed: 1 };
+
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          service={manifestService}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.getByText(/This service is managed by a manifest/)
+      ).toBeInTheDocument();
+    });
+
+    it('does not show warning banner when editing a non-manifest service', () => {
+      const regularService = { ...mockService, manifest_managed: 0 };
+
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          service={regularService}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByText(/This service is managed by a manifest/)
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not show warning banner in create mode', () => {
+      render(
+        <ServiceForm
+          teams={mockTeams}
+          onSuccess={jest.fn()}
+          onCancel={jest.fn()}
+        />
+      );
+
+      expect(
+        screen.queryByText(/This service is managed by a manifest/)
+      ).not.toBeInTheDocument();
     });
   });
 });

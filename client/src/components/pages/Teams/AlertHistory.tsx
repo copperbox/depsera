@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAlertHistory } from '../../../hooks/useAlertHistory';
 import type { AlertChannel, AlertHistoryEntry, AlertStatus } from '../../../types/alert';
+import { formatTimestamp } from '../../../utils/formatting';
 import styles from './Teams.module.css';
 import historyStyles from './AlertHistory.module.css';
 
@@ -37,20 +38,6 @@ function getChannelType(entry: AlertHistoryEntry, channels: AlertChannel[]): str
   const channel = channels.find((c) => c.id === entry.alert_channel_id);
   if (!channel) return '—';
   return channel.channel_type === 'slack' ? 'Slack' : 'Webhook';
-}
-
-function formatTimestamp(timestamp: string): string {
-  try {
-    const date = new Date(timestamp);
-    return date.toLocaleString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return timestamp;
-  }
 }
 
 function formatEventType(eventType: string): string {

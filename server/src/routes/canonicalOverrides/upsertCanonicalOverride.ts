@@ -7,7 +7,7 @@ import { sendErrorResponse } from '../../utils/errors';
 export function upsertCanonicalOverride(req: Request, res: Response): void {
   try {
     const { canonicalName } = req.params;
-    const { contact_override, impact_override } = req.body;
+    const { contact_override, impact_override, team_id } = req.body;
 
     // Validate: at least one override field must be provided
     if (contact_override === undefined && impact_override === undefined) {
@@ -37,19 +37,36 @@ export function upsertCanonicalOverride(req: Request, res: Response): void {
       }
     }
 
-    // Check permissions: admin or team lead of a team with a service reporting this canonical dep
-    const authResult = AuthorizationService.checkCanonicalOverrideAccess(
-      req.user!,
-      canonicalName,
-    );
-    if (!authResult.authorized) {
-      res.status(authResult.statusCode!).json({ error: authResult.error });
+    // Validate team_id: must be a string or undefined
+    if (team_id !== undefined && typeof team_id !== 'string') {
+      res.status(400).json({
+        error: 'team_id must be a string',
+      });
       return;
+    }
+
+    // Permission check: team-scoped requires team lead of that team; global uses existing check
+    if (team_id) {
+      const authResult = AuthorizationService.checkTeamLeadAccess(req.user!, team_id);
+      if (!authResult.authorized) {
+        res.status(authResult.statusCode!).json({ error: authResult.error });
+        return;
+      }
+    } else {
+      const authResult = AuthorizationService.checkCanonicalOverrideAccess(
+        req.user!,
+        canonicalName,
+      );
+      if (!authResult.authorized) {
+        res.status(authResult.statusCode!).json({ error: authResult.error });
+        return;
+      }
     }
 
     const stores = getStores();
     const override = stores.canonicalOverrides.upsert({
       canonical_name: canonicalName,
+      team_id: team_id ?? null,
       contact_override:
         contact_override !== undefined
           ? contact_override === null
@@ -62,6 +79,7 @@ export function upsertCanonicalOverride(req: Request, res: Response): void {
 
     auditFromRequest(req, 'canonical_override.upserted', 'canonical_override', canonicalName, {
       canonical_name: canonicalName,
+      team_id: team_id ?? null,
       contact_override: contact_override !== undefined ? contact_override : undefined,
       impact_override: impact_override !== undefined ? impact_override : undefined,
     });

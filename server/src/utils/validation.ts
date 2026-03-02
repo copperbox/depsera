@@ -71,6 +71,14 @@ export const VALID_ASSOCIATION_TYPES: AssociationType[] = [
 export const VALID_TEAM_MEMBER_ROLES: TeamMemberRole[] = ['lead', 'member'];
 
 // ============================================================================
+// Key Validation
+// ============================================================================
+
+/** Regex for team keys and manifest keys: lowercase alphanumeric, hyphens, underscores. */
+export const TEAM_KEY_REGEX = /^[a-z0-9][a-z0-9_-]*$/;
+export const MAX_KEY_LENGTH = 128;
+
+// ============================================================================
 // Validation Helpers
 // ============================================================================
 
@@ -400,11 +408,14 @@ export function validateAssociationCreate(
 
 export interface ValidatedTeamInput {
   name: string;
+  key: string;
   description: string | null;
+  contact: string | null;
 }
 
 export interface ValidatedTeamUpdateInput {
   name?: string;
+  key?: string;
   description?: string | null;
 }
 
@@ -418,6 +429,20 @@ export function validateTeamCreate(input: Record<string, unknown>): ValidatedTea
     throw new ValidationError('name is required and must be a non-empty string', 'name');
   }
 
+  // Required: key
+  if (!isNonEmptyString(input.key)) {
+    throw new ValidationError('key is required and must be a non-empty string', 'key');
+  }
+  if (input.key.length > MAX_KEY_LENGTH) {
+    throw new ValidationError(`key must be at most ${MAX_KEY_LENGTH} characters`, 'key');
+  }
+  if (!TEAM_KEY_REGEX.test(input.key)) {
+    throw new ValidationError(
+      'key must match pattern ^[a-z0-9][a-z0-9_-]*$ (lowercase alphanumeric, hyphens, underscores)',
+      'key',
+    );
+  }
+
   // Optional: description
   let description: string | null = null;
   if (input.description !== undefined && input.description !== null) {
@@ -427,9 +452,29 @@ export function validateTeamCreate(input: Record<string, unknown>): ValidatedTea
     description = input.description || null;
   }
 
+  // Optional: contact (JSON object string)
+  let contact: string | null = null;
+  if (input.contact !== undefined && input.contact !== null) {
+    if (!isString(input.contact)) {
+      throw new ValidationError('contact must be a JSON string or null', 'contact');
+    }
+    try {
+      const parsed = JSON.parse(input.contact);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new ValidationError('contact must be a valid JSON object string', 'contact');
+      }
+      contact = input.contact;
+    } catch (err) {
+      if (err instanceof ValidationError) throw err;
+      throw new ValidationError('contact must be a valid JSON object string', 'contact');
+    }
+  }
+
   return {
     name: input.name.trim(),
+    key: input.key,
     description,
+    contact,
   };
 }
 
@@ -450,6 +495,24 @@ export function validateTeamUpdate(
       throw new ValidationError('name must be a non-empty string', 'name');
     }
     result.name = input.name.trim();
+    hasUpdates = true;
+  }
+
+  // Optional: key
+  if (input.key !== undefined) {
+    if (!isNonEmptyString(input.key)) {
+      throw new ValidationError('key must be a non-empty string', 'key');
+    }
+    if (input.key.length > MAX_KEY_LENGTH) {
+      throw new ValidationError(`key must be at most ${MAX_KEY_LENGTH} characters`, 'key');
+    }
+    if (!TEAM_KEY_REGEX.test(input.key)) {
+      throw new ValidationError(
+        'key must match pattern ^[a-z0-9][a-z0-9_-]*$ (lowercase alphanumeric, hyphens, underscores)',
+        'key',
+      );
+    }
+    result.key = input.key;
     hasUpdates = true;
   }
 

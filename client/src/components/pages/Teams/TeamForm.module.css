@@ -123,3 +123,92 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.keyInput {
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.contactEntryRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.375rem;
+}
+
+.contactKeyInput {
+  flex: 1;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.25rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.contactValueInput {
+  flex: 2;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.25rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.contactKeyInput:focus,
+.contactValueInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.contactRemoveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.contactRemoveButton:hover:not(:disabled) {
+  color: var(--color-error);
+  border-color: var(--color-error-border);
+}
+
+.contactRemoveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addFieldButton {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  background: none;
+  border: 1px dashed var(--color-border-input);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  align-self: flex-start;
+}
+
+.addFieldButton:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.addFieldButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -14,7 +14,6 @@
 | 4 | [04-api-reference.md](./04-api-reference.md) | All REST API endpoints, request/response shapes, validation rules | API, endpoints, routes, REST, request, response, CRUD, services, teams, users, aliases, associations, graph, latency, errors, admin, alerts, wallboard, overrides |
 | 5 | [05-health-polling.md](./05-health-polling.md) | Polling lifecycle, circuit breaker, backoff, TTL cache, host rate limiter, deduplication, dependency parsing, events | polling, health check, circuit breaker, backoff, TTL, cache, rate limiter, deduplication, dependency parsing, events, upsert |
 | 6 | [06-dependency-graph.md](./06-dependency-graph.md) | Graph building, node types, edge construction, upstream traversal | graph, nodes, edges, external nodes, traversal, subgraph, React Flow |
-| 7 | [07-auto-suggestion.md](./07-auto-suggestion.md) | Matching strategies, token overlap, Levenshtein, association type inference | suggestions, matching, confidence, Levenshtein, token overlap, association type |
 | 8 | [08-ssrf.md](./08-ssrf.md) | Blocked IP ranges, two-step validation, allowlist | SSRF, security, IP ranges, DNS rebinding, allowlist, private networks |
 | 9 | [09-security.md](./09-security.md) | Security headers, HTTPS redirect, rate limiting, redirect validation, middleware order | security, headers, Helmet, CSP, HTTPS, rate limiting, middleware order |
 | 10 | [10-client-architecture.md](./10-client-architecture.md) | Routing, context providers, API client pattern, custom hooks, localStorage keys | client, React, routing, AuthContext, ThemeContext, hooks, localStorage, API client |
@@ -22,6 +21,7 @@
 | 12 | [12-planned-features.md](./12-planned-features.md) | Security hardening, team-scoped access, admin settings, data retention, custom schema, alerting, charts, local auth, deployment, Docker | planned, roadmap, 1.0, security hardening, team-scoped, admin settings, retention, schema mapping, alerts, charts, Docker, deployment |
 | 13 | [13-store-layer.md](./13-store-layer.md) | StoreRegistry, all store interfaces and method signatures | stores, StoreRegistry, interfaces, IServiceStore, ITeamStore, IUserStore, IDependencyStore, IAssociationStore |
 | 14 | [14-isolated-tree-view.md](./14-isolated-tree-view.md) | Isolated dependency tree view, graph isolation, context menu, deep linking | graph, isolation, isolate, tree view, context menu, deep linking, filter |
+| 15 | [15-manifest-sync.md](./15-manifest-sync.md) | ManifestSyncService orchestrator, sync pipeline, drift detection, scheduling, concurrency, shutdown | manifest, sync, drift, ManifestSyncService, scheduling, concurrency, polling integration, audit |
 
 ## Cross-Reference Guide
 
@@ -36,4 +36,5 @@ When working on a task, use these mappings to find the right sections:
 - **Frontend component changes** → 10 (Client Architecture) + 04 (API Reference)
 - **Configuration/env var changes** → 11 (Configuration)
 - **Schema mapping / custom health endpoints** → 12 (Planned Features §12.5) + 05 (Health Polling)
+- **Manifest sync / drift detection** → 15 (Manifest Sync) + 13 (Store Layer) + 08 (SSRF) + [Manifest Schema Reference](../manifest-schema.md)
 - **Deployment / Docker** → 12 (Planned Features §12.9) + 11 (Configuration)

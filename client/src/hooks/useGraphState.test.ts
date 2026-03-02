@@ -457,6 +457,32 @@ describe('useGraphState', () => {
     expect(updateGraphDataOnly).not.toHaveBeenCalled();
   });
 
+  it('increments layoutVersion on normal load but not on background refresh', async () => {
+    const { fetchGraph } = jest.requireMock('../api/graph');
+    const { transformGraphData, computeTopologyFingerprint } = jest.requireMock('../utils/graphLayout');
+
+    (fetchGraph as jest.Mock).mockResolvedValue({ services: [], dependencies: [] });
+    (transformGraphData as jest.Mock).mockResolvedValue({ nodes: [], edges: [] });
+    (computeTopologyFingerprint as jest.Mock).mockReturnValue('fp-1');
+
+    const { result } = renderHook(() => useGraphState());
+    const initialVersion = result.current.layoutVersion;
+
+    // Normal load — should increment layoutVersion
+    await act(async () => {
+      await result.current.loadData(false);
+    });
+    expect(result.current.layoutVersion).toBe(initialVersion + 1);
+
+    const afterNormalLoad = result.current.layoutVersion;
+
+    // Background refresh — should NOT increment layoutVersion
+    await act(async () => {
+      await result.current.loadData(true);
+    });
+    expect(result.current.layoutVersion).toBe(afterNormalLoad);
+  });
+
   describe('animation toggles', () => {
     it('defaults dashedAnimation to false', () => {
       const { result } = renderHook(() => useGraphState());

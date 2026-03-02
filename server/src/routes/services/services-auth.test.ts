@@ -78,7 +78,9 @@ describe('Services API - Team-scoped Authorization', () => {
       CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -149,10 +151,7 @@ describe('Services API - Team-scoped Authorization', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT NOT NULL DEFAULT 'other',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score INTEGER,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
         FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,

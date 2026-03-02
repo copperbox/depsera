@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchHealthTimeline } from '../../api/timeline';
 import { HealthTimelineResponse, HealthTransition, TimelineRange } from '../../types/chart';
+import { parseUtcDate } from '../../utils/formatting';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import styles from './HealthTimeline.module.css';
 
@@ -51,7 +52,7 @@ function buildSegments(
   }
 
   const sorted = [...transitions].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => parseUtcDate(a.timestamp).getTime() - parseUtcDate(b.timestamp).getTime()
   );
 
   const segments: Segment[] = [];
@@ -65,7 +66,7 @@ function buildSegments(
   let currentSegmentStart = rangeStart;
 
   for (const transition of sorted) {
-    const transitionTime = new Date(transition.timestamp);
+    const transitionTime = parseUtcDate(transition.timestamp);
 
     // Clamp to range
     if (transitionTime < rangeStart) {
@@ -118,7 +119,7 @@ function formatDuration(ms: number): string {
 }
 
 function formatTimestamp(date: Date): string {
-  return date.toLocaleString([], {
+  return date.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

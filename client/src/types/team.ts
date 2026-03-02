@@ -3,7 +3,9 @@ export type TeamMemberRole = 'lead' | 'member';
 export interface Team {
   id: string;
   name: string;
+  key: string | null;
   description: string | null;
+  contact: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +36,8 @@ export interface TeamService {
   health_endpoint: string;
   metrics_endpoint: string | null;
   is_active: number;
+  manifest_managed?: number;
+  manifest_key?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,12 +49,16 @@ export interface TeamWithDetails extends Team {
 
 export interface CreateTeamInput {
   name: string;
+  key: string;
   description?: string;
+  contact?: string;
 }
 
 export interface UpdateTeamInput {
   name?: string;
+  key?: string;
   description?: string;
+  contact?: string;
 }
 
 export interface AddMemberInput {

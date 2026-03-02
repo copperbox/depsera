@@ -52,9 +52,13 @@ erDiagram
 |---|---|---|---|
 | id | TEXT | PRIMARY KEY | |
 | name | TEXT | NOT NULL, UNIQUE | |
+| key | TEXT | UNIQUE (partial, WHERE key IS NOT NULL) | NULL |
 | description | TEXT | | NULL |
+| contact | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
+
+**contact:** JSON string of key-value pairs (e.g. `{"email":"team@example.com","slack":"#team-channel"}`). Nullable.
 
 ### team_members
 
@@ -131,10 +135,8 @@ erDiagram
 | id | TEXT | PRIMARY KEY | |
 | dependency_id | TEXT | NOT NULL, FK → dependencies.id CASCADE | |
 | linked_service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| linked_service_key | TEXT | | NULL |
 | association_type | TEXT | NOT NULL, CHECK (see below) | `'other'` |
-| is_auto_suggested | INTEGER | NOT NULL | 0 |
-| confidence_score | INTEGER | | NULL |
-| is_dismissed | INTEGER | NOT NULL | 0 |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 
 **Unique constraint:** `(dependency_id, linked_service_id)`
@@ -244,6 +246,11 @@ type AggregatedHealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 type DependencyType = 'database' | 'rest' | 'soap' | 'grpc' | 'graphql'
                     | 'message_queue' | 'cache' | 'file_system' | 'smtp' | 'other';
 type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
+type DriftType = 'field_change' | 'service_removal';
+type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
+type FieldDriftPolicy = 'flag' | 'manifest_wins' | 'local_wins';
+type RemovalPolicy = 'flag' | 'deactivate' | 'delete';
+type MetadataRemovalPolicy = 'remove' | 'keep';
 ```
 
 ## Additional Schema
@@ -330,6 +337,229 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 
 Nullable `TEXT` column added to `users` table for local auth mode. Stores bcryptjs hashes (12 rounds). Only populated when `LOCAL_AUTH=true`.
 
+### team_manifest_config **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, UNIQUE, FK → teams.id CASCADE | |
+| manifest_url | TEXT | NOT NULL | |
+| is_enabled | INTEGER | NOT NULL | 1 |
+| sync_policy | TEXT | | NULL |
+| last_sync_at | TEXT | | NULL |
+| last_sync_status | TEXT | | NULL |
+| last_sync_error | TEXT | | NULL |
+| last_sync_summary | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+
+Per-team manifest configuration. One manifest URL per team. `sync_policy` stored as JSON string. `last_sync_*` columns track most recent sync execution state.
+
+### manifest_sync_history **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id | |
+| trigger_type | TEXT | NOT NULL | |
+| triggered_by | TEXT | FK → users.id | NULL |
+| manifest_url | TEXT | NOT NULL | |
+| status | TEXT | NOT NULL | |
+| summary | TEXT | | NULL |
+| errors | TEXT | | NULL |
+| warnings | TEXT | | NULL |
+| duration_ms | INTEGER | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+Records each sync execution. `trigger_type` is `manual` or `scheduled`. `triggered_by` is NULL for scheduled syncs. `summary`, `errors`, `warnings` are JSON strings.
+
+### drift_flags **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
+| drift_type | TEXT | NOT NULL | |
+| field_name | TEXT | | NULL |
+| manifest_value | TEXT | | NULL |
+| current_value | TEXT | | NULL |
+| status | TEXT | NOT NULL | |
+| first_detected_at | TEXT | NOT NULL | |
+| last_detected_at | TEXT | NOT NULL | |
+| resolved_at | TEXT | | NULL |
+| resolved_by | TEXT | FK → users.id SET NULL | NULL |
+| sync_history_id | TEXT | FK → manifest_sync_history.id SET NULL | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+**Indexes:** `idx_drift_flags_team_id`, `idx_drift_flags_service_id`, `idx_drift_flags_status`, `idx_drift_flags_team_status`
+
+Tracks drift between manifest-defined values and local state. `drift_type` is `field_change` or `service_removal`. `status` is `pending`, `dismissed`, `accepted`, or `resolved`. `resolved_by` and `resolved_at` set when a user acts on the flag.
+
+### Manifest columns on existing tables **[Implemented]**
+
+**services** — Added columns:
+- `manifest_key TEXT` (nullable) — unique key from manifest for matching
+- `manifest_managed INTEGER DEFAULT 0` — whether this service is managed by a manifest
+- `manifest_last_synced_values TEXT` (nullable) — JSON snapshot of last synced field values for drift detection
+- Partial unique index `idx_services_team_manifest_key` on `(team_id, manifest_key) WHERE manifest_key IS NOT NULL`
+
+**dependency_aliases** — Added column:
+- `manifest_team_id TEXT` (nullable, FK → teams.id ON DELETE SET NULL) — team-scoping for manifest-managed aliases
+
+**dependency_canonical_overrides** — Rebuilt for team-scoping:
+- `team_id TEXT` (nullable, FK → teams.id CASCADE) — NULL for global overrides, non-NULL for team-scoped
+- `manifest_managed INTEGER DEFAULT 0` — whether this override is managed by a manifest
+- Removed single UNIQUE on `canonical_name`, replaced with partial unique indexes:
+  - `idx_canonical_overrides_team_scoped` on `(team_id, canonical_name) WHERE team_id IS NOT NULL`
+  - `idx_canonical_overrides_global` on `(canonical_name) WHERE team_id IS NULL`
+- Existing data migrated with `team_id = NULL`
+
+**dependency_associations** — Added column:
+- `manifest_managed INTEGER DEFAULT 0` — whether this association is managed by a manifest
+- `linked_service_key TEXT` (nullable) — the namespaced `team_key/service_key` identifying the target service, used by manifest-authored associations
+
+## Manifest System TypeScript Types **[Implemented]**
+
+Manifest types are split across two files:
+
+### `server/src/services/manifest/types.ts`
+
+Contains all types specific to the manifest sync engine:
+
+**Sync policy types:**
+- `FieldDriftPolicy`: `'flag' | 'manifest_wins' | 'local_wins'`
+- `RemovalPolicy`: `'flag' | 'deactivate' | 'delete'`
+- `MetadataRemovalPolicy`: `'remove' | 'keep'`
+- `ManifestSyncPolicy`: interface with `on_field_drift`, `on_removal`, `on_alias_removal`, `on_override_removal`, `on_association_removal`
+- `DEFAULT_SYNC_POLICY`: constant — all fields default to `'flag'`/`'keep'`
+
+**Config types:**
+- `TeamManifestConfig`: DB row type for `team_manifest_config` table
+- `ManifestConfigCreateInput`: requires `team_id`, `manifest_url`; optional `is_enabled`, `sync_policy`
+- `ManifestConfigUpdateInput`: all fields optional, `sync_policy` accepts `Partial<ManifestSyncPolicy>`
+
+**Parsed manifest types:**
+- `ManifestServiceEntry`: `key`, `name`, `health_endpoint` (required); `description`, `metrics_endpoint`, `poll_interval_ms`, `schema_config` (optional)
+- `ManifestAliasEntry`: `alias`, `canonical_name`
+- `ManifestCanonicalOverrideEntry`: `canonical_name`, optional `contact`, `impact`
+- `ManifestAssociationEntry`: `service_key`, `dependency_name`, `linked_service_key` (format: `team_key/service_key`), `association_type`
+- `ParsedManifest`: `version`, `services` (required); `aliases`, `canonical_overrides`, `associations` (optional)
+
+**Validation types:**
+- `ManifestValidationSeverity`: `'error' | 'warning'`
+- `ManifestValidationIssue`: `severity`, `path`, `message`
+- `ManifestValidationResult`: `valid`, `version`, `service_count`, `valid_count`, `errors[]`, `warnings[]`
+
+**Sync result types:**
+- `ManifestSyncSummary`: nested counters for `services`, `aliases`, `overrides`, `associations`
+- `ManifestSyncChange`: per-service change detail with `manifest_key`, `service_name`, `action`, optional `fields_changed`/`drift_fields`
+- `ManifestSyncResult`: `status`, `summary`, `errors`, `warnings`, `changes`, `duration_ms`
+
+**Diff types:**
+- `ManifestUpdateEntry`: safe-to-apply update with `manifest_entry`, `existing_service_id`, `fields_changed`
+- `ManifestDriftEntry`: manual edit detected with `field_name`, `manifest_value`, `current_value`
+- `ManifestDiffResult`: categorized lists — `toCreate`, `toUpdate`, `toDrift`, `toKeepLocal`, `unchanged`, `toDeactivate`, `toDelete`, `removalDrift`
+
+**History/fetch types:**
+- `ManifestSyncHistoryEntry`: DB row type for `manifest_sync_history` table
+- `ManifestFetchResult`: discriminated union — `{ success: true, data, url }` or `{ success: false, error, url }`
+
+### `server/src/db/types.ts` — Drift flag types
+
+- `DriftType`: `'field_change' | 'service_removal'`
+- `DriftFlagStatus`: `'pending' | 'dismissed' | 'accepted' | 'resolved'`
+- `DriftFlag`: DB row type for `drift_flags` table
+- `DriftFlagWithContext`: extends `DriftFlag` with `service_name`, `manifest_key`, `resolved_by_name`
+- `DriftFlagCreateInput`: requires `team_id`, `service_id`, `drift_type`; optional `field_name`, `manifest_value`, `current_value`, `sync_history_id`
+- `DriftSummary`: `pending_count`, `dismissed_count`, `field_change_pending`, `service_removal_pending`
+- `DriftFlagUpsertResult`: discriminated union — `created | updated | reopened | unchanged`, each with `flag: DriftFlag`
+- `BulkDriftActionInput`: `flag_ids[]`, `user_id`
+- `BulkDriftActionResult`: `succeeded`, `failed`, `errors[]`
+
+### Updated existing interfaces
+
+- `Service`: added `manifest_key: string | null`, `manifest_managed: number`, `manifest_last_synced_values: string | null`
+- `DependencyAlias`: added `manifest_team_id: string | null`
+- `DependencyCanonicalOverride`: added `team_id: string | null`, `manifest_managed: number`
+- `DependencyAssociation`: added `manifest_managed: number`
+
+### ManifestValidator **[Implemented]**
+
+`server/src/services/manifest/ManifestValidator.ts` — Stateless validation of raw manifest JSON before the sync engine processes it. Returns a structured `ManifestValidationResult` with all errors and warnings.
+
+**Public API:** `validateManifest(data: unknown): ManifestValidationResult`
+
+**Validation levels:**
+
+1. **Structure** — `version` must be present and equal `1`; `services` must be present and an array; unknown top-level keys produce warnings
+2. **Per-service entry** — Required fields: `key`, `name`, `health_endpoint`. `key` format: regex `^[a-z0-9][a-z0-9_-]*$`, max 128 chars. URL fields validated via `isValidUrl()` + SSRF hostname check (warning, not error). `poll_interval_ms` bounds: 5000–3600000. `schema_config` validated via `validateSchemaConfig()`. Unknown entry-level fields produce warnings.
+3. **Optional sections** — Aliases: `alias` + `canonical_name` required, duplicate alias → error. Canonical overrides: `canonical_name` required, at least one of `contact` (object) or `impact` (string), duplicate → error. Associations: `service_key` + `dependency_name` + `linked_service_key` + `association_type` required, valid enum, `service_key` must reference services array, `linked_service_key` must be in `team_key/service_key` format (both parts matching `^[a-z0-9][a-z0-9_-]*$`), duplicate `(service_key, dependency_name, linked_service_key)` tuples → error.
+4. **Cross-reference** — Duplicate `key` values → error. Duplicate `name` values → warning.
+
+**Design decisions:**
+- SSRF checks at validation time use `validateUrlHostname()` (sync, no DNS) and produce warnings to allow validation to complete
+- Each section is validated independently — failure in one does not block others
+- Empty `services` array is valid (not an error)
+- Reuses existing `validateSchemaConfig()` and `VALID_ASSOCIATION_TYPES` from `server/src/utils/validation.ts`
+
+### ManifestFetcher **[Implemented]**
+
+`server/src/services/manifest/ManifestFetcher.ts` — HTTP fetch of manifest JSON from team-configured URLs with SSRF protection, timeout, and streaming size limit. Returns a `ManifestFetchResult` discriminated union.
+
+**Public API:** `fetchManifest(url: string, options?: { headers?: Record<string, string> }): Promise<ManifestFetchResult>`
+
+**Security & limits:**
+- Async SSRF validation via `validateUrlNotPrivate()` before fetch (DNS resolution)
+- `AbortController` timeout at 10,000ms
+- `Content-Length` pre-check against 1MB (1,048,576 bytes) limit
+- Streaming body reader `readResponseWithLimit()` enforces size limit even with absent/spoofed `Content-Length`
+- Error messages sanitized via `sanitizePollError()` before returning
+
+**Request configuration:**
+- Method: `GET`, redirect: `follow` (Node default, up to 20 redirects)
+- Headers: `Accept: application/json`, `User-Agent: Depsera-Manifest-Sync/1.0`
+- Optional `headers` parameter for future auth support (DPS-24)
+
+**Error handling:**
+- SSRF rejection → sanitized error
+- Non-2xx status → `HTTP {status}: {statusText}`
+- Size exceeded → `Manifest too large: ...`
+- JSON parse failure → `Invalid JSON: manifest could not be parsed`
+- Abort/timeout → `Manifest fetch timed out (10s)`
+- Network errors → sanitized via `sanitizePollError()`
+
+### ManifestDiffer **[Implemented]**
+
+`server/src/services/manifest/ManifestDiffer.ts` — Pure-logic diff engine that computes the difference between validated manifest entries and existing DB services, applying the team's sync policy to categorize changes. No DB access — receives pre-loaded data.
+
+**Public API:** `diffManifest(manifestEntries: ManifestServiceEntry[], existingServices: Service[], policy: ManifestSyncPolicy): ManifestDiffResult`
+
+**Syncable fields:** `name`, `health_endpoint`, `description`, `metrics_endpoint`, `poll_interval_ms`, `schema_config`
+
+**Matching:** By `manifest_key` only (never by name). Builds a lookup map of existing services by `manifest_key`.
+
+**Diff categories:**
+- `toCreate` — manifest entries with no matching DB service
+- `toUpdate` — entries with safe-to-update fields (no manual edits, or `manifest_wins` policy)
+- `toDrift` — per-field entries where manual edits were detected and policy is `flag`
+- `toKeepLocal` — per-field entries where manual edits were detected and policy is `local_wins`
+- `unchanged` — service IDs where all syncable fields match
+- `removalDrift` / `toDeactivate` / `toDelete` — existing services not in manifest, by `on_removal` policy
+
+**Drift detection logic:**
+- Compares DB value against `manifest_last_synced_values` to detect manual edits
+- `db_value === last_synced_value` → not manually edited → safe to update (always)
+- `db_value !== last_synced_value` → manual edit detected → apply `on_field_drift` policy
+- First sync (`manifest_last_synced_values` is NULL or corrupt) → all fields treated as safe
+- Undefined manifest fields (optional, not specified) → skipped, not compared
+
+**Design decisions:**
+- `schema_config` compared via JSON string serialization for reliable equality
+- Mixed entries (some fields safe, some drifted) produce entries in both `toUpdate` and `toDrift`
+- Services without `manifest_key` in existing services are ignored (not treated as removed)
+- Null and empty string are treated as equivalent in value normalization
+
 ## Migration History
 
 | ID | Name | Changes |
@@ -357,5 +587,9 @@ Nullable `TEXT` column added to `users` table for local auth mode. Stores bcrypt
 | 021 | add_performance_indexes | Adds performance indexes for common query patterns |
 | 022 | add_poll_warnings | Adds nullable `poll_warnings TEXT` column to services for storing schema mapping warnings as JSON array |
 | 023 | add_skipped_column | Adds `skipped INTEGER NOT NULL DEFAULT 0` column to dependencies |
+| 024 | add_manifest_sync | Creates `team_manifest_config` and `manifest_sync_history` tables; adds `manifest_key`, `manifest_managed`, `manifest_last_synced_values` to services; adds `manifest_team_id` to dependency_aliases; rebuilds `dependency_canonical_overrides` with `team_id` and `manifest_managed`; adds `manifest_managed` to dependency_associations |
+| 025 | add_drift_flags | Creates `drift_flags` table with indexes for tracking manifest drift |
+| 026 | add_linked_service_key | Adds `linked_service_key TEXT` column to `dependency_associations` |
+| 027 | add_team_key | Adds `key TEXT` column to teams; backfills from name; creates partial unique index `idx_teams_key ON teams(key) WHERE key IS NOT NULL` |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

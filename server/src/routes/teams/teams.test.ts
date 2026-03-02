@@ -56,7 +56,9 @@ describe('Teams API', () => {
       CREATE TABLE IF NOT EXISTS teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -123,10 +125,11 @@ describe('Teams API', () => {
     it('should create a new team with required fields', async () => {
       const response = await request(app)
         .post('/api/teams')
-        .send({ name: 'Platform Team' });
+        .send({ name: 'Platform Team', key: 'platform-team' });
 
       expect(response.status).toBe(201);
       expect(response.body.name).toBe('Platform Team');
+      expect(response.body.key).toBe('platform-team');
       expect(response.body.description).toBeNull();
       expect(response.body.member_count).toBe(0);
       expect(response.body.service_count).toBe(0);
@@ -139,42 +142,112 @@ describe('Teams API', () => {
         .post('/api/teams')
         .send({
           name: 'Backend Team',
+          key: 'backend-team',
           description: 'Handles backend services',
         });
 
       expect(response.status).toBe(201);
       expect(response.body.name).toBe('Backend Team');
+      expect(response.body.key).toBe('backend-team');
       expect(response.body.description).toBe('Handles backend services');
     });
 
     it('should reject duplicate team name', async () => {
       await request(app)
         .post('/api/teams')
-        .send({ name: 'Duplicate Team' });
+        .send({ name: 'Duplicate Team', key: 'duplicate-team' });
 
       const response = await request(app)
         .post('/api/teams')
-        .send({ name: 'Duplicate Team' });
+        .send({ name: 'Duplicate Team', key: 'duplicate-team-2' });
 
       expect(response.status).toBe(409);
       expect(response.body.error).toContain('already exists');
     });
 
+    it('should reject duplicate team key', async () => {
+      await request(app)
+        .post('/api/teams')
+        .send({ name: 'Team One', key: 'same-key' });
+
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Team Two', key: 'same-key' });
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toContain('key already exists');
+    });
+
     it('should reject missing name', async () => {
       const response = await request(app)
         .post('/api/teams')
-        .send({});
+        .send({ key: 'some-key' });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain('name');
     });
 
+    it('should reject missing key', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Some Team' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('key');
+    });
+
     it('should reject empty name', async () => {
       const response = await request(app)
         .post('/api/teams')
-        .send({ name: '   ' });
+        .send({ name: '   ', key: 'some-key' });
 
       expect(response.status).toBe(400);
+    });
+
+    it('should reject invalid key format', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Test Team', key: 'Invalid Key!' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('key');
+    });
+
+    it('should create a team with contact metadata', async () => {
+      const contact = JSON.stringify({ email: 'team@example.com', slack: '#team-channel' });
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Contact Team', key: 'contact-team', contact });
+
+      expect(response.status).toBe(201);
+      expect(response.body.contact).toBe(contact);
+    });
+
+    it('should create a team without contact (defaults to null)', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'No Contact Team', key: 'no-contact-team' });
+
+      expect(response.status).toBe(201);
+      expect(response.body.contact).toBeNull();
+    });
+
+    it('should reject invalid contact JSON', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Bad Contact Team', key: 'bad-contact', contact: 'not-json' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
+    });
+
+    it('should reject non-object contact JSON (array)', async () => {
+      const response = await request(app)
+        .post('/api/teams')
+        .send({ name: 'Array Contact Team', key: 'array-contact', contact: '["a","b"]' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
     });
   });
 
@@ -344,6 +417,49 @@ describe('Teams API', () => {
         .send({});
 
       expect(response.status).toBe(400);
+    });
+
+    it('should update team contact', async () => {
+      const contact = JSON.stringify({ email: 'updated@example.com' });
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact });
+
+      expect(response.status).toBe(200);
+      expect(response.body.contact).toBe(contact);
+    });
+
+    it('should clear team contact with null', async () => {
+      // First set contact
+      await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: JSON.stringify({ email: 'test@example.com' }) });
+
+      // Now clear it
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: null });
+
+      expect(response.status).toBe(200);
+      expect(response.body.contact).toBeNull();
+    });
+
+    it('should reject invalid contact on update', async () => {
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: 'not-valid-json' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
+    });
+
+    it('should reject non-object contact on update', async () => {
+      const response = await request(app)
+        .put(`/api/teams/${teamId}`)
+        .send({ contact: '"just a string"' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain('contact');
     });
   });
 

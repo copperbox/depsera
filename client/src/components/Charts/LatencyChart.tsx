@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { fetchLatencyBuckets } from '../../api/latency';
 import { LatencyBucket, LatencyRange } from '../../types/chart';
+import { parseUtcDate } from '../../utils/formatting';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import styles from './LatencyChart.module.css';
 
@@ -23,22 +24,22 @@ interface LatencyChartProps {
 const LATENCY_RANGES: LatencyRange[] = ['1h', '6h', '24h', '7d', '30d'];
 
 function formatTimestamp(timestamp: string, range: LatencyRange): string {
-  const date = new Date(timestamp);
+  const date = parseUtcDate(timestamp);
   if (range === '1h' || range === '6h') {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   }
   if (range === '24h') {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   }
   if (range === '7d') {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit' });
   }
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function formatTooltipTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString([], {
+  const date = parseUtcDate(timestamp);
+  return date.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

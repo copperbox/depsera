@@ -80,7 +80,6 @@ describe('API reference documentation', () => {
       'GET /api/dependencies/:dependencyId/associations',
       'POST /api/dependencies/:dependencyId/associations',
       'DELETE /api/dependencies/:dependencyId/associations/:serviceId',
-      'GET /api/associations/suggestions',
       // Graph
       'GET /api/graph',
       // History

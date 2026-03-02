@@ -43,8 +43,6 @@ export interface GraphEdgeData {
   avgLatencyMs24h?: number | null;
   isHighLatency?: boolean;
   associationType?: AssociationType | null;
-  isAutoSuggested?: boolean;
-  confidenceScore?: number | null;
   isSelected?: boolean;
   isHighlighted?: boolean;
   routingLane?: number | null;

@@ -23,6 +23,9 @@ import externalServicesRouter from './routes/external-services';
 import wallboardRouter from './routes/wallboard';
 import canonicalOverridesRouter from './routes/canonicalOverrides';
 import activityRouter from './routes/activity';
+import { manifestTeamRouter, manifestRouter } from './routes/manifest';
+import { driftRouter } from './routes/drifts';
+import catalogRouter from './routes/catalog';
 import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
 import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
@@ -30,6 +33,7 @@ import { DataRetentionService } from './services/retention/DataRetentionService'
 import { AlertService } from './services/alerts';
 import { SlackSender } from './services/alerts/senders/SlackSender';
 import { WebhookSender } from './services/alerts/senders/WebhookSender';
+import { ManifestSyncService } from './services/manifest/ManifestSyncService';
 import { getStores } from './stores';
 import { errorHandler } from './utils/errors';
 import { clientBuildExists, createStaticMiddleware } from './middleware/staticFiles';
@@ -89,6 +93,10 @@ app.use('/api/activity', requireAuth, activityRouter);
 app.use('/api', requireAuth, associationsRouter);
 app.use('/api/admin', requireAuth, adminRouter);
 app.use('/api/teams', requireAuth, alertsRouter);
+app.use('/api/teams', requireAuth, manifestTeamRouter);
+app.use('/api/teams', requireAuth, driftRouter);
+app.use('/api/manifest', requireAuth, manifestRouter);
+app.use('/api/catalog', requireAuth, catalogRouter);
 
 // Global error handler — catches body-parser errors, unhandled route errors, etc.
 // Must be registered after all routes (Express identifies error handlers by 4-param signature).
@@ -177,6 +185,10 @@ async function start() {
   const retentionService = DataRetentionService.getInstance();
   retentionService.start();
 
+  // Start manifest sync scheduler
+  const manifestSyncService = ManifestSyncService.getInstance();
+  manifestSyncService.start();
+
   // Start polling all active services
   pollingService.startAll();
 
@@ -229,6 +241,9 @@ async function start() {
 
     // Stop data retention scheduler
     retentionService.stop();
+
+    // Stop manifest sync service (wait for in-progress syncs before stopping polling)
+    await manifestSyncService.shutdown();
 
     await pollingService.shutdown();
 

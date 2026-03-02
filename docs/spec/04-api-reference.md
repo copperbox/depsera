@@ -203,15 +203,9 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
 | GET | `/api/dependencies/:depId/associations` | requireAuth | Get associations for dependency (non-dismissed). |
 | POST | `/api/dependencies/:depId/associations` | requireAuth | Create manual association. Body: `{ linked_service_id, association_type }`. |
 | DELETE | `/api/dependencies/:depId/associations/:serviceId` | requireAuth | Remove association. Returns 204. |
-| POST | `/api/dependencies/:depId/suggestions/generate` | requireAuth | Generate suggestions for one dependency. |
-| POST | `/api/services/:serviceId/suggestions/generate` | requireAuth | Generate suggestions for all dependencies of a service. |
-| GET | `/api/associations/suggestions` | requireAuth | List pending (undismissed) suggestions. |
-| POST | `/api/associations/suggestions/:id/accept` | requireAuth | Accept suggestion (converts to manual). |
-| POST | `/api/associations/suggestions/:id/dismiss` | requireAuth | Dismiss suggestion. Returns 204. |
-
 **Validation:**
 - Cannot link dependency to its own owning service (400)
-- Duplicate association returns 409 (unless reactivating a dismissed one)
+- Duplicate association returns 409
 
 ## 4.8 Graph
 
@@ -264,8 +258,6 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
         "latencyMs": 12,
         "avgLatencyMs24h": 15.3,
         "associationType": "database",
-        "isAutoSuggested": false,
-        "confidenceScore": null,
         "impact": "critical",
         "errorMessage": null,
         "skipped": false
@@ -360,6 +352,8 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
 | GET | `/api/admin/audit-log` | requireAdmin | Paginated audit log. Query: `limit`, `offset`, `startDate`, `endDate`, `userId`, `action`, `resourceType`. |
 | GET | `/api/admin/settings` | requireAdmin | Returns all settings with current values and source (`database` or `default`). |
 | PUT | `/api/admin/settings` | requireAdmin | Update settings. Body: partial object of `{ key: value }` pairs. Validates values before persisting. |
+| GET | `/api/admin/manifests` | requireAdmin | List all teams with manifest config status, drift counts, and contact info. |
+| POST | `/api/admin/manifests/sync-all` | requireAdmin | Trigger sync for all enabled manifest configs. Returns per-team results. |
 
 **GET /api/admin/audit-log response:**
 
@@ -385,7 +379,7 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
 }
 ```
 
-**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`
+**Audit actions:** `user.role_changed`, `user.deactivated`, `user.reactivated`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `settings.updated`, `manifest_sync`, `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted`, `drift.detected`, `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.resolved`, `drift.bulk_accepted`, `drift.bulk_dismissed`
 
 ## 4.11 Alerts
 
@@ -445,31 +439,35 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 
 ## 4.12 Canonical Overrides
 
-**[Implemented]** (DPS-14b)
+**[Implemented]** (DPS-14b, DPS-52)
 
-Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Merge hierarchy: instance override > canonical override > polled data.
+Manage canonical-level dependency overrides that apply as defaults across all services reporting the same dependency. Supports both global and team-scoped overrides. Merge hierarchy (4-tier): instance override > team canonical override > global canonical override > polled data.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. |
-| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Returns 404 if not found. |
-| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Creates or updates. |
-| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Returns 204. |
+| GET | `/api/canonical-overrides` | requireAuth | List all canonical overrides. Optional `?team_id=` to filter by team. |
+| GET | `/api/canonical-overrides/:canonicalName` | requireAuth | Get override by canonical name. Optional `?team_id=` for team-scoped lookup. Returns 404 if not found. |
+| PUT | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Upsert override. Optional `team_id` in body for team-scoped override. |
+| DELETE | `/api/canonical-overrides/:canonicalName` | requireAuth + custom | Delete override. Optional `?team_id=` for team-scoped deletion. Returns 204. |
 
-**Permissions (mutations):** Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+**Permissions (mutations):**
+- **Global overrides** (no `team_id`): Admin OR team lead of any team that owns a service with a dependency matching the given canonical name. Checked via `AuthorizationService.checkCanonicalOverrideAccess()`.
+- **Team-scoped overrides** (with `team_id`): Admin OR team lead of the specified team. Checked via `AuthorizationService.checkTeamLeadAccess()`.
 
 **PUT /api/canonical-overrides/:canonicalName request:**
 
 ```json
 {
   "contact_override": { "email": "db-team@example.com", "slack": "#db-support" },
-  "impact_override": "Critical — all downstream services depend on this"
+  "impact_override": "Critical — all downstream services depend on this",
+  "team_id": "optional-team-uuid"
 }
 ```
 
 - `contact_override`: object or `null` (setting to `null` clears the override). Stored as JSON string.
 - `impact_override`: string or `null` (setting to `null` clears the override). Stored as plain text.
-- At least one field must be provided (400 otherwise).
+- `team_id`: string (optional). When provided, creates/updates a team-scoped override. When omitted, creates/updates a global override.
+- At least one of `contact_override` or `impact_override` must be provided (400 otherwise).
 
 **PUT /api/canonical-overrides/:canonicalName response:**
 
@@ -477,21 +475,23 @@ Manage canonical-level dependency overrides that apply as defaults across all se
 {
   "id": "uuid",
   "canonical_name": "PostgreSQL",
+  "team_id": null,
   "contact_override": "{\"email\":\"db-team@example.com\",\"slack\":\"#db-support\"}",
   "impact_override": "Critical — all downstream services depend on this",
+  "manifest_managed": 0,
   "created_at": "2026-02-24T10:00:00.000Z",
   "updated_at": "2026-02-24T10:00:00.000Z",
   "updated_by": "user-uuid"
 }
 ```
 
-**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`).
+**Audit actions:** `canonical_override.upserted`, `canonical_override.deleted` (resource type: `canonical_override`). Audit detail includes `team_id` when applicable.
 
 ## 4.13 Per-Instance Dependency Overrides
 
 **[Implemented]** (DPS-15b)
 
-Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the merge hierarchy: instance override > canonical override > polled data.
+Per-instance overrides set contact and/or impact for a specific dependency instance (service-dependency pair). These take highest precedence in the 4-tier merge hierarchy: instance override > team canonical override > global canonical override > polled data.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
@@ -622,3 +622,198 @@ Read-only aggregated view of all tracked dependencies, grouped by canonical name
 - `effective_contact`, `effective_impact`: resolved from the primary dependency's 3-tier override hierarchy (instance > canonical > polled). Contact uses field-level merge; impact uses first-non-null precedence.
 - `type`: most common type across reporters
 - Sorted by health status (worst first), then alphabetically
+
+## 4.16 Manifest Configuration & Sync
+
+**[Implemented]** (DPS-57)
+
+Team-scoped manifest configuration, sync operations, and manifest validation. All team-scoped endpoints are nested under `/api/teams/:id`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/manifest` | requireTeamAccess | Get manifest config for team. Returns `{ config: null }` if none exists. |
+| PUT | `/api/teams/:id/manifest` | requireTeamLead | Create or update manifest config. |
+| DELETE | `/api/teams/:id/manifest` | requireTeamLead | Remove manifest config. Does NOT delete managed services. Returns 204. |
+| POST | `/api/teams/:id/manifest/sync` | requireTeamAccess | Trigger manual sync. |
+| GET | `/api/teams/:id/manifest/sync-history` | requireTeamAccess | List paginated sync history. Query: `limit` (default 20, max 100), `offset`. |
+| POST | `/api/manifest/validate` | requireAuth | Validate manifest JSON (dry run, no persistence). |
+
+**PUT /api/teams/:id/manifest request:**
+
+```json
+{
+  "manifest_url": "https://example.com/manifest.json (required, SSRF-validated)",
+  "is_enabled": true,
+  "sync_policy": {
+    "on_field_drift": "flag | manifest_wins | local_wins",
+    "on_removal": "flag | deactivate | delete",
+    "on_alias_removal": "remove | keep",
+    "on_override_removal": "remove | keep",
+    "on_association_removal": "remove | keep"
+  }
+}
+```
+
+- `manifest_url`: required, validated with `validateUrlHostname()` (sync SSRF check)
+- `sync_policy`: optional partial object, fields validated against allowed enums
+- `is_enabled`: optional boolean (defaults to true on creation)
+- Upsert behavior: creates if no config exists, updates if present
+
+**PUT /api/teams/:id/manifest response:**
+
+```json
+{
+  "config": {
+    "id": "uuid",
+    "team_id": "uuid",
+    "manifest_url": "https://example.com/manifest.json",
+    "is_enabled": 1,
+    "sync_policy": "{\"on_field_drift\":\"flag\",\"on_removal\":\"flag\",...}",
+    "last_sync_at": null,
+    "last_sync_status": null,
+    "last_sync_error": null,
+    "last_sync_summary": null,
+    "created_at": "2026-02-28T10:00:00.000Z",
+    "updated_at": "2026-02-28T10:00:00.000Z"
+  }
+}
+```
+
+**POST /api/teams/:id/manifest/sync response codes:**
+
+- `200` — sync completed, returns `{ result: ManifestSyncResult }`
+- `404` — no manifest configured for this team
+- `400` — manifest sync is disabled
+- `409` — sync already in progress
+- `429` — cooldown not elapsed (60s), includes `Retry-After` header and `retry_after_ms` in body
+
+**GET /api/teams/:id/manifest/sync-history response:**
+
+```json
+{
+  "history": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "trigger_type": "manual | scheduled",
+      "triggered_by": "user-uuid | null",
+      "manifest_url": "https://example.com/manifest.json",
+      "status": "success | partial | failed",
+      "summary": "{...}",
+      "errors": "[...]",
+      "warnings": "[...]",
+      "duration_ms": 150,
+      "created_at": "2026-02-28T10:00:00.000Z"
+    }
+  ],
+  "total": 42
+}
+```
+
+**POST /api/manifest/validate request:**
+
+Accepts raw manifest JSON in request body. No persistence, no side effects.
+
+**POST /api/manifest/validate response:**
+
+```json
+{
+  "result": {
+    "valid": true,
+    "version": 1,
+    "service_count": 5,
+    "valid_count": 5,
+    "errors": [],
+    "warnings": []
+  }
+}
+```
+
+**Audit actions:** `manifest_config.created`, `manifest_config.updated`, `manifest_config.deleted` (resource type: `team`)
+
+## 4.17 Drift Flags
+
+**[Implemented]** (DPS-58)
+
+Team-scoped drift flag review, actions, and bulk operations. All endpoints are nested under `/api/teams/:id`.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/drifts` | requireTeamAccess | List drift flags with filtering. Query: `status` (default `pending`), `drift_type`, `service_id`, `limit` (max 250, default 50), `offset`. |
+| GET | `/api/teams/:id/drifts/summary` | requireTeamAccess | Lightweight badge counts (DriftSummary). |
+| PUT | `/api/teams/:id/drifts/:driftId/accept` | requireTeamLead | Accept drift flag. Applies manifest value to service. |
+| PUT | `/api/teams/:id/drifts/:driftId/dismiss` | requireTeamLead | Dismiss drift flag. |
+| PUT | `/api/teams/:id/drifts/:driftId/reopen` | requireTeamLead | Reopen dismissed flag to pending. |
+| POST | `/api/teams/:id/drifts/bulk-accept` | requireTeamLead | Bulk accept flags. Body: `{ flag_ids: string[] }` (max 100). |
+| POST | `/api/teams/:id/drifts/bulk-dismiss` | requireTeamLead | Bulk dismiss flags. Body: `{ flag_ids: string[] }` (max 100). |
+
+**GET /api/teams/:id/drifts response:**
+
+```json
+{
+  "flags": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "service_id": "uuid",
+      "drift_type": "field_change | service_removal",
+      "field_name": "name | health_endpoint | ...",
+      "manifest_value": "new value from manifest",
+      "current_value": "current local value",
+      "status": "pending | dismissed | accepted | resolved",
+      "first_detected_at": "2026-02-28T10:00:00.000Z",
+      "last_detected_at": "2026-02-28T10:00:00.000Z",
+      "resolved_at": null,
+      "resolved_by": null,
+      "service_name": "Service Name",
+      "manifest_key": "svc-key",
+      "resolved_by_name": null
+    }
+  ],
+  "summary": {
+    "pending_count": 2,
+    "dismissed_count": 1,
+    "field_change_pending": 1,
+    "service_removal_pending": 1
+  },
+  "total": 2
+}
+```
+
+**GET /api/teams/:id/drifts/summary response:**
+
+```json
+{
+  "summary": {
+    "pending_count": 2,
+    "dismissed_count": 1,
+    "field_change_pending": 1,
+    "service_removal_pending": 1
+  }
+}
+```
+
+**Accept behavior:**
+- `field_change`: Updates service field to manifest value. SSRF-validates URL fields. Validates `poll_interval_ms` bounds. Updates `manifest_last_synced_values` snapshot. Restarts polling if `health_endpoint` or `poll_interval_ms` changed.
+- `service_removal`: Deactivates service (`is_active=0`), stops polling.
+- Returns 409 if flag already accepted/resolved. Returns 400 if SSRF validation fails.
+
+**Bulk action response:**
+
+```json
+{
+  "result": {
+    "succeeded": 2,
+    "failed": 1,
+    "errors": [{ "flag_id": "uuid", "error": "reason" }]
+  }
+}
+```
+
+**Validation:**
+- `status` must be one of: `pending`, `dismissed`, `accepted`, `resolved`
+- `drift_type` must be one of: `field_change`, `service_removal`
+- `flag_ids` must be non-empty array of strings (max 100)
+- Reopen only works on dismissed flags (400 otherwise)
+
+**Audit actions:** `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.bulk_accepted`, `drift.bulk_dismissed`

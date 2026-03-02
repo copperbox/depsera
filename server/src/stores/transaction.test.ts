@@ -15,7 +15,9 @@ describe('transaction', () => {
       CREATE TABLE teams (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
+        key TEXT,
         description TEXT,
+        contact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -75,10 +77,7 @@ describe('transaction', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
-        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
-        confidence_score REAL,
-        is_dismissed INTEGER NOT NULL DEFAULT 0,
-        match_reason TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
       );
@@ -132,7 +131,7 @@ describe('transaction', () => {
   describe('withTransaction', () => {
     it('should execute function within transaction', () => {
       const result = withTransaction((stores) => {
-        const team = stores.teams.create({ name: 'Test Team' });
+        const team = stores.teams.create({ name: 'Test Team', key: 'test-team' });
         return team;
       });
 
@@ -146,7 +145,7 @@ describe('transaction', () => {
     it('should rollback on error', () => {
       expect(() => {
         withTransaction((stores) => {
-          stores.teams.create({ name: 'Will Rollback' });
+          stores.teams.create({ name: 'Will Rollback', key: 'will-rollback' });
           throw new Error('Deliberate error');
         });
       }).toThrow('Deliberate error');
@@ -168,7 +167,7 @@ describe('transaction', () => {
   describe('withTransactionAsync', () => {
     it('should execute function within transaction', async () => {
       const result = await withTransactionAsync((stores) => {
-        const team = stores.teams.create({ name: 'Async Team' });
+        const team = stores.teams.create({ name: 'Async Team', key: 'async-team' });
         return team;
       });
 
@@ -178,7 +177,7 @@ describe('transaction', () => {
     it('should rollback on error', async () => {
       await expect(
         withTransactionAsync((stores) => {
-          stores.teams.create({ name: 'Will Rollback' });
+          stores.teams.create({ name: 'Will Rollback', key: 'will-rollback' });
           throw new Error('Deliberate error');
         })
       ).rejects.toThrow('Deliberate error');

@@ -15,26 +15,8 @@ export interface Association {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
-  is_auto_suggested: number;
-  confidence_score: number | null;
-  is_dismissed: number;
   created_at: string;
   linked_service: Service;
-}
-
-export interface AssociationSuggestion {
-  id: string;
-  dependency_id: string;
-  linked_service_id: string;
-  association_type: AssociationType;
-  is_auto_suggested: number;
-  confidence_score: number | null;
-  is_dismissed: number;
-  match_reason: string | null;
-  created_at: string;
-  dependency_name: string;
-  service_name: string;
-  linked_service_name: string;
 }
 
 export interface CreateAssociationInput {

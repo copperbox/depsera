@@ -23,7 +23,6 @@ export function getAssociations(req: Request, res: Response): void {
 
     // Transform to include nested linked_service object
     const result: AssociationWithService[] = associations
-      .filter(a => !a.is_dismissed)
       .map(row => {
         const linkedService = stores.services.findById(row.linked_service_id);
         return {
@@ -31,10 +30,7 @@ export function getAssociations(req: Request, res: Response): void {
           dependency_id: row.dependency_id,
           linked_service_id: row.linked_service_id,
           association_type: row.association_type,
-          is_auto_suggested: row.is_auto_suggested,
-          confidence_score: row.confidence_score,
-          is_dismissed: row.is_dismissed,
-          match_reason: row.match_reason ?? null,
+          manifest_managed: row.manifest_managed,
           created_at: row.created_at,
           linked_service: linkedService!,
         };

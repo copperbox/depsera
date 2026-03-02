@@ -1,0 +1,420 @@
+/* Sub-navigation toggle */
+.viewToggle {
+  display: inline-flex;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.viewButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  background-color: var(--color-bg-card);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.viewButton:first-child {
+  border-right: 1px solid var(--color-border-input);
+}
+
+.viewButtonActive {
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.viewButton:hover:not(.viewButtonActive) {
+  background-color: var(--color-bg-hover);
+}
+
+.viewCount {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+  opacity: 0.8;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.filterSelect {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.bulkActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selectedCount {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.bulkButton {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.bulkAccept {
+  color: var(--color-text-inverse);
+  background-color: var(--color-accent);
+  border: none;
+}
+
+.bulkAccept:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.bulkDismiss {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-input);
+}
+
+.bulkDismiss:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+}
+
+.bulkButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Select all row */
+.selectAllRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.selectAllRow label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Flags list */
+.flagsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Empty state */
+.emptyState {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  background-color: var(--color-bg-hover);
+  border: 1px dashed var(--color-border-input);
+  border-radius: 0.5rem;
+}
+
+.error {
+  padding: 0.75rem 1rem;
+  color: var(--color-error);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* Drift flag card */
+.flagCard {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s;
+}
+
+.flagCard:hover {
+  border-color: var(--color-border-input);
+}
+
+.flagCardDismissed {
+  opacity: 0.65;
+}
+
+.flagCheckbox {
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+
+.flagContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.flagHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.flagServiceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.flagServiceName {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-heading);
+}
+
+.flagManifestKey {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono, 'SFMono-Regular', 'Menlo', monospace);
+}
+
+.driftTypeBadge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.badgeFieldChange {
+  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.badgeServiceRemoval {
+  color: var(--color-error);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+}
+
+/* Field diff */
+.fieldName {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 0.375rem;
+}
+
+.fieldDiff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.diffColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.diffLabel {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.diffValue {
+  font-size: 0.8125rem;
+  color: var(--color-text-primary);
+  word-break: break-all;
+  padding: 0.375rem 0.5rem;
+  background-color: var(--color-bg-hover);
+  border-radius: 0.25rem;
+  font-family: var(--font-mono, 'SFMono-Regular', 'Menlo', monospace);
+  font-size: 0.75rem;
+}
+
+.diffValueCurrent {
+  border-left: 3px solid var(--color-error);
+}
+
+.diffValueManifest {
+  border-left: 3px solid var(--color-success, #16a34a);
+}
+
+/* Service removal message */
+.removalMessage {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  padding: 0.75rem;
+  background-color: var(--color-bg-hover);
+  border-radius: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Timestamps */
+.flagTimestamps {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+/* Dismissed info */
+.dismissedInfo {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+/* Actions */
+.flagActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.acceptButton {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-inverse);
+  background-color: var(--color-accent);
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.acceptButton:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.dismissButton {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.dismissButton:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+}
+
+.reopenButton {
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  background-color: var(--color-bg-card);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.reopenButton:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+
+.flagActions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Inline confirmation */
+.inlineConfirm {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  color: var(--color-error);
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: 0.375rem;
+}
+
+.inlineConfirm button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.confirmYes {
+  color: var(--color-text-inverse);
+  background-color: var(--color-error);
+  border: none;
+}
+
+.confirmNo {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border-input);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .fieldDiff {
+    grid-template-columns: 1fr;
+  }
+}
