@@ -448,6 +448,71 @@ describe('AlertService', () => {
       expect(mockSender.send).toHaveBeenCalledTimes(1);
     });
 
+    it('should not suppress recovery events within cooldown', async () => {
+      const unhealthyEvent: AlertEvent = {
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-1',
+        severity: 'critical',
+        previousHealthy: true,
+        currentHealthy: false,
+        timestamp: '2026-01-01T00:00:00Z',
+      };
+
+      const recoveryEvent: AlertEvent = {
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-1',
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+        timestamp: '2026-01-01T00:01:00Z',
+      };
+
+      // Unhealthy alert goes out, starts cooldown
+      await service.processEvent(unhealthyEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+
+      // Recovery within cooldown should still be sent
+      await service.processEvent(recoveryEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('should still suppress non-recovery events within cooldown after recovery', async () => {
+      const unhealthyEvent: AlertEvent = {
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-1',
+        severity: 'critical',
+        previousHealthy: true,
+        currentHealthy: false,
+        timestamp: '2026-01-01T00:00:00Z',
+      };
+
+      const recoveryEvent: AlertEvent = {
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-1',
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+        timestamp: '2026-01-01T00:01:00Z',
+      };
+
+      // Unhealthy → Recovery (both sent)
+      await service.processEvent(unhealthyEvent);
+      await service.processEvent(recoveryEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+
+      // Another unhealthy within cooldown of the recovery → suppressed
+      await service.processEvent({ ...unhealthyEvent, timestamp: '2026-01-01T00:02:00Z' });
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+    });
+
     it('should not suppress when cooldown is 0', async () => {
       mockSettings.get.mockImplementation((key: string) => {
         if (key === 'alert_cooldown_minutes') return 0;
@@ -483,6 +548,55 @@ describe('AlertService', () => {
       }
 
       expect(mockSender.send).toHaveBeenCalledTimes(3);
+    });
+
+    it('should not suppress recovery events when rate limited', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 0; // disable flap protection
+        if (key === 'alert_rate_limit_per_hour') return 2;
+        return undefined;
+      });
+
+      // Exhaust the rate limit with critical events
+      for (let i = 0; i < 2; i++) {
+        await service.processEvent({
+          eventType: 'status_change',
+          serviceId: 'svc-1',
+          serviceName: 'Test Service',
+          dependencyId: `dep-${i}`,
+          severity: 'critical',
+          previousHealthy: true,
+          currentHealthy: false,
+          timestamp: '2026-01-01T00:00:00Z',
+        });
+      }
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+
+      // Another critical event should be rate-limited
+      await service.processEvent({
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-99',
+        severity: 'critical',
+        previousHealthy: true,
+        currentHealthy: false,
+        timestamp: '2026-01-01T00:00:00Z',
+      });
+      expect(mockSender.send).toHaveBeenCalledTimes(2); // still 2 (suppressed)
+
+      // Recovery event should bypass rate limit
+      await service.processEvent({
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-0',
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+        timestamp: '2026-01-01T00:00:00Z',
+      });
+      expect(mockSender.send).toHaveBeenCalledTimes(3); // recovery gets through
     });
 
     it('should record suppressed history when rate-limited', async () => {
