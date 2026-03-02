@@ -174,11 +174,15 @@ export class AlertService {
       return;
     }
 
-    // 5. Check flap protection
+    // 5. Recovery events (unhealthy → healthy) bypass flap protection and
+    //    rate limiting so teams always learn when a service comes back up.
+    const isRecovery = event.eventType === 'status_change' && event.currentHealthy === true;
+
+    // 6. Check flap protection (recovery events bypass)
     const flapKey = event.dependencyId || event.serviceId;
     const cooldownMs = this.settingsService.get('alert_cooldown_minutes') * 60_000;
 
-    if (this.flapProtector.isSuppressed(flapKey, cooldownMs)) {
+    if (!isRecovery && this.flapProtector.isSuppressed(flapKey, cooldownMs)) {
       // Record suppressed alert for all channels
       for (const channel of channels) {
         this.recordHistory(channel.id, event, 'suppressed');
@@ -187,10 +191,10 @@ export class AlertService {
       return;
     }
 
-    // 6. Check rate limit
+    // 7. Check rate limit (recovery events bypass)
     const maxPerHour = this.settingsService.get('alert_rate_limit_per_hour');
 
-    if (this.rateLimiter.isLimited(teamId, maxPerHour)) {
+    if (!isRecovery && this.rateLimiter.isLimited(teamId, maxPerHour)) {
       // Record suppressed alert for all channels
       for (const channel of channels) {
         this.recordHistory(channel.id, event, 'suppressed');
@@ -199,7 +203,7 @@ export class AlertService {
       return;
     }
 
-    // 7. Dispatch to all active channels
+    // 8. Dispatch to all active channels
     logger.info({ teamId, eventType: event.eventType, serviceName: event.serviceName, channels: channels.length }, 'alert: dispatching to channels');
     this.flapProtector.recordAlert(flapKey);
     this.rateLimiter.recordAlert(teamId);
