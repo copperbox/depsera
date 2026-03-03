@@ -595,7 +595,7 @@ In the **Alert Rules** section on the team detail page, set:
 - **Severity filter:** Critical only, Warning and above, or All status changes
 - **Enable/disable toggle:** Turn alerting on or off for the entire team
 
-Depsera includes built-in flap protection (5-minute cooldown per dependency) and per-team hourly rate limiting (default 30 alerts/hour) to prevent alert storms. These are configurable by an admin in `/admin/settings`.
+Depsera includes built-in flap protection (5-minute cooldown per dependency) and per-team hourly rate limiting (default 30 alerts/hour) to prevent alert storms. These defaults are configurable by an admin in `/admin/settings`. Teams can also override the global cooldown and rate limit with custom values by checking "Override global defaults" in the Alert Rules section.
 
 ---
 

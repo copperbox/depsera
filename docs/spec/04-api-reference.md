@@ -426,9 +426,24 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 ```json
 {
   "severity_filter": "critical | warning | all",
-  "is_active": true
+  "is_active": true,
+  "use_custom_thresholds": false,
+  "cooldown_minutes": 10,
+  "rate_limit_per_hour": 50
 }
 ```
+
+- `use_custom_thresholds`: optional boolean. When `true`, per-team `cooldown_minutes` and `rate_limit_per_hour` override the global admin settings.
+- `cooldown_minutes`: optional integer (0–1440) or `null`. Alert cooldown in minutes. Only used when `use_custom_thresholds` is `true`.
+- `rate_limit_per_hour`: optional integer (1–1000) or `null`. Maximum alerts per team per hour. Only used when `use_custom_thresholds` is `true`.
+
+**Webhook URL masking:**
+
+Alert channel responses (`GET`, `POST`, `PUT`) return masked `config` values for security. Sensitive fields are replaced with `•••••••`:
+- **Slack:** Keeps the webhook URL prefix and first path segment, masks the rest (e.g., `https://hooks.slack.com/services/T00/•••••••`)
+- **Webhook:** Keeps the scheme and first 8 characters of the host, masks the rest. Header values are fully masked (keys are preserved). The HTTP `method` is preserved.
+
+Masking is applied on read — the original config is stored in full and used for alert dispatch.
 
 **Validation:**
 - Slack webhook URL must match `https://hooks.slack.com/services/...`
