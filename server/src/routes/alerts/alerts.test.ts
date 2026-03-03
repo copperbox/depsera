@@ -124,6 +124,7 @@ jest.mock('../../services/alerts', () => ({
   },
 }));
 
+import { maskConfig } from './channels/maskConfig';
 import alertsRouter from './index';
 
 const app = express();
@@ -290,10 +291,10 @@ describe('Alert API Routes', () => {
       expect(res.body).toEqual([]);
     });
 
-    it('should return channels for the team', async () => {
+    it('should return channels for the team with masked config', async () => {
       testDb.exec(`
         INSERT INTO alert_channels (id, team_id, channel_type, config)
-        VALUES ('ch-1', 'team-1', 'slack', '{"webhook_url":"https://hooks.slack.com/services/test"}')
+        VALUES ('ch-1', 'team-1', 'slack', '{"webhook_url":"https://hooks.slack.com/services/T00/B00/secret"}')
       `);
 
       const res = await request(app).get(`/api/teams/${teamId}/alert-channels`);
@@ -301,6 +302,10 @@ describe('Alert API Routes', () => {
       expect(res.body).toHaveLength(1);
       expect(res.body[0].id).toBe('ch-1');
       expect(res.body[0].channel_type).toBe('slack');
+      // Config should be masked — raw secret not present
+      const config = JSON.parse(res.body[0].config);
+      expect(config.webhook_url).not.toContain('secret');
+      expect(config.webhook_url).toContain('\u2022');
     });
 
     it('should allow team members to list channels', async () => {
@@ -317,7 +322,7 @@ describe('Alert API Routes', () => {
   });
 
   describe('POST /api/teams/:id/alert-channels', () => {
-    it('should create a Slack channel', async () => {
+    it('should create a Slack channel with masked config in response', async () => {
       const res = await request(app)
         .post(`/api/teams/${teamId}/alert-channels`)
         .send({
@@ -329,7 +334,11 @@ describe('Alert API Routes', () => {
       expect(res.body.channel_type).toBe('slack');
       expect(res.body.team_id).toBe(teamId);
       expect(res.body.is_active).toBe(1);
-      expect(JSON.parse(res.body.config)).toEqual({ webhook_url: 'https://hooks.slack.com/services/T00/B00/xxx' });
+      // Response config should be masked — raw URL not present
+      const config = JSON.parse(res.body.config);
+      expect(config.webhook_url).toContain('https://hooks.slack.com/services/T00/');
+      expect(config.webhook_url).not.toContain('B00/xxx');
+      expect(config.webhook_url).toContain('\u2022');
     });
 
     it('should auto-create a default alert rule when team has none', async () => {
@@ -369,7 +378,7 @@ describe('Alert API Routes', () => {
       expect(rules[0].severity_filter).toBe('critical');
     });
 
-    it('should create a webhook channel', async () => {
+    it('should create a webhook channel with masked config in response', async () => {
       const res = await request(app)
         .post(`/api/teams/${teamId}/alert-channels`)
         .send({
@@ -383,8 +392,12 @@ describe('Alert API Routes', () => {
       expect(res.status).toBe(201);
       expect(res.body.channel_type).toBe('webhook');
       const config = JSON.parse(res.body.config);
-      expect(config.url).toBe('https://example.com/webhook');
-      expect(config.headers.Authorization).toBe('Bearer token123');
+      // URL should be masked
+      expect(config.url).not.toBe('https://example.com/webhook');
+      expect(config.url).toContain('\u2022');
+      // Header keys preserved, values masked
+      expect(config.headers.Authorization).toContain('\u2022');
+      expect(config.headers.Authorization).not.toBe('Bearer token123');
     });
 
     it('should reject invalid channel_type', async () => {
@@ -504,7 +517,7 @@ describe('Alert API Routes', () => {
       channelId = 'ch-update';
     });
 
-    it('should update channel config', async () => {
+    it('should update channel config and return masked response', async () => {
       const res = await request(app)
         .put(`/api/teams/${teamId}/alert-channels/${channelId}`)
         .send({
@@ -512,7 +525,15 @@ describe('Alert API Routes', () => {
         });
 
       expect(res.status).toBe(200);
-      expect(JSON.parse(res.body.config).webhook_url).toBe('https://hooks.slack.com/services/T00/B00/new');
+      const config = JSON.parse(res.body.config);
+      // Response should be masked
+      expect(config.webhook_url).toContain('https://hooks.slack.com/services/T00/');
+      expect(config.webhook_url).not.toContain('B00/new');
+      expect(config.webhook_url).toContain('\u2022');
+
+      // But the actual DB value should contain the raw URL
+      const dbRow = testDb.prepare('SELECT config FROM alert_channels WHERE id = ?').get(channelId) as { config: string };
+      expect(JSON.parse(dbRow.config).webhook_url).toBe('https://hooks.slack.com/services/T00/B00/new');
     });
 
     it('should update is_active', async () => {
@@ -543,6 +564,19 @@ describe('Alert API Routes', () => {
         .send({ is_active: false });
 
       expect(res.status).toBe(404);
+    });
+
+    it('should preserve existing config when updating without config', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-channels/${channelId}`)
+        .send({ is_active: false });
+
+      expect(res.status).toBe(200);
+      expect(res.body.is_active).toBe(0);
+
+      // Verify the raw URL in DB is unchanged
+      const dbRow = testDb.prepare('SELECT config FROM alert_channels WHERE id = ?').get(channelId) as { config: string };
+      expect(JSON.parse(dbRow.config).webhook_url).toBe('https://hooks.slack.com/services/T00/B00/old');
     });
 
     it('should reject empty update', async () => {
@@ -639,6 +673,79 @@ describe('Alert API Routes', () => {
         .post(`/api/teams/${teamId}/alert-channels/ch-test-other/test`);
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  // ─── maskConfig Unit Tests ────────────────────────────────────
+
+  describe('maskConfig', () => {
+    const baseChannel = {
+      id: 'ch-1',
+      team_id: 'team-1',
+      is_active: 1,
+      created_at: '2024-01-01',
+      updated_at: '2024-01-01',
+    };
+
+    it('should mask Slack webhook URL keeping first path segment after /services/', () => {
+      const channel = {
+        ...baseChannel,
+        channel_type: 'slack' as const,
+        config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/T00AABB/B00CCDD/xyzSecretToken' }),
+      };
+      const result = maskConfig(channel);
+      const config = JSON.parse(result.config);
+      expect(config.webhook_url).toBe('https://hooks.slack.com/services/T00AABB/\u2022\u2022\u2022\u2022\u2022\u2022\u2022');
+    });
+
+    it('should mask webhook URL keeping scheme and first 8 chars of host', () => {
+      const channel = {
+        ...baseChannel,
+        channel_type: 'webhook' as const,
+        config: JSON.stringify({ url: 'https://example.com/webhook/secret', method: 'POST' }),
+      };
+      const result = maskConfig(channel);
+      const config = JSON.parse(result.config);
+      expect(config.url).toBe('https://example.\u2022\u2022\u2022\u2022\u2022\u2022\u2022');
+      expect(config.method).toBe('POST');
+    });
+
+    it('should mask webhook header values but preserve keys', () => {
+      const channel = {
+        ...baseChannel,
+        channel_type: 'webhook' as const,
+        config: JSON.stringify({
+          url: 'https://example.com/hook',
+          headers: { Authorization: 'Bearer secret123', 'X-Custom': 'value' },
+        }),
+      };
+      const result = maskConfig(channel);
+      const config = JSON.parse(result.config);
+      expect(config.headers.Authorization).toBe('\u2022\u2022\u2022\u2022\u2022\u2022\u2022');
+      expect(config.headers['X-Custom']).toBe('\u2022\u2022\u2022\u2022\u2022\u2022\u2022');
+    });
+
+    it('should handle webhook config without headers or method', () => {
+      const channel = {
+        ...baseChannel,
+        channel_type: 'webhook' as const,
+        config: JSON.stringify({ url: 'https://example.com/hook' }),
+      };
+      const result = maskConfig(channel);
+      const config = JSON.parse(result.config);
+      expect(config.url).toContain('\u2022');
+      expect(config.headers).toBeUndefined();
+      expect(config.method).toBeUndefined();
+    });
+
+    it('should return channel unchanged if config is not valid JSON', () => {
+      const channel = {
+        ...baseChannel,
+        channel_type: 'slack' as const,
+        config: 'not-json',
+      };
+      const result = maskConfig(channel);
+      expect(result.config).toBe('not-json');
     });
   });
 

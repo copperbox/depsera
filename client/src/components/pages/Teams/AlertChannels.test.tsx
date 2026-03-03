@@ -18,11 +18,12 @@ function jsonResponse(data: unknown, status = 200) {
   };
 }
 
+// Mock data uses masked URLs as the API now returns masked config
 const mockSlackChannel = {
   id: 'ch1',
   team_id: 't1',
   channel_type: 'slack',
-  config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/T00/B00/xxx' }),
+  config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/T00/\u2022\u2022\u2022\u2022\u2022\u2022\u2022' }),
   is_active: 1,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
@@ -32,7 +33,7 @@ const mockWebhookChannel = {
   id: 'ch2',
   team_id: 't1',
   channel_type: 'webhook',
-  config: JSON.stringify({ url: 'https://example.com/webhook', method: 'POST', headers: { Authorization: 'Bearer token' } }),
+  config: JSON.stringify({ url: 'https://example.\u2022\u2022\u2022\u2022\u2022\u2022\u2022', method: 'POST', headers: { Authorization: '\u2022\u2022\u2022\u2022\u2022\u2022\u2022' } }),
   is_active: 0,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
@@ -362,7 +363,7 @@ describe('AlertChannels', () => {
     });
   });
 
-  it('opens edit form with pre-filled values for Slack channel', async () => {
+  it('opens edit form without pre-filled URL and shows Update URL button', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([mockSlackChannel]));
 
     render(<AlertChannels teamId="t1" canManage={true} />);
@@ -374,10 +375,29 @@ describe('AlertChannels', () => {
     fireEvent.click(screen.getByText('Edit'));
 
     expect(screen.getByText('Edit Channel')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://hooks.slack.com/services/T00/B00/xxx')).toBeInTheDocument();
+    // URL field should NOT be pre-filled — Update URL button shown instead
+    expect(screen.queryByPlaceholderText('https://hooks.slack.com/services/T00/B00/xxx')).not.toBeInTheDocument();
+    expect(screen.getByText('Update URL')).toBeInTheDocument();
   });
 
-  it('opens edit form with pre-filled values for webhook channel', async () => {
+  it('shows URL input when Update URL button clicked in edit form', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockSlackChannel]));
+
+    render(<AlertChannels teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Edit')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Update URL'));
+
+    // URL input should now appear
+    expect(screen.getByPlaceholderText('https://hooks.slack.com/services/T00/B00/xxx')).toBeInTheDocument();
+    expect(screen.queryByText('Update URL')).not.toBeInTheDocument();
+  });
+
+  it('opens edit form for webhook without pre-filled URL', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([mockWebhookChannel]));
 
     render(<AlertChannels teamId="t1" canManage={true} />);
@@ -389,12 +409,12 @@ describe('AlertChannels', () => {
     fireEvent.click(screen.getByText('Edit'));
 
     expect(screen.getByText('Edit Channel')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('https://example.com/webhook')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Authorization')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Bearer token')).toBeInTheDocument();
+    // URL field should NOT be pre-filled
+    expect(screen.queryByPlaceholderText('https://example.com/webhook')).not.toBeInTheDocument();
+    expect(screen.getByText('Update URL')).toBeInTheDocument();
   });
 
-  it('sends update request when editing', async () => {
+  it('sends update without config when URL is not changed', async () => {
     mockFetch
       .mockResolvedValueOnce(jsonResponse([mockSlackChannel]))  // initial load
       .mockResolvedValueOnce(jsonResponse(mockSlackChannel))    // update
@@ -408,6 +428,7 @@ describe('AlertChannels', () => {
 
     fireEvent.click(screen.getByText('Edit'));
 
+    // Don't click "Update URL" — submit directly
     fireEvent.click(screen.getByText('Save Changes'));
 
     await waitFor(() => {
@@ -415,6 +436,42 @@ describe('AlertChannels', () => {
         '/api/teams/t1/alert-channels/ch1',
         expect.objectContaining({
           method: 'PUT',
+          body: JSON.stringify({ channel_type: 'slack' }),
+        })
+      );
+    });
+  });
+
+  it('sends update with config when URL is changed', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse([mockSlackChannel]))  // initial load
+      .mockResolvedValueOnce(jsonResponse(mockSlackChannel))    // update
+      .mockResolvedValueOnce(jsonResponse([mockSlackChannel])); // reload
+
+    render(<AlertChannels teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Edit')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(screen.getByText('Update URL'));
+
+    fireEvent.change(screen.getByPlaceholderText('https://hooks.slack.com/services/T00/B00/xxx'), {
+      target: { value: 'https://hooks.slack.com/services/T00/B00/newtoken' },
+    });
+
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/teams/t1/alert-channels/ch1',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({
+            channel_type: 'slack',
+            config: { webhook_url: 'https://hooks.slack.com/services/T00/B00/newtoken' },
+          }),
         })
       );
     });
@@ -580,12 +637,9 @@ describe('AlertChannels', () => {
     });
   });
 
-  it('truncates long URLs in channel list', async () => {
-    const longUrlChannel = {
-      ...mockSlackChannel,
-      config: JSON.stringify({ webhook_url: 'https://hooks.slack.com/services/T00000000/B00000000/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' }),
-    };
-    mockFetch.mockResolvedValueOnce(jsonResponse([longUrlChannel]));
+  it('displays masked URLs in full without truncation', async () => {
+    // Masked URLs are safe to display — no truncation needed
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockSlackChannel]));
 
     render(<AlertChannels teamId="t1" canManage={false} />);
 
@@ -593,9 +647,9 @@ describe('AlertChannels', () => {
       expect(screen.getByText('Slack')).toBeInTheDocument();
     });
 
-    // URL should be truncated
     const urlElement = screen.getByText(/hooks\.slack\.com/);
-    expect(urlElement.textContent!.length).toBeLessThanOrEqual(50);
+    // The masked URL should be displayed in full (contains bullet chars)
+    expect(urlElement.textContent).toContain('\u2022');
   });
 
   it('adds and removes custom headers', async () => {
