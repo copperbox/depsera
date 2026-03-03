@@ -29,6 +29,9 @@ export interface AlertRule {
   team_id: string;
   severity_filter: AlertSeverityFilter;
   is_active: number;
+  use_custom_thresholds: number;
+  cooldown_minutes: number | null;
+  rate_limit_per_hour: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,6 +66,9 @@ export interface TestAlertChannelResult {
 export interface UpdateAlertRuleInput {
   severity_filter: AlertSeverityFilter;
   is_active?: boolean;
+  use_custom_thresholds?: boolean;
+  cooldown_minutes?: number | null;
+  rate_limit_per_hour?: number | null;
 }
 
 export interface AlertHistoryListOptions {

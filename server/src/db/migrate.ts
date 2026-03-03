@@ -27,6 +27,7 @@ import * as migration025 from './migrations/025_add_drift_flags';
 import * as migration026 from './migrations/026_remove_auto_suggestions';
 import * as migration027 from './migrations/027_add_team_key';
 import * as migration028 from './migrations/028_add_team_contact';
+import * as migration029 from './migrations/029_add_custom_alert_thresholds';
 
 interface Migration {
   id: string;
@@ -203,6 +204,12 @@ const migrations: Migration[] = [
     name: 'add_team_contact',
     up: migration028.up,
     down: migration028.down
+  },
+  {
+    id: '029',
+    name: 'add_custom_alert_thresholds',
+    up: migration029.up,
+    down: migration029.down
   }
 ];
 

@@ -229,6 +229,9 @@ describe('Alert API Routes', () => {
         team_id TEXT NOT NULL,
         severity_filter TEXT NOT NULL CHECK(severity_filter IN ('critical', 'warning', 'all')),
         is_active INTEGER NOT NULL DEFAULT 1,
+        use_custom_thresholds INTEGER NOT NULL DEFAULT 0,
+        cooldown_minutes INTEGER,
+        rate_limit_per_hour INTEGER,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
@@ -862,6 +865,118 @@ describe('Alert API Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.is_active).toBe(0);
+    });
+
+    it('should update with custom thresholds', async () => {
+      testDb.exec(`
+        INSERT INTO alert_rules (id, team_id, severity_filter)
+        VALUES ('rule-thresh', 'team-1', 'all')
+      `);
+
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          use_custom_thresholds: true,
+          cooldown_minutes: 10,
+          rate_limit_per_hour: 50,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.use_custom_thresholds).toBe(1);
+      expect(res.body.cooldown_minutes).toBe(10);
+      expect(res.body.rate_limit_per_hour).toBe(50);
+    });
+
+    it('should create new rule with custom thresholds', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'critical',
+          use_custom_thresholds: true,
+          cooldown_minutes: 0,
+          rate_limit_per_hour: 100,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.use_custom_thresholds).toBe(1);
+      expect(res.body.cooldown_minutes).toBe(0);
+      expect(res.body.rate_limit_per_hour).toBe(100);
+    });
+
+    it('should reject cooldown_minutes out of range', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          cooldown_minutes: 1441,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('cooldown_minutes');
+    });
+
+    it('should reject negative cooldown_minutes', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          cooldown_minutes: -1,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('cooldown_minutes');
+    });
+
+    it('should reject rate_limit_per_hour out of range', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          rate_limit_per_hour: 1001,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('rate_limit_per_hour');
+    });
+
+    it('should reject rate_limit_per_hour below 1', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          rate_limit_per_hour: 0,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('rate_limit_per_hour');
+    });
+
+    it('should accept null cooldown_minutes and rate_limit_per_hour', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/alert-rules`)
+        .send({
+          severity_filter: 'all',
+          cooldown_minutes: null,
+          rate_limit_per_hour: null,
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.cooldown_minutes).toBeNull();
+      expect(res.body.rate_limit_per_hour).toBeNull();
+    });
+
+    it('should return custom threshold fields in GET response', async () => {
+      testDb.exec(`
+        INSERT INTO alert_rules (id, team_id, severity_filter, use_custom_thresholds, cooldown_minutes, rate_limit_per_hour)
+        VALUES ('rule-get-thresh', 'team-1', 'all', 1, 15, 60)
+      `);
+
+      const res = await request(app).get(`/api/teams/${teamId}/alert-rules`);
+      expect(res.status).toBe(200);
+      expect(res.body[0].use_custom_thresholds).toBe(1);
+      expect(res.body[0].cooldown_minutes).toBe(15);
+      expect(res.body[0].rate_limit_per_hour).toBe(60);
     });
   });
 

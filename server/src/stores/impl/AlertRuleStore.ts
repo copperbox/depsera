@@ -54,6 +54,18 @@ export class AlertRuleStore implements IAlertRuleStore {
       fields.push('is_active = ?');
       params.push(input.is_active ? 1 : 0);
     }
+    if (input.use_custom_thresholds !== undefined) {
+      fields.push('use_custom_thresholds = ?');
+      params.push(input.use_custom_thresholds ? 1 : 0);
+    }
+    if (input.cooldown_minutes !== undefined) {
+      fields.push('cooldown_minutes = ?');
+      params.push(input.cooldown_minutes);
+    }
+    if (input.rate_limit_per_hour !== undefined) {
+      fields.push('rate_limit_per_hour = ?');
+      params.push(input.rate_limit_per_hour);
+    }
 
     if (fields.length === 0) return existing;
 

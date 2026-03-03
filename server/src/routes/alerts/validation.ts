@@ -32,6 +32,9 @@ export interface ValidatedChannelUpdate {
 export interface ValidatedRulesUpdate {
   severity_filter: AlertSeverityFilter;
   is_active: boolean;
+  use_custom_thresholds?: boolean;
+  cooldown_minutes?: number | null;
+  rate_limit_per_hour?: number | null;
 }
 
 /**
@@ -108,7 +111,7 @@ export function validateChannelUpdate(body: Record<string, unknown>): ValidatedC
  * Validate alert rules update input.
  */
 export function validateRulesUpdate(body: Record<string, unknown>): ValidatedRulesUpdate {
-  const { severity_filter, is_active } = body;
+  const { severity_filter, is_active, use_custom_thresholds, cooldown_minutes, rate_limit_per_hour } = body;
 
   if (!severity_filter || typeof severity_filter !== 'string') {
     throw new ValidationError('severity_filter is required', 'severity_filter');
@@ -118,10 +121,40 @@ export function validateRulesUpdate(body: Record<string, unknown>): ValidatedRul
     throw new ValidationError(`severity_filter must be one of: ${VALID_SEVERITY_FILTERS.join(', ')}`, 'severity_filter');
   }
 
-  return {
+  const result: ValidatedRulesUpdate = {
     severity_filter: severity_filter as AlertSeverityFilter,
     is_active: is_active !== undefined ? Boolean(is_active) : true,
   };
+
+  if (use_custom_thresholds !== undefined) {
+    result.use_custom_thresholds = Boolean(use_custom_thresholds);
+  }
+
+  if (cooldown_minutes !== undefined) {
+    if (cooldown_minutes !== null) {
+      const n = Number(cooldown_minutes);
+      if (!Number.isInteger(n) || n < 0 || n > 1440) {
+        throw new ValidationError('cooldown_minutes must be an integer between 0 and 1440', 'cooldown_minutes');
+      }
+      result.cooldown_minutes = n;
+    } else {
+      result.cooldown_minutes = null;
+    }
+  }
+
+  if (rate_limit_per_hour !== undefined) {
+    if (rate_limit_per_hour !== null) {
+      const n = Number(rate_limit_per_hour);
+      if (!Number.isInteger(n) || n < 1 || n > 1000) {
+        throw new ValidationError('rate_limit_per_hour must be an integer between 1 and 1000', 'rate_limit_per_hour');
+      }
+      result.rate_limit_per_hour = n;
+    } else {
+      result.rate_limit_per_hour = null;
+    }
+  }
+
+  return result;
 }
 
 /**

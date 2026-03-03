@@ -75,6 +75,9 @@ const mockRule: AlertRule = {
   team_id: 'team-1',
   severity_filter: 'all',
   is_active: 1,
+  use_custom_thresholds: 0,
+  cooldown_minutes: null,
+  rate_limit_per_hour: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };
@@ -524,6 +527,58 @@ describe('AlertService', () => {
       await service.processEvent(baseEvent);
       expect(mockSender.send).toHaveBeenCalledTimes(2);
     });
+
+    it('should use per-team cooldown when use_custom_thresholds is enabled', async () => {
+      // Set global cooldown to 5 min, but per-team to 0 (disabled)
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 5;
+        if (key === 'alert_rate_limit_per_hour') return 30;
+        return undefined;
+      });
+
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 1, cooldown_minutes: 0 },
+      ]);
+
+      await service.processEvent(baseEvent);
+      await service.processEvent(baseEvent);
+      // With cooldown 0, both should go through
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fall back to global cooldown when use_custom_thresholds is disabled', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 5;
+        if (key === 'alert_rate_limit_per_hour') return 30;
+        return undefined;
+      });
+
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 0, cooldown_minutes: 0 },
+      ]);
+
+      await service.processEvent(baseEvent);
+      await service.processEvent(baseEvent);
+      // Global cooldown (5 min) should suppress the second
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fall back to global cooldown when custom cooldown_minutes is null', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 5;
+        if (key === 'alert_rate_limit_per_hour') return 30;
+        return undefined;
+      });
+
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 1, cooldown_minutes: null },
+      ]);
+
+      await service.processEvent(baseEvent);
+      await service.processEvent(baseEvent);
+      // Should use global cooldown → suppressed
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
   });
 
   // ---- Rate limiting ----
@@ -630,6 +685,86 @@ describe('AlertService', () => {
       const statuses = calls.map((c: unknown[]) => (c[0] as Record<string, unknown>).status);
       expect(statuses).toContain('sent');
       expect(statuses).toContain('suppressed');
+    });
+
+    it('should use per-team rate limit when use_custom_thresholds is enabled', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 0;
+        if (key === 'alert_rate_limit_per_hour') return 1; // global: only 1
+        return undefined;
+      });
+
+      // Per-team allows 5
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 1, rate_limit_per_hour: 5 },
+      ]);
+
+      for (let i = 0; i < 3; i++) {
+        await service.processEvent({
+          eventType: 'status_change',
+          serviceId: 'svc-1',
+          serviceName: 'Test Service',
+          dependencyId: `dep-${i}`,
+          severity: 'critical',
+          timestamp: '2026-01-01T00:00:00Z',
+        });
+      }
+
+      // All 3 should go through (per-team limit is 5)
+      expect(mockSender.send).toHaveBeenCalledTimes(3);
+    });
+
+    it('should fall back to global rate limit when use_custom_thresholds is disabled', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 0;
+        if (key === 'alert_rate_limit_per_hour') return 2;
+        return undefined;
+      });
+
+      // Even though per-team value is 100, it should be ignored
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 0, rate_limit_per_hour: 100 },
+      ]);
+
+      for (let i = 0; i < 4; i++) {
+        await service.processEvent({
+          eventType: 'status_change',
+          serviceId: 'svc-1',
+          serviceName: 'Test Service',
+          dependencyId: `dep-${i}`,
+          severity: 'critical',
+          timestamp: '2026-01-01T00:00:00Z',
+        });
+      }
+
+      // Global limit of 2 should apply
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('should fall back to global rate limit when custom rate_limit_per_hour is null', async () => {
+      mockSettings.get.mockImplementation((key: string) => {
+        if (key === 'alert_cooldown_minutes') return 0;
+        if (key === 'alert_rate_limit_per_hour') return 2;
+        return undefined;
+      });
+
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, use_custom_thresholds: 1, rate_limit_per_hour: null },
+      ]);
+
+      for (let i = 0; i < 4; i++) {
+        await service.processEvent({
+          eventType: 'status_change',
+          serviceId: 'svc-1',
+          serviceName: 'Test Service',
+          dependencyId: `dep-${i}`,
+          severity: 'critical',
+          timestamp: '2026-01-01T00:00:00Z',
+        });
+      }
+
+      // Global limit of 2 should apply
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
     });
   });
 

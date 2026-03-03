@@ -50,6 +50,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Slack notifications with Block Kit formatting and deep links
 - Generic webhook sender with custom headers and configurable HTTP method
 - Severity-based alert rules (critical, warning, all) per team
+- Per-team alert cooldown and rate limit overrides (optional, falls back to global defaults)
 - Flap protection and per-team hourly rate limiting
 - Full alert delivery history (sent, failed, suppressed)
 

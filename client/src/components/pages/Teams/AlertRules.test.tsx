@@ -17,6 +17,9 @@ const mockRule = {
   team_id: 't1',
   severity_filter: 'warning',
   is_active: 1,
+  use_custom_thresholds: 0,
+  cooldown_minutes: null,
+  rate_limit_per_hour: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
 };
@@ -203,5 +206,115 @@ describe('AlertRules', () => {
     render(<AlertRules teamId="t1" canManage={true} />);
 
     expect(screen.getByText('Alert Rules')).toBeInTheDocument();
+  });
+
+  it('shows override checkbox unchecked by default', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Override global defaults')).toBeInTheDocument();
+    });
+
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+  });
+
+  it('disables threshold inputs when override unchecked', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Override global defaults')).toBeInTheDocument();
+    });
+
+    const cooldownInput = screen.getByPlaceholderText('0-1440');
+    const rateLimitInput = screen.getByPlaceholderText('1-1000');
+
+    expect(cooldownInput).toBeDisabled();
+    expect(rateLimitInput).toBeDisabled();
+  });
+
+  it('enables threshold inputs when override checked', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Override global defaults')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    const cooldownInput = screen.getByPlaceholderText('0-1440');
+    const rateLimitInput = screen.getByPlaceholderText('1-1000');
+
+    expect(cooldownInput).not.toBeDisabled();
+    expect(rateLimitInput).not.toBeDisabled();
+  });
+
+  it('populates threshold inputs from existing rule', async () => {
+    const ruleWithThresholds = {
+      ...mockRule,
+      use_custom_thresholds: 1,
+      cooldown_minutes: 10,
+      rate_limit_per_hour: 50,
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([ruleWithThresholds]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('checkbox')).toBeChecked();
+    });
+
+    expect(screen.getByDisplayValue('10')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('50')).toBeInTheDocument();
+  });
+
+  it('enables save when override checkbox changes', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Save Rules')).toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    expect(screen.getByText('Save Rules')).not.toBeDisabled();
+  });
+
+  it('shows custom threshold values in read-only view when active', async () => {
+    const ruleWithThresholds = {
+      ...mockRule,
+      use_custom_thresholds: 1,
+      cooldown_minutes: 15,
+      rate_limit_per_hour: 60,
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse([ruleWithThresholds]));
+
+    render(<AlertRules teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('15 min')).toBeInTheDocument();
+    });
+    expect(screen.getByText('60')).toBeInTheDocument();
+  });
+
+  it('does not show threshold values in read-only when override is off', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Warning and above')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Cooldown:')).not.toBeInTheDocument();
+    expect(screen.queryByText('Max/hour:')).not.toBeInTheDocument();
   });
 });
