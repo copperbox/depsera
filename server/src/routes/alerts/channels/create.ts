@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { sendErrorResponse } from '../../../utils/errors';
 import { validateChannelCreate } from '../validation';
+import { maskConfig } from './maskConfig';
 import logger from '../../../utils/logger';
 
 export function createAlertChannel(req: Request, res: Response): void {
@@ -27,7 +28,7 @@ export function createAlertChannel(req: Request, res: Response): void {
       logger.info({ teamId }, 'auto-created default alert rule for team');
     }
 
-    res.status(201).json(channel);
+    res.status(201).json(maskConfig(channel));
   } catch (error) {
     sendErrorResponse(res, error, 'creating alert channel');
   }

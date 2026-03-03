@@ -23,6 +23,9 @@ describe('AlertRuleStore', () => {
         team_id TEXT NOT NULL,
         severity_filter TEXT NOT NULL CHECK (severity_filter IN ('critical', 'warning', 'all')),
         is_active INTEGER NOT NULL DEFAULT 1,
+        use_custom_thresholds INTEGER NOT NULL DEFAULT 0,
+        cooldown_minutes INTEGER,
+        rate_limit_per_hour INTEGER,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
@@ -70,6 +73,14 @@ describe('AlertRuleStore', () => {
 
       expect(rule.severity_filter).toBe('all');
       expect(rule.team_id).toBe('team-2');
+    });
+
+    it('should create a rule with default custom threshold fields', () => {
+      const rule = store.create({ team_id: 'team-1', severity_filter: 'all' });
+
+      expect(rule.use_custom_thresholds).toBe(0);
+      expect(rule.cooldown_minutes).toBeNull();
+      expect(rule.rate_limit_per_hour).toBeNull();
     });
   });
 
@@ -142,6 +153,48 @@ describe('AlertRuleStore', () => {
 
       expect(result).toBeDefined();
       expect(result!.id).toBe(created.id);
+    });
+
+    it('should update use_custom_thresholds', () => {
+      const created = store.create({ team_id: 'team-1', severity_filter: 'critical' });
+      const updated = store.update(created.id, { use_custom_thresholds: true });
+
+      expect(updated!.use_custom_thresholds).toBe(1);
+    });
+
+    it('should update cooldown_minutes', () => {
+      const created = store.create({ team_id: 'team-1', severity_filter: 'critical' });
+      const updated = store.update(created.id, { cooldown_minutes: 10 });
+
+      expect(updated!.cooldown_minutes).toBe(10);
+    });
+
+    it('should update rate_limit_per_hour', () => {
+      const created = store.create({ team_id: 'team-1', severity_filter: 'critical' });
+      const updated = store.update(created.id, { rate_limit_per_hour: 50 });
+
+      expect(updated!.rate_limit_per_hour).toBe(50);
+    });
+
+    it('should set cooldown_minutes to null', () => {
+      const created = store.create({ team_id: 'team-1', severity_filter: 'critical' });
+      store.update(created.id, { cooldown_minutes: 10 });
+      const updated = store.update(created.id, { cooldown_minutes: null });
+
+      expect(updated!.cooldown_minutes).toBeNull();
+    });
+
+    it('should update all custom threshold fields at once', () => {
+      const created = store.create({ team_id: 'team-1', severity_filter: 'critical' });
+      const updated = store.update(created.id, {
+        use_custom_thresholds: true,
+        cooldown_minutes: 15,
+        rate_limit_per_hour: 100,
+      });
+
+      expect(updated!.use_custom_thresholds).toBe(1);
+      expect(updated!.cooldown_minutes).toBe(15);
+      expect(updated!.rate_limit_per_hour).toBe(100);
     });
   });
 

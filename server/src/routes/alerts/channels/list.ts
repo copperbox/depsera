@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { sendErrorResponse } from '../../../utils/errors';
+import { maskConfig } from './maskConfig';
 
 export function listAlertChannels(req: Request, res: Response): void {
   try {
@@ -8,7 +9,7 @@ export function listAlertChannels(req: Request, res: Response): void {
     const stores = getStores();
 
     const channels = stores.alertChannels.findByTeamId(teamId);
-    res.json(channels);
+    res.json(channels.map(maskConfig));
   } catch (error) {
     sendErrorResponse(res, error, 'listing alert channels');
   }

@@ -30,6 +30,9 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
 
   const [severityFilter, setSeverityFilter] = useState<AlertSeverityFilter>('all');
   const [isActive, setIsActive] = useState(true);
+  const [useCustomThresholds, setUseCustomThresholds] = useState(false);
+  const [cooldownMinutes, setCooldownMinutes] = useState<string>('');
+  const [rateLimitPerHour, setRateLimitPerHour] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -39,8 +42,12 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
   // Sync local state when rules load
   useEffect(() => {
     if (rules.length > 0) {
-      setSeverityFilter(rules[0].severity_filter);
-      setIsActive(!!rules[0].is_active);
+      const rule = rules[0];
+      setSeverityFilter(rule.severity_filter);
+      setIsActive(!!rule.is_active);
+      setUseCustomThresholds(!!rule.use_custom_thresholds);
+      setCooldownMinutes(rule.cooldown_minutes != null ? String(rule.cooldown_minutes) : '');
+      setRateLimitPerHour(rule.rate_limit_per_hour != null ? String(rule.rate_limit_per_hour) : '');
       setHasChanges(false);
     }
   }, [rules]);
@@ -53,22 +60,43 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
     }
   }, [saveSuccess, clearSaveSuccess]);
 
-  const handleSeverityChange = (value: AlertSeverityFilter) => {
-    setSeverityFilter(value);
+  const markChanged = () => {
     setHasChanges(true);
     clearSaveSuccess();
   };
 
+  const handleSeverityChange = (value: AlertSeverityFilter) => {
+    setSeverityFilter(value);
+    markChanged();
+  };
+
   const handleToggleActive = () => {
     setIsActive((prev) => !prev);
-    setHasChanges(true);
-    clearSaveSuccess();
+    markChanged();
+  };
+
+  const handleToggleCustomThresholds = () => {
+    setUseCustomThresholds((prev) => !prev);
+    markChanged();
+  };
+
+  const handleCooldownChange = (value: string) => {
+    setCooldownMinutes(value);
+    markChanged();
+  };
+
+  const handleRateLimitChange = (value: string) => {
+    setRateLimitPerHour(value);
+    markChanged();
   };
 
   const handleSubmit = async () => {
     const success = await handleSave({
       severity_filter: severityFilter,
       is_active: isActive,
+      use_custom_thresholds: useCustomThresholds,
+      cooldown_minutes: cooldownMinutes !== '' ? Number(cooldownMinutes) : null,
+      rate_limit_per_hour: rateLimitPerHour !== '' ? Number(rateLimitPerHour) : null,
     });
     if (success) {
       setHasChanges(false);
@@ -145,6 +173,49 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
             </div>
           </div>
 
+          <div className={alertStyles.thresholdsSection}>
+            <label className={alertStyles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={useCustomThresholds}
+                onChange={handleToggleCustomThresholds}
+                disabled={isSaving}
+                className={alertStyles.checkbox}
+              />
+              <span>Override global defaults</span>
+            </label>
+
+            <div className={alertStyles.thresholdsRow}>
+              <div className={alertStyles.ruleField}>
+                <label className={alertStyles.ruleLabel}>Alert cooldown (minutes)</label>
+                <input
+                  type="number"
+                  value={cooldownMinutes}
+                  onChange={(e) => handleCooldownChange(e.target.value)}
+                  disabled={isSaving || !useCustomThresholds}
+                  className={alertStyles.ruleInput}
+                  min={0}
+                  max={1440}
+                  placeholder="0-1440"
+                />
+              </div>
+
+              <div className={alertStyles.ruleField}>
+                <label className={alertStyles.ruleLabel}>Max alerts per hour</label>
+                <input
+                  type="number"
+                  value={rateLimitPerHour}
+                  onChange={(e) => handleRateLimitChange(e.target.value)}
+                  disabled={isSaving || !useCustomThresholds}
+                  className={alertStyles.ruleInput}
+                  min={1}
+                  max={1000}
+                  placeholder="1-1000"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className={alertStyles.ruleActions}>
             <button
               onClick={handleSubmit}
@@ -158,19 +229,43 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
       ) : (
         <div className={alertStyles.rulesReadonly}>
           {rules.length > 0 ? (
-            <div className={alertStyles.rulesSummary}>
-              <span className={alertStyles.rulesSummaryLabel}>Severity:</span>
-              <span className={alertStyles.rulesSummaryValue}>
-                {SEVERITY_LABELS[rules[0].severity_filter]}
-              </span>
-              <span
-                className={`${alertStyles.rulesStatusBadge} ${
-                  rules[0].is_active ? alertStyles.rulesStatusActive : alertStyles.rulesStatusInactive
-                }`}
-              >
-                {rules[0].is_active ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
+            <>
+              <div className={alertStyles.rulesSummary}>
+                <span className={alertStyles.rulesSummaryLabel}>Severity:</span>
+                <span className={alertStyles.rulesSummaryValue}>
+                  {SEVERITY_LABELS[rules[0].severity_filter]}
+                </span>
+                <span
+                  className={`${alertStyles.rulesStatusBadge} ${
+                    rules[0].is_active ? alertStyles.rulesStatusActive : alertStyles.rulesStatusInactive
+                  }`}
+                >
+                  {rules[0].is_active ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              {!!rules[0].use_custom_thresholds && (
+                <div className={alertStyles.rulesSummary} style={{ marginTop: '0.5rem' }}>
+                  {rules[0].cooldown_minutes != null && (
+                    <>
+                      <span className={alertStyles.rulesSummaryLabel}>Cooldown:</span>
+                      <span className={alertStyles.rulesSummaryValue}>
+                        {rules[0].cooldown_minutes} min
+                      </span>
+                    </>
+                  )}
+                  {rules[0].rate_limit_per_hour != null && (
+                    <>
+                      <span className={alertStyles.rulesSummaryLabel} style={{ marginLeft: rules[0].cooldown_minutes != null ? '1rem' : undefined }}>
+                        Max/hour:
+                      </span>
+                      <span className={alertStyles.rulesSummaryValue}>
+                        {rules[0].rate_limit_per_hour}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <div className={styles.noItems}>
               <p>No alert rules configured for this team.</p>

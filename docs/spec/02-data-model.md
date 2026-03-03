@@ -246,6 +246,7 @@ type AggregatedHealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 type DependencyType = 'database' | 'rest' | 'soap' | 'grpc' | 'graphql'
                     | 'message_queue' | 'cache' | 'file_system' | 'smtp' | 'other';
 type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
+type AlertSeverityFilter = 'critical' | 'warning' | 'all';
 type DriftType = 'field_change' | 'service_removal';
 type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
 type FieldDriftPolicy = 'flag' | 'manifest_wins' | 'local_wins';
@@ -313,6 +314,9 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 | team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
 | severity_filter | TEXT | NOT NULL, CHECK (`critical`, `warning`, `all`) | |
 | is_active | INTEGER | NOT NULL | 1 |
+| use_custom_thresholds | INTEGER | NOT NULL | 0 |
+| cooldown_minutes | INTEGER | | NULL |
+| rate_limit_per_hour | INTEGER | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
@@ -591,5 +595,7 @@ Contains all types specific to the manifest sync engine:
 | 025 | add_drift_flags | Creates `drift_flags` table with indexes for tracking manifest drift |
 | 026 | add_linked_service_key | Adds `linked_service_key TEXT` column to `dependency_associations` |
 | 027 | add_team_key | Adds `key TEXT` column to teams; backfills from name; creates partial unique index `idx_teams_key ON teams(key) WHERE key IS NOT NULL` |
+| 028 | add_team_contact | Adds nullable `contact TEXT` column to `teams` for storing team contact metadata as JSON key-value pairs |
+| 029 | add_custom_alert_thresholds | Adds `use_custom_thresholds INTEGER`, `cooldown_minutes INTEGER`, `rate_limit_per_hour INTEGER` to `alert_rules` for per-team override of global alert settings |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

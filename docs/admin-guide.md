@@ -286,7 +286,13 @@ Depsera includes built-in safeguards to prevent alert storms:
 
 **Rate limiting:** Each team is limited to a maximum number of alerts per hour (default: 30). Once the limit is reached, further alerts are suppressed until the window resets.
 
-Both values are configurable via [Admin Settings](#alerts).
+Both values are configurable globally via [Admin Settings](#alerts).
+
+**Per-team overrides:** Teams can override the global cooldown and rate limit values from their team detail page under **Alert Rules**. Check "Override global defaults" and set custom values for:
+- **Cooldown (minutes):** 0–1440. Per-dependency suppression window.
+- **Max alerts/hour:** 1–1000. Team-level hourly rate limit.
+
+When custom thresholds are enabled, the team's values take precedence over global settings. Recovery alerts (dependency returns to healthy) always bypass both cooldown and rate limiting.
 
 ---
 

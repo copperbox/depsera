@@ -32,11 +32,7 @@ function parseConfig(channel: AlertChannel): SlackConfig | WebhookConfig {
 
 function getChannelDisplayUrl(channel: AlertChannel): string {
   const config = parseConfig(channel);
-  const url = 'webhook_url' in config ? config.webhook_url : config.url;
-  if (url.length > 50) {
-    return url.substring(0, 47) + '...';
-  }
-  return url;
+  return 'webhook_url' in config ? config.webhook_url : config.url;
 }
 
 function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
@@ -67,6 +63,7 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
   const [webhookMethod, setWebhookMethod] = useState('POST');
   const [webhookHeaders, setWebhookHeaders] = useState<HeaderEntry[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [showUrlField, setShowUrlField] = useState(true);
 
   useEffect(() => {
     loadChannels();
@@ -81,10 +78,12 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
     setFormError(null);
     setEditingChannel(null);
     setShowForm(false);
+    setShowUrlField(true);
   };
 
   const openCreateForm = () => {
     resetForm();
+    setShowUrlField(true);
     setShowForm(true);
   };
 
@@ -94,16 +93,16 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
     setChannelType(channel.channel_type);
     const config = parseConfig(channel);
 
+    // Don't pre-fill URLs — they are masked and the real value is not available
+    setSlackWebhookUrl('');
+    setWebhookUrl('');
+    setShowUrlField(false);
+
     if (channel.channel_type === 'slack') {
-      const slackConfig = config as SlackConfig;
-      setSlackWebhookUrl(slackConfig.webhook_url);
-      setWebhookUrl('');
       setWebhookMethod('POST');
       setWebhookHeaders([]);
     } else {
       const webhookConfig = config as WebhookConfig;
-      setSlackWebhookUrl('');
-      setWebhookUrl(webhookConfig.url);
       setWebhookMethod(webhookConfig.method || 'POST');
       setWebhookHeaders(
         webhookConfig.headers
@@ -120,50 +119,76 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
     e.preventDefault();
     setFormError(null);
 
-    if (channelType === 'slack') {
-      if (!slackWebhookUrl.trim()) {
-        setFormError('Webhook URL is required');
-        return;
-      }
-      if (!slackWebhookUrl.startsWith('https://hooks.slack.com/services/')) {
-        setFormError('Must be a valid Slack webhook URL (https://hooks.slack.com/services/...)');
-        return;
-      }
-    } else {
-      if (!webhookUrl.trim()) {
-        setFormError('Webhook URL is required');
-        return;
-      }
-      try {
-        new URL(webhookUrl);
-      } catch {
-        setFormError('Must be a valid URL');
-        return;
+    // When editing without updating URL, skip URL validation and send without config
+    const isEditWithoutUrlChange = editingChannel && !showUrlField;
+
+    if (!isEditWithoutUrlChange) {
+      if (channelType === 'slack') {
+        if (!slackWebhookUrl.trim()) {
+          setFormError('Webhook URL is required');
+          return;
+        }
+        if (!slackWebhookUrl.startsWith('https://hooks.slack.com/services/')) {
+          setFormError('Must be a valid Slack webhook URL (https://hooks.slack.com/services/...)');
+          return;
+        }
+      } else {
+        if (!webhookUrl.trim()) {
+          setFormError('Webhook URL is required');
+          return;
+        }
+        try {
+          new URL(webhookUrl);
+        } catch {
+          setFormError('Must be a valid URL');
+          return;
+        }
       }
     }
 
-    const config =
-      channelType === 'slack'
-        ? { webhook_url: slackWebhookUrl.trim() }
-        : {
-            url: webhookUrl.trim(),
-            method: webhookMethod,
-            ...(webhookHeaders.length > 0 && {
-              headers: Object.fromEntries(
-                webhookHeaders
-                  .filter((h) => h.key.trim())
-                  .map((h) => [h.key.trim(), h.value])
-              ),
-            }),
-          };
-
     if (editingChannel) {
-      const success = await handleUpdate(editingChannel.id, {
-        channel_type: channelType,
-        config,
-      });
-      if (success) resetForm();
+      if (isEditWithoutUrlChange) {
+        // Send update without config — server preserves existing URL
+        const success = await handleUpdate(editingChannel.id, {
+          channel_type: channelType,
+        });
+        if (success) resetForm();
+      } else {
+        const config =
+          channelType === 'slack'
+            ? { webhook_url: slackWebhookUrl.trim() }
+            : {
+                url: webhookUrl.trim(),
+                method: webhookMethod,
+                ...(webhookHeaders.length > 0 && {
+                  headers: Object.fromEntries(
+                    webhookHeaders
+                      .filter((h) => h.key.trim())
+                      .map((h) => [h.key.trim(), h.value])
+                  ),
+                }),
+              };
+        const success = await handleUpdate(editingChannel.id, {
+          channel_type: channelType,
+          config,
+        });
+        if (success) resetForm();
+      }
     } else {
+      const config =
+        channelType === 'slack'
+          ? { webhook_url: slackWebhookUrl.trim() }
+          : {
+              url: webhookUrl.trim(),
+              method: webhookMethod,
+              ...(webhookHeaders.length > 0 && {
+                headers: Object.fromEntries(
+                  webhookHeaders
+                    .filter((h) => h.key.trim())
+                    .map((h) => [h.key.trim(), h.value])
+                ),
+              }),
+            };
       const success = await handleCreate({
         channel_type: channelType,
         config,
@@ -253,7 +278,18 @@ function AlertChannels({ teamId, canManage }: AlertChannelsProps) {
             </select>
           </div>
 
-          {channelType === 'slack' ? (
+          {editingChannel && !showUrlField ? (
+            <div className={alertStyles.formField}>
+              <button
+                type="button"
+                onClick={() => setShowUrlField(true)}
+                className={alertStyles.updateUrlButton}
+                disabled={actionInProgress !== null}
+              >
+                Update URL
+              </button>
+            </div>
+          ) : channelType === 'slack' ? (
             <div className={alertStyles.formField}>
               <label className={alertStyles.formLabel}>Slack Webhook URL</label>
               <input

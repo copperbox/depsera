@@ -12,6 +12,9 @@ const mockRule = {
   team_id: 't1',
   severity_filter: 'critical' as const,
   is_active: 1,
+  use_custom_thresholds: 0,
+  cooldown_minutes: null,
+  rate_limit_per_hour: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
 };

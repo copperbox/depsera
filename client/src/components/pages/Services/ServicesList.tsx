@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useServicesList } from '../../../hooks/useServicesList';
+import { useServicesList, type SortColumn } from '../../../hooks/useServicesList';
 import StatusBadge from '../../common/StatusBadge';
 import Modal from '../../common/Modal';
 import ServiceForm from './ServiceForm';
@@ -25,6 +25,9 @@ function ServicesList() {
     setSearchQuery,
     teamFilter,
     setTeamFilter,
+    sortColumn,
+    sortDirection,
+    toggleSort,
     loadData,
   } = useServicesList();
 
@@ -213,9 +216,25 @@ function ServicesList() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Team</th>
-                <th>Status</th>
+                {(['name', 'team', 'status'] as SortColumn[]).map((col) => (
+                  <th
+                    key={col}
+                    className={styles.sortableHeader}
+                    onClick={() => toggleSort(col)}
+                    aria-sort={
+                      sortColumn === col
+                        ? sortDirection === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    }
+                  >
+                    {col.charAt(0).toUpperCase() + col.slice(1)}
+                    <span className={styles.sortIndicator} aria-hidden="true">
+                      {sortColumn === col ? (sortDirection === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </th>
+                ))}
                 <th>Dependent Reports</th>
                 <th>Last Report</th>
               </tr>

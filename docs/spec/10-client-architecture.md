@@ -62,7 +62,7 @@ All API modules follow a consistent pattern:
 |---|---|
 | `usePolling` | Auto-refresh with configurable interval (10s, 20s, 30s, 1m). Persists enabled state and interval to localStorage. |
 | `useDashboard` | Loads services + teams, computes aggregate stats (total, healthy, warning, critical), team health summaries, issues list, recent activity. |
-| `useServicesList` | Loads services + teams with search and team filter. Distinguishes initial load (`isLoading`) from background refresh (`isRefreshing`). |
+| `useServicesList` | Loads services + teams with search, team filter, and sortable columns (name, team, status). Distinguishes initial load (`isLoading`) from background refresh (`isRefreshing`). |
 | `useServiceDetail` | Loads single service + teams. Handles deletion (redirects to `/services`), manual polling. |
 | `useTeamDetail` | Loads team + users. Computes available (non-member) users. Handles deletion. |
 | `useTeamMembers` | Member CRUD operations — add, toggle role, remove. Tracks in-progress actions per user. |
@@ -70,6 +70,7 @@ All API modules follow a consistent pattern:
 | `useAssociations` | CRUD for associations scoped to a single dependency. |
 | `useAliases` | Global alias management — CRUD + canonical names list. |
 | `useCanonicalOverrides` | Canonical override CRUD — load all, save (upsert), remove, lookup by canonical name. |
+| `useAlertRules` | Loads alert rules for a team. Handles save (upsert) with dirty tracking. Exposes `rules`, `save`, `error`, `isSaving`. |
 
 ## 10.5 Client-Side Storage
 

@@ -18,6 +18,9 @@ export function updateAlertRules(req: Request, res: Response): void {
       rule = stores.alertRules.update(existingRules[0].id, {
         severity_filter: validated.severity_filter,
         is_active: validated.is_active,
+        use_custom_thresholds: validated.use_custom_thresholds,
+        cooldown_minutes: validated.cooldown_minutes,
+        rate_limit_per_hour: validated.rate_limit_per_hour,
       });
     } else {
       rule = stores.alertRules.create({
@@ -25,9 +28,15 @@ export function updateAlertRules(req: Request, res: Response): void {
         severity_filter: validated.severity_filter,
       });
 
-      // If is_active was explicitly set to false, update immediately after creation
-      if (!validated.is_active) {
-        rule = stores.alertRules.update(rule.id, { is_active: false });
+      // Apply non-default fields immediately after creation
+      const updates: Record<string, unknown> = {};
+      if (!validated.is_active) updates.is_active = false;
+      if (validated.use_custom_thresholds !== undefined) updates.use_custom_thresholds = validated.use_custom_thresholds;
+      if (validated.cooldown_minutes !== undefined) updates.cooldown_minutes = validated.cooldown_minutes;
+      if (validated.rate_limit_per_hour !== undefined) updates.rate_limit_per_hour = validated.rate_limit_per_hour;
+
+      if (Object.keys(updates).length > 0) {
+        rule = stores.alertRules.update(rule.id, updates);
       }
     }
 

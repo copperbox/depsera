@@ -98,6 +98,64 @@
   color: var(--color-text-primary);
 }
 
+/* Number Input */
+.ruleInput {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.375rem;
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+  min-width: 8rem;
+}
+
+.ruleInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ruleInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Thresholds Section */
+.thresholdsSection {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.thresholdsRow {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+}
+
+/* Checkbox */
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Rule Actions */
 .ruleActions {
   display: flex;
@@ -218,6 +276,16 @@
   }
 
   .ruleSelect {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .thresholdsRow {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .ruleInput {
     min-width: 0;
     width: 100%;
   }

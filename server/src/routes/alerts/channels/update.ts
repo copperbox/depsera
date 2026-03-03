@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../../stores';
 import { NotFoundError, sendErrorResponse } from '../../../utils/errors';
 import { validateChannelUpdate, validateChannelCreate } from '../validation';
+import { maskConfig } from './maskConfig';
 import { AlertChannelType } from '../../../db/types';
 
 export function updateAlertChannel(req: Request, res: Response): void {
@@ -42,7 +43,7 @@ export function updateAlertChannel(req: Request, res: Response): void {
       throw new NotFoundError('Alert channel');
     }
 
-    res.json(updated);
+    res.json(maskConfig(updated));
   } catch (error) {
     sendErrorResponse(res, error, 'updating alert channel');
   }

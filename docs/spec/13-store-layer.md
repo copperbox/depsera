@@ -18,6 +18,9 @@ class StoreRegistry {
   public readonly settings: ISettingsStore;
   public readonly canonicalOverrides: ICanonicalOverrideStore;
   public readonly statusChangeEvents: IStatusChangeEventStore;
+  public readonly alertChannels: IAlertChannelStore;
+  public readonly alertRules: IAlertRuleStore;
+  public readonly alertHistory: IAlertHistoryStore;
   public readonly manifestConfig: IManifestConfigStore;
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
   public readonly driftFlags: IDriftFlagStore;
@@ -204,6 +207,45 @@ deleteOlderThan(timestamp: string): number
 ```
 
 `UnstableDependencyRow`: `{ dependency_name, service_name, service_id, change_count, current_healthy, last_change_at }`. Aggregates status changes within the time window grouped by dependency name. Returns the service from the most recent event for each dependency.
+
+### IAlertChannelStore **[Implemented]**
+```typescript
+findById(id: string): AlertChannel | undefined
+findByTeamId(teamId: string): AlertChannel[]
+findActiveByTeamId(teamId: string): AlertChannel[]
+create(input: CreateAlertChannelInput): AlertChannel
+update(id: string, input: UpdateAlertChannelInput): AlertChannel | undefined
+delete(id: string): boolean
+```
+
+`CreateAlertChannelInput`: `{ team_id: string; channel_type: 'slack' | 'webhook'; config: string }`. `config` is a JSON string.
+
+`UpdateAlertChannelInput`: `{ channel_type?: string; config?: string; is_active?: boolean }`. Partial update — only provided fields are modified.
+
+### IAlertRuleStore **[Implemented]**
+```typescript
+findById(id: string): AlertRule | undefined
+findByTeamId(teamId: string): AlertRule[]
+findActiveByTeamId(teamId: string): AlertRule[]
+create(input: CreateAlertRuleInput): AlertRule
+update(id: string, input: UpdateAlertRuleInput): AlertRule | undefined
+delete(id: string): boolean
+```
+
+`CreateAlertRuleInput`: `{ team_id: string; severity_filter: AlertSeverityFilter }`. Creates with defaults: `is_active = 1`, `use_custom_thresholds = 0`, `cooldown_minutes = null`, `rate_limit_per_hour = null`.
+
+`UpdateAlertRuleInput`: `{ severity_filter?: AlertSeverityFilter; is_active?: boolean; use_custom_thresholds?: boolean; cooldown_minutes?: number | null; rate_limit_per_hour?: number | null }`. Booleans are converted to INTEGER (0/1) in the store layer. `cooldown_minutes` and `rate_limit_per_hour` accept `null` to clear the override.
+
+### IAlertHistoryStore **[Implemented]**
+```typescript
+create(entry: Omit<AlertHistoryEntry, 'id'>): AlertHistoryEntry
+findByChannelId(channelId: string, options?: AlertHistoryListOptions): AlertHistoryEntry[]
+findByTeamId(teamId: string, options?: AlertHistoryListOptions): AlertHistoryEntry[]
+count(options?: AlertHistoryListOptions): number
+deleteOlderThan(timestamp: string): number
+```
+
+`AlertHistoryListOptions`: `{ limit?: number; offset?: number; channelId?: string; serviceId?: string; status?: string; startDate?: string; endDate?: string }`. Filters are composable. `findByTeamId` joins through `alert_channels` to find history for all of a team's channels.
 
 ### IManifestConfigStore **[Implemented]**
 ```typescript

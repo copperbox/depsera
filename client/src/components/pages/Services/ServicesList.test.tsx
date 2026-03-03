@@ -422,6 +422,153 @@ describe('ServicesList', () => {
     expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
   });
 
+  describe('column sorting', () => {
+    function getServiceNames() {
+      const rows = screen.getAllByRole('row').slice(1); // skip header
+      return rows.map((row) => row.querySelector('td a')?.textContent);
+    }
+
+    it('sorts by name ascending by default', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      expect(getServiceNames()).toEqual([
+        'Service Alpha',
+        'Service Beta',
+        'Service Gamma',
+      ]);
+    });
+
+    it('sorts by name descending when clicking Name header twice', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      // Already sorted by name asc; click to toggle to desc
+      fireEvent.click(screen.getByText('Name'));
+
+      expect(getServiceNames()).toEqual([
+        'Service Gamma',
+        'Service Beta',
+        'Service Alpha',
+      ]);
+    });
+
+    it('sorts by team name when clicking Team header', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Team'));
+
+      // Team A (Alpha, Gamma) then Team B (Beta)
+      const names = getServiceNames();
+      expect(names[0]).toBe('Service Alpha');
+      expect(names[2]).toBe('Service Beta');
+    });
+
+    it('sorts by status severity when clicking Status header', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Status'));
+
+      // asc severity: critical(0) > warning(1) > healthy(2)
+      expect(getServiceNames()).toEqual([
+        'Service Gamma',   // critical
+        'Service Beta',    // warning
+        'Service Alpha',   // healthy
+      ]);
+    });
+
+    it('shows sort indicator on active column', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      const nameHeader = screen.getByText('Name').closest('th')!;
+      expect(nameHeader).toHaveAttribute('aria-sort', 'ascending');
+      expect(nameHeader.textContent).toContain('▲');
+
+      // Click to toggle desc
+      fireEvent.click(screen.getByText('Name'));
+      expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+      expect(nameHeader.textContent).toContain('▼');
+    });
+
+    it('resets direction when switching sort column', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      // Toggle name to desc
+      fireEvent.click(screen.getByText('Name'));
+      const nameHeader = screen.getByText('Name').closest('th')!;
+      expect(nameHeader).toHaveAttribute('aria-sort', 'descending');
+
+      // Click team — should reset to asc
+      fireEvent.click(screen.getByText('Team'));
+      const teamHeader = screen.getByText('Team').closest('th')!;
+      expect(teamHeader).toHaveAttribute('aria-sort', 'ascending');
+      expect(nameHeader).toHaveAttribute('aria-sort', 'none');
+    });
+
+    it('non-sortable columns do not have sort attributes', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockServices))
+        .mockResolvedValueOnce(jsonResponse(mockTeams));
+
+      renderServicesList();
+
+      await waitFor(() => {
+        expect(screen.getByText('Service Alpha')).toBeInTheDocument();
+      });
+
+      const depHeader = screen.getByText('Dependent Reports').closest('th')!;
+      const lastHeader = screen.getByText('Last Report').closest('th')!;
+      expect(depHeader).not.toHaveAttribute('aria-sort');
+      expect(lastHeader).not.toHaveAttribute('aria-sort');
+    });
+  });
+
   describe('manifest badges', () => {
     const manifestServices = [
       {

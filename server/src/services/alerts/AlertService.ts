@@ -178,9 +178,15 @@ export class AlertService {
     //    rate limiting so teams always learn when a service comes back up.
     const isRecovery = event.eventType === 'status_change' && event.currentHealthy === true;
 
-    // 6. Check flap protection (recovery events bypass)
+    // 6. Resolve cooldown and rate limit — per-team overrides take precedence
     const flapKey = event.dependencyId || event.serviceId;
-    const cooldownMs = this.settingsService.get('alert_cooldown_minutes') * 60_000;
+    const rule = matchingRules[0];
+    const useCustom = rule.use_custom_thresholds === 1;
+
+    const cooldownMinutes = (useCustom && rule.cooldown_minutes != null)
+      ? rule.cooldown_minutes
+      : this.settingsService.get('alert_cooldown_minutes');
+    const cooldownMs = cooldownMinutes * 60_000;
 
     if (!isRecovery && this.flapProtector.isSuppressed(flapKey, cooldownMs)) {
       // Record suppressed alert for all channels
@@ -192,7 +198,9 @@ export class AlertService {
     }
 
     // 7. Check rate limit (recovery events bypass)
-    const maxPerHour = this.settingsService.get('alert_rate_limit_per_hour');
+    const maxPerHour = (useCustom && rule.rate_limit_per_hour != null)
+      ? rule.rate_limit_per_hour
+      : this.settingsService.get('alert_rate_limit_per_hour');
 
     if (!isRecovery && this.rateLimiter.isLimited(teamId, maxPerHour)) {
       // Record suppressed alert for all channels
