@@ -20,6 +20,7 @@ const mockRule = {
   use_custom_thresholds: 0,
   cooldown_minutes: null,
   rate_limit_per_hour: null,
+  alert_delay_minutes: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
 };
@@ -316,5 +317,91 @@ describe('AlertRules', () => {
 
     expect(screen.queryByText('Cooldown:')).not.toBeInTheDocument();
     expect(screen.queryByText('Max/hour:')).not.toBeInTheDocument();
+  });
+
+  // ── Alert Delay Tests ──────────────────────────────────────
+
+  it('shows alert delay input for managers', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alert delay (minutes)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByPlaceholderText('1-60')).toBeInTheDocument();
+  });
+
+  it('populates alert delay input from existing rule', async () => {
+    const ruleWithDelay = { ...mockRule, alert_delay_minutes: 10 };
+    mockFetch.mockResolvedValueOnce(jsonResponse([ruleWithDelay]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('10')).toBeInTheDocument();
+    });
+  });
+
+  it('enables save when alert delay changes', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Save Rules')).toBeDisabled();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('1-60'), {
+      target: { value: '5' },
+    });
+
+    expect(screen.getByText('Save Rules')).not.toBeDisabled();
+  });
+
+  it('disables alert delay input when alerting is inactive', async () => {
+    const inactiveRule = { ...mockRule, is_active: 0 };
+    mockFetch.mockResolvedValueOnce(jsonResponse([inactiveRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('1-60')).toBeDisabled();
+    });
+  });
+
+  it('shows alert delay in read-only view when set', async () => {
+    const ruleWithDelay = { ...mockRule, alert_delay_minutes: 15 };
+    mockFetch.mockResolvedValueOnce(jsonResponse([ruleWithDelay]));
+
+    render(<AlertRules teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alert after:')).toBeInTheDocument();
+    });
+    expect(screen.getByText('15 min')).toBeInTheDocument();
+  });
+
+  it('does not show alert delay in read-only view when not set', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Warning and above')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Alert after:')).not.toBeInTheDocument();
+  });
+
+  it('shows helper text for alert delay', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([mockRule]));
+
+    render(<AlertRules teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/continuously unhealthy/)).toBeInTheDocument();
+    });
   });
 });

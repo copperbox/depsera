@@ -108,6 +108,7 @@ export interface Dependency {
   health_code: number | null;
   latency_ms: number | null;
   skipped: number;
+  is_muted?: boolean;
   last_checked: string | null;
   last_status_change: string | null;
   created_at: string;

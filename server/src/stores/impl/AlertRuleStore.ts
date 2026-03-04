@@ -66,6 +66,10 @@ export class AlertRuleStore implements IAlertRuleStore {
       fields.push('rate_limit_per_hour = ?');
       params.push(input.rate_limit_per_hour);
     }
+    if (input.alert_delay_minutes !== undefined) {
+      fields.push('alert_delay_minutes = ?');
+      params.push(input.alert_delay_minutes);
+    }
 
     if (fields.length === 0) return existing;
 

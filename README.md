@@ -51,8 +51,10 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Generic webhook sender with custom headers and configurable HTTP method
 - Severity-based alert rules (critical, warning, all) per team
 - Per-team alert cooldown and rate limit overrides (optional, falls back to global defaults)
+- Alert delay threshold: require continuous unhealthy state for N minutes before firing
+- Alert mutes: suppress alerts for specific dependencies or canonical types, with optional expiry
 - Flap protection and per-team hourly rate limiting
-- Full alert delivery history (sent, failed, suppressed)
+- Full alert delivery history (sent, failed, suppressed, muted)
 
 **Manifest Sync & Drift Detection**
 - Declarative service configuration via JSON manifest URL per team
@@ -282,7 +284,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 |-------|-------------|
 | `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
-| `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, and history |
+| `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, mutes, and history |
 | `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
 | `/associations` | Manage associations (accordion browser with inline create/delete), alias management, and external service registry |
@@ -290,6 +292,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/wallboard` | Real-time status board with health cards, team filter, and unhealthy-only view |
 | `/admin/users` | User management (admin only); create users and reset passwords in local auth mode |
 | `/admin/settings` | Runtime settings (admin only) — data retention, polling, rate limits, alerts |
+| `/admin/alert-mutes` | Cross-team alert mutes view (admin only) |
 
 ## API
 
@@ -312,7 +315,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Manifest | `GET/PUT/DELETE /api/teams/:id/manifest`, `POST /:id/manifest/sync`, `GET /:id/manifest/sync-history`, `POST /api/manifest/validate` |
 | Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
 | Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
-| Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history` |
+| Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history`, `GET/POST /:id/alert-mutes`, `DELETE /:id/alert-mutes/:muteId`, `GET /api/admin/alert-mutes` |
 
 ## Security
 

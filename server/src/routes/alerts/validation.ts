@@ -1,5 +1,6 @@
 import { ValidationError } from '../../utils/errors';
 import { AlertChannelType, AlertSeverityFilter } from '../../db/types';
+import { isValidDuration } from '../../utils/duration';
 
 const VALID_CHANNEL_TYPES: AlertChannelType[] = ['slack', 'webhook'];
 const VALID_SEVERITY_FILTERS: AlertSeverityFilter[] = ['critical', 'warning', 'all'];
@@ -35,6 +36,7 @@ export interface ValidatedRulesUpdate {
   use_custom_thresholds?: boolean;
   cooldown_minutes?: number | null;
   rate_limit_per_hour?: number | null;
+  alert_delay_minutes?: number | null;
 }
 
 /**
@@ -111,7 +113,7 @@ export function validateChannelUpdate(body: Record<string, unknown>): ValidatedC
  * Validate alert rules update input.
  */
 export function validateRulesUpdate(body: Record<string, unknown>): ValidatedRulesUpdate {
-  const { severity_filter, is_active, use_custom_thresholds, cooldown_minutes, rate_limit_per_hour } = body;
+  const { severity_filter, is_active, use_custom_thresholds, cooldown_minutes, rate_limit_per_hour, alert_delay_minutes } = body;
 
   if (!severity_filter || typeof severity_filter !== 'string') {
     throw new ValidationError('severity_filter is required', 'severity_filter');
@@ -154,6 +156,18 @@ export function validateRulesUpdate(body: Record<string, unknown>): ValidatedRul
     }
   }
 
+  if (alert_delay_minutes !== undefined) {
+    if (alert_delay_minutes !== null) {
+      const n = Number(alert_delay_minutes);
+      if (!Number.isInteger(n) || n < 1 || n > 60) {
+        throw new ValidationError('alert_delay_minutes must be an integer between 1 and 60', 'alert_delay_minutes');
+      }
+      result.alert_delay_minutes = n;
+    } else {
+      result.alert_delay_minutes = null;
+    }
+  }
+
   return result;
 }
 
@@ -183,6 +197,69 @@ function validateSlackConfig(config: Record<string, unknown>): SlackConfig {
   }
 
   return { webhook_url };
+}
+
+export interface ValidatedMuteCreate {
+  dependency_id?: string;
+  canonical_name?: string;
+  duration?: string;
+  reason?: string;
+}
+
+/**
+ * Validate alert mute creation input.
+ */
+export function validateMuteCreate(body: Record<string, unknown>): ValidatedMuteCreate {
+  const { dependency_id, canonical_name, duration, reason } = body;
+
+  // Exactly one of dependency_id or canonical_name must be provided
+  const hasDependencyId = dependency_id !== undefined && dependency_id !== null && dependency_id !== '';
+  const hasCanonicalName = canonical_name !== undefined && canonical_name !== null && canonical_name !== '';
+
+  if (hasDependencyId && hasCanonicalName) {
+    throw new ValidationError('Provide either dependency_id or canonical_name, not both');
+  }
+  if (!hasDependencyId && !hasCanonicalName) {
+    throw new ValidationError('Either dependency_id or canonical_name is required');
+  }
+
+  const result: ValidatedMuteCreate = {};
+
+  if (hasDependencyId) {
+    if (typeof dependency_id !== 'string') {
+      throw new ValidationError('dependency_id must be a string', 'dependency_id');
+    }
+    result.dependency_id = dependency_id;
+  }
+
+  if (hasCanonicalName) {
+    if (typeof canonical_name !== 'string') {
+      throw new ValidationError('canonical_name must be a string', 'canonical_name');
+    }
+    result.canonical_name = canonical_name;
+  }
+
+  if (duration !== undefined && duration !== null && duration !== '') {
+    if (typeof duration !== 'string') {
+      throw new ValidationError('duration must be a string', 'duration');
+    }
+    if (!isValidDuration(duration)) {
+      throw new ValidationError('duration must be in format: <number><m|h|d> (e.g., 30m, 2h, 1d)', 'duration');
+    }
+    result.duration = duration;
+  }
+
+  if (reason !== undefined && reason !== null && reason !== '') {
+    if (typeof reason !== 'string') {
+      throw new ValidationError('reason must be a string', 'reason');
+    }
+    if (reason.length > 500) {
+      throw new ValidationError('reason must be at most 500 characters', 'reason');
+    }
+    result.reason = reason;
+  }
+
+  return result;
 }
 
 function validateWebhookConfig(config: Record<string, unknown>): WebhookConfig {

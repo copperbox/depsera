@@ -55,6 +55,11 @@ function DependencyRow({
             <span className={styles.nameSub}>{dep.name}</span>
           )}
           <span className={styles.nameBadges}>
+            {dep.is_muted && (
+              <span className={styles.mutedBadge} title="Alerts muted for this dependency">
+                Muted
+              </span>
+            )}
             {alias && !dep.canonical_name && (
               <span className={styles.aliasBadge} title={`Alias: ${dep.name} -> ${alias.canonical_name}`}>
                 {alias.canonical_name}

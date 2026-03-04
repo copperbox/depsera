@@ -8,6 +8,9 @@ import { testAlertChannel } from './channels/test';
 import { getAlertRules } from './rules/get';
 import { updateAlertRules } from './rules/update';
 import { listAlertHistory } from './history/list';
+import { listAlertMutes } from './mutes/list';
+import { createAlertMute } from './mutes/create';
+import { deleteAlertMute } from './mutes/delete';
 
 const router = Router();
 
@@ -24,5 +27,10 @@ router.put('/:id/alert-rules', requireTeamLead, updateAlertRules);
 
 // Alert history - team-scoped
 router.get('/:id/alert-history', requireTeamAccess, listAlertHistory);
+
+// Alert mutes - team-scoped
+router.get('/:id/alert-mutes', requireTeamAccess, listAlertMutes);
+router.post('/:id/alert-mutes', requireTeamLead, createAlertMute);
+router.delete('/:id/alert-mutes/:muteId', requireTeamLead, deleteAlertMute);
 
 export default router;

@@ -284,9 +284,9 @@ Key-value store for runtime-configurable admin settings.
 
 Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD, canonical override management, per-instance override management).
 
-**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`
+**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`, `alert_mute.created`, `alert_mute.deleted`
 
-**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`
+**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`, `alert_mute`
 
 ### schema_config (on services) **[Implemented]**
 
@@ -317,6 +317,7 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 | use_custom_thresholds | INTEGER | NOT NULL | 0 |
 | cooldown_minutes | INTEGER | | NULL |
 | rate_limit_per_hour | INTEGER | | NULL |
+| alert_delay_minutes | INTEGER | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
@@ -333,9 +334,28 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 | event_type | TEXT | NOT NULL | |
 | payload | TEXT | JSON | |
 | sent_at | TEXT | NOT NULL | |
-| status | TEXT | NOT NULL, CHECK (`sent`, `failed`, `suppressed`) | |
+| status | TEXT | NOT NULL, CHECK (`sent`, `failed`, `suppressed`, `muted`) | |
 
 **Indexes:** `idx_alert_history_channel_id` on (alert_channel_id), `idx_alert_history_sent_at` on (sent_at)
+
+### alert_mutes **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| dependency_id | TEXT | FK → dependencies.id CASCADE | NULL |
+| canonical_name | TEXT | | NULL |
+| reason | TEXT | | NULL |
+| created_by | TEXT | NOT NULL, FK → users.id | |
+| expires_at | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+**Constraints:** CHECK — exactly one of `dependency_id` or `canonical_name` must be non-NULL.
+
+**Indexes:** `idx_alert_mutes_dependency` UNIQUE on (dependency_id) WHERE dependency_id IS NOT NULL, `idx_alert_mutes_canonical` UNIQUE on (team_id, canonical_name) WHERE canonical_name IS NOT NULL, `idx_alert_mutes_team_id` on (team_id), `idx_alert_mutes_expires_at` on (expires_at)
+
+Suppresses alerts for specific dependency instances (by `dependency_id`) or all instances of a canonical dependency type within a team (by `canonical_name`). Optional `expires_at` for time-limited mutes. Expired mutes cleaned up by DataRetentionService.
 
 ### users.password_hash **[Implemented]**
 
@@ -597,5 +617,7 @@ Contains all types specific to the manifest sync engine:
 | 027 | add_team_key | Adds `key TEXT` column to teams; backfills from name; creates partial unique index `idx_teams_key ON teams(key) WHERE key IS NOT NULL` |
 | 028 | add_team_contact | Adds nullable `contact TEXT` column to `teams` for storing team contact metadata as JSON key-value pairs |
 | 029 | add_custom_alert_thresholds | Adds `use_custom_thresholds INTEGER`, `cooldown_minutes INTEGER`, `rate_limit_per_hour INTEGER` to `alert_rules` for per-team override of global alert settings |
+| 030 | add_alert_delay | Adds `alert_delay_minutes INTEGER` to `alert_rules` for requiring continuous unhealthy state before alerting |
+| 031 | add_alert_mutes | Creates `alert_mutes` table with CHECK constraint, unique indexes; rebuilds `alert_history` to add 'muted' to status CHECK |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

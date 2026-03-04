@@ -21,6 +21,7 @@ export function updateAlertRules(req: Request, res: Response): void {
         use_custom_thresholds: validated.use_custom_thresholds,
         cooldown_minutes: validated.cooldown_minutes,
         rate_limit_per_hour: validated.rate_limit_per_hour,
+        alert_delay_minutes: validated.alert_delay_minutes,
       });
     } else {
       rule = stores.alertRules.create({
@@ -34,6 +35,7 @@ export function updateAlertRules(req: Request, res: Response): void {
       if (validated.use_custom_thresholds !== undefined) updates.use_custom_thresholds = validated.use_custom_thresholds;
       if (validated.cooldown_minutes !== undefined) updates.cooldown_minutes = validated.cooldown_minutes;
       if (validated.rate_limit_per_hour !== undefined) updates.rate_limit_per_hour = validated.rate_limit_per_hour;
+      if (validated.alert_delay_minutes !== undefined) updates.alert_delay_minutes = validated.alert_delay_minutes;
 
       if (Object.keys(updates).length > 0) {
         rule = stores.alertRules.update(rule.id, updates);

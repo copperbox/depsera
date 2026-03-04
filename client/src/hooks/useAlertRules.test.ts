@@ -15,6 +15,7 @@ const mockRule = {
   use_custom_thresholds: 0,
   cooldown_minutes: null,
   rate_limit_per_hour: null,
+  alert_delay_minutes: null,
   created_at: '2024-01-01',
   updated_at: '2024-01-01',
 };

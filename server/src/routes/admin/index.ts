@@ -3,6 +3,7 @@ import { requireAdmin } from '../../auth';
 import { getAuditLog } from './auditLog';
 import { getSettings, updateSettings } from './settings';
 import { listManifests, syncAllManifests } from './manifests';
+import { listAdminAlertMutes } from './alertMutes';
 
 const router = Router();
 
@@ -11,5 +12,6 @@ router.get('/settings', requireAdmin, getSettings);
 router.put('/settings', requireAdmin, updateSettings);
 router.get('/manifests', requireAdmin, listManifests);
 router.post('/manifests/sync-all', requireAdmin, syncAllManifests);
+router.get('/alert-mutes', requireAdmin, listAdminAlertMutes);
 
 export default router;
