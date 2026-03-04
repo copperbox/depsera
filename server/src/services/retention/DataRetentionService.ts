@@ -135,6 +135,9 @@ export class DataRetentionService {
       // Only delete terminal drift flags (accepted, resolved); pending and dismissed are preserved
       const driftFlagsDeleted = stores.driftFlags.deleteOlderThan(manifestCutoffTimestamp, ['accepted', 'resolved']);
 
+      // Clean up expired alert mutes (not retention-based — they self-expire)
+      const mutesExpired = stores.alertMutes.deleteExpired();
+
       const result: CleanupResult = {
         latencyDeleted,
         errorDeleted,
@@ -144,6 +147,7 @@ export class DataRetentionService {
         pollHistoryDeleted,
         syncHistoryDeleted,
         driftFlagsDeleted,
+        mutesExpired,
         retentionDays,
         cutoffTimestamp,
       };
@@ -196,6 +200,7 @@ export interface CleanupResult {
   pollHistoryDeleted: number;
   syncHistoryDeleted: number;
   driftFlagsDeleted: number;
+  mutesExpired: number;
   retentionDays: number;
   cutoffTimestamp: string;
 }

@@ -24,7 +24,8 @@ jest.mock('../../stores', () => ({
     alertRules: { findActiveByTeamId: jest.fn().mockReturnValue([]) },
     alertChannels: { findActiveByTeamId: jest.fn().mockReturnValue([]) },
     alertHistory: { create: jest.fn() },
-    dependencies: { findByServiceId: jest.fn().mockReturnValue([]) },
+    dependencies: { findByServiceId: jest.fn().mockReturnValue([]), findById: jest.fn() },
+    alertMutes: { isEffectivelyMuted: jest.fn().mockReturnValue(false) },
     settings: {},
   })),
 }));
@@ -78,6 +79,7 @@ const mockRule: AlertRule = {
   use_custom_thresholds: 0,
   cooldown_minutes: null,
   rate_limit_per_hour: null,
+  alert_delay_minutes: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 };
@@ -98,8 +100,12 @@ function createMockStores() {
     },
     dependencies: {
       findByServiceId: jest.fn().mockReturnValue([
-        { id: 'dep-1', name: 'postgres-main', service_id: 'svc-1' },
+        { id: 'dep-1', name: 'postgres-main', service_id: 'svc-1', canonical_name: null },
       ]),
+      findById: jest.fn().mockReturnValue({ id: 'dep-1', name: 'postgres-main', service_id: 'svc-1', canonical_name: null }),
+    },
+    alertMutes: {
+      isEffectivelyMuted: jest.fn().mockReturnValue(false),
     },
     settings: {},
   };
@@ -936,6 +942,238 @@ describe('AlertService', () => {
       const result = await service.sendTestAlert('webhook', '{}');
       expect(result.success).toBe(false);
       expect(result.error).toContain('No sender registered');
+    });
+  });
+
+  // ---- Mute check ----
+
+  describe('mute check', () => {
+    const baseEvent: AlertEvent = {
+      eventType: 'status_change',
+      serviceId: 'svc-1',
+      serviceName: 'Test Service',
+      dependencyId: 'dep-1',
+      dependencyName: 'postgres-main',
+      severity: 'critical',
+      previousHealthy: true,
+      currentHealthy: false,
+      timestamp: '2026-01-01T00:00:00Z',
+    };
+
+    it('should suppress alert when dependency is muted', async () => {
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(true);
+
+      await service.processEvent(baseEvent);
+
+      expect(mockSender.send).not.toHaveBeenCalled();
+      expect(mockStores.alertHistory.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'muted' }),
+      );
+    });
+
+    it('should record muted history for each channel', async () => {
+      const secondChannel: AlertChannel = { ...mockChannel, id: 'ch-2' };
+      mockStores.alertChannels.findActiveByTeamId.mockReturnValue([mockChannel, secondChannel]);
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(true);
+
+      await service.processEvent(baseEvent);
+
+      expect(mockStores.alertHistory.create).toHaveBeenCalledTimes(2);
+      const statuses = mockStores.alertHistory.create.mock.calls.map(
+        (c: unknown[]) => (c[0] as Record<string, unknown>).status,
+      );
+      expect(statuses).toEqual(['muted', 'muted']);
+    });
+
+    it('should suppress recovery alert when dependency is muted', async () => {
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(true);
+
+      const recoveryEvent: AlertEvent = {
+        ...baseEvent,
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+      };
+
+      await service.processEvent(recoveryEvent);
+
+      expect(mockSender.send).not.toHaveBeenCalled();
+    });
+
+    it('should not suppress when dependency is not muted', async () => {
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(false);
+
+      await service.processEvent(baseEvent);
+
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should pass canonical name to isEffectivelyMuted', async () => {
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(false);
+      mockStores.dependencies.findById.mockReturnValue({
+        id: 'dep-1',
+        name: 'postgres-main',
+        service_id: 'svc-1',
+        canonical_name: 'postgresql',
+      });
+
+      await service.processEvent(baseEvent);
+
+      expect(mockStores.alertMutes.isEffectivelyMuted).toHaveBeenCalledWith(
+        'dep-1', 'team-1', 'postgresql',
+      );
+    });
+
+    it('should skip mute check when no dependencyId', async () => {
+      const noDep: AlertEvent = { ...baseEvent, dependencyId: undefined };
+      mockStores.alertMutes.isEffectivelyMuted.mockReturnValue(true);
+
+      await service.processEvent(noDep);
+
+      expect(mockStores.alertMutes.isEffectivelyMuted).not.toHaveBeenCalled();
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---- Delay check ----
+
+  describe('delay check', () => {
+    const baseEvent: AlertEvent = {
+      eventType: 'status_change',
+      serviceId: 'svc-1',
+      serviceName: 'Test Service',
+      dependencyId: 'dep-1',
+      severity: 'critical',
+      previousHealthy: true,
+      currentHealthy: false,
+      timestamp: '2026-01-01T00:00:00Z',
+    };
+
+    it('should suppress first unhealthy event when delay is configured', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      await service.processEvent(baseEvent);
+
+      // First event should be suppressed — delay tracking started
+      expect(mockSender.send).not.toHaveBeenCalled();
+    });
+
+    it('should suppress events within delay threshold', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      // First unhealthy — starts tracking
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).not.toHaveBeenCalled();
+
+      // Second unhealthy after 2 minutes — still within threshold
+      jest.setSystemTime(new Date('2026-01-01T00:02:00Z'));
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).not.toHaveBeenCalled();
+    });
+
+    it('should dispatch after delay threshold is crossed', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      // First unhealthy
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).not.toHaveBeenCalled();
+
+      // After 5 minutes — threshold crossed
+      jest.setSystemTime(new Date('2026-01-01T00:05:01Z'));
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should skip recovery alert if delayed alert was never sent', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      // Start delay tracking
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).not.toHaveBeenCalled();
+
+      // Recovery before threshold crossed
+      jest.setSystemTime(new Date('2026-01-01T00:02:00Z'));
+      const recoveryEvent: AlertEvent = {
+        ...baseEvent,
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+      };
+      await service.processEvent(recoveryEvent);
+
+      // Recovery should also be suppressed (no alert was ever sent)
+      expect(mockSender.send).not.toHaveBeenCalled();
+    });
+
+    it('should send recovery alert if delayed alert was dispatched', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      // Start delay tracking
+      await service.processEvent(baseEvent);
+
+      // Threshold crossed — alert sent
+      jest.setSystemTime(new Date('2026-01-01T00:05:01Z'));
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+
+      // Recovery — should be sent since alert was dispatched
+      jest.setSystemTime(new Date('2026-01-01T00:06:00Z'));
+      const recoveryEvent: AlertEvent = {
+        ...baseEvent,
+        severity: 'warning',
+        previousHealthy: false,
+        currentHealthy: true,
+      };
+      await service.processEvent(recoveryEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not apply delay when alert_delay_minutes is null', async () => {
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: null },
+      ]);
+
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should clear delay state on shutdown', async () => {
+      jest.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      mockStores.alertRules.findActiveByTeamId.mockReturnValue([
+        { ...mockRule, alert_delay_minutes: 5 },
+      ]);
+
+      await service.processEvent(baseEvent);
+      service.shutdown();
+
+      // Re-setup
+      const newEmitter = new EventEmitter();
+      service = new AlertService(
+        mockStores as unknown as StoreRegistry,
+        mockSettings as unknown as SettingsService,
+      );
+      service.registerSender('slack', mockSender);
+      service.start(newEmitter);
+
+      // First event on fresh service should start new tracking
+      jest.setSystemTime(new Date('2026-01-01T00:10:00Z'));
+      await service.processEvent(baseEvent);
+      expect(mockSender.send).not.toHaveBeenCalled(); // still suppressed (new tracking)
     });
   });
 

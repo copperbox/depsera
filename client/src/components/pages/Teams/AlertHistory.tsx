@@ -14,6 +14,7 @@ const STATUS_LABELS: Record<AlertStatus, string> = {
   sent: 'Sent',
   failed: 'Failed',
   suppressed: 'Suppressed',
+  muted: 'Muted',
 };
 
 function parsePayload(entry: AlertHistoryEntry): {

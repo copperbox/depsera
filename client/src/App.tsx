@@ -16,6 +16,7 @@ import Wallboard from './components/pages/Wallboard/Wallboard';
 import ServiceCatalog from './components/pages/Catalog/ServiceCatalog';
 import ManifestPage from './components/pages/Manifest/ManifestPage';
 import ManifestAdmin from './components/pages/Admin/ManifestAdmin';
+import AlertMutesAdmin from './components/pages/Admin/AlertMutesAdmin';
 
 function App() {
   return (
@@ -67,6 +68,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <ManifestAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/alert-mutes"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AlertMutesAdmin />
             </ProtectedRoute>
           }
         />

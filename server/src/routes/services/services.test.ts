@@ -139,6 +139,23 @@ describe('Services API', () => {
       )
     `);
 
+    testDb.exec(`
+      CREATE TABLE IF NOT EXISTS alert_mutes (
+        id TEXT PRIMARY KEY,
+        team_id TEXT NOT NULL,
+        dependency_id TEXT,
+        canonical_name TEXT,
+        reason TEXT,
+        created_by TEXT NOT NULL,
+        expires_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        CHECK (
+          (dependency_id IS NOT NULL AND canonical_name IS NULL) OR
+          (dependency_id IS NULL AND canonical_name IS NOT NULL)
+        )
+      )
+    `);
+
     // Create a test team
     teamId = randomUUID();
     testDb.prepare(`

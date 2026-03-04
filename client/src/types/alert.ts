@@ -1,6 +1,6 @@
 export type AlertChannelType = 'slack' | 'webhook';
 export type AlertSeverityFilter = 'critical' | 'warning' | 'all';
-export type AlertStatus = 'sent' | 'failed' | 'suppressed';
+export type AlertStatus = 'sent' | 'failed' | 'suppressed' | 'muted';
 
 export interface SlackConfig {
   webhook_url: string;
@@ -32,6 +32,7 @@ export interface AlertRule {
   use_custom_thresholds: number;
   cooldown_minutes: number | null;
   rate_limit_per_hour: number | null;
+  alert_delay_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +70,36 @@ export interface UpdateAlertRuleInput {
   use_custom_thresholds?: boolean;
   cooldown_minutes?: number | null;
   rate_limit_per_hour?: number | null;
+  alert_delay_minutes?: number | null;
+}
+
+export interface AlertMute {
+  id: string;
+  team_id: string;
+  dependency_id: string | null;
+  canonical_name: string | null;
+  reason: string | null;
+  created_by: string;
+  expires_at: string | null;
+  created_at: string;
+  // Joined fields
+  dependency_name?: string;
+  service_name?: string;
+  created_by_name?: string;
+}
+
+export interface CreateAlertMuteInput {
+  dependency_id?: string;
+  canonical_name?: string;
+  duration?: string; // e.g. '30m', '2h', '1d'
+  reason?: string;
+}
+
+export interface AlertMuteListResponse {
+  mutes: AlertMute[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface AlertHistoryListOptions {

@@ -232,6 +232,7 @@ describe('Alert API Routes', () => {
         use_custom_thresholds INTEGER NOT NULL DEFAULT 0,
         cooldown_minutes INTEGER,
         rate_limit_per_hour INTEGER,
+        alert_delay_minutes INTEGER,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
@@ -246,7 +247,7 @@ describe('Alert API Routes', () => {
         event_type TEXT NOT NULL,
         payload TEXT,
         sent_at TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('sent', 'failed', 'suppressed')),
+        status TEXT NOT NULL CHECK(status IN ('sent', 'failed', 'suppressed', 'muted')),
         FOREIGN KEY (alert_channel_id) REFERENCES alert_channels(id) ON DELETE CASCADE,
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE SET NULL

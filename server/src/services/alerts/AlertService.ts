@@ -29,6 +29,8 @@ export class AlertService {
   private senders: Map<AlertChannelType, IAlertSender> = new Map();
   private pendingRetries: PendingRetry[] = [];
   private pollingService: EventEmitter | null = null;
+  private delayTracker: Map<string, number> = new Map(); // key → timestamp of first unhealthy event
+  private delayAlertSent: Set<string> = new Set(); // keys for which a delayed alert was actually dispatched
 
   constructor(stores?: StoreRegistry, settingsService?: SettingsService) {
     this.stores = stores || getStores();
@@ -91,6 +93,8 @@ export class AlertService {
     // Clear in-memory state
     this.flapProtector.clear();
     this.rateLimiter.clear();
+    this.delayTracker.clear();
+    this.delayAlertSent.clear();
 
     logger.info('alert service stopped');
   }
@@ -178,7 +182,57 @@ export class AlertService {
     //    rate limiting so teams always learn when a service comes back up.
     const isRecovery = event.eventType === 'status_change' && event.currentHealthy === true;
 
-    // 6. Resolve cooldown and rate limit — per-team overrides take precedence
+    // 5b. Mute check — muted dependencies don't get any alerts (including recovery)
+    if (event.dependencyId) {
+      const dep = this.stores.dependencies.findById(event.dependencyId);
+      const canonicalName = dep?.canonical_name ?? null;
+      if (this.stores.alertMutes.isEffectivelyMuted(event.dependencyId, teamId, canonicalName)) {
+        for (const channel of channels) {
+          this.recordHistory(channel.id, event, 'muted');
+        }
+        logger.info({ dependencyId: event.dependencyId, teamId }, 'alert muted');
+        return;
+      }
+    }
+
+    // 6. Delay check — require continuous unhealthy state for N minutes before alerting
+    const delayMinutes = matchingRules[0].alert_delay_minutes;
+    const delayKey = event.dependencyId || event.serviceId;
+
+    if (isRecovery) {
+      // Clear delay tracking on recovery
+      const wasTracking = this.delayTracker.has(delayKey);
+      const alertWasSent = this.delayAlertSent.has(delayKey);
+      this.delayTracker.delete(delayKey);
+      this.delayAlertSent.delete(delayKey);
+
+      // If we were tracking a delay but never actually sent an alert, skip recovery too
+      if (wasTracking && !alertWasSent && delayMinutes != null) {
+        return;
+      }
+    } else if (delayMinutes != null && event.eventType === 'status_change') {
+      const now = Date.now();
+      const existing = this.delayTracker.get(delayKey);
+
+      if (existing === undefined) {
+        // First unhealthy event — start tracking, don't alert yet
+        this.delayTracker.set(delayKey, now);
+        return;
+      }
+
+      const elapsedMs = now - existing;
+      const thresholdMs = delayMinutes * 60_000;
+
+      if (elapsedMs < thresholdMs) {
+        // Not enough time has passed — suppress
+        return;
+      }
+
+      // Threshold crossed — proceed to dispatch, mark that we sent an alert
+      this.delayAlertSent.add(delayKey);
+    }
+
+    // 7. Resolve cooldown and rate limit — per-team overrides take precedence
     const flapKey = event.dependencyId || event.serviceId;
     const rule = matchingRules[0];
     const useCustom = rule.use_custom_thresholds === 1;
@@ -306,7 +360,7 @@ export class AlertService {
    * Record an alert attempt in alert_history.
    * Fire-and-forget: errors are logged but never block dispatch.
    */
-  private recordHistory(channelId: string, event: AlertEvent, status: 'sent' | 'failed' | 'suppressed'): void {
+  private recordHistory(channelId: string, event: AlertEvent, status: 'sent' | 'failed' | 'suppressed' | 'muted'): void {
     try {
       this.stores.alertHistory.create({
         alert_channel_id: channelId,

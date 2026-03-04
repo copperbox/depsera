@@ -28,6 +28,8 @@ import * as migration026 from './migrations/026_remove_auto_suggestions';
 import * as migration027 from './migrations/027_add_team_key';
 import * as migration028 from './migrations/028_add_team_contact';
 import * as migration029 from './migrations/029_add_custom_alert_thresholds';
+import * as migration030 from './migrations/030_add_alert_delay';
+import * as migration031 from './migrations/031_add_alert_mutes';
 
 interface Migration {
   id: string;
@@ -210,6 +212,18 @@ const migrations: Migration[] = [
     name: 'add_custom_alert_thresholds',
     up: migration029.up,
     down: migration029.down
+  },
+  {
+    id: '030',
+    name: 'add_alert_delay',
+    up: migration030.up,
+    down: migration030.down
+  },
+  {
+    id: '031',
+    name: 'add_alert_mutes',
+    up: migration031.up,
+    down: migration031.down
   }
 ];
 

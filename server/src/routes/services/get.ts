@@ -31,10 +31,16 @@ export function getService(req: Request, res: Response): void {
     const dependencies = stores.dependencies.findByServiceId(id);
     const resolvedDeps = resolveDependencyOverrides(dependencies, service.team_id);
 
+    // Enrich with mute status
+    const depsWithMuteStatus = resolvedDeps.map(dep => ({
+      ...dep,
+      is_muted: stores.alertMutes.isEffectivelyMuted(dep.id, service.team_id, dep.canonical_name),
+    }));
+
     // Get detailed reports from services that depend on this one
     const dependentReports = getDependentReports(id);
 
-    res.json(formatServiceDetail(service, resolvedDeps, dependentReports));
+    res.json(formatServiceDetail(service, depsWithMuteStatus, dependentReports));
   } catch (error) {
     console.error('Error getting service:', error);
     res.status(getErrorStatusCode(error)).json(formatError(error));

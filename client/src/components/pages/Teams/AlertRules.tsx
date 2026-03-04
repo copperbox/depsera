@@ -33,6 +33,7 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
   const [useCustomThresholds, setUseCustomThresholds] = useState(false);
   const [cooldownMinutes, setCooldownMinutes] = useState<string>('');
   const [rateLimitPerHour, setRateLimitPerHour] = useState<string>('');
+  const [alertDelayMinutes, setAlertDelayMinutes] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
       setUseCustomThresholds(!!rule.use_custom_thresholds);
       setCooldownMinutes(rule.cooldown_minutes != null ? String(rule.cooldown_minutes) : '');
       setRateLimitPerHour(rule.rate_limit_per_hour != null ? String(rule.rate_limit_per_hour) : '');
+      setAlertDelayMinutes(rule.alert_delay_minutes != null ? String(rule.alert_delay_minutes) : '');
       setHasChanges(false);
     }
   }, [rules]);
@@ -90,6 +92,11 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
     markChanged();
   };
 
+  const handleAlertDelayChange = (value: string) => {
+    setAlertDelayMinutes(value);
+    markChanged();
+  };
+
   const handleSubmit = async () => {
     const success = await handleSave({
       severity_filter: severityFilter,
@@ -97,6 +104,7 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
       use_custom_thresholds: useCustomThresholds,
       cooldown_minutes: cooldownMinutes !== '' ? Number(cooldownMinutes) : null,
       rate_limit_per_hour: rateLimitPerHour !== '' ? Number(rateLimitPerHour) : null,
+      alert_delay_minutes: alertDelayMinutes !== '' ? Number(alertDelayMinutes) : null,
     });
     if (success) {
       setHasChanges(false);
@@ -216,6 +224,25 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
             </div>
           </div>
 
+          <div className={alertStyles.delaySection}>
+            <div className={alertStyles.ruleField}>
+              <label className={alertStyles.ruleLabel}>Alert delay (minutes)</label>
+              <input
+                type="number"
+                value={alertDelayMinutes}
+                onChange={(e) => handleAlertDelayChange(e.target.value)}
+                disabled={isSaving || !isActive}
+                className={alertStyles.ruleInput}
+                min={1}
+                max={60}
+                placeholder="1-60"
+              />
+              <span className={alertStyles.helperText}>
+                Dependency must be continuously unhealthy for this duration before alerting. Leave empty to alert immediately.
+              </span>
+            </div>
+          </div>
+
           <div className={alertStyles.ruleActions}>
             <button
               onClick={handleSubmit}
@@ -263,6 +290,14 @@ function AlertRules({ teamId, canManage }: AlertRulesProps) {
                       </span>
                     </>
                   )}
+                </div>
+              )}
+              {rules[0].alert_delay_minutes != null && (
+                <div className={alertStyles.rulesSummary} style={{ marginTop: '0.5rem' }}>
+                  <span className={alertStyles.rulesSummaryLabel}>Alert after:</span>
+                  <span className={alertStyles.rulesSummaryValue}>
+                    {rules[0].alert_delay_minutes} min
+                  </span>
                 </div>
               )}
             </>

@@ -17,3 +17,4 @@ export type { IServicePollHistoryStore } from './IServicePollHistoryStore';
 export type { IManifestConfigStore, ManifestSyncResultInput } from './IManifestConfigStore';
 export type { IManifestSyncHistoryStore, ManifestSyncHistoryCreateInput } from './IManifestSyncHistoryStore';
 export type { IDriftFlagStore, DriftFlagListOptions } from './IDriftFlagStore';
+export type { IAlertMuteStore } from './IAlertMuteStore';

@@ -9,6 +9,7 @@ import TeamForm from './TeamForm';
 import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
+import AlertMutes from './AlertMutes';
 import ManifestStatusCard from './ManifestStatusCard';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
@@ -359,6 +360,9 @@ function TeamDetail() {
         <AlertChannels teamId={id!} canManage={canManageAlerts} />
         <AlertRules teamId={id!} canManage={canManageAlerts} />
       </div>
+
+      {/* Alert Mutes Section */}
+      <AlertMutes teamId={id!} canManage={canManageAlerts} />
 
       {/* Alert History Section */}
       <AlertHistory teamId={id!} channels={alertChannels} />

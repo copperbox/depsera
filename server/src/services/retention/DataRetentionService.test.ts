@@ -9,6 +9,7 @@ const mockDeleteStatusChange = jest.fn().mockReturnValue(0);
 const mockDeletePollHistory = jest.fn().mockReturnValue(0);
 const mockDeleteSyncHistory = jest.fn().mockReturnValue(0);
 const mockDeleteDriftFlags = jest.fn().mockReturnValue(0);
+const mockDeleteExpiredMutes = jest.fn().mockReturnValue(0);
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -21,6 +22,7 @@ jest.mock('../../stores', () => ({
     servicePollHistory: { deleteOlderThan: mockDeletePollHistory },
     manifestSyncHistory: { deleteOlderThan: mockDeleteSyncHistory },
     driftFlags: { deleteOlderThan: mockDeleteDriftFlags },
+    alertMutes: { deleteExpired: mockDeleteExpiredMutes },
     settings: mockSettingsStore,
   }),
 }));
@@ -336,6 +338,41 @@ describe('DataRetentionService', () => {
         }),
         'data retention cleanup completed',
       );
+    });
+  });
+
+  describe('expired mutes cleanup', () => {
+    it('should delete expired mutes during cleanup', () => {
+      mockDeleteExpiredMutes.mockReturnValue(5);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(mockDeleteExpiredMutes).toHaveBeenCalled();
+      expect(result.mutesExpired).toBe(5);
+    });
+
+    it('should include mutesExpired in log', () => {
+      mockDeleteExpiredMutes.mockReturnValue(3);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mutesExpired: 3,
+        }),
+        'data retention cleanup completed',
+      );
+    });
+
+    it('should report zero expired mutes when none exist', () => {
+      mockDeleteExpiredMutes.mockReturnValue(0);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.mutesExpired).toBe(0);
     });
   });
 

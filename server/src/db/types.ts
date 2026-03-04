@@ -366,9 +366,11 @@ export type AuditAction =
   | 'drift.reopened'
   | 'drift.resolved'
   | 'drift.bulk_accepted'
-  | 'drift.bulk_dismissed';
+  | 'drift.bulk_dismissed'
+  | 'alert_mute.created'
+  | 'alert_mute.deleted';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag' | 'alert_mute';
 
 export interface AuditLogEntry {
   id: string;
@@ -389,7 +391,7 @@ export interface AuditLogEntryWithUser extends AuditLogEntry {
 // Alert types
 export type AlertChannelType = 'slack' | 'webhook';
 export type AlertSeverityFilter = 'critical' | 'warning' | 'all';
-export type AlertStatus = 'sent' | 'failed' | 'suppressed';
+export type AlertStatus = 'sent' | 'failed' | 'suppressed' | 'muted';
 
 export interface AlertChannel {
   id: string;
@@ -421,6 +423,7 @@ export interface AlertRule {
   use_custom_thresholds: number; // SQLite boolean
   cooldown_minutes: number | null;
   rate_limit_per_hour: number | null;
+  alert_delay_minutes: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -436,6 +439,7 @@ export interface UpdateAlertRuleInput {
   use_custom_thresholds?: boolean;
   cooldown_minutes?: number | null;
   rate_limit_per_hour?: number | null;
+  alert_delay_minutes?: number | null;
 }
 
 export interface AlertHistoryEntry {
@@ -447,6 +451,27 @@ export interface AlertHistoryEntry {
   payload: string | null; // JSON string
   sent_at: string;
   status: AlertStatus;
+}
+
+// Alert mute types
+export interface AlertMute {
+  id: string;
+  team_id: string;
+  dependency_id: string | null;
+  canonical_name: string | null;
+  reason: string | null;
+  created_by: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface CreateAlertMuteInput {
+  team_id: string;
+  dependency_id?: string | null;
+  canonical_name?: string | null;
+  reason?: string | null;
+  created_by: string;
+  expires_at?: string | null;
 }
 
 // Status change event types
