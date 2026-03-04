@@ -38,4 +38,4 @@ jobs:
           gh release create "${{ steps.version.outputs.version }}" \
             --title "${{ steps.version.outputs.version }}" \
             --generate-notes \
-            --draft
+            --prerelease
