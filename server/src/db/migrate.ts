@@ -31,6 +31,7 @@ import * as migration028 from './migrations/028_add_team_contact';
 import * as migration029 from './migrations/029_add_custom_alert_thresholds';
 import * as migration030 from './migrations/030_add_alert_delay';
 import * as migration031 from './migrations/031_add_alert_mutes';
+import * as migration032 from './migrations/032_add_service_mutes';
 
 interface Migration {
   id: string;
@@ -225,6 +226,12 @@ const migrations: Migration[] = [
     name: 'add_alert_mutes',
     up: migration031.up,
     down: migration031.down
+  },
+  {
+    id: '032',
+    name: 'add_service_mutes',
+    up: migration032.up,
+    down: migration032.down
   }
 ];
 

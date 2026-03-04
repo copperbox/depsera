@@ -12,6 +12,7 @@ interface AlertMutesProps {
 const SCOPE_OPTIONS = [
   { value: 'instance', label: 'Specific dependency' },
   { value: 'canonical', label: 'Canonical name (all instances)' },
+  { value: 'service', label: 'Service (poll failures)' },
 ];
 
 const DURATION_OPTIONS = [
@@ -35,9 +36,10 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
     clearError,
   } = useAlertMutes(teamId);
 
-  const [scope, setScope] = useState<'instance' | 'canonical'>('instance');
+  const [scope, setScope] = useState<'instance' | 'canonical' | 'service'>('instance');
   const [dependencyId, setDependencyId] = useState('');
   const [canonicalName, setCanonicalName] = useState('');
+  const [serviceId, setServiceId] = useState('');
   const [duration, setDuration] = useState('');
   const [reason, setReason] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -48,14 +50,20 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
   }, [loadMutes]);
 
   const handleSubmit = async () => {
-    const input = scope === 'instance'
-      ? { dependency_id: dependencyId, duration: duration || undefined, reason: reason || undefined }
-      : { canonical_name: canonicalName, duration: duration || undefined, reason: reason || undefined };
+    let input;
+    if (scope === 'instance') {
+      input = { dependency_id: dependencyId, duration: duration || undefined, reason: reason || undefined };
+    } else if (scope === 'canonical') {
+      input = { canonical_name: canonicalName, duration: duration || undefined, reason: reason || undefined };
+    } else {
+      input = { service_id: serviceId, duration: duration || undefined, reason: reason || undefined };
+    }
 
     const success = await handleCreate(input);
     if (success) {
       setDependencyId('');
       setCanonicalName('');
+      setServiceId('');
       setDuration('');
       setReason('');
       setShowForm(false);
@@ -67,7 +75,11 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
     setConfirmDeleteId(null);
   };
 
-  const isFormValid = scope === 'instance' ? dependencyId.trim() !== '' : canonicalName.trim() !== '';
+  const isFormValid = scope === 'instance'
+    ? dependencyId.trim() !== ''
+    : scope === 'canonical'
+      ? canonicalName.trim() !== ''
+      : serviceId.trim() !== '';
 
   return (
     <div className={styles.section}>
@@ -100,7 +112,7 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
                 <label className={muteStyles.muteLabel}>Scope</label>
                 <select
                   value={scope}
-                  onChange={(e) => setScope(e.target.value as 'instance' | 'canonical')}
+                  onChange={(e) => setScope(e.target.value as 'instance' | 'canonical' | 'service')}
                   className={muteStyles.muteSelect}
                   disabled={isCreating}
                 >
@@ -122,7 +134,7 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
                     disabled={isCreating}
                   />
                 </div>
-              ) : (
+              ) : scope === 'canonical' ? (
                 <div className={muteStyles.muteField}>
                   <label className={muteStyles.muteLabel}>Canonical Name</label>
                   <input
@@ -131,6 +143,18 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
                     onChange={(e) => setCanonicalName(e.target.value)}
                     className={muteStyles.muteInput}
                     placeholder="e.g. redis, postgresql"
+                    disabled={isCreating}
+                  />
+                </div>
+              ) : (
+                <div className={muteStyles.muteField}>
+                  <label className={muteStyles.muteLabel}>Service ID</label>
+                  <input
+                    type="text"
+                    value={serviceId}
+                    onChange={(e) => setServiceId(e.target.value)}
+                    className={muteStyles.muteInput}
+                    placeholder="Service UUID"
                     disabled={isCreating}
                   />
                 </div>
@@ -210,14 +234,16 @@ function AlertMutes({ teamId, canManage }: AlertMutesProps) {
                 <tr key={mute.id}>
                   <td>
                     <span className={muteStyles.muteType}>
-                      {mute.dependency_id ? 'Instance' : 'Canonical'}
+                      {mute.dependency_id ? 'Instance' : mute.service_id ? 'Service' : 'Canonical'}
                     </span>
                   </td>
                   <td>
                     {mute.dependency_id
                       ? (mute.dependency_name || mute.dependency_id)
-                      : mute.canonical_name}
-                    {mute.service_name && (
+                      : mute.service_id
+                        ? (mute.service_name || mute.service_id)
+                        : mute.canonical_name}
+                    {mute.dependency_id && mute.service_name && (
                       <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', marginLeft: '0.5rem' }}>
                         ({mute.service_name})
                       </span>

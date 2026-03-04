@@ -31,6 +31,7 @@ export function deleteAlertMute(req: Request, res: Response): void {
         team_id: teamId,
         dependency_id: mute.dependency_id,
         canonical_name: mute.canonical_name,
+        service_id: mute.service_id,
       }),
       ip_address: req.ip || null,
     });

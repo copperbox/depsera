@@ -25,7 +25,7 @@ jest.mock('../../stores', () => ({
     alertChannels: { findActiveByTeamId: jest.fn().mockReturnValue([]) },
     alertHistory: { create: jest.fn() },
     dependencies: { findByServiceId: jest.fn().mockReturnValue([]), findById: jest.fn() },
-    alertMutes: { isEffectivelyMuted: jest.fn().mockReturnValue(false) },
+    alertMutes: { isEffectivelyMuted: jest.fn().mockReturnValue(false), isServiceMuted: jest.fn().mockReturnValue(false) },
     settings: {},
   })),
 }));
@@ -106,6 +106,7 @@ function createMockStores() {
     },
     alertMutes: {
       isEffectivelyMuted: jest.fn().mockReturnValue(false),
+      isServiceMuted: jest.fn().mockReturnValue(false),
     },
     settings: {},
   };
@@ -1031,6 +1032,69 @@ describe('AlertService', () => {
       await service.processEvent(noDep);
 
       expect(mockStores.alertMutes.isEffectivelyMuted).not.toHaveBeenCalled();
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ---- Service mute check ----
+
+  describe('service mute check', () => {
+    it('should suppress poll_error when service is muted', async () => {
+      mockStores.alertMutes.isServiceMuted.mockReturnValue(true);
+
+      const pollErrorEvent: AlertEvent = {
+        eventType: 'poll_error',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        severity: 'critical',
+        error: 'Connection refused',
+        timestamp: '2026-01-01T00:00:00Z',
+      };
+
+      await service.processEvent(pollErrorEvent);
+
+      expect(mockSender.send).not.toHaveBeenCalled();
+      expect(mockStores.alertHistory.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'muted' }),
+      );
+    });
+
+    it('should dispatch poll_error when service is NOT muted', async () => {
+      mockStores.alertMutes.isServiceMuted.mockReturnValue(false);
+
+      const pollErrorEvent: AlertEvent = {
+        eventType: 'poll_error',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        severity: 'critical',
+        error: 'Connection refused',
+        timestamp: '2026-01-01T00:00:00Z',
+      };
+
+      await service.processEvent(pollErrorEvent);
+
+      expect(mockSender.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('should NOT suppress status_change by service mute', async () => {
+      mockStores.alertMutes.isServiceMuted.mockReturnValue(true);
+
+      const statusEvent: AlertEvent = {
+        eventType: 'status_change',
+        serviceId: 'svc-1',
+        serviceName: 'Test Service',
+        dependencyId: 'dep-1',
+        dependencyName: 'postgres-main',
+        severity: 'critical',
+        previousHealthy: true,
+        currentHealthy: false,
+        timestamp: '2026-01-01T00:00:00Z',
+      };
+
+      await service.processEvent(statusEvent);
+
+      // isServiceMuted should not be called for status_change events
+      // (service mute check is gated on eventType === 'poll_error')
       expect(mockSender.send).toHaveBeenCalledTimes(1);
     });
   });

@@ -202,6 +202,7 @@ function validateSlackConfig(config: Record<string, unknown>): SlackConfig {
 export interface ValidatedMuteCreate {
   dependency_id?: string;
   canonical_name?: string;
+  service_id?: string;
   duration?: string;
   reason?: string;
 }
@@ -210,17 +211,16 @@ export interface ValidatedMuteCreate {
  * Validate alert mute creation input.
  */
 export function validateMuteCreate(body: Record<string, unknown>): ValidatedMuteCreate {
-  const { dependency_id, canonical_name, duration, reason } = body;
+  const { dependency_id, canonical_name, service_id, duration, reason } = body;
 
-  // Exactly one of dependency_id or canonical_name must be provided
+  // Exactly one of dependency_id, canonical_name, or service_id must be provided
   const hasDependencyId = dependency_id !== undefined && dependency_id !== null && dependency_id !== '';
   const hasCanonicalName = canonical_name !== undefined && canonical_name !== null && canonical_name !== '';
+  const hasServiceId = service_id !== undefined && service_id !== null && service_id !== '';
 
-  if (hasDependencyId && hasCanonicalName) {
-    throw new ValidationError('Provide either dependency_id or canonical_name, not both');
-  }
-  if (!hasDependencyId && !hasCanonicalName) {
-    throw new ValidationError('Either dependency_id or canonical_name is required');
+  const targetCount = [hasDependencyId, hasCanonicalName, hasServiceId].filter(Boolean).length;
+  if (targetCount !== 1) {
+    throw new ValidationError('Exactly one of dependency_id, canonical_name, or service_id must be provided');
   }
 
   const result: ValidatedMuteCreate = {};
@@ -237,6 +237,13 @@ export function validateMuteCreate(body: Record<string, unknown>): ValidatedMute
       throw new ValidationError('canonical_name must be a string', 'canonical_name');
     }
     result.canonical_name = canonical_name;
+  }
+
+  if (hasServiceId) {
+    if (typeof service_id !== 'string') {
+      throw new ValidationError('service_id must be a string', 'service_id');
+    }
+    result.service_id = service_id;
   }
 
   if (duration !== undefined && duration !== null && duration !== '') {

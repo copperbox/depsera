@@ -204,20 +204,24 @@ describe('Alert Mutes API Routes', () => {
         team_id TEXT NOT NULL,
         dependency_id TEXT,
         canonical_name TEXT,
+        service_id TEXT,
         reason TEXT,
         created_by TEXT NOT NULL,
         expires_at TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
+        FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
         FOREIGN KEY (created_by) REFERENCES users(id),
         CHECK (
-          (dependency_id IS NOT NULL AND canonical_name IS NULL) OR
-          (dependency_id IS NULL AND canonical_name IS NOT NULL)
+          (dependency_id IS NOT NULL AND canonical_name IS NULL AND service_id IS NULL) OR
+          (dependency_id IS NULL AND canonical_name IS NOT NULL AND service_id IS NULL) OR
+          (dependency_id IS NULL AND canonical_name IS NULL AND service_id IS NOT NULL)
         )
       );
       CREATE UNIQUE INDEX idx_alert_mutes_dependency ON alert_mutes(dependency_id) WHERE dependency_id IS NOT NULL;
       CREATE UNIQUE INDEX idx_alert_mutes_canonical ON alert_mutes(team_id, canonical_name) WHERE canonical_name IS NOT NULL;
+      CREATE UNIQUE INDEX idx_alert_mutes_service ON alert_mutes(team_id, service_id) WHERE service_id IS NOT NULL;
       CREATE INDEX idx_alert_mutes_team_id ON alert_mutes(team_id);
       CREATE INDEX idx_alert_mutes_expires_at ON alert_mutes(expires_at);
 
@@ -458,6 +462,60 @@ describe('Alert Mutes API Routes', () => {
         .send({ canonical_name: 'redis' });
 
       expect(res.status).toBe(403);
+    });
+
+    it('should create a service mute', async () => {
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/alert-mutes`)
+        .send({ service_id: 'service-1' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.service_id).toBe('service-1');
+      expect(res.body.dependency_id).toBeNull();
+      expect(res.body.canonical_name).toBeNull();
+    });
+
+    it('should reject service_id not belonging to team', async () => {
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/alert-mutes`)
+        .send({ service_id: 'service-2' }); // service-2 belongs to team-2
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject nonexistent service_id', async () => {
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/alert-mutes`)
+        .send({ service_id: 'nonexistent' });
+
+      expect(res.status).toBe(400);
+    });
+
+    it('should reject when multiple targets are provided', async () => {
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/alert-mutes`)
+        .send({ dependency_id: 'dep-1', service_id: 'service-1' });
+
+      expect(res.status).toBe(400);
+    });
+  });
+
+  // ─── GET /api/teams/:id/alert-mutes (service mute enrichment) ────
+
+  describe('GET /api/teams/:id/alert-mutes (service mute enrichment)', () => {
+    it('should return service mutes with enriched service_name', async () => {
+      testDb.exec(`
+        INSERT INTO alert_mutes (id, team_id, dependency_id, canonical_name, service_id, reason, created_by)
+        VALUES ('mute-svc', 'team-1', NULL, NULL, 'service-1', 'Flaky endpoint', 'admin-1')
+      `);
+
+      const res = await request(app).get(`/api/teams/${teamId}/alert-mutes`);
+      expect(res.status).toBe(200);
+      expect(res.body.mutes).toHaveLength(1);
+      expect(res.body.mutes[0].service_id).toBe('service-1');
+      expect(res.body.mutes[0].service_name).toBe('Service One');
+      expect(res.body.mutes[0].dependency_id).toBeNull();
+      expect(res.body.mutes[0].canonical_name).toBeNull();
     });
   });
 

@@ -459,6 +459,7 @@ export interface AlertMute {
   team_id: string;
   dependency_id: string | null;
   canonical_name: string | null;
+  service_id: string | null;
   reason: string | null;
   created_by: string;
   expires_at: string | null;
@@ -469,6 +470,7 @@ export interface CreateAlertMuteInput {
   team_id: string;
   dependency_id?: string | null;
   canonical_name?: string | null;
+  service_id?: string | null;
   reason?: string | null;
   created_by: string;
   expires_at?: string | null;

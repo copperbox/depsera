@@ -346,16 +346,17 @@ Custom health endpoint schema configuration stored as a nullable `schema_config 
 | team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
 | dependency_id | TEXT | FK → dependencies.id CASCADE | NULL |
 | canonical_name | TEXT | | NULL |
+| service_id | TEXT | FK → services.id CASCADE | NULL |
 | reason | TEXT | | NULL |
 | created_by | TEXT | NOT NULL, FK → users.id | |
 | expires_at | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 
-**Constraints:** CHECK — exactly one of `dependency_id` or `canonical_name` must be non-NULL.
+**Constraints:** CHECK — exactly one of `dependency_id`, `canonical_name`, or `service_id` must be non-NULL.
 
-**Indexes:** `idx_alert_mutes_dependency` UNIQUE on (dependency_id) WHERE dependency_id IS NOT NULL, `idx_alert_mutes_canonical` UNIQUE on (team_id, canonical_name) WHERE canonical_name IS NOT NULL, `idx_alert_mutes_team_id` on (team_id), `idx_alert_mutes_expires_at` on (expires_at)
+**Indexes:** `idx_alert_mutes_dependency` UNIQUE on (dependency_id) WHERE dependency_id IS NOT NULL, `idx_alert_mutes_canonical` UNIQUE on (team_id, canonical_name) WHERE canonical_name IS NOT NULL, `idx_alert_mutes_service` UNIQUE on (team_id, service_id) WHERE service_id IS NOT NULL, `idx_alert_mutes_team_id` on (team_id), `idx_alert_mutes_expires_at` on (expires_at)
 
-Suppresses alerts for specific dependency instances (by `dependency_id`) or all instances of a canonical dependency type within a team (by `canonical_name`). Optional `expires_at` for time-limited mutes. Expired mutes cleaned up by DataRetentionService.
+Suppresses alerts for specific dependency instances (by `dependency_id`), all instances of a canonical dependency type within a team (by `canonical_name`), or poll failure alerts for a specific service (by `service_id`). Service mutes only suppress `poll_error` events — they do not affect `status_change` alerts for dependencies within that service. Optional `expires_at` for time-limited mutes. Expired mutes cleaned up by DataRetentionService.
 
 ### users.password_hash **[Implemented]**
 
@@ -619,5 +620,6 @@ Contains all types specific to the manifest sync engine:
 | 029 | add_custom_alert_thresholds | Adds `use_custom_thresholds INTEGER`, `cooldown_minutes INTEGER`, `rate_limit_per_hour INTEGER` to `alert_rules` for per-team override of global alert settings |
 | 030 | add_alert_delay | Adds `alert_delay_minutes INTEGER` to `alert_rules` for requiring continuous unhealthy state before alerting |
 | 031 | add_alert_mutes | Creates `alert_mutes` table with CHECK constraint, unique indexes; rebuilds `alert_history` to add 'muted' to status CHECK |
+| 032 | add_service_mutes | Adds `service_id` column to `alert_mutes`; rebuilds table with updated CHECK constraint (exactly one of three targets); adds `idx_alert_mutes_service` unique index |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

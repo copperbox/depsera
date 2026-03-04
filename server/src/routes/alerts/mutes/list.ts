@@ -25,6 +25,9 @@ export function listAlertMutes(req: Request, res: Response): void {
           const svc = stores.services.findById(dep.service_id);
           service_name = svc?.name;
         }
+      } else if (mute.service_id) {
+        const svc = stores.services.findById(mute.service_id);
+        service_name = svc?.name;
       }
 
       const created_by_name = stores.users.findById(mute.created_by)?.name;

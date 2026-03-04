@@ -19,6 +19,7 @@ const mockMutes = {
       team_id: 't1',
       dependency_id: 'dep-1',
       canonical_name: null,
+      service_id: null,
       reason: 'Maintenance',
       created_by: 'user-1',
       created_by_name: 'Test User',
@@ -32,6 +33,7 @@ const mockMutes = {
       team_id: 't1',
       dependency_id: null,
       canonical_name: 'redis',
+      service_id: null,
       reason: null,
       created_by: 'user-1',
       created_by_name: 'Test User',
@@ -278,5 +280,58 @@ describe('AlertMutes', () => {
     await waitFor(() => {
       expect(screen.getByText('-')).toBeInTheDocument();
     });
+  });
+
+  it('displays service mute correctly in table', async () => {
+    const serviceMutes = {
+      mutes: [
+        {
+          id: 'mute-svc',
+          team_id: 't1',
+          dependency_id: null,
+          canonical_name: null,
+          service_id: 'svc-1',
+          reason: 'Flaky endpoint',
+          created_by: 'user-1',
+          created_by_name: 'Test User',
+          dependency_name: undefined,
+          service_name: 'Payment Service',
+          expires_at: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    };
+    mockFetch.mockResolvedValueOnce(jsonResponse(serviceMutes));
+
+    render(<AlertMutes teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Service')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Payment Service')).toBeInTheDocument();
+    expect(screen.getByText('Flaky endpoint')).toBeInTheDocument();
+  });
+
+  it('shows service ID input when service scope is selected', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ mutes: [], total: 0, limit: 50, offset: 0 }));
+
+    render(<AlertMutes teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Add Mute')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Add Mute'));
+
+    // Change scope to service
+    fireEvent.change(screen.getByDisplayValue('Specific dependency'), {
+      target: { value: 'service' },
+    });
+
+    expect(screen.getByText('Service ID')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Service UUID')).toBeInTheDocument();
   });
 });

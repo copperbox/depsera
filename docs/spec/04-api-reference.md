@@ -397,6 +397,9 @@ Team-scoped alert channel, rule, and history management. All endpoints are neste
 | GET | `/api/teams/:id/alert-rules` | requireTeamAccess | Get alert rules for team. |
 | PUT | `/api/teams/:id/alert-rules` | requireTeamLead | Upsert alert rule. Body: `{ severity_filter, is_active? }`. |
 | GET | `/api/teams/:id/alert-history` | requireTeamAccess | Paginated alert history. Query: `limit`, `offset`, `status`. |
+| GET | `/api/teams/:id/alert-mutes` | requireTeamAccess | List alert mutes for team. Query: `limit`, `offset`. |
+| POST | `/api/teams/:id/alert-mutes` | requireTeamLead | Create alert mute. Body: exactly one of `{ dependency_id }`, `{ canonical_name }`, or `{ service_id }`. Optional: `duration`, `reason`. |
+| DELETE | `/api/teams/:id/alert-mutes/:muteId` | requireTeamLead | Delete alert mute. Returns 204. |
 
 **POST /api/teams/:id/alert-channels request (Slack):**
 
@@ -451,6 +454,56 @@ Masking is applied on read — the original config is stored in full and used fo
 - Webhook headers must have string values
 - `severity_filter` must be `critical`, `warning`, or `all`
 - Channel updates verify the channel belongs to the specified team (404 otherwise)
+
+### Alert Mutes **[Implemented]**
+
+**POST /api/teams/:id/alert-mutes request:**
+
+```json
+{
+  "dependency_id": "uuid (mutually exclusive with canonical_name, service_id)",
+  "canonical_name": "string (mutually exclusive with dependency_id, service_id)",
+  "service_id": "uuid (mutually exclusive with dependency_id, canonical_name)",
+  "duration": "string (optional, e.g. '30m', '2h', '1d')",
+  "reason": "string (optional, max 500 chars)"
+}
+```
+
+Exactly one of `dependency_id`, `canonical_name`, or `service_id` must be provided. `service_id` mutes only suppress `poll_error` alerts for the specified service — `status_change` alerts for dependencies within that service are not affected.
+
+**Validation:**
+- `dependency_id` must exist and belong to the specified team
+- `service_id` must exist and belong to the specified team
+- `canonical_name` must be a non-empty string
+- `duration` must be in format `<number><m|h|d>` (e.g., `30m`, `2h`, `1d`)
+- `reason` must be at most 500 characters
+- Providing multiple targets returns 400
+
+**GET /api/teams/:id/alert-mutes response:**
+
+```json
+{
+  "mutes": [
+    {
+      "id": "uuid",
+      "team_id": "uuid",
+      "dependency_id": null,
+      "canonical_name": null,
+      "service_id": "uuid",
+      "reason": "Flaky endpoint",
+      "created_by": "uuid",
+      "expires_at": null,
+      "created_at": "2026-01-01T00:00:00Z",
+      "dependency_name": null,
+      "service_name": "Service Name",
+      "created_by_name": "User Name"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
 
 ## 4.12 Canonical Overrides
 

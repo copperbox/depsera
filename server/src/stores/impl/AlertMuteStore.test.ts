@@ -36,6 +36,7 @@ describe('AlertMuteStore', () => {
         team_id: 'team-1',
         dependency_id: 'dep-1',
         canonical_name: null,
+        service_id: null,
         reason: 'Under maintenance',
         created_by: 'user-1',
         expires_at: null,
@@ -53,6 +54,7 @@ describe('AlertMuteStore', () => {
         team_id: 'team-1',
         dependency_id: null,
         canonical_name: 'redis',
+        service_id: null,
         reason: null,
         created_by: 'user-1',
         expires_at: '2026-12-31T00:00:00Z',
@@ -68,6 +70,7 @@ describe('AlertMuteStore', () => {
         team_id: 'team-1',
         dependency_id: 'dep-1',
         canonical_name: null,
+        service_id: null,
         reason: null,
         created_by: 'user-1',
         expires_at: null,
@@ -77,6 +80,7 @@ describe('AlertMuteStore', () => {
         team_id: 'team-1',
         dependency_id: 'dep-1',
         canonical_name: null,
+        service_id: null,
         reason: null,
         created_by: 'user-1',
         expires_at: null,
@@ -90,6 +94,7 @@ describe('AlertMuteStore', () => {
         team_id: 'team-1',
         dependency_id: 'dep-1',
         canonical_name: null,
+        service_id: null,
         reason: null,
         created_by: 'user-1',
         expires_at: null,
@@ -107,16 +112,16 @@ describe('AlertMuteStore', () => {
 
   describe('findByTeamId', () => {
     it('returns mutes for team', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
-      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', service_id: null, reason: null, created_by: 'user-1', expires_at: null });
 
       const mutes = store.findByTeamId('team-1');
       expect(mutes).toHaveLength(2);
     });
 
     it('respects limit and offset', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
-      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', service_id: null, reason: null, created_by: 'user-1', expires_at: null });
 
       const mutes = store.findByTeamId('team-1', { limit: 1, offset: 0 });
       expect(mutes).toHaveLength(1);
@@ -125,17 +130,17 @@ describe('AlertMuteStore', () => {
 
   describe('isEffectivelyMuted', () => {
     it('returns true for active instance mute', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.isEffectivelyMuted('dep-1', 'team-1', 'postgresql')).toBe(true);
     });
 
     it('returns true for active canonical mute', () => {
-      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.isEffectivelyMuted('dep-2', 'team-1', 'redis')).toBe(true);
     });
 
     it('returns false for expired mute', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: '2020-01-01T00:00:00Z' });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: '2020-01-01T00:00:00Z' });
       expect(store.isEffectivelyMuted('dep-1', 'team-1')).toBe(false);
     });
 
@@ -144,14 +149,14 @@ describe('AlertMuteStore', () => {
     });
 
     it('returns false for canonical mute without matching name', () => {
-      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.isEffectivelyMuted('dep-1', 'team-1', 'postgresql')).toBe(false);
     });
   });
 
   describe('delete', () => {
     it('deletes a mute', () => {
-      const mute = store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
+      const mute = store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.delete(mute.id)).toBe(true);
       expect(store.findById(mute.id)).toBeUndefined();
     });
@@ -163,8 +168,8 @@ describe('AlertMuteStore', () => {
 
   describe('deleteExpired', () => {
     it('deletes expired mutes', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: '2020-01-01T00:00:00Z' });
-      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', reason: null, created_by: 'user-1', expires_at: null }); // No expiry
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: '2020-01-01T00:00:00Z' });
+      store.create({ team_id: 'team-1', dependency_id: null, canonical_name: 'redis', service_id: null, reason: null, created_by: 'user-1', expires_at: null }); // No expiry
 
       const deleted = store.deleteExpired();
       expect(deleted).toBe(1);
@@ -174,20 +179,20 @@ describe('AlertMuteStore', () => {
 
   describe('countByTeamId', () => {
     it('returns count', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.countByTeamId('team-1')).toBe(1);
     });
   });
 
   describe('findAll', () => {
     it('returns all mutes', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       const all = store.findAll();
       expect(all).toHaveLength(1);
     });
 
     it('filters by teamId', () => {
-      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, reason: null, created_by: 'user-1', expires_at: null });
+      store.create({ team_id: 'team-1', dependency_id: 'dep-1', canonical_name: null, service_id: null, reason: null, created_by: 'user-1', expires_at: null });
       expect(store.findAll({ teamId: 'team-1' })).toHaveLength(1);
       expect(store.findAll({ teamId: 'other-team' })).toHaveLength(0);
     });
