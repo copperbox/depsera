@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { InvalidOrderByError } from '../stores/orderByValidator';
+import logger from './logger';
 
 /**
  * Base application error class
@@ -131,7 +132,7 @@ export function errorHandler(
 
   // Log server errors
   if (statusCode >= 500) {
-    console.error(`[${req.method}] ${req.path}:`, error);
+    logger.error({ err: error, method: req.method, path: req.path }, 'unhandled server error');
   }
 
   res.status(statusCode).json(response);
@@ -162,8 +163,10 @@ export function wrapHandler(
     try {
       handler(req, res);
     } catch (error) {
-      console.error(`Error ${errorContext}:`, error);
       const statusCode = getErrorStatusCode(error);
+      if (statusCode >= 500) {
+        logger.error({ err: error }, `error ${errorContext}`);
+      }
       const response = formatError(error);
       res.status(statusCode).json(response);
     }
@@ -179,8 +182,10 @@ export function sendErrorResponse(
   error: unknown,
   context: string,
 ): void {
-  console.error(`Error ${context}:`, error);
   const statusCode = getErrorStatusCode(error);
+  if (statusCode >= 500) {
+    logger.error({ err: error }, `error ${context}`);
+  }
   res.status(statusCode).json(formatError(error));
 }
 

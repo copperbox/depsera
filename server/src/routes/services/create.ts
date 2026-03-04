@@ -3,7 +3,7 @@ import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
 import { formatNewService } from '../formatters';
 import { validateServiceCreate } from '../../utils/validation';
-import { ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { ValidationError, sendErrorResponse } from '../../utils/errors';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function createService(req: Request, res: Response): void {
@@ -38,7 +38,6 @@ export function createService(req: Request, res: Response): void {
 
     res.status(201).json(formatNewService(service, team));
   } catch (error) {
-    console.error('Error creating service:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'creating service');
   }
 }

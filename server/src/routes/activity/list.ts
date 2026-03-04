@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function listRecentActivity(req: Request, res: Response): void {
   try {
@@ -18,7 +18,6 @@ export function listRecentActivity(req: Request, res: Response): void {
       recorded_at: e.recorded_at,
     })));
   } catch (error) /* istanbul ignore next */ {
-    console.error('Error listing recent activity:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing recent activity');
   }
 }

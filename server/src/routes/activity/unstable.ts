@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function listUnstableDependencies(req: Request, res: Response): void {
   try {
@@ -18,7 +18,6 @@ export function listUnstableDependencies(req: Request, res: Response): void {
       last_change_at: r.last_change_at,
     })));
   } catch (error) /* istanbul ignore next */ {
-    console.error('Error listing unstable dependencies:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing unstable dependencies');
   }
 }

@@ -6,8 +6,7 @@ import {
   NotFoundError,
   ValidationError,
   ConflictError,
-  formatError,
-  getErrorStatusCode,
+  sendErrorResponse,
 } from '../../utils/errors';
 import { AuthorizationService } from '../../auth/authorizationService';
 
@@ -62,7 +61,6 @@ export function createAssociation(req: Request, res: Response): void {
 
     res.status(201).json(formatAssociation(association, linkedService));
   } catch (error) {
-    console.error('Error creating association:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'creating association');
   }
 }

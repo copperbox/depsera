@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 import { db } from '../../db';
 
 interface TeamTuple {
@@ -126,7 +126,6 @@ export function listExternalDependencies(req: Request, res: Response): void {
 
     res.json(entries);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error listing external dependencies:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing external dependencies');
   }
 }

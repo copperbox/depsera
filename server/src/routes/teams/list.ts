@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { formatTeamListItem } from '../formatters';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 
 export function listTeams(_req: Request, res: Response): void {
   try {
@@ -19,7 +19,6 @@ export function listTeams(_req: Request, res: Response): void {
 
     res.json(teamsWithCounts);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error listing teams:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing teams');
   }
 }

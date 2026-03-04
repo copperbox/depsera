@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { formatTeamDetail } from '../formatters';
-import { NotFoundError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { NotFoundError, sendErrorResponse } from '../../utils/errors';
 
 export function getTeam(req: Request, res: Response): void {
   try {
@@ -22,7 +22,6 @@ export function getTeam(req: Request, res: Response): void {
 
     res.json(formatTeamDetail(team, members, services));
   } catch (error) {
-    console.error('Error getting team:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'getting team');
   }
 }

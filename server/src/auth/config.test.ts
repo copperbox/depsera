@@ -12,6 +12,16 @@ jest.mock('openid-client', () => ({
   randomState: mockRandomState,
 }));
 
+const mockLoggerInfo = jest.fn();
+jest.mock('../utils/logger', () => ({
+  __esModule: true,
+  default: {
+    info: mockLoggerInfo,
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Store original env values
 const originalEnv = { ...process.env };
 
@@ -74,7 +84,7 @@ describe('Auth Config', () => {
       const mockConfig = { serverMetadata: mockServerMetadata };
       mockDiscovery.mockResolvedValue(mockConfig);
 
-      const logSpy = jest.spyOn(console, 'log').mockImplementation();
+      mockLoggerInfo.mockClear();
 
       const { initializeOIDC } = await import('./config');
 
@@ -85,14 +95,14 @@ describe('Auth Config', () => {
         'test-client',
         'test-secret'
       );
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Discovering OIDC issuer')
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        { issuerUrl: 'https://issuer.example.com' },
+        'discovering OIDC issuer'
       );
-      expect(logSpy).toHaveBeenCalledWith(
-        expect.stringContaining('OIDC issuer discovered')
+      expect(mockLoggerInfo).toHaveBeenCalledWith(
+        { issuer: 'https://issuer.example.com' },
+        'OIDC issuer discovered'
       );
-
-      logSpy.mockRestore();
     });
 
     it('should only initialize once (idempotent)', async () => {
@@ -104,8 +114,6 @@ describe('Auth Config', () => {
       const mockConfig = { serverMetadata: mockServerMetadata };
       mockDiscovery.mockResolvedValue(mockConfig);
 
-      const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
       const { initializeOIDC } = await import('./config');
 
       await initializeOIDC();
@@ -113,8 +121,6 @@ describe('Auth Config', () => {
 
       // Discovery should only be called once
       expect(mockDiscovery).toHaveBeenCalledTimes(1);
-
-      logSpy.mockRestore();
     });
   });
 
@@ -135,8 +141,6 @@ describe('Auth Config', () => {
       mockServerMetadata.mockReturnValue({ issuer: 'https://issuer.example.com' });
       const mockConfig = { serverMetadata: mockServerMetadata };
       mockDiscovery.mockResolvedValue(mockConfig);
-
-      jest.spyOn(console, 'log').mockImplementation();
 
       const { initializeOIDC, getOIDCConfig } = await import('./config');
 

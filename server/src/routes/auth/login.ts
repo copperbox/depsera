@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../../utils/logger';
 import {
   getOIDCConfig,
   generateCodeVerifier,
@@ -39,7 +40,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     res.redirect(authUrl.href);
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error({ err: error }, 'login error');
     res.status(500).json({ error: 'Failed to initiate login' });
   }
 }

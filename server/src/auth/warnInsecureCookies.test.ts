@@ -1,16 +1,25 @@
 import { warnInsecureCookies } from './session';
+import logger from '../utils/logger';
+
+jest.mock('../utils/logger', () => ({
+  __esModule: true,
+  default: {
+    warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 describe('warnInsecureCookies', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (logger.warn as jest.Mock).mockClear();
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    jest.restoreAllMocks();
   });
 
   it('should not warn in development mode (NODE_ENV=development)', () => {
@@ -20,7 +29,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should not warn when NODE_ENV is unset (defaults to dev)', () => {
@@ -30,7 +39,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should warn in production without HTTPS or trust proxy', () => {
@@ -40,8 +49,8 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Session cookie "secure" flag will be false')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('secure')
     );
   });
 
@@ -52,7 +61,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).toHaveBeenCalledWith(
+    expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('cookies will be sent over HTTP')
     );
   });
@@ -64,7 +73,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should not warn in production with TRUST_PROXY set', () => {
@@ -74,7 +83,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should not warn in production with both REQUIRE_HTTPS and TRUST_PROXY', () => {
@@ -84,7 +93,7 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('should not warn in production with ENABLE_HTTPS=true', () => {
@@ -95,6 +104,6 @@ describe('warnInsecureCookies', () => {
 
     warnInsecureCookies();
 
-    expect(console.warn).not.toHaveBeenCalled();
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

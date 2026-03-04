@@ -1,3 +1,5 @@
+import logger from '../utils/logger';
+
 const WEAK_DEFAULTS = [
   'dev-secret-change-in-production',
   'dev-session-secret-change-in-production',
@@ -36,16 +38,12 @@ export function validateSessionSecret(): string {
 
   // Development mode
   if (!secret) {
-    console.warn(
-      '[Security] Using default session secret. Set SESSION_SECRET for production.'
-    );
+    logger.warn('using default session secret — set SESSION_SECRET for production');
     return 'dev-secret-change-in-production';
   }
 
   if (WEAK_DEFAULTS.includes(secret)) {
-    console.warn(
-      '[Security] SESSION_SECRET is a known weak default. Change for production.'
-    );
+    logger.warn('SESSION_SECRET is a known weak default — change for production');
   }
 
   return secret;

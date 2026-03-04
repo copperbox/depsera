@@ -3,7 +3,7 @@ import { getStores } from '../../stores';
 import { HealthPollingService } from '../../services/polling';
 import { formatUpdatedService } from '../formatters';
 import { validateServiceUpdate } from '../../utils/validation';
-import { NotFoundError, ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { NotFoundError, ValidationError, sendErrorResponse } from '../../utils/errors';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function updateService(req: Request, res: Response): void {
@@ -76,7 +76,6 @@ export function updateService(req: Request, res: Response): void {
 
     res.json(formatted);
   } catch (error) {
-    console.error('Error updating service:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'updating service');
   }
 }

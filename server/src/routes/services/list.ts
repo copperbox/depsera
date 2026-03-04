@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { formatServiceDetail } from '../formatters';
 import { getDependentReports } from '../../utils/serviceHealth';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 import { ServiceListOptions } from '../../stores/types';
 import { resolveDependencyOverridesWithCanonical } from '../../utils/dependencyOverrideResolver';
 
@@ -59,7 +59,6 @@ export function listServices(req: Request, res: Response): void {
 
     res.json(servicesWithDetails);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error listing services:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing services');
   }
 }

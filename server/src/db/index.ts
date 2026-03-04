@@ -1,5 +1,6 @@
 import Database, { Database as DatabaseType } from 'better-sqlite3';
 import path from 'path';
+import logger from '../utils/logger';
 import { runMigrations } from './migrate';
 
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/database.sqlite');
@@ -22,13 +23,13 @@ export function initializeDatabase(): void {
   // Run migrations
   runMigrations(db);
 
-  console.log('Database initialized');
+  logger.info('database initialized');
 }
 
 export function closeDatabase(): void {
   if (db.open) {
     db.close();
-    console.log('Database connection closed');
+    logger.info('database connection closed');
   }
 }
 

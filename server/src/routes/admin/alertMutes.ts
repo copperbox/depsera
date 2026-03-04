@@ -17,8 +17,6 @@ export function listAdminAlertMutes(req: Request, res: Response): void {
     const enriched = mutes.map(mute => {
       let dependency_name: string | undefined;
       let service_name: string | undefined;
-      let created_by_name: string | undefined;
-      let team_name: string | undefined;
 
       if (mute.dependency_id) {
         const dep = stores.dependencies.findById(mute.dependency_id);
@@ -29,11 +27,8 @@ export function listAdminAlertMutes(req: Request, res: Response): void {
         }
       }
 
-      const creator = stores.users.findById(mute.created_by);
-      created_by_name = creator?.name;
-
-      const team = stores.teams.findById(mute.team_id);
-      team_name = team?.name;
+      const created_by_name = stores.users.findById(mute.created_by)?.name;
+      const team_name = stores.teams.findById(mute.team_id)?.name;
 
       return {
         ...mute,
