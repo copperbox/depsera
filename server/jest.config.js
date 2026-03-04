@@ -1,3 +1,6 @@
+// Silence pino logger output during tests
+process.env.LOG_LEVEL = 'silent';
+
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',

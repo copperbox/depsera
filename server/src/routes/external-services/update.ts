@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { validateExternalServiceUpdate } from '../../utils/validation';
-import { NotFoundError, ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { NotFoundError, ValidationError, sendErrorResponse } from '../../utils/errors';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function updateExternalService(req: Request, res: Response): void {
@@ -50,7 +50,6 @@ export function updateExternalService(req: Request, res: Response): void {
       updated_at: updated.updated_at,
     });
   } catch (error) {
-    console.error('Error updating external service:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'updating external service');
   }
 }

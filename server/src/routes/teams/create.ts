@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { validateTeamCreate } from '../../utils/validation';
 import { formatNewTeam } from '../formatters';
-import { ConflictError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { ConflictError, sendErrorResponse } from '../../utils/errors';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function createTeam(req: Request, res: Response): void {
@@ -37,7 +37,6 @@ export function createTeam(req: Request, res: Response): void {
 
     res.status(201).json(formatNewTeam(team));
   } catch (error) {
-    console.error('Error creating team:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'creating team');
   }
 }

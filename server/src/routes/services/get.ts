@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { getDependentReports } from '../../utils/serviceHealth';
 import { formatServiceDetail } from '../formatters';
-import { NotFoundError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { NotFoundError, sendErrorResponse } from '../../utils/errors';
 import { AuthorizationService } from '../../auth/authorizationService';
 import { resolveDependencyOverrides } from '../../utils/dependencyOverrideResolver';
 
@@ -42,7 +42,6 @@ export function getService(req: Request, res: Response): void {
 
     res.json(formatServiceDetail(service, depsWithMuteStatus, dependentReports));
   } catch (error) {
-    console.error('Error getting service:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'getting service');
   }
 }

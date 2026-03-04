@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { validateExternalServiceCreate } from '../../utils/validation';
-import { ValidationError, formatError, getErrorStatusCode } from '../../utils/errors';
+import { ValidationError, sendErrorResponse } from '../../utils/errors';
 import { auditFromRequest } from '../../services/audit/AuditLogService';
 
 export function createExternalService(req: Request, res: Response): void {
@@ -43,7 +43,6 @@ export function createExternalService(req: Request, res: Response): void {
       updated_at: service.updated_at,
     });
   } catch (error) {
-    console.error('Error creating external service:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'creating external service');
   }
 }

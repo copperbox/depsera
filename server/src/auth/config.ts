@@ -1,4 +1,5 @@
 import * as client from 'openid-client';
+import logger from '../utils/logger';
 
 let oidcConfig: client.Configuration | null = null;
 
@@ -20,7 +21,7 @@ export async function initializeOIDC(): Promise<void> {
     throw new Error('OIDC_CLIENT_SECRET is required');
   }
 
-  console.log(`Discovering OIDC issuer: ${issuerUrl}`);
+  logger.info({ issuerUrl }, 'discovering OIDC issuer');
 
   oidcConfig = await client.discovery(
     new URL(issuerUrl),
@@ -28,7 +29,7 @@ export async function initializeOIDC(): Promise<void> {
     clientSecret
   );
 
-  console.log(`OIDC issuer discovered: ${oidcConfig.serverMetadata().issuer}`);
+  logger.info({ issuer: oidcConfig.serverMetadata().issuer }, 'OIDC issuer discovered');
 }
 
 export function getOIDCConfig(): client.Configuration {

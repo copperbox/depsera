@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../../utils/logger';
 import { getOIDCConfig, client } from '../../auth/config';
 
 export async function logout(req: Request, res: Response): Promise<void> {
@@ -38,7 +39,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       res.json({ redirectUrl: '/login' });
     }
   } catch (error) {
-    console.error('Logout error:', error);
+    logger.error({ err: error }, 'logout error');
     res.status(500).json({ error: 'Logout failed' });
   }
 }

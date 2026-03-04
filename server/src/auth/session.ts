@@ -1,6 +1,7 @@
 import session from 'express-session';
 import SqliteStore from 'better-sqlite3-session-store';
 import { db } from '../db';
+import logger from '../utils/logger';
 import { validateSessionSecret } from './validateSessionSecret';
 
 const BetterSqlite3Store = SqliteStore(session);
@@ -59,9 +60,6 @@ export function warnInsecureCookies(): void {
   // outside dev, the 'auto' secure flag will resolve to false (HTTP), sending
   // session cookies over unencrypted connections.
   if (!hasHttps && !hasTrustProxy && !hasNativeHttps) {
-    console.warn(
-      '[Security] Session cookie "secure" flag will be false — cookies will be sent over HTTP. ' +
-      'Set REQUIRE_HTTPS=true and/or TRUST_PROXY for production deployments.'
-    );
+    logger.warn('session cookie "secure" flag will be false — cookies will be sent over HTTP. Set REQUIRE_HTTPS=true and/or TRUST_PROXY for production deployments.');
   }
 }

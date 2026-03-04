@@ -1,4 +1,5 @@
 import { Database } from 'better-sqlite3';
+import logger from '../utils/logger';
 import * as migration001 from './migrations/001_initial_schema';
 import * as migration002 from './migrations/002_add_dependency_type';
 import * as migration003 from './migrations/003_add_latency_history';
@@ -248,7 +249,7 @@ export function runMigrations(db: Database): void {
 
   for (const migration of migrations) {
     if (!applied.has(migration.id)) {
-      console.log(`Running migration ${migration.id}: ${migration.name}`);
+      logger.info({ id: migration.id, name: migration.name }, 'running migration');
 
       db.transaction(() => {
         migration.up(db);
@@ -258,7 +259,7 @@ export function runMigrations(db: Database): void {
         );
       })();
 
-      console.log(`Migration ${migration.id} completed`);
+      logger.info({ id: migration.id }, 'migration completed');
     }
   }
 }
@@ -274,14 +275,14 @@ export function rollbackMigration(db: Database, targetId?: string): void {
     .filter(m => !targetId || m.id >= targetId);
 
   for (const migration of toRollback) {
-    console.log(`Rolling back migration ${migration.id}: ${migration.name}`);
+    logger.info({ id: migration.id, name: migration.name }, 'rolling back migration');
 
     db.transaction(() => {
       migration.down(db);
       db.prepare('DELETE FROM _migrations WHERE id = ?').run(migration.id);
     })();
 
-    console.log(`Rollback ${migration.id} completed`);
+    logger.info({ id: migration.id }, 'rollback completed');
 
     // If we have a target, stop after rolling back to it
     if (targetId && migration.id === targetId) {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import logger from '../../utils/logger';
 import { getOIDCConfig, client } from '../../auth/config';
 import { getStores } from '../../stores';
 
@@ -27,7 +28,7 @@ export async function callback(req: Request, res: Response): Promise<void> {
     // Validate state using timing-safe comparison
     const state = currentUrl.searchParams.get('state');
     if (!timingSafeStateCompare(state, req.session.state)) {
-      console.error('State mismatch:', { expected: req.session.state, received: state });
+      logger.warn({ expected: req.session.state, received: state }, 'OIDC state mismatch');
       res.redirect(`${frontendOrigin}/login?error=state_mismatch`);
       return;
     }
@@ -68,10 +69,10 @@ export async function callback(req: Request, res: Response): Promise<void> {
       });
 
       if (isFirstUser) {
-        console.log(`First user ${user.email} bootstrapped as admin`);
+        logger.info({ email: user.email }, 'first user bootstrapped as admin');
         /* istanbul ignore else -- Non-first user creation; tested via integration */
       } else {
-        console.log(`New user created: ${user.email}`);
+        logger.info({ email: user.email }, 'new user created');
       }
     } else {
       // Update name/email if changed in OIDC provider
@@ -100,7 +101,7 @@ export async function callback(req: Request, res: Response): Promise<void> {
 
     res.redirect(`${frontendOrigin}${returnTo}`);
   } catch (error) {
-    console.error('Callback error:', error);
+    logger.error({ err: error }, 'OIDC callback error');
     res.redirect(`${frontendOrigin}/login?error=auth_failed`);
   }
 }

@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import logger from '../../utils/logger';
 import { getStores, StoreRegistry } from '../../stores';
 import type { IServiceStore } from '../../stores/interfaces';
 import { Service } from '../../db/types';
@@ -55,7 +56,7 @@ export class HealthPollingService extends EventEmitter {
 
     const services = this.serviceStore.findActive();
 
-    console.log(`[Polling] Starting health polling for ${services.length} active services`);
+    logger.info({ count: services.length }, 'starting health polling for active services');
 
     for (const service of services) {
       this.addServiceToPolling(service);
@@ -77,13 +78,13 @@ export class HealthPollingService extends EventEmitter {
     const service = this.serviceStore.findById(serviceId);
 
     if (!service || !service.is_active) {
-      console.log(`[Polling] Service ${serviceId} not found or inactive`);
+      logger.info({ serviceId }, 'service not found or inactive');
       return;
     }
 
     this.addServiceToPolling(service);
 
-    console.log(`[Polling] Started polling ${service.name}`);
+    logger.info({ serviceId, serviceName: service.name }, 'started polling service');
     this.emit(PollingEventType.SERVICE_STARTED, { serviceId, serviceName: service.name });
 
     // Start the loop if not already running
@@ -105,7 +106,7 @@ export class HealthPollingService extends EventEmitter {
     this.backoffs.delete(serviceId);
     this.pollCache.remove(serviceId);
 
-    console.log(`[Polling] Stopped polling ${serviceName}`);
+    logger.info({ serviceId, serviceName }, 'stopped polling service');
     this.emit(PollingEventType.SERVICE_STOPPED, { serviceId, serviceName });
 
     // Stop loop if no more services
@@ -196,7 +197,7 @@ export class HealthPollingService extends EventEmitter {
   }
 
   async shutdown(): Promise<void> {
-    console.log('[Polling] Shutting down health polling service...');
+    logger.info('shutting down health polling service');
     this.isShuttingDown = true;
 
     // Stop the main loop
@@ -231,7 +232,7 @@ export class HealthPollingService extends EventEmitter {
     // Remove all event listeners
     this.removeAllListeners();
 
-    console.log('[Polling] Health polling service stopped');
+    logger.info('health polling service stopped');
   }
 
   getActivePollers(): string[] {
@@ -332,7 +333,7 @@ export class HealthPollingService extends EventEmitter {
     /* istanbul ignore if -- Guard against duplicate loop or shutdown */
     if (this.loopTimer || this.isShuttingDown) return;
 
-    console.log(`[Polling] Starting poll loop (tick: ${POLL_CYCLE_MS}ms)`);
+    logger.info({ tickMs: POLL_CYCLE_MS }, 'starting poll loop');
 
     // Run immediately on start
     this.runPollCycle();
@@ -348,7 +349,7 @@ export class HealthPollingService extends EventEmitter {
     if (this.loopTimer) {
       clearInterval(this.loopTimer);
       this.loopTimer = null;
-      console.log('[Polling] Poll loop stopped');
+      logger.info('poll loop stopped');
     }
   }
 

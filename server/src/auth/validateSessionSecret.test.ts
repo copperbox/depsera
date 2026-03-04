@@ -1,16 +1,25 @@
 import { validateSessionSecret } from './validateSessionSecret';
+import logger from '../utils/logger';
+
+jest.mock('../utils/logger', () => ({
+  __esModule: true,
+  default: {
+    warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 
 describe('validateSessionSecret', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    (logger.warn as jest.Mock).mockClear();
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    jest.restoreAllMocks();
   });
 
   describe('production mode', () => {
@@ -63,15 +72,15 @@ describe('validateSessionSecret', () => {
     it('should return fallback when SESSION_SECRET is missing', () => {
       delete process.env.SESSION_SECRET;
       expect(validateSessionSecret()).toBe('dev-secret-change-in-production');
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Using default session secret')
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('default session secret')
       );
     });
 
     it('should warn when SESSION_SECRET is a weak default', () => {
       process.env.SESSION_SECRET = 'dev-session-secret-change-in-production';
       expect(validateSessionSecret()).toBe('dev-session-secret-change-in-production');
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         expect.stringContaining('known weak default')
       );
     });
@@ -79,7 +88,7 @@ describe('validateSessionSecret', () => {
     it('should return custom secret without warning', () => {
       process.env.SESSION_SECRET = 'my-custom-dev-secret';
       expect(validateSessionSecret()).toBe('my-custom-dev-secret');
-      expect(console.warn).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it('should allow short secrets in development', () => {

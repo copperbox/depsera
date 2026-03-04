@@ -1,6 +1,18 @@
 import { Service } from '../../db/types';
 import { PollStateManager } from './PollStateManager';
 import { HealthPollingService } from './HealthPollingService';
+import logger from '../../utils/logger';
+
+jest.mock('../../utils/logger', () => ({
+  __esModule: true,
+  default: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+const mockLogger = logger as jest.Mocked<typeof logger>;
 
 const createService = (
   id: string,
@@ -224,22 +236,24 @@ describe('HealthPollingService - lifecycle methods', () => {
     await HealthPollingService.resetInstance();
   });
 
+  beforeEach(() => {
+    (mockLogger.info as jest.Mock).mockClear();
+  });
+
   it('should start all active services', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const svc2 = createService('svc-2', 'service-b');
     const { instance, stateManager } = createPollingService([svc1, svc2]);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     instance.startAll();
 
     expect(stateManager.size).toBe(2);
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Starting health polling for 2 active services')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { count: 2 },
+      'starting health polling for active services'
     );
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should not start if shutting down', async () => {
@@ -272,16 +286,13 @@ describe('HealthPollingService - lifecycle methods', () => {
 
     mockServiceStore.findById.mockReturnValue(svc1);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     instance.startService('svc-1');
 
     expect(stateManager.hasService('svc-1')).toBe(false);
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('not found or inactive')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { serviceId: 'svc-1' },
+      'service not found or inactive'
     );
-
-    logSpy.mockRestore();
   });
 
   it('should not start non-existent service', () => {
@@ -289,16 +300,13 @@ describe('HealthPollingService - lifecycle methods', () => {
 
     mockServiceStore.findById.mockReturnValue(null);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     instance.startService('non-existent');
 
     expect(stateManager.hasService('non-existent')).toBe(false);
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('not found or inactive')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { serviceId: 'non-existent' },
+      'service not found or inactive'
     );
-
-    logSpy.mockRestore();
   });
 
   it('should stop a specific service', async () => {
@@ -309,20 +317,19 @@ describe('HealthPollingService - lifecycle methods', () => {
     instance.startAll();
     expect(stateManager.hasService('svc-1')).toBe(true);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
+    (mockLogger.info as jest.Mock).mockClear();
     instance.stopService('svc-1');
 
     expect(stateManager.hasService('svc-1')).toBe(false);
     expect(pollers.has('svc-1')).toBe(false);
     expect(circuitBreakers.has('svc-1')).toBe(false);
     expect(backoffs.has('svc-1')).toBe(false);
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Stopped polling service-a')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { serviceId: 'svc-1', serviceName: 'service-a' },
+      'stopped polling service'
     );
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should not fail when stopping non-existent service', () => {
@@ -336,20 +343,18 @@ describe('HealthPollingService - lifecycle methods', () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, stateManager } = createPollingService([svc1]);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     instance.startAll();
     expect(stateManager.size).toBe(1);
 
+    (mockLogger.info as jest.Mock).mockClear();
     instance.stopService('svc-1');
     expect(stateManager.size).toBe(0);
 
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Poll loop stopped')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      'poll loop stopped'
     );
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should shutdown cleanly', async () => {
@@ -359,16 +364,13 @@ describe('HealthPollingService - lifecycle methods', () => {
     instance.startAll();
     expect(stateManager.size).toBe(1);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
+    (mockLogger.info as jest.Mock).mockClear();
     await instance.shutdown();
 
     expect(stateManager.size).toBe(0);
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Shutting down health polling service')
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      'shutting down health polling service'
     );
-
-    logSpy.mockRestore();
   });
 });
 
@@ -403,8 +405,6 @@ describe('HealthPollingService - state methods', () => {
     const svc2 = createService('svc-2', 'service-b');
     const { instance } = createPollingService([svc1, svc2]);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     instance.startAll();
 
     const activePollers = instance.getActivePollers();
@@ -413,14 +413,11 @@ describe('HealthPollingService - state methods', () => {
     expect(activePollers).toHaveLength(2);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should check if service is polling', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     expect(instance.isPolling('svc-1')).toBe(false);
 
@@ -430,14 +427,11 @@ describe('HealthPollingService - state methods', () => {
     expect(instance.isPolling('non-existent')).toBe(false);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should return poll state for service', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     instance.startAll();
 
@@ -450,14 +444,11 @@ describe('HealthPollingService - state methods', () => {
     expect(noState).toBeUndefined();
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should restart a service', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, stateManager, mockServiceStore } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     instance.startAll();
     expect(stateManager.hasService('svc-1')).toBe(true);
@@ -469,7 +460,6 @@ describe('HealthPollingService - state methods', () => {
     expect(stateManager.hasService('svc-1')).toBe(true);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 });
 
@@ -576,8 +566,6 @@ describe('HealthPollingService - runPollCycle', () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, circuitBreakers, pollers, syncServices, pollCache } = createPollingService([svc1]);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     // Add service without starting loop
     syncServices();
 
@@ -616,7 +604,6 @@ describe('HealthPollingService - runPollCycle', () => {
     expect(mockPoller.poll).not.toHaveBeenCalled();
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should track circuit breaker state during failures', async () => {
@@ -714,8 +701,6 @@ describe('HealthPollingService - runPollCycle', () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, stateManager, pollers, syncServices } = createPollingService([svc1]);
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     // Add service without starting loop
     syncServices();
 
@@ -734,14 +719,11 @@ describe('HealthPollingService - runPollCycle', () => {
     expect(result.result.error).toBe('No poller found');
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should skip polling when cache says not to poll', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, pollCache, pollers, syncServices } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Add service without starting loop
     syncServices();
@@ -769,14 +751,11 @@ describe('HealthPollingService - runPollCycle', () => {
     expect(mockPoller.poll).not.toHaveBeenCalled();
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should handle rejected promises in poll cycle', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, pollCache, pollers, syncServices } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Add service without starting loop
     syncServices();
@@ -798,14 +777,11 @@ describe('HealthPollingService - runPollCycle', () => {
     // Should not throw - handled gracefully
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should run poll cycle and update state', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, syncServices, pollCache, stateManager } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Add service without starting loop
     syncServices();
@@ -826,14 +802,11 @@ describe('HealthPollingService - runPollCycle', () => {
     expect(state).toBeDefined();
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should handle service removed during poll', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, stateManager, pollers, syncServices, pollCache } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Add service without starting loop
     syncServices();
@@ -864,7 +837,6 @@ describe('HealthPollingService - runPollCycle', () => {
     // Should not throw
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 });
 
@@ -878,8 +850,6 @@ describe('HealthPollingService - deduplication', () => {
     const svc1 = createService('svc-1', 'service-a', { health_endpoint: endpoint });
     const svc2 = createService('svc-2', 'service-b', { health_endpoint: endpoint });
     const { instance, pollers, syncServices, pollCache } = createPollingService([svc1, svc2]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     syncServices();
     pollCache.invalidate('svc-1');
@@ -907,7 +877,6 @@ describe('HealthPollingService - deduplication', () => {
     expect(mockPoll).toHaveBeenCalledTimes(1);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should apply poll result to both services when deduped', async () => {
@@ -916,8 +885,6 @@ describe('HealthPollingService - deduplication', () => {
     const svc2 = createService('svc-2', 'service-b', { health_endpoint: endpoint });
     const { instance, pollers, syncServices, pollCache, mockServiceStore } =
       createPollingService([svc1, svc2]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     syncServices();
     pollCache.invalidate('svc-1');
@@ -943,7 +910,6 @@ describe('HealthPollingService - deduplication', () => {
     expect(mockServiceStore.updatePollResult).toHaveBeenCalledWith('svc-2', true, undefined, undefined);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 });
 
@@ -965,8 +931,6 @@ describe('HealthPollingService - host rate limiting', () => {
     });
     const { instance, pollers, syncServices, pollCache } =
       createPollingService([svc1, svc2, svc3]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Set host rate limit to 2
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
@@ -1005,7 +969,6 @@ describe('HealthPollingService - host rate limiting', () => {
     expect(totalPolled).toBeLessThanOrEqual(2);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should release host slots after poll cycle', async () => {
@@ -1013,8 +976,6 @@ describe('HealthPollingService - host rate limiting', () => {
       health_endpoint: 'http://example.com/a/dependencies',
     });
     const { instance, pollers, syncServices, pollCache } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     syncServices();
     pollCache.invalidate('svc-1');
@@ -1039,7 +1000,6 @@ describe('HealthPollingService - host rate limiting', () => {
     expect(limiter.getActiveCount('example.com')).toBe(0);
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should prioritize least-recently-polled services to prevent starvation', async () => {
@@ -1060,8 +1020,6 @@ describe('HealthPollingService - host rate limiting', () => {
     });
     const { instance, pollers, syncServices, pollCache, stateManager } =
       createPollingService([svc1, svc2, svc3, svc4]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     // Set host rate limit to 2
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-var-requires */
@@ -1108,14 +1066,11 @@ describe('HealthPollingService - host rate limiting', () => {
     expect(pollMocks.get('svc-2')!).not.toHaveBeenCalled();
 
     await instance.shutdown();
-    logSpy.mockRestore();
   });
 
   it('should clean up host rate limiter and deduplicator on shutdown', async () => {
     const svc1 = createService('svc-1', 'service-a');
     const { instance, hostRateLimiter, pollDeduplicator } = createPollingService([svc1]);
-
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
     instance.startAll();
 
@@ -1124,7 +1079,5 @@ describe('HealthPollingService - host rate limiting', () => {
     // Both should be cleared
     expect(hostRateLimiter.getActiveCount('localhost')).toBe(0);
     expect(pollDeduplicator.size).toBe(0);
-
-    logSpy.mockRestore();
   });
 });

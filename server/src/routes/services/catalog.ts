@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { formatError, getErrorStatusCode } from '../../utils/errors';
+import { sendErrorResponse } from '../../utils/errors';
 
 /**
  * GET /api/services/catalog
@@ -47,7 +47,6 @@ export function listServiceCatalog(req: Request, res: Response): void {
 
     res.json(entries);
   } catch (error) /* istanbul ignore next -- Catch block for unexpected database/infrastructure errors */ {
-    console.error('Error listing service catalog:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'listing service catalog');
   }
 }

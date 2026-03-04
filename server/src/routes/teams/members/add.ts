@@ -5,8 +5,7 @@ import {
   NotFoundError,
   ValidationError,
   ConflictError,
-  formatError,
-  getErrorStatusCode,
+  sendErrorResponse,
 } from '../../../utils/errors';
 import { auditFromRequest } from '../../../services/audit/AuditLogService';
 
@@ -56,7 +55,6 @@ export function addMember(req: Request, res: Response): void {
       },
     });
   } catch (error) {
-    console.error('Error adding team member:', error);
-    res.status(getErrorStatusCode(error)).json(formatError(error));
+    sendErrorResponse(res, error, 'adding team member');
   }
 }

@@ -15,6 +15,18 @@ import {
   sanitizePollError,
 } from './errors';
 import { InvalidOrderByError } from '../stores/orderByValidator';
+import logger from './logger';
+
+jest.mock('./logger', () => ({
+  __esModule: true,
+  default: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+const mockLogger = logger as jest.Mocked<typeof logger>;
 
 describe('Error classes', () => {
   describe('AppError', () => {
@@ -155,7 +167,6 @@ describe('errorHandler middleware', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
   let mockNext: NextFunction;
-  let consoleError: jest.SpyInstance;
 
   beforeEach(() => {
     mockReq = { method: 'GET', path: '/test' };
@@ -164,11 +175,7 @@ describe('errorHandler middleware', () => {
       json: jest.fn(),
     };
     mockNext = jest.fn();
-    consoleError = jest.spyOn(console, 'error').mockImplementation();
-  });
-
-  afterEach(() => {
-    consoleError.mockRestore();
+    (mockLogger.error as jest.Mock).mockClear();
   });
 
   it('should handle client errors without logging', () => {
@@ -177,7 +184,7 @@ describe('errorHandler middleware', () => {
 
     expect(mockRes.status).toHaveBeenCalledWith(404);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'User not found' });
-    expect(consoleError).not.toHaveBeenCalled();
+    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 
   it('should log server errors', () => {
@@ -185,7 +192,10 @@ describe('errorHandler middleware', () => {
     errorHandler(error, mockReq as Request, mockRes as Response, mockNext);
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
-    expect(consoleError).toHaveBeenCalled();
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      { err: error, method: 'GET', path: '/test' },
+      'unhandled server error'
+    );
   });
 
   it('should sanitize body-parser SyntaxError (no stack trace leak)', () => {
@@ -241,7 +251,6 @@ describe('asyncHandler', () => {
 describe('wrapHandler', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
-  let consoleError: jest.SpyInstance;
 
   beforeEach(() => {
     mockReq = {};
@@ -249,11 +258,7 @@ describe('wrapHandler', () => {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
-    consoleError = jest.spyOn(console, 'error').mockImplementation();
-  });
-
-  afterEach(() => {
-    consoleError.mockRestore();
+    (mockLogger.error as jest.Mock).mockClear();
   });
 
   it('should call handler normally on success', () => {
@@ -275,24 +280,20 @@ describe('wrapHandler', () => {
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid', field: 'field' });
-    expect(consoleError).toHaveBeenCalled();
+    // 400 errors should not be logged
+    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 });
 
 describe('sendErrorResponse', () => {
   let mockRes: Partial<Response>;
-  let consoleError: jest.SpyInstance;
 
   beforeEach(() => {
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
     };
-    consoleError = jest.spyOn(console, 'error').mockImplementation();
-  });
-
-  afterEach(() => {
-    consoleError.mockRestore();
+    (mockLogger.error as jest.Mock).mockClear();
   });
 
   it('should send sanitized error for non-operational errors', () => {
@@ -301,7 +302,10 @@ describe('sendErrorResponse', () => {
 
     expect(mockRes.status).toHaveBeenCalledWith(500);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'Internal server error' });
-    expect(consoleError).toHaveBeenCalledWith('Error test:', error);
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      { err: error },
+      'error test'
+    );
   });
 
   it('should pass through AppError messages', () => {
@@ -310,6 +314,8 @@ describe('sendErrorResponse', () => {
 
     expect(mockRes.status).toHaveBeenCalledWith(404);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'Service not found' });
+    // 404 errors should not be logged
+    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 
   it('should handle InvalidOrderByError', () => {
@@ -318,6 +324,8 @@ describe('sendErrorResponse', () => {
 
     expect(mockRes.status).toHaveBeenCalledWith(400);
     expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid order_by column: bad_col' });
+    // 400 errors should not be logged
+    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 });
 

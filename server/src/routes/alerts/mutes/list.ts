@@ -17,7 +17,6 @@ export function listAlertMutes(req: Request, res: Response): void {
     const enriched = mutes.map(mute => {
       let dependency_name: string | undefined;
       let service_name: string | undefined;
-      let created_by_name: string | undefined;
 
       if (mute.dependency_id) {
         const dep = stores.dependencies.findById(mute.dependency_id);
@@ -28,8 +27,7 @@ export function listAlertMutes(req: Request, res: Response): void {
         }
       }
 
-      const creator = stores.users.findById(mute.created_by);
-      created_by_name = creator?.name;
+      const created_by_name = stores.users.findById(mute.created_by)?.name;
 
       return {
         ...mute,
