@@ -146,19 +146,19 @@ describe('validateMuteCreate', () => {
     expect(() => validateMuteCreate({
       dependency_id: 'dep-1',
       canonical_name: 'redis',
-    })).toThrow('either');
+    })).toThrow('Exactly one');
   });
 
   it('rejects when neither dependency_id nor canonical_name provided', () => {
-    expect(() => validateMuteCreate({})).toThrow('required');
+    expect(() => validateMuteCreate({})).toThrow('Exactly one');
   });
 
   it('rejects empty string dependency_id', () => {
-    expect(() => validateMuteCreate({ dependency_id: '' })).toThrow('required');
+    expect(() => validateMuteCreate({ dependency_id: '' })).toThrow('Exactly one');
   });
 
   it('rejects empty string canonical_name', () => {
-    expect(() => validateMuteCreate({ canonical_name: '' })).toThrow('required');
+    expect(() => validateMuteCreate({ canonical_name: '' })).toThrow('Exactly one');
   });
 
   it('accepts valid duration', () => {

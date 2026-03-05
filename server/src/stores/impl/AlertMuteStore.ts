@@ -103,19 +103,34 @@ export class AlertMuteStore implements IAlertMuteStore {
     return false;
   }
 
+  isServiceMuted(serviceId: string, teamId: string): boolean {
+    const mute = this.db
+      .prepare(`
+        SELECT 1 FROM alert_mutes
+        WHERE service_id = ?
+          AND team_id = ?
+          AND (expires_at IS NULL OR expires_at > datetime('now'))
+        LIMIT 1
+      `)
+      .get(serviceId, teamId);
+
+    return !!mute;
+  }
+
   create(input: Omit<AlertMute, 'id' | 'created_at'>): AlertMute {
     const id = randomUUID();
 
     this.db
       .prepare(`
-        INSERT INTO alert_mutes (id, team_id, dependency_id, canonical_name, reason, created_by, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO alert_mutes (id, team_id, dependency_id, canonical_name, service_id, reason, created_by, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .run(
         id,
         input.team_id,
         input.dependency_id ?? null,
         input.canonical_name ?? null,
+        input.service_id ?? null,
         input.reason ?? null,
         input.created_by,
         input.expires_at ?? null,

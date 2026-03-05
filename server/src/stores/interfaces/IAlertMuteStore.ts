@@ -7,6 +7,7 @@ export interface IAlertMuteStore {
   findAll(options?: { limit?: number; offset?: number; teamId?: string }): AlertMute[];
   countAll(teamId?: string): number;
   isEffectivelyMuted(dependencyId: string, teamId: string, canonicalName?: string | null): boolean;
+  isServiceMuted(serviceId: string, teamId: string): boolean;
   create(input: Omit<AlertMute, 'id' | 'created_at'>): AlertMute;
   delete(id: string): boolean;
   deleteExpired(): number;

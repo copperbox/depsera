@@ -182,7 +182,18 @@ export class AlertService {
     //    rate limiting so teams always learn when a service comes back up.
     const isRecovery = event.eventType === 'status_change' && event.currentHealthy === true;
 
-    // 5b. Mute check — muted dependencies don't get any alerts (including recovery)
+    // 5b. Service mute check — poll_error events can be muted at the service level
+    if (event.eventType === 'poll_error') {
+      if (this.stores.alertMutes.isServiceMuted(event.serviceId, teamId)) {
+        for (const channel of channels) {
+          this.recordHistory(channel.id, event, 'muted');
+        }
+        logger.info({ serviceId: event.serviceId, teamId }, 'alert muted (service-level)');
+        return;
+      }
+    }
+
+    // 5c. Mute check — muted dependencies don't get any alerts (including recovery)
     if (event.dependencyId) {
       const dep = this.stores.dependencies.findById(event.dependencyId);
       const canonicalName = dep?.canonical_name ?? null;

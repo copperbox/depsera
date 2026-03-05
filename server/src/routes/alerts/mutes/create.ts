@@ -24,6 +24,17 @@ export function createAlertMute(req: Request, res: Response): void {
       }
     }
 
+    // If service mute, verify service exists and belongs to this team
+    if (validated.service_id) {
+      const service = stores.services.findById(validated.service_id);
+      if (!service) {
+        throw new ValidationError('Service not found', 'service_id');
+      }
+      if (service.team_id !== teamId) {
+        throw new ValidationError('Service does not belong to this team', 'service_id');
+      }
+    }
+
     // Parse duration to expiry timestamp
     let expiresAt: string | null = null;
     if (validated.duration) {
@@ -35,6 +46,7 @@ export function createAlertMute(req: Request, res: Response): void {
       team_id: teamId,
       dependency_id: validated.dependency_id ?? null,
       canonical_name: validated.canonical_name ?? null,
+      service_id: validated.service_id ?? null,
       reason: validated.reason ?? null,
       created_by: userId,
       expires_at: expiresAt,
@@ -50,6 +62,7 @@ export function createAlertMute(req: Request, res: Response): void {
         team_id: teamId,
         dependency_id: validated.dependency_id,
         canonical_name: validated.canonical_name,
+        service_id: validated.service_id,
         duration: validated.duration,
         reason: validated.reason,
       }),
