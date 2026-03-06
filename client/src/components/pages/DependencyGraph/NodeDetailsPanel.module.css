@@ -154,23 +154,13 @@
 }
 
 .statusBadge.healthy {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-[data-theme="dark"] .statusBadge.healthy {
-  background: #064e3b;
-  color: #34d399;
+  background: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  color: var(--color-healthy);
 }
 
 .statusBadge.warning {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-[data-theme="dark"] .statusBadge.warning {
-  background: #451a03;
-  color: #fbbf24;
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
 }
 
 .statusBadge.critical {

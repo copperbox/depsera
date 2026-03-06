@@ -38,7 +38,7 @@
   border-radius: 0.375rem;
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .input:focus,
@@ -91,7 +91,7 @@
   border: 1px solid var(--color-border-input);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .cancelButton:hover:not(:disabled) {
@@ -112,7 +112,7 @@
   border: 1px solid transparent;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .submitButton:hover:not(:disabled) {
@@ -177,7 +177,7 @@
   border-radius: 0.25rem;
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
 }
 
 .contactRemoveButton:hover:not(:disabled) {
@@ -199,7 +199,7 @@
   border: 1px dashed var(--color-border-input);
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast);
   align-self: flex-start;
 }
 

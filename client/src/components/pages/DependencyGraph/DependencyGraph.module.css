@@ -398,7 +398,7 @@
   min-width: 160px;
   max-width: 200px;
   box-shadow: var(--shadow-sm);
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
 }
 
 .serviceNode:hover,
@@ -888,12 +888,8 @@
 .edgeLabelHighLatency {
   color: var(--color-warning) !important;
   border-color: var(--color-warning) !important;
-  background: #fffbeb !important;
+  background: color-mix(in srgb, var(--color-warning) 15%, var(--color-surface)) !important;
   animation: pulseLabel 1.5s ease-in-out infinite;
-}
-
-[data-theme="dark"] .edgeLabelHighLatency {
-  background: #451a03 !important;
 }
 
 /* Pulsing legend dot for high latency */

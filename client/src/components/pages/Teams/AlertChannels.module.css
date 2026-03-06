@@ -17,7 +17,7 @@
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .addChannelButton:hover {
@@ -102,7 +102,7 @@
   border: 1px solid var(--color-accent);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .updateUrlButton:hover:not(:disabled) {
@@ -130,7 +130,7 @@
   border: 1px solid var(--color-border-input);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .cancelButton:hover:not(:disabled) {
@@ -151,7 +151,7 @@
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .submitButton:hover:not(:disabled) {
@@ -297,13 +297,8 @@
 }
 
 .statusActive {
-  color: #166534;
-  background-color: #dcfce7;
-}
-
-[data-theme="dark"] .statusActive {
-  color: #86efac;
-  background-color: #14532d;
+  color: var(--color-healthy);
+  background-color: color-mix(in srgb, var(--color-healthy) 15%, transparent);
 }
 
 .statusInactive {
@@ -325,24 +320,14 @@
   font-weight: 500;
   border-radius: 0.25rem;
   cursor: pointer;
-  transition: background-color 0.15s;
-  color: #1e40af;
-  background-color: #dbeafe;
-  border: 1px solid #93c5fd;
-}
-
-[data-theme="dark"] .testButton {
-  color: #93c5fd;
-  background-color: #1e3a5f;
-  border-color: #1e3a5f;
+  transition: background-color var(--duration-fast);
+  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 .testButton:hover:not(:disabled) {
-  background-color: #bfdbfe;
-}
-
-[data-theme="dark"] .testButton:hover:not(:disabled) {
-  background-color: #264a6f;
+  background-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 .testButton:disabled {
@@ -357,16 +342,10 @@
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  color: #166534;
-  background-color: #dcfce7;
-  border: 1px solid #86efac;
+  color: var(--color-healthy);
+  background-color: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-healthy) 30%, transparent);
   border-radius: 0.375rem;
-}
-
-[data-theme="dark"] .testSuccess {
-  color: #86efac;
-  background-color: #14532d;
-  border-color: #166534;
 }
 
 .testFailure {

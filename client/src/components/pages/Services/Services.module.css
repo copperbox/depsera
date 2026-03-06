@@ -373,7 +373,7 @@
   text-decoration: none;
   font-size: 0.875rem;
   margin-bottom: 1rem;
-  transition: color 0.15s;
+  transition: color var(--duration-fast);
 }
 
 .backLink:hover {
@@ -414,7 +414,7 @@
   font-weight: 500;
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
 }
 
 .graphLink {
@@ -716,7 +716,7 @@
   color: var(--color-text-muted);
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
 }
 
 .historyButton:hover {
@@ -746,7 +746,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--color-text-primary);
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
   text-align: left;
 }
 
@@ -765,7 +765,7 @@
 }
 
 .chevron {
-  transition: transform 0.2s ease;
+  transition: transform var(--duration-normal) ease;
   flex-shrink: 0;
   color: var(--color-text-muted);
 }
@@ -835,7 +835,7 @@
   border-radius: 0.375rem;
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-fast);
 }
 
 .overrideInput:focus {
@@ -858,7 +858,7 @@
   border-radius: 0.375rem;
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-fast);
 }
 
 .contactKeyInput:focus {
@@ -875,7 +875,7 @@
   border-radius: 0.375rem;
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-fast);
 }
 
 .contactValueInput:focus {
@@ -897,7 +897,7 @@
   cursor: pointer;
   border-radius: 4px;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
 }
 
 .contactRemoveButton:hover {
@@ -918,7 +918,7 @@
   border: 1px dashed var(--color-border-input);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
   align-self: flex-start;
 }
 

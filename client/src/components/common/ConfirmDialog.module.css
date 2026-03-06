@@ -65,5 +65,5 @@
 }
 
 .confirmButton.destructive:hover:not(:disabled) {
-  background: #b91c1c;
+  background: color-mix(in srgb, var(--color-critical) 85%, black);
 }

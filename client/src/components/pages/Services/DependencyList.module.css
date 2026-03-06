@@ -66,7 +66,7 @@
   background: none;
   cursor: pointer;
   text-align: left;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
   gap: 1rem;
 }
 
@@ -116,13 +116,9 @@
   font-size: 0.625rem;
   font-weight: 500;
   border-radius: 9999px;
-  background-color: rgba(239, 68, 68, 0.1);
-  color: var(--color-error, #dc3545);
+  background-color: color-mix(in srgb, var(--color-critical) 12%, transparent);
+  color: var(--color-critical);
   white-space: nowrap;
-}
-
-[data-theme="dark"] .mutedBadge {
-  background-color: rgba(239, 68, 68, 0.15);
 }
 
 .aliasBadge {
@@ -241,7 +237,7 @@
   color: var(--color-text-muted);
   cursor: pointer;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
 }
 
 .editButton:hover {
@@ -251,7 +247,7 @@
 }
 
 .chevron {
-  transition: transform 0.2s ease;
+  transition: transform var(--duration-normal) ease;
   flex-shrink: 0;
   color: var(--color-text-muted);
 }

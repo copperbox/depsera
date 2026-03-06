@@ -346,7 +346,7 @@
 }
 
 .dangerButton:hover:not(:disabled) {
-  background: #b91c1c;
+  background: color-mix(in srgb, var(--color-critical) 80%, black);
 }
 
 .dangerButton:disabled {
@@ -402,13 +402,8 @@
 }
 
 .roleLead {
-  color: #1e40af;
-  background-color: #dbeafe;
-}
-
-[data-theme="dark"] .roleLead {
-  color: #93c5fd;
-  background-color: #1e3a5f;
+  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
 }
 
 .roleMember {

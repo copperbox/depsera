@@ -32,7 +32,7 @@
   border: 1px solid var(--color-border-input);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
 }
@@ -85,7 +85,7 @@
   border-radius: 0.375rem;
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .input:focus {
@@ -164,7 +164,7 @@
   background-color: transparent;
   color: var(--color-accent);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .testButton:hover:not(:disabled) {
