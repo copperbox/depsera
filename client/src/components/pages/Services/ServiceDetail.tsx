@@ -339,7 +339,7 @@ function ServiceDetail() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Service"
-        size="medium"
+        size="md"
       >
         <ServiceForm
           teams={teams}

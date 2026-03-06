@@ -165,7 +165,7 @@ function DependencyEditModal({
       isOpen={dep !== null}
       onClose={onClose}
       title={`Edit — ${dep.canonical_name || dep.name}`}
-      size="large"
+      size="lg"
     >
       {/* Overrides Section */}
       <div className={styles.section}>

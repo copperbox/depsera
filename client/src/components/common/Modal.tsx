@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
 interface ModalProps {
@@ -6,10 +7,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'sm' | 'md' | 'lg';
 }
 
-function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps) {
+function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -53,7 +54,6 @@ function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps
   return (
     <dialog
       ref={dialogRef}
-      // eslint-disable-next-line security/detect-object-injection
       className={`${styles.modal} ${styles[size]}`}
       onClick={handleBackdropClick}
       aria-labelledby="modal-title"
@@ -69,16 +69,7 @@ function Modal({ isOpen, onClose, title, children, size = 'medium' }: ModalProps
             onClick={onClose}
             aria-label="Close"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M15 5L5 15M5 5l10 10" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
         <div className={styles.body}>{children}</div>

@@ -285,7 +285,7 @@ function ServicesList() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Add Service"
-        size="medium"
+        size="md"
       >
         <ServiceForm
           teams={creatableTeams}

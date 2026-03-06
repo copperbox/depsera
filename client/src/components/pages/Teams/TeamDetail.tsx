@@ -371,7 +371,7 @@ function TeamDetail() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Team"
-        size="medium"
+        size="md"
       >
         <TeamForm
           team={team}

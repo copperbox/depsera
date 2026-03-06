@@ -185,7 +185,7 @@ function TeamsList() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Create Team"
-        size="medium"
+        size="md"
       >
         <TeamForm
           onSuccess={handleTeamCreated}
