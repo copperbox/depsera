@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import styles from './NotFound.module.css';
 
@@ -11,6 +12,7 @@ function NotFound() {
           The page you are looking for does not exist or has been moved.
         </p>
         <Link to="/" className={styles.link}>
+          <ArrowLeft size={16} />
           Go to Dashboard
         </Link>
       </div>

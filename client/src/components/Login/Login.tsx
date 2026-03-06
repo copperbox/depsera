@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchAuthMode, localLogin, AuthMode } from '../../api/auth';
@@ -51,7 +52,10 @@ function Login() {
     return (
       <div className={styles.container}>
         <div className={styles.card}>
-          <p>Loading...</p>
+          <div className={styles.loading}>
+            <Loader2 size={20} className={styles.spinner} />
+            <span>Loading...</span>
+          </div>
         </div>
       </div>
     );
@@ -110,6 +114,7 @@ function Login() {
               type="submit"
               disabled={isSubmitting}
             >
+              {isSubmitting && <Loader2 size={16} className={styles.spinner} />}
               {isSubmitting ? 'Signing in...' : 'Sign In'}
             </button>
           </form>

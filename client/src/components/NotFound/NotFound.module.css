@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  padding: 2rem;
+  padding: var(--space-6);
 }
 
 .content {
@@ -13,35 +13,41 @@
 .code {
   font-size: 6rem;
   font-weight: 700;
-  color: var(--color-text-heading);
-  margin-bottom: 0.5rem;
+  color: var(--color-text);
+  margin: 0 0 var(--space-2) 0;
   line-height: 1;
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 1rem;
+  font-size: var(--font-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+  margin: 0 0 var(--space-3) 0;
 }
 
 .message {
-  color: var(--color-text-secondary);
-  margin-bottom: 2rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-base);
+  margin: 0 auto var(--space-6) auto;
   max-width: 400px;
 }
 
 .link {
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-text-secondary);
   text-decoration: none;
-  border-radius: 4px;
-  font-weight: 500;
-  transition: background-color 0.2s;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .link:hover {
-  background-color: var(--color-primary-hover);
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
 }
