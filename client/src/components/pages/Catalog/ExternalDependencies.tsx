@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, Copy, Check, Loader2 } from 'lucide-react';
 import { useExternalDependencies } from '../../../hooks/useExternalDependencies';
 import styles from './ServiceCatalog.module.css';
 
@@ -35,7 +36,7 @@ function ExternalDependencies() {
   if (isLoading) {
     return (
       <div className={styles.loading}>
-        <div className={styles.spinner} />
+        <Loader2 size={24} className={styles.spinner} />
         <span>Loading external dependencies...</span>
       </div>
     );
@@ -56,18 +57,7 @@ function ExternalDependencies() {
     <>
       <div className={styles.filters}>
         <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M13 13l4 4" />
-          </svg>
+          <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
             placeholder="Search by canonical name or alias..."
@@ -112,28 +102,9 @@ function ExternalDependencies() {
                         aria-label={`Copy ${entry.canonical_name}`}
                       >
                         {copiedName === entry.canonical_name ? (
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
+                          <Check size={14} />
                         ) : (
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
+                          <Copy size={14} />
                         )}
                       </button>
                     </div>
