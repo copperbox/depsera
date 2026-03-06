@@ -118,10 +118,6 @@ const mockService = {
   ],
 };
 
-/**
- * Build a default mock implementation that handles the initial service + teams load,
- * plus the additional DependencyList API calls (aliases, canonical names, associations, suggestions).
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setupDefaultMocks(service: any = mockService) {
   mockFetch.mockImplementation((url: string) => {
@@ -147,10 +143,17 @@ function renderServiceDetail(id = 's1', authOverrides: { isAdmin?: boolean; user
   );
 }
 
+/** Helper to click a tab by its role */
+async function switchTab(name: string) {
+  const tab = screen.getByRole('tab', { name: new RegExp(name) });
+  fireEvent.click(tab);
+}
+
 beforeEach(() => {
   mockFetch.mockReset();
   mockUseAuth.mockReset();
   mockNavigate.mockReset();
+  localStorage.clear();
 });
 
 describe('ServiceDetail', () => {
@@ -177,7 +180,6 @@ describe('ServiceDetail', () => {
   });
 
   it('displays error state and allows retry', async () => {
-    // Both fetches fail on first attempt (Promise.all)
     mockFetch
       .mockRejectedValueOnce(new Error('Network error'))
       .mockRejectedValueOnce(new Error('Network error'));
@@ -188,7 +190,6 @@ describe('ServiceDetail', () => {
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
 
-    // Setup success for retry
     setupDefaultMocks();
 
     fireEvent.click(screen.getByText('Retry'));
@@ -212,14 +213,16 @@ describe('ServiceDetail', () => {
     expect(screen.getByText('Back to Services')).toBeInTheDocument();
   });
 
-  it('displays dependencies section', async () => {
+  it('displays dependencies section via tab', async () => {
     setupDefaultMocks();
 
     renderServiceDetail();
 
     await waitFor(() => {
-      expect(screen.getByText('Dependencies')).toBeInTheDocument();
+      expect(screen.getByText('Test Service')).toBeInTheDocument();
     });
+
+    await switchTab('Dependencies');
 
     expect(screen.getAllByText('PostgreSQL').length).toBeGreaterThan(0);
     expect(screen.getByText('Main DB')).toBeInTheDocument();
@@ -228,14 +231,16 @@ describe('ServiceDetail', () => {
     expect(screen.getAllByText('cache').length).toBeGreaterThan(0);
   });
 
-  it('displays dependent reports table', async () => {
+  it('displays dependent reports table via tab', async () => {
     setupDefaultMocks();
 
     renderServiceDetail();
 
     await waitFor(() => {
-      expect(screen.getByText('Dependent Reports')).toBeInTheDocument();
+      expect(screen.getByText('Test Service')).toBeInTheDocument();
     });
+
+    await switchTab('Dependent Reports');
 
     expect(screen.getByText('API Gateway')).toBeInTheDocument();
     expect(screen.getByText('test-service')).toBeInTheDocument();
@@ -249,8 +254,12 @@ describe('ServiceDetail', () => {
     renderServiceDetail();
 
     await waitFor(() => {
-      expect(screen.getByText('No dependencies registered for this service.')).toBeInTheDocument();
+      expect(screen.getByText('Test Service')).toBeInTheDocument();
     });
+
+    await switchTab('Dependencies');
+
+    expect(screen.getByText('No dependencies registered for this service.')).toBeInTheDocument();
   });
 
   it('shows empty state for no dependent reports', async () => {
@@ -260,8 +269,12 @@ describe('ServiceDetail', () => {
     renderServiceDetail();
 
     await waitFor(() => {
-      expect(screen.getByText('No services report depending on this service.')).toBeInTheDocument();
+      expect(screen.getByText('Test Service')).toBeInTheDocument();
     });
+
+    await switchTab('Dependent Reports');
+
+    expect(screen.getByText('No services report depending on this service.')).toBeInTheDocument();
   });
 
   it('shows inactive badge for inactive service', async () => {
@@ -361,17 +374,7 @@ describe('ServiceDetail', () => {
     });
   });
 
-  it('displays dependency without canonical name', async () => {
-    setupDefaultMocks();
-
-    renderServiceDetail();
-
-    await waitFor(() => {
-      expect(screen.getAllByText('cache').length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays dash for null latency', async () => {
+  it('displays dependency without canonical name via tab', async () => {
     setupDefaultMocks();
 
     renderServiceDetail();
@@ -379,6 +382,22 @@ describe('ServiceDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Test Service')).toBeInTheDocument();
     });
+
+    await switchTab('Dependencies');
+
+    expect(screen.getAllByText('cache').length).toBeGreaterThan(0);
+  });
+
+  it('displays dash for null latency via tab', async () => {
+    setupDefaultMocks();
+
+    renderServiceDetail();
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Service')).toBeInTheDocument();
+    });
+
+    await switchTab('Dependencies');
 
     // The cache dependency has null latency
     expect(screen.getAllByText('-').length).toBeGreaterThan(0);
@@ -392,6 +411,78 @@ describe('ServiceDetail', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Unknown error/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Tabs', () => {
+    it('renders all tabs', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('tab', { name: /Overview/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Dependencies/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Dependent Reports/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Poll Issues/ })).toBeInTheDocument();
+    });
+
+    it('shows overview tab by default', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('tab', { name: /Overview/ })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('displays tab counts for dependencies and reports', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('tab', { name: /Dependencies \(2\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Dependent Reports \(1\)/ })).toBeInTheDocument();
+    });
+
+    it('shows empty state for external services on poll issues tab', async () => {
+      const externalService = { ...mockService, is_external: 1 };
+      setupDefaultMocks(externalService);
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Poll Issues');
+
+      expect(screen.getByText('Not applicable for external services.')).toBeInTheDocument();
+    });
+
+    it('shows empty state for inactive services on poll issues tab', async () => {
+      const inactiveService = { ...mockService, is_active: 0 };
+      setupDefaultMocks(inactiveService);
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Poll Issues');
+
+      expect(screen.getByText('Not applicable for inactive services.')).toBeInTheDocument();
     });
   });
 
@@ -409,6 +500,12 @@ describe('ServiceDetail', () => {
       setupDefaultMocks(serviceWithContact);
 
       renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
 
       await waitFor(() => {
         expect(screen.getByText('db-team@example.com')).toBeInTheDocument();
@@ -436,10 +533,15 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
+
+      await waitFor(() => {
         expect(screen.getByText('Overridden impact value')).toBeInTheDocument();
       });
 
-      // Raw impact should not be displayed
       expect(screen.queryByText('Original impact')).not.toBeInTheDocument();
     });
 
@@ -457,6 +559,12 @@ describe('ServiceDetail', () => {
       setupDefaultMocks(serviceWithOverride);
 
       renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
 
       await waitFor(() => {
         expect(screen.getByText('Custom impact')).toBeInTheDocument();
@@ -483,6 +591,12 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
+
+      await waitFor(() => {
         expect(screen.getByText('override@example.com')).toBeInTheDocument();
       });
 
@@ -494,6 +608,12 @@ describe('ServiceDetail', () => {
       setupDefaultMocks();
 
       renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
 
       await waitFor(() => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
@@ -517,10 +637,15 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await switchTab('Dependencies');
+
+      await waitFor(() => {
         expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
 
-      // Should show dash instead of crashing
       expect(screen.queryByText('not-valid-json')).not.toBeInTheDocument();
     });
   });
@@ -532,10 +657,11 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
 
-      // Rows use aria-expanded
+      await switchTab('Dependencies');
+
       const rowButtons = screen.getAllByRole('button', { expanded: false });
       const depRows = rowButtons.filter(
         btn => btn.textContent?.includes('PostgreSQL') || btn.textContent?.includes('cache')
@@ -549,18 +675,17 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
 
-      // Charts should not be visible initially
+      await switchTab('Dependencies');
+
       expect(screen.queryByTestId('latency-chart-d1')).not.toBeInTheDocument();
 
-      // Click PostgreSQL row to expand
       const rowButtons = screen.getAllByRole('button', { expanded: false });
       const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
       fireEvent.click(postgresRow!);
 
-      // Charts and error history should now be visible
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
       expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
       expect(screen.getByTestId('error-history-panel')).toBeInTheDocument();
@@ -572,17 +697,17 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
 
-      // Expand PostgreSQL row
+      await switchTab('Dependencies');
+
       const rowButtons = screen.getAllByRole('button', { expanded: false });
       const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
       fireEvent.click(postgresRow!);
 
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
 
-      // Click again to collapse
       const expandedButton = screen.getByRole('button', { expanded: true });
       fireEvent.click(expandedButton);
 
@@ -595,10 +720,11 @@ describe('ServiceDetail', () => {
       renderServiceDetail();
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
 
-      // Expand both rows
+      await switchTab('Dependencies');
+
       const rowButtons = screen.getAllByRole('button', { expanded: false });
       const postgresRow = rowButtons.find(btn => btn.textContent?.includes('PostgreSQL'));
       const cacheRow = rowButtons.find(btn => btn.textContent?.includes('cache'));
@@ -606,7 +732,6 @@ describe('ServiceDetail', () => {
       fireEvent.click(postgresRow!);
       fireEvent.click(cacheRow!);
 
-      // Both charts should be visible
       expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
       expect(screen.getByTestId('health-timeline-d1')).toBeInTheDocument();
       expect(screen.getByTestId('latency-chart-d2')).toBeInTheDocument();
@@ -653,11 +778,13 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
 
+      await switchTab('Dependencies');
+
       const editButtons = screen.getAllByTitle('Edit dependency');
-      expect(editButtons.length).toBe(2); // one per dependency
+      expect(editButtons.length).toBe(2);
     });
 
     it('shows edit buttons for team leads of the service team', async () => {
@@ -666,8 +793,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: false, user: teamLeadUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       expect(editButtons.length).toBe(2);
@@ -679,8 +808,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: false, user: memberUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       expect(screen.queryByTitle('Edit dependency')).not.toBeInTheDocument();
     });
@@ -691,8 +822,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: false, user: noTeamUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       expect(screen.queryByTitle('Edit dependency')).not.toBeInTheDocument();
     });
@@ -703,13 +836,14 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
-      // Modal title includes the dependency name
       expect(screen.getByText(/Edit — PostgreSQL/)).toBeInTheDocument();
       expect(screen.getByPlaceholderText('e.g. Critical — primary database')).toBeInTheDocument();
     });
@@ -730,17 +864,17 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
-      // Impact should be pre-populated
       const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database') as HTMLInputElement;
       expect(impactInput.value).toBe('Critical override');
 
-      // Contact entries should be pre-populated
       const keyInputs = screen.getAllByPlaceholderText('Key (e.g. email)') as HTMLInputElement[];
       expect(keyInputs.length).toBe(2);
       expect(keyInputs[0].value).toBe('email');
@@ -757,24 +891,22 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
-      // No contact entries initially
       expect(screen.queryByPlaceholderText('Key (e.g. email)')).not.toBeInTheDocument();
 
-      // Add a field
       fireEvent.click(screen.getByText('+ Add Field'));
       expect(screen.getByPlaceholderText('Key (e.g. email)')).toBeInTheDocument();
 
-      // Add another field
       fireEvent.click(screen.getByText('+ Add Field'));
       expect(screen.getAllByPlaceholderText('Key (e.g. email)').length).toBe(2);
 
-      // Remove the first field
       const removeButtons = screen.getAllByTitle('Remove entry');
       fireEvent.click(removeButtons[0]);
       expect(screen.getAllByPlaceholderText('Key (e.g. email)').length).toBe(1);
@@ -786,17 +918,17 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
-      // Fill in impact override
       const impactInput = screen.getByPlaceholderText('e.g. Critical — primary database');
       fireEvent.change(impactInput, { target: { value: 'New impact value' } });
 
-      // Add a contact field
       fireEvent.click(screen.getByText('+ Add Field'));
       const keyInput = screen.getByPlaceholderText('Key (e.g. email)');
       const valueInput = screen.getByPlaceholderText('Value');
@@ -806,7 +938,6 @@ describe('ServiceDetail', () => {
       fireEvent.click(screen.getByText('Save Overrides'));
 
       await waitFor(() => {
-        // PUT was called with correct body
         const putCall = mockFetch.mock.calls.find(
           (call: [string, RequestInit]) => call[1]?.method === 'PUT' && call[0].includes('/overrides')
         );
@@ -823,13 +954,14 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
 
-      // Try to save without any overrides
       fireEvent.click(screen.getByText('Save Overrides'));
 
       await waitFor(() => {
@@ -838,14 +970,15 @@ describe('ServiceDetail', () => {
     });
 
     it('shows clear button only when existing overrides are active', async () => {
-      // No active overrides
       setupDefaultMocks();
 
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
@@ -868,8 +1001,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
@@ -902,8 +1037,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
@@ -918,8 +1055,10 @@ describe('ServiceDetail', () => {
       renderServiceDetail('s1', { isAdmin: true, user: adminUser });
 
       await waitFor(() => {
-        expect(screen.getByText('Dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
       });
+
+      await switchTab('Dependencies');
 
       const editButtons = screen.getAllByTitle('Edit dependency');
       fireEvent.click(editButtons[0]);
