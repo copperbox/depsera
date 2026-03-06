@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchTeams } from '../../../api/teams';
 import type { TeamWithCounts } from '../../../types/team';
@@ -50,7 +51,7 @@ function TeamsList() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={32} className={styles.spinner} />
           <span>Loading teams...</span>
         </div>
       </div>
@@ -79,16 +80,7 @@ function TeamsList() {
             onClick={() => setIsAddModalOpen(true)}
             className={styles.addButton}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M10 5v10M5 10h10" />
-            </svg>
+            <Plus size={16} />
             Add Team
           </button>
         )}
@@ -96,18 +88,7 @@ function TeamsList() {
 
       <div className={styles.filters}>
         <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M13 13l4 4" />
-          </svg>
+          <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
             placeholder="Search teams..."
