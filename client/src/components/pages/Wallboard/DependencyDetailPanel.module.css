@@ -1,6 +1,6 @@
 .panel {
   position: fixed;
-  top: var(--app-header-height, 3.75rem);
+  top: var(--app-header-height, 48px);
   right: 0;
   bottom: 0;
   width: 400px;

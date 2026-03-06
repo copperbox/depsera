@@ -273,27 +273,30 @@
   margin: 0;
 }
 
-.teamKey {
+.infoCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.infoCardCode {
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
-  font-size: var(--font-xs);
-  padding: 0.0625rem 0.375rem;
-  background-color: var(--color-surface-hover);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
-}
-
-.teamDescription {
-  color: var(--color-text-muted);
   font-size: var(--font-base);
-  margin: 0;
+  color: var(--color-text);
+  word-break: break-all;
 }
 
-.contactInfo {
+.infoCardText {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  line-height: var(--line-height-relaxed, 1.6);
+}
+
+.infoCardContact {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-1);
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .contactItem {
@@ -308,7 +311,7 @@
 }
 
 .contactValue {
-  color: var(--color-text-primary);
+  color: var(--color-text);
 }
 
 .actions {
