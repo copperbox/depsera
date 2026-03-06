@@ -87,12 +87,14 @@ beforeEach(() => {
 });
 
 describe('Dashboard', () => {
-  it('shows loading state initially', () => {
+  it('shows loading skeleton initially', () => {
     mockFetch.mockImplementation(() => new Promise(() => {}));
 
-    renderDashboard();
+    const { container } = renderDashboard();
 
-    expect(screen.getByText('Loading dashboard...')).toBeInTheDocument();
+    // Skeleton dashboard is rendered during loading
+    expect(container.querySelector('[class*="skeletonDashboard"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('[class*="skeletonSummaryCard"]').length).toBe(4);
   });
 
   it('renders dashboard content after loading', async () => {
@@ -101,11 +103,10 @@ describe('Dashboard', () => {
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Total Services')).toBeInTheDocument();
     });
 
     // Summary stats
-    expect(screen.getByText('Total Services')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument(); // Total
     expect(screen.getByText('2 teams')).toBeInTheDocument();
   });
@@ -133,7 +134,7 @@ describe('Dashboard', () => {
     fireEvent.click(screen.getByText('Retry'));
 
     await waitFor(() => {
-      expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Total Services')).toBeInTheDocument();
     });
   });
 
@@ -232,8 +233,8 @@ describe('Dashboard', () => {
       expect(screen.getByText('Total Services')).toBeInTheDocument();
     });
 
-    // Find and click the clickable card
-    const card = screen.getByText('Total Services').closest('[class*="summaryCard"]');
+    // Find and click the clickable total card
+    const card = screen.getByText('Total Services').closest('[class*="summaryCardTotal"]');
     fireEvent.click(card!);
 
     expect(mockNavigate).toHaveBeenCalledWith('/services');
@@ -245,8 +246,10 @@ describe('Dashboard', () => {
     renderDashboard();
 
     await waitFor(() => {
-      expect(screen.getByText('No teams with services')).toBeInTheDocument();
+      expect(screen.getByText('Health by Team')).toBeInTheDocument();
     });
+
+    expect(screen.getByText('No teams with services')).toBeInTheDocument();
   });
 
   it('shows no activity message when empty', async () => {
@@ -280,6 +283,18 @@ describe('Dashboard', () => {
     // Activity events show service names and transitions
     expect(screen.getAllByText('Service A').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Service B').length).toBeGreaterThan(0);
+  });
+
+  it('always renders polling issues section with empty state', async () => {
+    mockDashboardFetches(mockServices, mockTeams);
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText('Polling Issues')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('No polling issues')).toBeInTheDocument();
   });
 
   describe('Health Overview', () => {
@@ -321,16 +336,17 @@ describe('Dashboard', () => {
       expect(screen.getByText('Critical (1)')).toBeInTheDocument();
     });
 
-    it('does not show health overview when no services', async () => {
+    it('shows empty state in health overview when no services', async () => {
       mockDashboardFetches([], []);
 
       renderDashboard();
 
       await waitFor(() => {
-        expect(screen.getByText('Dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Health Overview')).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('Health Overview')).not.toBeInTheDocument();
+      expect(screen.getByText('No services registered')).toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'Health distribution bar' })).not.toBeInTheDocument();
     });
 
     it('shows 100% healthy when all services are healthy', async () => {
