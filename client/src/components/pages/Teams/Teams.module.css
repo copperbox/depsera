@@ -246,6 +246,18 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.overviewStatsWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.healthError {
+  font-size: var(--font-xs);
+  color: var(--color-text-muted);
 }
 
 .teamTitle {

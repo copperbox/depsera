@@ -5,6 +5,7 @@ import { formatRelativeTime } from '../../../utils/formatting';
 import { getHealthBadgeStatus } from '../../../utils/statusMapping';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import { useDashboard } from '../../../hooks/useDashboard';
+import cardStyles from '../../common/SummaryCards.module.css';
 import styles from './Dashboard.module.css';
 
 function Dashboard() {
@@ -117,88 +118,88 @@ function Dashboard() {
       {/* Dashboard Grid */}
       <div className={`${styles.dashboard} ${isRefreshing ? styles.refreshing : ''}`}>
         {/* Summary Cards */}
-        <div className={`${styles.areaSummary} ${styles.summaryGrid}`}>
+        <div className={`${styles.areaSummary} ${cardStyles.summaryGrid}`}>
           <div
-            className={styles.summaryCardTotal}
+            className={`${cardStyles.summaryCardAccent} ${styles.summaryCardClickable}`}
             onClick={() => navigate('/services')}
           >
-            <span className={styles.cardLabel}>Total Services</span>
-            <span className={styles.cardValue}>{stats.total}</span>
-            <span className={styles.cardSubtext}>{teams.length} teams</span>
+            <span className={cardStyles.cardLabel}>Total Services</span>
+            <span className={cardStyles.cardValue}>{stats.total}</span>
+            <span className={cardStyles.cardSubtext}>{teams.length} teams</span>
           </div>
-          <div className={styles.summaryCardHealthy}>
-            <span className={styles.cardLabel}>Healthy</span>
-            <span className={styles.cardValue}>{stats.healthy}</span>
-            <span className={styles.cardSubtext}>
+          <div className={cardStyles.summaryCardHealthy}>
+            <span className={cardStyles.cardLabel}>Healthy</span>
+            <span className={cardStyles.cardValue}>{stats.healthy}</span>
+            <span className={cardStyles.cardSubtext}>
               {stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}% of services
             </span>
           </div>
-          <div className={styles.summaryCardWarning}>
-            <span className={styles.cardLabel}>Warning</span>
-            <span className={styles.cardValue}>{stats.warning}</span>
-            <span className={styles.cardSubtext}>need attention</span>
+          <div className={cardStyles.summaryCardWarning}>
+            <span className={cardStyles.cardLabel}>Warning</span>
+            <span className={cardStyles.cardValue}>{stats.warning}</span>
+            <span className={cardStyles.cardSubtext}>need attention</span>
           </div>
-          <div className={styles.summaryCardCritical}>
-            <span className={styles.cardLabel}>Critical</span>
-            <span className={styles.cardValue}>{stats.critical}</span>
-            <span className={styles.cardSubtext}>require action</span>
+          <div className={cardStyles.summaryCardCritical}>
+            <span className={cardStyles.cardLabel}>Critical</span>
+            <span className={cardStyles.cardValue}>{stats.critical}</span>
+            <span className={cardStyles.cardSubtext}>require action</span>
           </div>
         </div>
 
         {/* Health Overview Bar */}
-        <div className={`${styles.areaHealth} ${styles.healthOverview}`}>
-          <div className={styles.healthOverviewHeader}>
-            <h2 className={styles.healthOverviewTitle}>Health Overview</h2>
-            <span className={styles.healthOverviewSubtitle}>
+        <div className={`${styles.areaHealth} ${cardStyles.healthOverview}`}>
+          <div className={cardStyles.healthOverviewHeader}>
+            <h2 className={cardStyles.healthOverviewTitle}>Health Overview</h2>
+            <span className={cardStyles.healthOverviewSubtitle}>
               {stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}% healthy
             </span>
           </div>
           {stats.total > 0 ? (
             <>
-              <div className={styles.healthBar} role="img" aria-label="Health distribution bar">
+              <div className={cardStyles.healthBar} role="img" aria-label="Health distribution bar">
                 {stats.healthy > 0 && (
                   <div
-                    className={`${styles.healthSegment} ${styles.segmentHealthy}`}
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentHealthy}`}
                     style={{ width: `${(stats.healthy / stats.total) * 100}%` }}
                     title={`${stats.healthy} healthy (${Math.round((stats.healthy / stats.total) * 100)}%)`}
                   />
                 )}
                 {stats.warning > 0 && (
                   <div
-                    className={`${styles.healthSegment} ${styles.segmentWarning}`}
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentWarning}`}
                     style={{ width: `${(stats.warning / stats.total) * 100}%` }}
                     title={`${stats.warning} warning (${Math.round((stats.warning / stats.total) * 100)}%)`}
                   />
                 )}
                 {stats.critical > 0 && (
                   <div
-                    className={`${styles.healthSegment} ${styles.segmentCritical}`}
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentCritical}`}
                     style={{ width: `${(stats.critical / stats.total) * 100}%` }}
                     title={`${stats.critical} critical (${Math.round((stats.critical / stats.total) * 100)}%)`}
                   />
                 )}
                 {stats.total - stats.healthy - stats.warning - stats.critical > 0 && (
                   <div
-                    className={`${styles.healthSegment} ${styles.segmentUnknown}`}
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentUnknown}`}
                     style={{ width: `${((stats.total - stats.healthy - stats.warning - stats.critical) / stats.total) * 100}%` }}
                     title={`${stats.total - stats.healthy - stats.warning - stats.critical} unknown`}
                   />
                 )}
               </div>
-              <div className={styles.healthLegend}>
-                <span className={styles.healthLegendItem}>
-                  <span className={`${styles.healthLegendDot} ${styles.segmentHealthy}`} />
+              <div className={cardStyles.healthLegend}>
+                <span className={cardStyles.healthLegendItem}>
+                  <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentHealthy}`} />
                   Healthy ({stats.healthy})
                 </span>
                 {stats.warning > 0 && (
-                  <span className={styles.healthLegendItem}>
-                    <span className={`${styles.healthLegendDot} ${styles.segmentWarning}`} />
+                  <span className={cardStyles.healthLegendItem}>
+                    <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentWarning}`} />
                     Warning ({stats.warning})
                   </span>
                 )}
                 {stats.critical > 0 && (
-                  <span className={styles.healthLegendItem}>
-                    <span className={`${styles.healthLegendDot} ${styles.segmentCritical}`} />
+                  <span className={cardStyles.healthLegendItem}>
+                    <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentCritical}`} />
                     Critical ({stats.critical})
                   </span>
                 )}

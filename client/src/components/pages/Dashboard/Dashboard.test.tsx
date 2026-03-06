@@ -234,7 +234,7 @@ describe('Dashboard', () => {
     });
 
     // Find and click the clickable total card
-    const card = screen.getByText('Total Services').closest('[class*="summaryCardTotal"]');
+    const card = screen.getByText('Total Services').closest('[class*="summaryCardClickable"]');
     fireEvent.click(card!);
 
     expect(mockNavigate).toHaveBeenCalledWith('/services');

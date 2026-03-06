@@ -170,149 +170,10 @@
 .areaUnstable { grid-area: unstable; }
 .areaPolling { grid-area: polling; }
 
-/* --- Summary Cards Grid --- */
+/* --- Summary Cards (shared styles in SummaryCards.module.css) --- */
 
-.summaryGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-4);
-}
-
-.summaryCard {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  border-left: 3px solid var(--color-unknown);
-  transition: background-color var(--duration-fast) ease;
-}
-
-.summaryCard:hover {
-  background: var(--color-surface-hover);
-}
-
-.summaryCardTotal {
-  composes: summaryCard;
-  border-left-color: var(--color-accent);
+.summaryCardClickable {
   cursor: pointer;
-}
-
-.summaryCardHealthy {
-  composes: summaryCard;
-  border-left-color: var(--color-healthy);
-}
-
-.summaryCardWarning {
-  composes: summaryCard;
-  border-left-color: var(--color-warning);
-}
-
-.summaryCardCritical {
-  composes: summaryCard;
-  border-left-color: var(--color-critical);
-}
-
-.cardLabel {
-  font-size: var(--font-xs);
-  font-weight: var(--font-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--color-text-muted);
-}
-
-.cardValue {
-  font-size: var(--font-2xl);
-  font-weight: var(--font-semibold);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  line-height: var(--line-height-tight);
-}
-
-.cardSubtext {
-  font-size: var(--font-xs);
-  color: var(--color-text-muted);
-}
-
-/* --- Health Overview --- */
-
-.healthOverview {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-}
-
-.healthOverviewHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-3);
-}
-
-.healthOverviewTitle {
-  font-size: var(--font-base);
-  font-weight: var(--font-semibold);
-  color: var(--color-text);
-  margin: 0;
-}
-
-.healthOverviewSubtitle {
-  font-size: var(--font-sm);
-  font-weight: var(--font-medium);
-  color: var(--color-text-muted);
-}
-
-.healthBar {
-  display: flex;
-  height: 1rem;
-  overflow: hidden;
-  background-color: var(--color-border-subtle);
-}
-
-.healthSegment {
-  transition: width var(--duration-slow) ease;
-  min-width: 2px;
-}
-
-.segmentHealthy {
-  background-color: var(--color-healthy);
-}
-
-.segmentWarning {
-  background-color: var(--color-warning);
-}
-
-.segmentCritical {
-  background-color: var(--color-critical);
-}
-
-.segmentUnknown {
-  background-color: var(--color-unknown);
-  opacity: 0.4;
-}
-
-.healthLegend {
-  display: flex;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
-}
-
-.healthLegendItem {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-xs);
-  color: var(--color-text-muted);
-}
-
-.healthLegendDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 /* --- Section Cards --- */
@@ -823,10 +684,6 @@
 /* --- Responsive --- */
 
 @media (max-width: 1024px) {
-  .summaryGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .dashboard,
   .skeletonDashboard {
     grid-template-columns: 1fr;
@@ -846,10 +703,6 @@
     padding: var(--space-4);
   }
 
-  .summaryGrid {
-    grid-template-columns: 1fr;
-  }
-
   .header {
     flex-direction: column;
     align-items: flex-start;
@@ -859,9 +712,5 @@
   .headerActions {
     width: 100%;
     justify-content: flex-end;
-  }
-
-  .cardValue {
-    font-size: var(--font-xl);
   }
 }

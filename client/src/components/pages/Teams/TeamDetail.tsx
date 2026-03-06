@@ -12,6 +12,7 @@ import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
 import AlertMutes from './AlertMutes';
+import TeamOverviewStats from './TeamOverviewStats';
 import ManifestStatusCard from './ManifestStatusCard';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
@@ -185,6 +186,11 @@ function TeamDetail() {
               </div>
             )}
           </div>
+          <TeamOverviewStats
+            teamId={id!}
+            members={team.members}
+            services={team.services}
+          />
         </TabPanel>
 
         {/* Members Tab */}
