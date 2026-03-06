@@ -87,7 +87,13 @@
 .nameMain {
   font-weight: 500;
   font-size: 0.875rem;
-  color: var(--color-text-primary);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: color var(--duration-fast) ease;
+}
+
+.nameMain:hover {
+  text-decoration: underline;
 }
 
 .nameSub {

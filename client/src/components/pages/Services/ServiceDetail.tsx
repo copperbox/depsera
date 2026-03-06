@@ -236,6 +236,7 @@ function ServiceDetail() {
         <TabPanel value="dependencies">
           <DependencyList
             serviceId={service.id}
+            serviceName={service.name}
             dependencies={service.dependencies}
             canEditOverrides={canEditOverrides()}
             onServiceReload={loadService}

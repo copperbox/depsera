@@ -1,0 +1,163 @@
+/* Dependency Detail Modal */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.headerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.depName {
+  font-size: var(--font-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+  margin: 0;
+  line-height: var(--line-height-tight);
+}
+
+.targetService {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Sections */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.section + .section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.sectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Metadata grid */
+.metadataGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.metadataItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.metadataLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.metadataValue {
+  font-size: var(--font-base);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Contact info */
+.contactList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contactItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.contactKey {
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.contactValue {
+  font-size: var(--font-base);
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+/* Override indicator */
+.overrideBadge {
+  display: inline-block;
+  padding: 0.0625rem var(--space-2);
+  font-size: 0.625rem;
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: 9999px;
+  margin-left: var(--space-2);
+}
+
+/* Chart container */
+.chartContainer {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+
+/* Empty contact state */
+.emptyText {
+  font-size: var(--font-sm);
+  color: var(--color-text-muted);
+}
+
+/* Edit button at bottom */
+.editAction {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: var(--space-5);
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.editButton:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
