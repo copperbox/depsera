@@ -12,73 +12,94 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
-  background: var(--color-bg-card);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
 
 .toolbarGroup {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .toolbarLabel {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--color-text-muted);
-  font-weight: 500;
+  font-weight: var(--font-medium);
 }
 
 .select {
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-input);
-  border-radius: 6px;
-  font-size: 14px;
-  background: var(--color-bg-input);
-  color: var(--color-text-primary);
+  font-size: var(--font-base);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
   min-width: 150px;
+  transition: border-color var(--duration-fast) ease;
 }
 
-.select:focus {
+.select:focus-visible {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--space-2);
+  color: var(--color-text-muted);
+  pointer-events: none;
 }
 
 .searchInput {
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-input);
-  border-radius: 6px;
-  font-size: 14px;
+  font-size: var(--font-sm);
+  padding: var(--space-2) var(--space-3);
+  padding-left: calc(var(--space-2) + 16px + var(--space-1));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   width: 200px;
-  background: var(--color-bg-input);
-  color: var(--color-text-primary);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) ease;
 }
 
-.searchInput:focus {
+.searchInput:focus-visible {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
 }
 
 .toolbarButton {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border-input);
-  border-radius: 6px;
-  background: var(--color-bg-card);
-  color: var(--color-text-primary);
-  font-size: 14px;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .toolbarButton:hover {
-  background: var(--color-bg-hover);
-  border-color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .toolbarButton svg {
@@ -86,23 +107,25 @@
   height: 16px;
 }
 
-/* Exit isolation button */
+/* Exit isolation button — ghost style */
 .exitIsolationButton {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid var(--color-accent);
-  border-radius: 6px;
-  background: var(--color-accent);
-  color: var(--color-text-inverse);
-  font-size: 14px;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .exitIsolationButton:hover {
-  opacity: 0.9;
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .exitIsolationButton svg {
@@ -112,32 +135,32 @@
 
 /* Context menu */
 .contextMenu {
-  z-index: 1000;
-  background: var(--color-bg-card);
+  z-index: var(--z-dropdown);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 4px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-1);
   min-width: 160px;
 }
 
 .contextMenuItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
-  color: var(--color-text-primary);
-  font-size: 13px;
+  color: var(--color-text);
+  font-size: var(--font-sm);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .contextMenuItem:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-surface-hover);
 }
 
 .contextMenuItem svg {
@@ -148,7 +171,7 @@
 .toolbarRight {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-left: auto;
 }
 
@@ -161,31 +184,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: var(--space-1);
   background: none;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--color-text-muted);
-  transition: all 0.15s;
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 .legendButton:hover {
-  color: var(--color-text-primary);
-  background: var(--color-bg-hover);
-  border-color: var(--color-border-input);
+  color: var(--color-text);
+  background: var(--color-surface-hover);
 }
 
 .legendTooltip {
   display: none;
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--space-2));
   right: 0;
-  z-index: 50;
-  padding: 12px 16px;
-  background: var(--color-bg-card);
+  z-index: var(--z-tooltip);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   white-space: nowrap;
 }
@@ -194,7 +216,7 @@
 .legendButton:focus + .legendTooltip {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 /* Settings menu */
@@ -206,54 +228,62 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border-input);
-  border-radius: 6px;
+  padding: var(--space-1);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  color: var(--color-text-primary);
-  transition: all 0.15s;
+  color: var(--color-text-secondary);
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
 .settingsButton:hover {
-  background: var(--color-bg-hover);
-  border-color: var(--color-text-muted);
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .settingsMenu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + var(--space-2));
   right: 0;
-  z-index: 50;
-  padding: 12px;
-  background: var(--color-bg-card);
+  z-index: var(--z-dropdown);
+  padding: var(--space-3);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 220px;
+  gap: var(--space-3);
+  min-width: 240px;
 }
 
 .settingsMenuItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
+}
+
+.settingsSectionHeader {
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .settingsMenuLabel {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
 
 .settingsMenuDivider {
   height: 1px;
-  background: var(--color-border);
-  margin: 0 -4px;
+  background: var(--color-border-subtle);
+  margin: 0 calc(-1 * var(--space-1));
 }
 
 /* Legend (shared styles for tooltip items) */
@@ -261,17 +291,20 @@
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
 }
 
 .legendDot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .legendDot.healthy {
-  background: var(--color-success);
+  background: var(--color-healthy);
 }
 
 .legendDot.warning {
@@ -279,15 +312,15 @@
 }
 
 .legendDot.critical {
-  background: var(--color-error);
+  background: var(--color-critical);
 }
 
 .legendDot.unknown {
-  background: var(--color-text-muted);
+  background: var(--color-unknown);
 }
 
 .legendDot.skipped {
-  background: var(--color-border-input);
+  background: var(--color-border);
   border: 1px dashed var(--color-text-muted);
 }
 
@@ -315,8 +348,9 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: 16px;
+  gap: var(--space-4);
   color: var(--color-text-muted);
+  font-size: var(--font-base);
 }
 
 .spinner {
@@ -335,17 +369,19 @@
 }
 
 .error {
-  color: var(--color-error);
+  color: var(--color-critical);
 }
 
 .retryButton {
-  padding: 8px 16px;
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-4);
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .retryButton:hover {
@@ -642,13 +678,15 @@
   justify-content: center;
   height: 100%;
   color: var(--color-text-muted);
-  gap: 12px;
+  gap: var(--space-3);
+  font-size: var(--font-base);
 }
 
 .emptyState svg {
-  width: 64px;
-  height: 64px;
-  color: var(--color-border-input);
+  width: 48px;
+  height: 48px;
+  color: var(--color-text-muted);
+  opacity: 0.5;
 }
 
 /* Controls override */
@@ -682,27 +720,16 @@
 .autoRefreshControls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-}
-
-.autoRefreshLabel {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  white-space: nowrap;
+  gap: var(--space-2);
 }
 
 .refreshingIndicator {
   display: flex;
   align-items: center;
+  color: var(--color-accent);
 }
 
-.spinnerSmall {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
+.refreshingIndicator svg {
   animation: spin 1s linear infinite;
 }
 
@@ -711,20 +738,20 @@
   width: 2.5rem;
   height: 1.5rem;
   padding: 0;
-  background-color: var(--color-border-input);
+  background-color: var(--color-border);
   border: none;
   border-radius: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--duration-normal) ease;
 }
 
-.togglePill:focus {
+.togglePill:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
 .togglePill.toggleActive {
-  background-color: var(--color-success);
+  background-color: var(--color-accent);
 }
 
 .toggleKnob {
@@ -733,10 +760,10 @@
   left: 0.125rem;
   width: 1.25rem;
   height: 1.25rem;
-  background-color: var(--color-bg-card);
+  background-color: #fff;
   border-radius: 50%;
-  transition: transform 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform var(--duration-normal) ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .togglePill.toggleActive .toggleKnob {
@@ -744,19 +771,20 @@
 }
 
 .intervalSelect {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8125rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 4px;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
+  font-size: var(--font-sm);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
 }
 
-.intervalSelect:focus {
+.intervalSelect:focus-visible {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .intervalSelect:disabled {
@@ -764,11 +792,11 @@
   cursor: not-allowed;
 }
 
-/* Direction toggle */
+/* Segmented pill toggle */
 .directionToggle {
   display: flex;
-  border: 1px solid var(--color-border-input);
-  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -776,25 +804,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
-  background: var(--color-bg-card);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
   border: none;
   cursor: pointer;
-  transition: all 0.15s;
-  color: var(--color-text-primary);
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+  color: var(--color-text-secondary);
 }
 
 .directionButton:first-child {
-  border-right: 1px solid var(--color-border-input);
+  border-right: 1px solid var(--color-border);
 }
 
 .directionButton:hover {
-  background: var(--color-bg-hover);
+  background: var(--color-surface-hover);
 }
 
 .directionButton.directionActive {
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: #fff;
 }
 
 .directionButton.directionActive:hover {

@@ -1,6 +1,7 @@
 import { memo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { type Node } from '@xyflow/react';
+import { X, XCircle, ChevronDown, ArrowRight, Clock, ChevronRight, Shrink } from 'lucide-react';
 import { ServiceNodeData, GraphEdgeData, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
 import { LatencyChart } from '../../Charts/LatencyChart';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
@@ -86,9 +87,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
       <div className={styles.header}>
         <h3 className={styles.title}>{displayName}</h3>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M15 5L5 15M5 5l10 10" />
-          </svg>
+          <X size={16} />
         </button>
       </div>
 
@@ -112,9 +111,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
         {hasError && (
           <div className={styles.errorAlert}>
             <div className={styles.errorAlertHeader}>
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+              <XCircle size={16} />
               <span className={styles.errorAlertTitle}>Error Detected</span>
             </div>
             {data.errorMessage && (
@@ -127,17 +124,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
                   onClick={() => setShowErrorDetails(!showErrorDetails)}
                 >
                   {showErrorDetails ? 'Hide' : 'Show'} error details
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={showErrorDetails ? styles.rotated : ''}
-                  >
-                    <path d="M3 5l3 3 3-3" />
-                  </svg>
+                  <ChevronDown size={12} className={showErrorDetails ? styles.rotated : ''} />
                 </button>
                 {showErrorDetails && (
                   <pre className={styles.errorDetails}>
@@ -165,9 +152,7 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
               )}
             </div>
             <div className={styles.connectionArrow}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M13 5l7 7-7 7" />
-              </svg>
+              <ArrowRight size={16} />
             </div>
             <div className={styles.connectionNode}>
               <span className={styles.connectionLabel}>To</span>
@@ -252,14 +237,9 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
               className={styles.viewErrorHistoryButton}
               onClick={() => setCurrentView('errorHistory')}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 4v4l2.5 2.5" />
-                <circle cx="8" cy="8" r="6" />
-              </svg>
+              <Clock size={14} />
               View Error History (24h)
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 4l4 4-4 4" />
-              </svg>
+              <ChevronRight size={14} />
             </button>
           </div>
         )}
@@ -271,18 +251,14 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
             className={styles.isolateButton}
             onClick={() => onIsolate(data.dependencyId!)}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
+            <Shrink size={14} />
             Isolate tree
           </button>
         )}
         {targetNode && (
           <Link to={`/services/${targetNode.id}`} className={styles.viewDetailsButton}>
             View Service Details
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 12l4-4-4-4" />
-            </svg>
+            <ChevronRight size={14} />
           </Link>
         )}
       </div>

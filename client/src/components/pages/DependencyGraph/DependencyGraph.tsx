@@ -14,6 +14,18 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+import {
+  Search,
+  Maximize2,
+  Loader2,
+  Info,
+  Settings,
+  ArrowDown,
+  ArrowRight,
+  CornerDownRight,
+  RotateCcw,
+  Shrink,
+} from 'lucide-react';
 import { getServiceHealthStatus } from '../../../types/graph';
 import { ServiceNode } from './ServiceNode';
 import { CustomEdge } from './CustomEdge';
@@ -418,13 +430,16 @@ function DependencyGraphInner() {
         </div>
 
         <div className={styles.toolbarGroup}>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Search nodes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className={styles.searchWrapper}>
+            <Search size={14} className={styles.searchIcon} />
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search nodes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
 
         {isolationTarget && (
@@ -434,9 +449,7 @@ function DependencyGraphInner() {
               onClick={exitIsolation}
               title="Exit isolated view and show all nodes"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
+              <Maximize2 size={16} />
               Show full graph
             </button>
           </div>
@@ -445,7 +458,7 @@ function DependencyGraphInner() {
         <div className={styles.toolbarRight}>
           {isRefreshing && (
             <div className={styles.refreshingIndicator}>
-              <div className={styles.spinnerSmall} />
+              <Loader2 size={14} />
             </div>
           )}
 
@@ -455,10 +468,7 @@ function DependencyGraphInner() {
               title="Legend"
               aria-label="Show legend"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4M12 8h.01" />
-              </svg>
+              <Info size={16} />
             </button>
             <div className={styles.legendTooltip}>
               <div className={styles.legendItem}>
@@ -496,55 +506,47 @@ function DependencyGraphInner() {
               aria-label="Graph settings"
               aria-expanded={settingsOpen}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <Settings size={16} />
             </button>
             {settingsOpen && (
               <div className={styles.settingsMenu}>
+                <div className={styles.settingsSectionHeader}>Layout</div>
                 <div className={styles.settingsMenuItem}>
-                  <label className={styles.settingsMenuLabel}>Layout</label>
+                  <span className={styles.settingsMenuLabel}>Direction</span>
                   <div className={styles.directionToggle}>
                     <button
                       className={`${styles.directionButton} ${layoutDirection === 'TB' ? styles.directionActive : ''}`}
                       onClick={() => handleDirectionChange('TB')}
                       title="Top to Bottom"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                        <path d="M12 3v18M12 21l-4-4M12 21l4-4" />
-                      </svg>
+                      <ArrowDown size={14} />
                     </button>
                     <button
                       className={`${styles.directionButton} ${layoutDirection === 'LR' ? styles.directionActive : ''}`}
                       onClick={() => handleDirectionChange('LR')}
                       title="Left to Right"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                        <path d="M3 12h18M21 12l-4-4M21 12l-4 4" />
-                      </svg>
+                      <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
 
                 <div className={styles.settingsMenuItem}>
-                  <label className={styles.settingsMenuLabel}>Edges</label>
+                  <span className={styles.settingsMenuLabel}>Edges</span>
                   <div className={styles.directionToggle}>
                     <button
                       className={`${styles.directionButton} ${edgeStyle === 'orthogonal' ? styles.directionActive : ''}`}
                       onClick={() => handleEdgeStyleChange('orthogonal')}
                       title="Orthogonal edges"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                        <path d="M4 4v8h16v8" />
-                      </svg>
+                      <CornerDownRight size={14} />
                     </button>
                     <button
                       className={`${styles.directionButton} ${edgeStyle === 'bezier' ? styles.directionActive : ''}`}
                       onClick={() => handleEdgeStyleChange('bezier')}
                       title="Bezier curve edges"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                         <path d="M4 4c0 12 16 4 16 16" />
                       </svg>
                     </button>
@@ -556,16 +558,15 @@ function DependencyGraphInner() {
                     className={styles.toolbarButton}
                     onClick={resetLayout}
                     title="Reset to auto-layout"
+                    style={{ width: '100%' }}
                   >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                      <path d="M1 4v6h6M23 20v-6h-6" />
-                      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                    </svg>
+                    <RotateCcw size={14} />
                     Reset Layout
                   </button>
                 </div>
 
                 <div className={styles.settingsMenuDivider} />
+                <div className={styles.settingsSectionHeader}>Animation</div>
 
                 <div className={styles.settingsMenuItem}>
                   <span className={styles.settingsMenuLabel}>Dashed edges</span>
@@ -592,9 +593,10 @@ function DependencyGraphInner() {
                 </div>
 
                 <div className={styles.settingsMenuDivider} />
+                <div className={styles.settingsSectionHeader}>Refresh</div>
 
                 <div className={styles.settingsMenuItem}>
-                  <span className={styles.autoRefreshLabel}>Auto-refresh</span>
+                  <span className={styles.settingsMenuLabel}>Auto-refresh</span>
                   <div className={styles.autoRefreshControls}>
                     <button
                       role="switch"
@@ -742,9 +744,7 @@ function DependencyGraphInner() {
                 setContextMenu(null);
               }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
+              <Shrink size={14} />
               Isolate tree
             </button>
           </div>
