@@ -1,49 +1,74 @@
+/* Side panel */
 .panel {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: 320px;
-  background: var(--color-bg-card);
+  background: var(--color-surface);
   border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  animation: slideIn var(--duration-normal) ease;
 }
 
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Slim scrollbar */
 .scrollContent {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .scrollContent::-webkit-scrollbar {
-  display: none;
+  width: 4px;
 }
 
+.scrollContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollContent::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+/* Header */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .titleRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   flex: 1;
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: var(--font-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -52,21 +77,21 @@
 .externalBadge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 2px var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
-  background: var(--color-bg-hover);
+  background: var(--color-surface-hover);
   border: 1px dashed var(--color-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
 .externalDescription {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
   font-style: italic;
 }
@@ -75,41 +100,42 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.15s;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
   flex-shrink: 0;
 }
 
 .closeButton:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
+/* Status section */
 .statusSection {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .pollFailure {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
   background-color: color-mix(in srgb, var(--color-warning) 12%, transparent);
-  border-radius: 6px;
-  font-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
   color: var(--color-warning);
-  line-height: 1.3;
+  line-height: var(--line-height-normal);
 }
 
 .pollFailure svg {
@@ -119,31 +145,22 @@
 .statusBadge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  width: fit-content;
 }
 
 .statusBadge.healthy {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-[data-theme="dark"] .statusBadge.healthy {
-  background: #064e3b;
-  color: #34d399;
+  background: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  color: var(--color-healthy);
 }
 
 .statusBadge.warning {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-[data-theme="dark"] .statusBadge.warning {
-  background: #451a03;
-  color: #fbbf24;
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
 }
 
 .statusBadge.critical {
@@ -152,61 +169,66 @@
 }
 
 .statusBadge.unknown {
-  background: var(--color-bg-hover);
+  background: var(--color-surface-hover);
   color: var(--color-text-muted);
 }
 
 .statusDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
 
+/* Sections */
 .section {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .sectionTitle {
-  margin: 0 0 4px 0;
-  font-size: 12px;
-  font-weight: 600;
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
   color: var(--color-text-muted);
 }
 
 .sectionDescription {
-  margin: 0 0 12px 0;
-  font-size: 12px;
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
 }
 
+/* Details grid */
 .detailsGrid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .detailItem {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .detailLabel {
-  font-size: 12px;
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
   color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .detailValue {
-  font-size: 14px;
-  color: var(--color-text-primary);
+  font-size: var(--font-base);
+  color: var(--color-text);
 }
 
 .detailLink {
-  font-size: 14px;
+  font-size: var(--font-sm);
   color: var(--color-accent);
   text-decoration: none;
   word-break: break-all;
@@ -216,89 +238,98 @@
   text-decoration: underline;
 }
 
+/* Stats grid */
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .statItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 8px;
-  background: var(--color-bg-hover);
-  border-radius: 8px;
+  gap: 2px;
+  padding: var(--space-2);
+  background: var(--color-surface-hover);
+  border-radius: var(--radius-sm);
 }
 
 .statItem.healthy .statValue {
-  color: var(--color-success);
+  color: var(--color-healthy);
 }
 
 .statItem.critical .statValue {
-  color: var(--color-error);
+  color: var(--color-critical);
 }
 
 .statValue {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: var(--font-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .statLabel {
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
 }
 
+/* Service / dependency lists */
 .serviceList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 1px;
   max-height: 200px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
 }
 
 .serviceListItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--color-bg-hover);
-  border-radius: 6px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast) ease;
+}
+
+.serviceListItem:hover {
+  background: var(--color-surface-hover);
 }
 
 .healthDot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .healthDot.healthy {
-  background: var(--color-success);
+  background: var(--color-healthy);
 }
 
 .healthDot.warning {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 .healthDot.critical {
-  background: var(--color-error);
+  background: var(--color-critical);
 }
 
 .healthDot.unknown {
-  background: var(--color-text-muted);
+  background: var(--color-unknown);
 }
 
 .serviceLink {
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--color-accent);
   text-decoration: none;
   white-space: nowrap;
@@ -313,24 +344,17 @@
 .dependencyLabel {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
-  background: var(--color-bg-card);
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
 .dependencyLabel.highLatency {
   color: var(--color-warning);
-  font-weight: 600;
-  background: #fffbeb;
-}
-
-[data-theme="dark"] .dependencyLabel.highLatency {
-  background: #451a03;
+  font-weight: var(--font-semibold);
 }
 
 .highLatencyIcon {
@@ -343,25 +367,21 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .contactItem {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--color-bg-hover);
-  border-radius: 6px;
+  gap: var(--space-2);
 }
 
 .contactKey {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
   color: var(--color-text-muted);
   text-transform: capitalize;
   flex-shrink: 0;
-  min-width: 0;
 }
 
 .contactKey::after {
@@ -369,8 +389,8 @@
 }
 
 .contactValue {
-  font-size: 13px;
-  color: var(--color-text-primary);
+  font-size: var(--font-base);
+  color: var(--color-text);
   margin: 0;
   overflow-wrap: break-word;
   min-width: 0;
@@ -378,35 +398,39 @@
 
 /* Latency chart section */
 .chartSection {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
+/* Actions */
 .actions {
-  padding: 16px 20px;
+  padding: var(--space-3) var(--space-4);
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .isolateButton {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 10px 16px;
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  background: transparent;
+  color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.15s;
-  margin-bottom: 8px;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .isolateButton:hover {
-  background: var(--color-border);
+  background: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .isolateButton svg {
@@ -419,18 +443,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 10px 16px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
   background: var(--color-accent);
-  color: var(--color-text-inverse);
+  color: #fff;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: var(--radius-sm);
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .viewDetailsButton:hover {

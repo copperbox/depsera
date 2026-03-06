@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
+import { X, ChevronRight } from 'lucide-react';
 import { formatRelativeTime } from '../../../utils/formatting';
 import { LatencyChart } from '../../Charts/LatencyChart';
 import { HealthTimeline } from '../../Charts/HealthTimeline';
@@ -83,9 +84,7 @@ function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetai
       <div className={styles.header}>
         <h3 className={styles.title}>{dependency.canonical_name}</h3>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M15 5L5 15M5 5l10 10" />
-          </svg>
+          <X size={18} />
         </button>
       </div>
 
@@ -215,9 +214,7 @@ function DependencyDetailPanelComponent({ dependency, onClose }: DependencyDetai
           className={styles.actionLink}
         >
           View in Graph
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 12l4-4-4-4" />
-          </svg>
+          <ChevronRight size={16} />
         </Link>
         {dependency.linked_service && (
           <Link

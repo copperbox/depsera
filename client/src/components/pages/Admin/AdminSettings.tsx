@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { fetchSettings, updateSettings } from '../../../api/settings';
 import type { SettingValue } from '../../../api/settings';
 import styles from './AdminSettings.module.css';
@@ -212,7 +213,7 @@ function AdminSettings() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={24} className={styles.spinner} />
           <span>Loading settings...</span>
         </div>
       </div>
@@ -265,15 +266,10 @@ function AdminSettings() {
             aria-expanded={expandedSections.has('retention')}
           >
             <h2 className={styles.sectionTitle}>Data Retention</h2>
-            <svg
+            <ChevronDown
+              size={20}
               className={`${styles.chevron} ${expandedSections.has('retention') ? styles.chevronExpanded : ''}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            />
           </button>
           {expandedSections.has('retention') && (
             <div className={styles.sectionBody}>
@@ -328,15 +324,10 @@ function AdminSettings() {
             aria-expanded={expandedSections.has('polling')}
           >
             <h2 className={styles.sectionTitle}>Polling Defaults</h2>
-            <svg
+            <ChevronDown
+              size={20}
               className={`${styles.chevron} ${expandedSections.has('polling') ? styles.chevronExpanded : ''}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            />
           </button>
           {expandedSections.has('polling') && (
             <div className={styles.sectionBody}>
@@ -376,15 +367,10 @@ function AdminSettings() {
             aria-expanded={expandedSections.has('security')}
           >
             <h2 className={styles.sectionTitle}>Security</h2>
-            <svg
+            <ChevronDown
+              size={20}
               className={`${styles.chevron} ${expandedSections.has('security') ? styles.chevronExpanded : ''}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            />
           </button>
           {expandedSections.has('security') && (
             <div className={styles.sectionBody}>
@@ -500,15 +486,10 @@ function AdminSettings() {
             aria-expanded={expandedSections.has('alerts')}
           >
             <h2 className={styles.sectionTitle}>Alerts</h2>
-            <svg
+            <ChevronDown
+              size={20}
               className={`${styles.chevron} ${expandedSections.has('alerts') ? styles.chevronExpanded : ''}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            />
           </button>
           {expandedSections.has('alerts') && (
             <div className={styles.sectionBody}>

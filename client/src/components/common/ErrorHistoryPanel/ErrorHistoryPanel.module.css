@@ -20,7 +20,7 @@
   color: var(--color-text-primary);
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
   flex-shrink: 0;
 }
 
@@ -100,7 +100,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-fast);
 }
 
 .retryButton:hover {
@@ -108,7 +108,7 @@
 }
 
 .emptyState svg {
-  color: #10b981;
+  color: var(--color-healthy);
 }
 
 .emptyState p {
@@ -194,7 +194,7 @@
 }
 
 .timelineItem.recovery .timelineDot {
-  background: #10b981;
+  background: var(--color-healthy);
 }
 
 .timelineContent {
@@ -230,13 +230,8 @@
 }
 
 .recoveryStatus {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-[data-theme="dark"] .recoveryStatus {
-  background: #064e3b;
-  color: #34d399;
+  background: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  color: var(--color-healthy);
 }
 
 .timelineMessage {

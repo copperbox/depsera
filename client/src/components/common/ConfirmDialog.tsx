@@ -25,7 +25,7 @@ function ConfirmDialog({
   isLoading = false,
 }: ConfirmDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="small">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className={styles.content}>
         <p className={styles.message}>{message}</p>
         <div className={styles.actions}>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Search, Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useServicesList, type SortColumn } from '../../../hooks/useServicesList';
 import StatusBadge from '../../common/StatusBadge';
@@ -77,7 +78,7 @@ function ServicesList() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={32} className={styles.spinner} />
           <span>Loading services...</span>
         </div>
       </div>
@@ -104,7 +105,7 @@ function ServicesList() {
           <h1 className={styles.title}>Services</h1>
           {isRefreshing && (
             <div className={styles.refreshingIndicator}>
-              <div className={styles.spinnerSmall} />
+              <Loader2 size={16} />
             </div>
           )}
         </div>
@@ -138,16 +139,7 @@ function ServicesList() {
               onClick={() => setIsAddModalOpen(true)}
               className={styles.addButton}
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M10 5v10M5 10h10" />
-              </svg>
+              <Plus size={16} />
               Add Service
             </button>
           )}
@@ -156,18 +148,7 @@ function ServicesList() {
 
       <div className={styles.filters}>
         <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="9" cy="9" r="6" />
-            <path d="M13 13l4 4" />
-          </svg>
+          <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
             placeholder="Search services..."
@@ -285,7 +266,7 @@ function ServicesList() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Add Service"
-        size="medium"
+        size="md"
       >
         <ServiceForm
           teams={creatableTeams}

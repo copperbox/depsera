@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronDown } from 'lucide-react';
 import styles from './SearchableSelect.module.css';
 
 export interface SelectOption {
@@ -96,9 +97,7 @@ function SearchableSelect({
         <span className={value ? styles.selectedText : styles.placeholder}>
           {value ? selectedLabel : placeholder}
         </span>
-        <svg className={styles.chevron} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M6 8l4 4 4-4" />
-        </svg>
+        <ChevronDown size={16} className={styles.chevron} />
       </button>
       {isOpen && (
         <div className={styles.dropdown} role="listbox">

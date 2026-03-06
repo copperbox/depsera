@@ -103,15 +103,26 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('applies size class', () => {
+  it('defaults to md size class', () => {
     render(
-      <Modal isOpen={true} onClose={() => {}} title="Test Modal" size="large">
+      <Modal isOpen={true} onClose={() => {}} title="Test Modal">
         <p>Modal content</p>
       </Modal>
     );
 
     const dialog = screen.getByRole('dialog', { hidden: true });
-    expect(dialog.className).toContain('large');
+    expect(dialog.className).toContain('md');
+  });
+
+  it.each(['sm', 'md', 'lg'] as const)('applies %s size class', (size) => {
+    render(
+      <Modal isOpen={true} onClose={() => {}} title="Test Modal" size={size}>
+        <p>Modal content</p>
+      </Modal>
+    );
+
+    const dialog = screen.getByRole('dialog', { hidden: true });
+    expect(dialog.className).toContain(size);
   });
 
   it('calls close when transitioning from open to closed', () => {

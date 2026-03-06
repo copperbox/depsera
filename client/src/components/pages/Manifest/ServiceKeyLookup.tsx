@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { ChevronRight, Search, Copy, Check, Loader2 } from 'lucide-react';
 import { fetchServiceCatalog } from '../../../api/services';
 import type { CatalogEntry } from '../../../types/service';
 import styles from './ManifestPage.module.css';
@@ -69,20 +70,13 @@ function ServiceKeyLookup() {
         onClick={handleToggle}
         aria-expanded={isExpanded}
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
+        <ChevronRight
+          size={16}
           style={{
             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease',
+            transition: 'transform var(--duration-normal) ease',
           }}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        />
         <span>Service Key Lookup</span>
         <span className={styles.lookupHint}>
           Find manifest keys from other teams
@@ -93,7 +87,7 @@ function ServiceKeyLookup() {
         <div className={styles.lookupContent}>
           {isLoading && (
             <div className={styles.lookupLoading}>
-              <div className={styles.spinnerSmall} />
+              <Loader2 size={16} className={styles.spinnerSmall} />
               <span>Loading catalog...</span>
             </div>
           )}
@@ -113,18 +107,7 @@ function ServiceKeyLookup() {
           {loaded && !error && (
             <>
               <div className={styles.lookupSearch}>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className={styles.lookupSearchIcon}
-                >
-                  <circle cx="9" cy="9" r="6" />
-                  <path d="M13 13l4 4" />
-                </svg>
+                <Search size={16} className={styles.lookupSearchIcon} />
                 <input
                   type="text"
                   placeholder="Search services or keys..."
@@ -167,14 +150,9 @@ function ServiceKeyLookup() {
                                     aria-label={`Copy ${nsKey}`}
                                   >
                                     {copiedId === entry.id ? (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
+                                      <Check size={12} />
                                     ) : (
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                      </svg>
+                                      <Copy size={12} />
                                     )}
                                   </button>
                                 </span>

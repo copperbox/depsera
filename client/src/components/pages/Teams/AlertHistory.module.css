@@ -30,43 +30,23 @@
 }
 
 .status_sent {
-  color: #166534;
-  background-color: #dcfce7;
-}
-
-[data-theme="dark"] .status_sent {
-  color: #86efac;
-  background-color: #14532d;
+  color: var(--color-healthy);
+  background-color: color-mix(in srgb, var(--color-healthy) 15%, transparent);
 }
 
 .status_failed {
-  color: #991b1b;
-  background-color: #fee2e2;
-}
-
-[data-theme="dark"] .status_failed {
-  color: #fca5a5;
-  background-color: #7f1d1d;
+  color: var(--color-critical);
+  background-color: color-mix(in srgb, var(--color-critical) 15%, transparent);
 }
 
 .status_suppressed {
-  color: #92400e;
-  background-color: #fef3c7;
-}
-
-[data-theme="dark"] .status_suppressed {
-  color: #fcd34d;
-  background-color: #78350f;
+  color: var(--color-warning);
+  background-color: color-mix(in srgb, var(--color-warning) 15%, transparent);
 }
 
 .status_muted {
-  color: #6b7280;
-  background-color: #f3f4f6;
-}
-
-[data-theme="dark"] .status_muted {
-  color: #9ca3af;
-  background-color: #374151;
+  color: var(--color-unknown);
+  background-color: color-mix(in srgb, var(--color-unknown) 15%, transparent);
 }
 
 /* Cell Styles */

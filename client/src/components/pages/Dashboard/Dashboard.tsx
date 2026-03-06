@@ -5,6 +5,7 @@ import { formatRelativeTime } from '../../../utils/formatting';
 import { getHealthBadgeStatus } from '../../../utils/statusMapping';
 import { usePolling, INTERVAL_OPTIONS } from '../../../hooks/usePolling';
 import { useDashboard } from '../../../hooks/useDashboard';
+import cardStyles from '../../common/SummaryCards.module.css';
 import styles from './Dashboard.module.css';
 
 function Dashboard() {
@@ -38,9 +39,24 @@ function Dashboard() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <span>Loading dashboard...</span>
+        <div className={styles.header}>
+          <div className={styles.titleRow}>
+            <h1 className={styles.title}>Dashboard</h1>
+          </div>
+        </div>
+        <div className={styles.skeletonDashboard}>
+          <div className={styles.skeletonSummaryGrid}>
+            <div className={styles.skeletonSummaryCard} />
+            <div className={styles.skeletonSummaryCard} />
+            <div className={styles.skeletonSummaryCard} />
+            <div className={styles.skeletonSummaryCard} />
+          </div>
+          <div className={styles.skeletonHealthBar} />
+          <div className={styles.skeletonSection} style={{ gridArea: 'issues' }} />
+          <div className={styles.skeletonSection} style={{ gridArea: 'activity' }} />
+          <div className={styles.skeletonSection} style={{ gridArea: 'teams' }} />
+          <div className={styles.skeletonSection} style={{ gridArea: 'unstable' }} />
+          <div className={styles.skeletonSection} style={{ gridArea: 'polling' }} />
         </div>
       </div>
     );
@@ -99,99 +115,103 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className={styles.summaryGrid}>
-        <div
-          className={`${styles.summaryCard} ${styles.clickable}`}
-          onClick={() => navigate('/services')}
-        >
-          <span className={styles.cardLabel}>Total Services</span>
-          <span className={styles.cardValue}>{stats.total}</span>
-          <span className={styles.cardSubtext}>{teams.length} teams</span>
-        </div>
-        <div className={styles.summaryCard}>
-          <span className={styles.cardLabel}>Healthy</span>
-          <span className={`${styles.cardValue} ${styles.healthy}`}>{stats.healthy}</span>
-          <span className={styles.cardSubtext}>
-            {stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}% of services
-          </span>
-        </div>
-        <div className={styles.summaryCard}>
-          <span className={styles.cardLabel}>Warning</span>
-          <span className={`${styles.cardValue} ${styles.warning}`}>{stats.warning}</span>
-          <span className={styles.cardSubtext}>need attention</span>
-        </div>
-        <div className={styles.summaryCard}>
-          <span className={styles.cardLabel}>Critical</span>
-          <span className={`${styles.cardValue} ${styles.critical}`}>{stats.critical}</span>
-          <span className={styles.cardSubtext}>require action</span>
-        </div>
-      </div>
-
-      {/* Health Overview Bar */}
-      {stats.total > 0 && (
-        <div className={styles.healthOverview}>
-          <div className={styles.healthOverviewHeader}>
-            <h2 className={styles.healthOverviewTitle}>Health Overview</h2>
-            <span className={styles.healthOverviewSubtitle}>
-              {Math.round((stats.healthy / stats.total) * 100)}% healthy
+      {/* Dashboard Grid */}
+      <div className={`${styles.dashboard} ${isRefreshing ? styles.refreshing : ''}`}>
+        {/* Summary Cards */}
+        <div className={`${styles.areaSummary} ${cardStyles.summaryGrid}`}>
+          <div
+            className={`${cardStyles.summaryCardAccent} ${styles.summaryCardClickable}`}
+            onClick={() => navigate('/services')}
+          >
+            <span className={cardStyles.cardLabel}>Total Services</span>
+            <span className={cardStyles.cardValue}>{stats.total}</span>
+            <span className={cardStyles.cardSubtext}>{teams.length} teams</span>
+          </div>
+          <div className={cardStyles.summaryCardHealthy}>
+            <span className={cardStyles.cardLabel}>Healthy</span>
+            <span className={cardStyles.cardValue}>{stats.healthy}</span>
+            <span className={cardStyles.cardSubtext}>
+              {stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}% of services
             </span>
           </div>
-          <div className={styles.healthBar} role="img" aria-label="Health distribution bar">
-            {stats.healthy > 0 && (
-              <div
-                className={`${styles.healthSegment} ${styles.segmentHealthy}`}
-                style={{ width: `${(stats.healthy / stats.total) * 100}%` }}
-                title={`${stats.healthy} healthy (${Math.round((stats.healthy / stats.total) * 100)}%)`}
-              />
-            )}
-            {stats.warning > 0 && (
-              <div
-                className={`${styles.healthSegment} ${styles.segmentWarning}`}
-                style={{ width: `${(stats.warning / stats.total) * 100}%` }}
-                title={`${stats.warning} warning (${Math.round((stats.warning / stats.total) * 100)}%)`}
-              />
-            )}
-            {stats.critical > 0 && (
-              <div
-                className={`${styles.healthSegment} ${styles.segmentCritical}`}
-                style={{ width: `${(stats.critical / stats.total) * 100}%` }}
-                title={`${stats.critical} critical (${Math.round((stats.critical / stats.total) * 100)}%)`}
-              />
-            )}
-            {stats.total - stats.healthy - stats.warning - stats.critical > 0 && (
-              <div
-                className={`${styles.healthSegment} ${styles.segmentUnknown}`}
-                style={{ width: `${((stats.total - stats.healthy - stats.warning - stats.critical) / stats.total) * 100}%` }}
-                title={`${stats.total - stats.healthy - stats.warning - stats.critical} unknown`}
-              />
-            )}
+          <div className={cardStyles.summaryCardWarning}>
+            <span className={cardStyles.cardLabel}>Warning</span>
+            <span className={cardStyles.cardValue}>{stats.warning}</span>
+            <span className={cardStyles.cardSubtext}>need attention</span>
           </div>
-          <div className={styles.healthLegend}>
-            <span className={styles.healthLegendItem}>
-              <span className={`${styles.healthLegendDot} ${styles.segmentHealthy}`} />
-              Healthy ({stats.healthy})
-            </span>
-            {stats.warning > 0 && (
-              <span className={styles.healthLegendItem}>
-                <span className={`${styles.healthLegendDot} ${styles.segmentWarning}`} />
-                Warning ({stats.warning})
-              </span>
-            )}
-            {stats.critical > 0 && (
-              <span className={styles.healthLegendItem}>
-                <span className={`${styles.healthLegendDot} ${styles.segmentCritical}`} />
-                Critical ({stats.critical})
-              </span>
-            )}
+          <div className={cardStyles.summaryCardCritical}>
+            <span className={cardStyles.cardLabel}>Critical</span>
+            <span className={cardStyles.cardValue}>{stats.critical}</span>
+            <span className={cardStyles.cardSubtext}>require action</span>
           </div>
         </div>
-      )}
 
-      {/* Main Content Grid */}
-      <div className={styles.sectionsGrid}>
+        {/* Health Overview Bar */}
+        <div className={`${styles.areaHealth} ${cardStyles.healthOverview}`}>
+          <div className={cardStyles.healthOverviewHeader}>
+            <h2 className={cardStyles.healthOverviewTitle}>Health Overview</h2>
+            <span className={cardStyles.healthOverviewSubtitle}>
+              {stats.total > 0 ? Math.round((stats.healthy / stats.total) * 100) : 0}% healthy
+            </span>
+          </div>
+          {stats.total > 0 ? (
+            <>
+              <div className={cardStyles.healthBar} role="img" aria-label="Health distribution bar">
+                {stats.healthy > 0 && (
+                  <div
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentHealthy}`}
+                    style={{ width: `${(stats.healthy / stats.total) * 100}%` }}
+                    title={`${stats.healthy} healthy (${Math.round((stats.healthy / stats.total) * 100)}%)`}
+                  />
+                )}
+                {stats.warning > 0 && (
+                  <div
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentWarning}`}
+                    style={{ width: `${(stats.warning / stats.total) * 100}%` }}
+                    title={`${stats.warning} warning (${Math.round((stats.warning / stats.total) * 100)}%)`}
+                  />
+                )}
+                {stats.critical > 0 && (
+                  <div
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentCritical}`}
+                    style={{ width: `${(stats.critical / stats.total) * 100}%` }}
+                    title={`${stats.critical} critical (${Math.round((stats.critical / stats.total) * 100)}%)`}
+                  />
+                )}
+                {stats.total - stats.healthy - stats.warning - stats.critical > 0 && (
+                  <div
+                    className={`${cardStyles.healthSegment} ${cardStyles.segmentUnknown}`}
+                    style={{ width: `${((stats.total - stats.healthy - stats.warning - stats.critical) / stats.total) * 100}%` }}
+                    title={`${stats.total - stats.healthy - stats.warning - stats.critical} unknown`}
+                  />
+                )}
+              </div>
+              <div className={cardStyles.healthLegend}>
+                <span className={cardStyles.healthLegendItem}>
+                  <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentHealthy}`} />
+                  Healthy ({stats.healthy})
+                </span>
+                {stats.warning > 0 && (
+                  <span className={cardStyles.healthLegendItem}>
+                    <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentWarning}`} />
+                    Warning ({stats.warning})
+                  </span>
+                )}
+                {stats.critical > 0 && (
+                  <span className={cardStyles.healthLegendItem}>
+                    <span className={`${cardStyles.healthLegendDot} ${cardStyles.segmentCritical}`} />
+                    Critical ({stats.critical})
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={styles.emptySection}>No services registered</div>
+          )}
+        </div>
+
         {/* Services with Issues */}
-        <div className={styles.section}>
+        <div className={`${styles.areaIssues} ${styles.section}`}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>Services with Issues</h2>
             <Link to="/services" className={styles.sectionLink}>
@@ -227,87 +247,8 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Polling Issues */}
-        {servicesWithPollingIssues.length > 0 && (
-          <div className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Polling Issues</h2>
-              <span className={styles.pollingIssuesBadge}>
-                {servicesWithPollingIssues.length}
-              </span>
-            </div>
-            <div className={styles.sectionContent}>
-              <ul className={styles.issuesList}>
-                {servicesWithPollingIssues.map(svc => (
-                  <li key={svc.id} className={styles.issueItem}>
-                    <Link to={`/services/${svc.id}`} className={styles.issueLink}>
-                      <span className={`${styles.pollingDot} ${svc.pollError ? styles.critical : styles.warning}`} />
-                      <div>
-                        <div className={styles.issueName}>{svc.name}</div>
-                        <div className={styles.issueTeam}>{svc.teamName}</div>
-                      </div>
-                    </Link>
-                    <div className={styles.pollingIssueDetail}>
-                      {svc.pollError
-                        ? 'Poll failed'
-                        : `${svc.warningCount} warning${svc.warningCount !== 1 ? 's' : ''}`}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* Team Health Summary */}
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Health by Team</h2>
-            <Link to="/teams" className={styles.sectionLink}>
-              View all
-            </Link>
-          </div>
-          <div className={styles.sectionContent}>
-            {teamHealthSummary.length > 0 ? (
-              <ul className={styles.teamList}>
-                {teamHealthSummary.map(({ team, healthy, warning, critical }) => (
-                  <li key={team.id} className={styles.teamItem}>
-                    <Link to={`/teams/${team.id}`} className={styles.teamLink}>
-                      <div className={styles.teamName}>{team.name}</div>
-                    </Link>
-                    <div className={styles.teamStats}>
-                      {healthy > 0 && (
-                        <span className={`${styles.teamStat} ${styles.healthy}`}>
-                          <span className={`${styles.teamStatDot} ${styles.healthy}`} />
-                          {healthy}
-                        </span>
-                      )}
-                      {warning > 0 && (
-                        <span className={`${styles.teamStat} ${styles.warning}`}>
-                          <span className={`${styles.teamStatDot} ${styles.warning}`} />
-                          {warning}
-                        </span>
-                      )}
-                      {critical > 0 && (
-                        <span className={`${styles.teamStat} ${styles.critical}`}>
-                          <span className={`${styles.teamStatDot} ${styles.critical}`} />
-                          {critical}
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className={styles.emptySection}>
-                No teams with services
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Recent Activity */}
-        <div className={styles.section}>
+        <div className={`${styles.areaActivity} ${styles.section}`}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>Recent Activity</h2>
           </div>
@@ -322,19 +263,7 @@ function Dashboard() {
                   const currentLabel = event.current_healthy ? 'healthy' : 'critical';
                   return (
                     <li key={event.id} className={styles.activityItem}>
-                      {/* eslint-disable-next-line security/detect-object-injection */}
-                      <div className={`${styles.activityIcon} ${styles[status]}`}>
-                        {event.current_healthy ? (
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M13 4l-7 7-3-3" />
-                          </svg>
-                        ) : (
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="8" cy="8" r="6" />
-                            <path d="M10 6l-4 4M6 6l4 4" />
-                          </svg>
-                        )}
-                      </div>
+                      <div className={`${styles.activityDot} ${status === 'healthy' ? styles.healthy : styles.critical}`} />
                       <div className={styles.activityContent}>
                         <div className={styles.activityText}>
                           <Link to={`/services/${event.service_id}`} className={styles.activityLink}>
@@ -358,8 +287,55 @@ function Dashboard() {
           </div>
         </div>
 
+        {/* Team Health Summary */}
+        <div className={`${styles.areaTeams} ${styles.section}`}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Health by Team</h2>
+            <Link to="/teams" className={styles.sectionLink}>
+              View all
+            </Link>
+          </div>
+          <div className={styles.sectionContent}>
+            {teamHealthSummary.length > 0 ? (
+              <ul className={styles.teamList}>
+                {teamHealthSummary.map(({ team, healthy, warning, critical }) => (
+                  <li key={team.id} className={styles.teamItem}>
+                    <Link to={`/teams/${team.id}`} className={styles.teamLink}>
+                      <div className={styles.teamName}>{team.name}</div>
+                    </Link>
+                    <div className={styles.teamStats}>
+                      {healthy > 0 && (
+                        <span className={styles.teamStat}>
+                          <span className={`${styles.teamStatDot} ${styles.healthy}`} />
+                          {healthy}
+                        </span>
+                      )}
+                      {warning > 0 && (
+                        <span className={styles.teamStat}>
+                          <span className={`${styles.teamStatDot} ${styles.warning}`} />
+                          {warning}
+                        </span>
+                      )}
+                      {critical > 0 && (
+                        <span className={styles.teamStat}>
+                          <span className={`${styles.teamStatDot} ${styles.critical}`} />
+                          {critical}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.emptySection}>
+                No teams with services
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Most Unstable Dependencies */}
-        <div className={styles.section}>
+        <div className={`${styles.areaUnstable} ${styles.section}`}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>Most Unstable (24h)</h2>
           </div>
@@ -369,10 +345,11 @@ function Dashboard() {
                 {unstableDependencies.map(dep => {
                   const maxCount = unstableDependencies[0].change_count;
                   const barWidth = maxCount > 0 ? (dep.change_count / maxCount) * 100 : 0;
+                  const healthClass = dep.current_healthy ? styles.healthy : styles.critical;
                   return (
                     <li key={dep.dependency_name} className={styles.unstableItem}>
                       <div className={styles.unstableInfo}>
-                        <span className={`${styles.unstableDot} ${dep.current_healthy ? styles.healthy : styles.critical}`} />
+                        <span className={`${styles.unstableDot} ${healthClass}`} />
                         <div className={styles.unstableText}>
                           <Link to={`/services/${dep.service_id}`} className={styles.unstableName}>
                             {dep.dependency_name}
@@ -381,10 +358,12 @@ function Dashboard() {
                         </div>
                       </div>
                       <div className={styles.unstableBar}>
-                        <div
-                          className={styles.unstableBarFill}
-                          style={{ width: `${barWidth}%` }}
-                        />
+                        <div className={styles.unstableBarTrack}>
+                          <div
+                            className={`${styles.unstableBarFill} ${healthClass}`}
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
                         <span className={styles.unstableCount}>{dep.change_count}</span>
                       </div>
                     </li>
@@ -393,10 +372,45 @@ function Dashboard() {
               </ul>
             ) : (
               <div className={styles.emptySection}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginBottom: '0.5rem' }}>
-                  <path d="M16.7 5.3l-8.4 8.4-4-4" />
-                </svg>
-                <div>All dependencies stable</div>
+                All dependencies stable
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Polling Issues — always rendered to prevent layout shift */}
+        <div className={`${styles.areaPolling} ${styles.section}`}>
+          <div className={styles.sectionHeader}>
+            <h2 className={styles.sectionTitle}>Polling Issues</h2>
+            {servicesWithPollingIssues.length > 0 && (
+              <span className={styles.pollingIssuesBadge}>
+                {servicesWithPollingIssues.length}
+              </span>
+            )}
+          </div>
+          <div className={styles.sectionContent}>
+            {servicesWithPollingIssues.length > 0 ? (
+              <ul className={styles.issuesList}>
+                {servicesWithPollingIssues.map(svc => (
+                  <li key={svc.id} className={styles.issueItem}>
+                    <Link to={`/services/${svc.id}`} className={styles.issueLink}>
+                      <span className={`${styles.pollingDot} ${svc.pollError ? styles.critical : styles.warning}`} />
+                      <div>
+                        <div className={styles.issueName}>{svc.name}</div>
+                        <div className={styles.issueTeam}>{svc.teamName}</div>
+                      </div>
+                    </Link>
+                    <div className={styles.pollingIssueDetail}>
+                      {svc.pollError
+                        ? 'Poll failed'
+                        : `${svc.warningCount} warning${svc.warningCount !== 1 ? 's' : ''}`}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.emptySection}>
+                No polling issues
               </div>
             )}
           </div>

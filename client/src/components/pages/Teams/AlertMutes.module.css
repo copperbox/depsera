@@ -128,15 +128,15 @@
 .deleteButton {
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-  color: var(--color-error, #dc3545);
+  color: var(--color-critical);
   background: none;
-  border: 1px solid var(--color-error, #dc3545);
+  border: 1px solid var(--color-critical);
   border-radius: 0.25rem;
   cursor: pointer;
 }
 
 .deleteButton:hover {
-  background-color: var(--color-error, #dc3545);
+  background-color: var(--color-critical);
   color: white;
 }
 
@@ -153,7 +153,7 @@
 }
 
 .error {
-  color: var(--color-error, #dc3545);
+  color: var(--color-critical);
   font-size: 0.875rem;
   margin-bottom: 0.75rem;
 }

@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { type Node, type Edge } from '@xyflow/react';
+import { X, AlertTriangle, ChevronRight, Shrink } from 'lucide-react';
 import { ServiceNodeData, GraphEdgeData, getServiceHealthStatus, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
 import { AggregateLatencyChart } from '../../Charts/AggregateLatencyChart';
 import styles from './NodeDetailsPanel.module.css';
@@ -144,9 +145,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
           {isExternal && <span className={styles.externalBadge}>External</span>}
         </div>
         <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M15 5L5 15M5 5l10 10" />
-          </svg>
+          <X size={16} />
         </button>
       </div>
 
@@ -160,10 +159,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
           </div>
           {!isExternal && data.lastPollSuccess === false && (
             <div className={styles.pollFailure}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="8" cy="8" r="6" />
-                <path d="M8 5v3M8 10v1" />
-              </svg>
+              <AlertTriangle size={12} />
               Poll failed{data.lastPollError ? `: ${data.lastPollError}` : ''}
             </div>
           )}
@@ -228,9 +224,7 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
                     <span className={`${styles.dependencyLabel} ${dep.isHighLatency ? styles.highLatency : ''}`}>
                       {formatLatency(dep.latencyMs)}
                       {dep.isHighLatency && (
-                        <svg className={styles.highLatencyIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z" />
-                        </svg>
+                        <AlertTriangle size={10} className={styles.highLatencyIcon} />
                       )}
                     </span>
                   )}
@@ -300,18 +294,14 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
             className={styles.isolateButton}
             onClick={() => onIsolate(nodeId)}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
+            <Shrink size={14} />
             Isolate tree
           </button>
         )}
         {!isExternal && (
           <Link to={`/services/${nodeId}`} className={styles.viewDetailsButton}>
             View Full Details
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 12l4-4-4-4" />
-            </svg>
+            <ChevronRight size={14} />
           </Link>
         )}
       </div>

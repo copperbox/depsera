@@ -14,6 +14,7 @@ interface DependencyRowProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onEdit: () => void;
+  onViewDetail: () => void;
   canEdit: boolean;
   associations: Association[];
   alias: DependencyAlias | undefined;
@@ -25,6 +26,7 @@ function DependencyRow({
   isExpanded,
   onToggleExpand,
   onEdit,
+  onViewDetail,
   canEdit,
   associations,
   alias,
@@ -48,7 +50,15 @@ function DependencyRow({
         }}
       >
         <div className={styles.nameCol}>
-          <span className={styles.nameMain}>
+          <span
+            className={styles.nameMain}
+            role="link"
+            tabIndex={-1}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetail();
+            }}
+          >
             {dep.canonical_name || dep.name}
           </span>
           {dep.canonical_name && (

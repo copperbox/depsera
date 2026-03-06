@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Search, ChevronRight, X } from 'lucide-react';
 import { useManageAssociations } from '../../../hooks/useManageAssociations';
 import { useAliases } from '../../../hooks/useAliases';
 import { useCanonicalOverrides } from '../../../hooks/useCanonicalOverrides';
@@ -286,9 +287,7 @@ function ManageAssociations() {
                     onClick={() => removeContactEntry(i)}
                     title="Remove entry"
                   >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 4l8 8M12 4l-8 8" />
-                    </svg>
+                    <X size={14} />
                   </button>
                 </div>
               ))}
@@ -364,9 +363,7 @@ function ManageAssociations() {
                     onClick={() => handleAliasDelete(a.id)}
                     title="Delete alias"
                   >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 4l8 8M12 4l-8 8" />
-                    </svg>
+                    <X size={14} />
                   </button>
                 )}
               </div>
@@ -442,18 +439,7 @@ function ManageAssociations() {
     <div>
       <div className={styles.searchBar}>
         <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="7" cy="7" r="4" />
-            <path d="M10 10l3.5 3.5" />
-          </svg>
+          <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
             className={styles.searchInput}
@@ -492,9 +478,7 @@ function ManageAssociations() {
                 aria-expanded={isServiceExpanded}
               >
                 <span className={styles.chevron}>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M6 4l4 4-4 4" />
-                  </svg>
+                  <ChevronRight size={16} />
                 </span>
                 <span className={styles.serviceHeaderName}>{service.name}</span>
                 <span className={styles.depCount}>
@@ -519,9 +503,7 @@ function ManageAssociations() {
                           aria-expanded={isDepExpanded}
                         >
                           <span className={styles.chevron}>
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M6 4l4 4-4 4" />
-                            </svg>
+                            <ChevronRight size={14} />
                           </span>
                           <span className={styles.depName}>{dep.name}</span>
                           {assocs !== undefined && (
@@ -554,9 +536,7 @@ function ManageAssociations() {
                                           onClick={() => setDeleteTarget({ depId: dep.id, assoc })}
                                           title="Delete association"
                                         >
-                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M4 4l8 8M12 4l-8 8" />
-                                          </svg>
+                                          <X size={14} />
                                         </button>
                                       </div>
                                     ))}

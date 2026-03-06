@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, ChevronRight, Copy, Check, Loader2 } from 'lucide-react';
 import { fetchServiceCatalog, fetchTeams } from '../../../api/services';
 import type { CatalogEntry, TeamWithCounts } from '../../../types/service';
 import ExternalDependencies from './ExternalDependencies';
@@ -125,7 +126,7 @@ function ServiceCatalog() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={24} className={styles.spinner} />
           <span>Loading service catalog...</span>
         </div>
       </div>
@@ -172,18 +173,7 @@ function ServiceCatalog() {
         <>
           <div className={styles.filters}>
             <div className={styles.searchWrapper}>
-              <svg
-                className={styles.searchIcon}
-                width="20"
-                height="20"
-                viewBox="0 0 20 20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="9" cy="9" r="6" />
-                <path d="M13 13l4 4" />
-              </svg>
+              <Search size={16} className={styles.searchIcon} />
               <input
                 type="text"
                 placeholder="Search by name or manifest key..."
@@ -229,17 +219,10 @@ function ServiceCatalog() {
                       onClick={() => toggleTeam(group.teamId)}
                       aria-expanded={!isCollapsed}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
+                      <ChevronRight
+                        size={16}
                         className={`${styles.chevron} ${!isCollapsed ? styles.chevronOpen : ''}`}
-                      >
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
+                      />
                       <span className={styles.teamName}>{group.teamName}</span>
                       {group.teamKey && (
                         <code className={styles.teamKeyBadge}>{group.teamKey}</code>
@@ -280,14 +263,9 @@ function ServiceCatalog() {
                                     aria-label={`Copy ${namespacedKey}`}
                                   >
                                     {copiedId === entry.id ? (
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <polyline points="20 6 9 17 4 12" />
-                                      </svg>
+                                      <Check size={14} />
                                     ) : (
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                      </svg>
+                                      <Copy size={14} />
                                     )}
                                   </button>
                                 </div>

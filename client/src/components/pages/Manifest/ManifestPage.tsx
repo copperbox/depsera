@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useManifestConfig } from '../../../hooks/useManifestConfig';
@@ -69,7 +70,7 @@ function ManifestPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={24} className={styles.spinner} />
           <span>Loading manifest configuration...</span>
         </div>
       </div>
@@ -96,16 +97,7 @@ function ManifestPage() {
   return (
     <div className={styles.container}>
       <Link to={`/teams/${id}`} className={styles.backLink}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M10 12L6 8l4-4" />
-        </svg>
+        <ChevronLeft size={16} />
         Back to {teamName || 'Team'}
       </Link>
 

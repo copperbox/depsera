@@ -1,43 +1,43 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-5);
 }
 
 .description {
-  font-size: 0.875rem;
+  font-size: var(--font-base);
   color: var(--color-text-muted);
   margin: 0;
 }
 
 .form {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: flex-end;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
   flex: 1;
 }
 
 .fieldLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .input {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .input::placeholder {
@@ -45,31 +45,31 @@
 }
 
 .select {
-  padding: 0.5rem 2rem 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.5rem center;
+  background-position: right var(--space-2) center;
   background-repeat: no-repeat;
   background-size: 1.5rem 1.5rem;
 }
 
 .addButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  color: #fff;
   background-color: var(--color-accent);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 0.15s;
+  transition: opacity var(--duration-fast);
 }
 
 .addButton:hover {
@@ -82,23 +82,23 @@
 }
 
 .error {
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-error, #dc3545);
-  background-color: var(--color-bg-error, rgba(220, 53, 69, 0.1));
-  border-radius: 0.375rem;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  color: var(--color-critical);
+  background-color: color-mix(in srgb, var(--color-critical) 10%, transparent);
+  border-radius: var(--radius-md);
 }
 
 .empty {
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-base);
 }
 
 .loading {
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--color-text-muted);
 }
 
@@ -109,28 +109,28 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--font-base);
 }
 
 .table th {
   text-align: left;
-  padding: 0.75rem;
-  font-weight: 600;
+  padding: var(--space-3);
+  font-weight: var(--font-semibold);
   color: var(--color-text-muted);
   border-bottom: 2px solid var(--color-border);
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .table td {
-  padding: 0.75rem;
+  padding: var(--space-3);
   border-bottom: 1px solid var(--color-border);
-  color: var(--color-text-primary);
+  color: var(--color-text);
 }
 
 .nameCell {
-  font-weight: 500;
+  font-weight: var(--font-medium);
 }
 
 .descCell {
@@ -146,7 +146,7 @@
 
 .actionsCell {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   white-space: nowrap;
 }
 
@@ -158,42 +158,42 @@
   height: 1.75rem;
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
 }
 
 .iconButton:hover {
-  color: var(--color-text-primary);
+  color: var(--color-text);
   border-color: var(--color-text-muted);
 }
 
 .deleteButton:hover {
-  color: var(--color-error, #dc3545);
-  border-color: var(--color-error, #dc3545);
+  color: var(--color-critical);
+  border-color: var(--color-critical);
 }
 
 .editInput {
-  padding: 0.375rem 0.5rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.25rem;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
+  padding: 0.375rem var(--space-2);
+  font-size: var(--font-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
   width: 100%;
 }
 
 .saveButton {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--color-text-inverse);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  color: #fff;
   background-color: var(--color-accent);
   border: none;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity var(--duration-fast);
 }
 
 .saveButton:hover {
@@ -206,19 +206,19 @@
 }
 
 .cancelButton {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
   color: var(--color-text-muted);
   background: none;
   border: 1px solid var(--color-border);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
 }
 
 .cancelButton:hover {
-  color: var(--color-text-primary);
+  color: var(--color-text);
   border-color: var(--color-text-muted);
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAliases } from '../../../hooks/useAliases';
 import SearchableSelect from '../../common/SearchableSelect';
@@ -125,9 +126,7 @@ function AliasesManager({ dependencyOptions }: AliasesManagerProps) {
                         onClick={() => removeAlias(a.id)}
                         title="Delete alias"
                       >
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334z" />
-                        </svg>
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   )}

@@ -2,63 +2,63 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-5);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: var(--font-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
 }
 
 .filterRow {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
   align-items: center;
 }
 
 .filterSelect {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .muteTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-  background-color: var(--color-bg-card);
+  font-size: var(--font-base);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .muteTable th {
   text-align: left;
-  padding: 0.75rem;
-  font-weight: 500;
+  padding: var(--space-3);
+  font-weight: var(--font-medium);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 0.025em;
   border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
 }
 
 .muteTable td {
-  padding: 0.75rem;
-  color: var(--color-text-primary);
+  padding: var(--space-3);
+  color: var(--color-text);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -68,32 +68,27 @@
 
 .muteType {
   display: inline-flex;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 500;
+  padding: 0.125rem var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
   border-radius: 9999px;
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
   color: var(--color-text-muted);
 }
 
 .noMutes {
   text-align: center;
-  padding: 2rem;
+  padding: var(--space-6);
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-base);
 }
 
 .error {
-  color: var(--color-error, #dc3545);
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 0.375rem;
-}
-
-[data-theme="dark"] .error {
-  background-color: #450a0a;
-  border-color: #7f1d1d;
+  color: var(--color-critical);
+  font-size: var(--font-base);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background-color: color-mix(in srgb, var(--color-critical) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-critical) 30%, transparent);
+  border-radius: var(--radius-md);
 }

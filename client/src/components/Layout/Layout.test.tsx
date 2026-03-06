@@ -4,6 +4,16 @@ import Layout from './Layout';
 import { AuthProvider } from './../../contexts/AuthContext';
 import { ThemeProvider } from './../../contexts/ThemeContext';
 
+// Mock lucide-react icons
+jest.mock('lucide-react', () => ({
+  Sun: (props: Record<string, unknown>) => <svg data-testid="sun-icon" {...props} />,
+  Moon: (props: Record<string, unknown>) => <svg data-testid="moon-icon" {...props} />,
+  LogOut: (props: Record<string, unknown>) => <svg data-testid="logout-icon" {...props} />,
+}));
+
+// Mock __APP_VERSION__
+(globalThis as Record<string, unknown>).__APP_VERSION__ = '1.0.0';
+
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
@@ -253,7 +263,7 @@ describe('Layout', () => {
     expect(await screen.findByText('Dashboard Content')).toBeInTheDocument();
   });
 
-  it('renders footer with copyright', async () => {
+  it('renders footer with version', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ id: '1', name: 'Test User', role: 'user' }),
@@ -263,8 +273,21 @@ describe('Layout', () => {
 
     await screen.findByText('Test User');
 
-    const year = new Date().getFullYear();
-    expect(screen.getByText(`© ${year} Depsera`)).toBeInTheDocument();
+    expect(screen.getByText('Depsera v1.0.0')).toBeInTheDocument();
+  });
+
+  it('renders theme toggle with sun and moon icons', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: '1', name: 'Test User', role: 'user' }),
+    });
+
+    renderLayout();
+
+    await screen.findByText('Test User');
+
+    expect(screen.getByTestId('sun-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
   });
 
   it('handles logout', async () => {
@@ -282,7 +305,8 @@ describe('Layout', () => {
 
     await screen.findByText('Test User');
 
-    fireEvent.click(screen.getByText('Logout'));
+    const logoutButton = screen.getByTestId('logout-icon').closest('button');
+    fireEvent.click(logoutButton!);
 
     await waitFor(() => {
       expect(mockLocation.href).toBe('/login');

@@ -9,18 +9,21 @@ import type { Dependency } from '../../../types/service';
 import type { Association } from '../../../types/association';
 import DependencyRow from './DependencyRow';
 import DependencyEditModal from './DependencyEditModal';
+import DependencyDetailModal from './DependencyDetailModal';
 import styles from './DependencyList.module.css';
 
 interface DependencyListProps {
   serviceId: string;
+  serviceName: string;
   dependencies: Dependency[];
   canEditOverrides: boolean;
   onServiceReload: () => Promise<void>;
 }
 
-function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceReload }: DependencyListProps) {
+function DependencyList({ serviceId, serviceName, dependencies, canEditOverrides, onServiceReload }: DependencyListProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingDep, setEditingDep] = useState<Dependency | null>(null);
+  const [viewingDep, setViewingDep] = useState<Dependency | null>(null);
   const [assocMap, setAssocMap] = useState<Record<string, Association[]>>({});
 
   const {
@@ -155,6 +158,7 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
               isExpanded={expandedRows.has(dep.id)}
               onToggleExpand={() => toggleRow(dep.id)}
               onEdit={() => setEditingDep(dep)}
+              onViewDetail={() => setViewingDep(dep)}
               canEdit={canEditOverrides}
               associations={assocMap[dep.id] || []}
               alias={findAliasForDep(dep.name)}
@@ -175,6 +179,18 @@ function DependencyList({ serviceId, dependencies, canEditOverrides, onServiceRe
         associations={editingDep ? (assocMap[editingDep.id] || []) : []}
         onRemoveAssociation={handleRemoveAssociation}
         onAssociationAdded={handleAssociationAdded}
+      />
+
+      <DependencyDetailModal
+        dep={viewingDep}
+        serviceName={serviceName}
+        serviceId={serviceId}
+        onClose={() => setViewingDep(null)}
+        onEdit={canEditOverrides ? () => {
+          const dep = viewingDep;
+          setViewingDep(null);
+          setEditingDep(dep);
+        } : undefined}
       />
     </>
   );

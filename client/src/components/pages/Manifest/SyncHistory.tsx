@@ -23,7 +23,7 @@ function formatEntrySummary(entry: ManifestSyncHistoryEntry): string {
     if (summary.services.updated > 0) parts.push(`~${summary.services.updated}`);
     if (summary.services.deactivated > 0) parts.push(`-${summary.services.deactivated}`);
     if (summary.services.deleted > 0) parts.push(`×${summary.services.deleted}`);
-    if (summary.services.drift_flagged > 0) parts.push(`⚠${summary.services.drift_flagged}`);
+    if (summary.services.drift_flagged > 0) parts.push(`!${summary.services.drift_flagged}`);
     if (summary.services.unchanged > 0) parts.push(`=${summary.services.unchanged}`);
     return parts.join(' ');
   } catch {
@@ -83,14 +83,14 @@ function HistoryEntry({ entry }: { entry: ManifestSyncHistoryEntry }) {
           <div className={styles.historySummary}>{summaryText}</div>
         )}
         {errors.length > 0 && (
-          <div className={styles.syncError} style={{ marginTop: '0.25rem', padding: '0.375rem 0.5rem' }}>
+          <div className={styles.syncError}>
             {errors.map((e, i) => (
               <div key={i}>{e}</div>
             ))}
           </div>
         )}
         {warnings.length > 0 && (
-          <div className={styles.warningsList} style={{ marginTop: '0.25rem' }}>
+          <div className={styles.warningsList}>
             <strong>Warnings:</strong>
             <ul>
               {warnings.map((w, i) => (

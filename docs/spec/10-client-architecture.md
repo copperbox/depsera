@@ -9,9 +9,9 @@
 | `/login` | Login | Public | OIDC redirect or local auth form |
 | `/` | Dashboard | Protected | Health summary overview |
 | `/services` | ServicesList | Protected | Searchable, filterable service list |
-| `/services/:id` | ServiceDetail | Protected | Dependencies, latency, errors, contact info, override indicators, inline override editing (team lead+/admin), manual poll, inline alias management (admin) |
+| `/services/:id` | ServiceDetail | Protected | Tabbed view (`?tab=`): Overview (metadata, actions), Dependencies (list + detail modal), Dependent Reports (table), Poll Issues. Inline override editing (team lead+/admin), manual poll, inline alias management (admin) |
 | `/teams` | TeamsList | Protected | Team listing with counts |
-| `/teams/:id` | TeamDetail | Protected | Members, roles, owned services |
+| `/teams/:id` | TeamDetail | Protected | Tabbed view (`?tab=`): Overview (info, edit/delete), Members (add/remove/promote), Manifests (ManifestStatusCard), Services (list), Alerts Config (channels, rules, mutes, history) |
 | `/graph` | DependencyGraph | Protected | Interactive React Flow visualization |
 | `/associations` | Associations | Protected | Manual association creation, aliases, canonical override management (team lead+/admin) |
 | `/wallboard` | Wallboard | Protected | Full-screen status board with dependency detail panel showing resolved contact info and impact with override indicators |
@@ -71,8 +71,66 @@ All API modules follow a consistent pattern:
 | `useAliases` | Global alias management — CRUD + canonical names list. |
 | `useCanonicalOverrides` | Canonical override CRUD — load all, save (upsert), remove, lookup by canonical name. |
 | `useAlertRules` | Loads alert rules for a team. Handles save (upsert) with dirty tracking. Exposes `rules`, `save`, `error`, `isSaving`. |
+| `useManifestConfig` | Loads/saves manifest configuration for a team. Handles toggle, sync trigger, sync result state. |
+| `useSyncHistory` | Loads paginated sync history for a team manifest. Supports load-more. |
+| `useDriftReview` | Loads drift flags for a team. Handles accept, dismiss, reopen, and bulk actions. |
 
-## 10.5 Client-Side Storage
+## 10.5 Common Components
+
+### Tabs
+
+Reusable tabbed navigation component (`client/src/components/common/Tabs.tsx`).
+
+```tsx
+<Tabs defaultTab="overview" urlParam="tab" storageKey="team-{id}-tab">
+  <TabList>
+    <Tab value="overview">Overview</Tab>
+    <Tab value="members">Members</Tab>
+  </TabList>
+  <TabPanel value="overview">...</TabPanel>
+  <TabPanel value="members">...</TabPanel>
+</Tabs>
+```
+
+- Tab state is reflected in URL search params (`?tab=members`) for linkability
+- Falls back to `localStorage` persistence via `storageKey` prop
+- Active tab indicator uses a 2px accent-colored bottom border
+- Used by TeamDetail and ServiceDetail pages
+
+### DependencyDetailModal
+
+Modal for viewing dependency details from the ServiceDetail Dependencies tab (`client/src/components/pages/Services/DependencyDetailModal.tsx`). Shows health status, latency chart, contact info, and override section.
+
+## 10.6 Design Token System
+
+The client uses a structured CSS custom property system defined in `client/src/index.css`. All component styles reference these tokens — no hardcoded color, spacing, or timing values.
+
+**Typography:** Inter (body + headings) loaded from Google Fonts with `font-display: swap`. Monospace stack for code/data values.
+
+**Token categories:**
+- **Spacing** (theme-independent): `--space-1` (4px) through `--space-8` (64px), 8px base grid
+- **Typography** (theme-independent): `--font-xs` through `--font-2xl`, weight tokens (`--font-normal`, `--font-medium`, `--font-semibold`)
+- **Border radius** (theme-independent): `--radius-sm` (4px), `--radius-md` (6px), `--radius-lg` (8px)
+- **Transitions** (theme-independent): `--duration-fast` (150ms), `--duration-normal` (200ms), `--duration-slow` (300ms)
+- **Surface colors** (theme-dependent): `--color-bg`, `--color-surface`, `--color-surface-hover`, `--color-border`, `--color-border-subtle`
+- **Text colors** (theme-dependent): `--color-text`, `--color-text-secondary`, `--color-text-muted`
+- **Status colors** (same for both themes): `--color-healthy`, `--color-warning`, `--color-critical`, `--color-unknown`
+- **Accent** (same for both themes): `--color-accent`, `--color-accent-hover`
+- **Shadows** (theme-dependent): `--shadow-sm`, `--shadow-md`, `--shadow-lg`
+
+**Status badge pattern:** Uses `color-mix()` for theme-adaptive tinted backgrounds:
+```css
+.healthy {
+  background-color: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  color: var(--color-healthy);
+}
+```
+
+**Shared CSS module classes:** `client/src/styles/shared.module.css` provides composable base classes (`.card`, `.buttonPrimary`, `.buttonGhost`, `.input`, `.tableRow`, etc.) used via CSS Modules `composes:` syntax.
+
+**Icons:** All icons use Lucide React SVG components — no emoji or inline SVG.
+
+## 10.7 Client-Side Storage
 
 | Key | Scope | Content |
 |---|---|---|
@@ -84,8 +142,10 @@ All API modules follow a consistent pattern:
 | `{page}-refresh-interval` | Per page | Interval in ms |
 | `wallboard-team-filter` | Wallboard | Selected team ID |
 | `wallboard-unhealthy-only` | Wallboard | `'true'` or `'false'` |
+| `team-{id}-tab` | Per team | Last active tab on TeamDetail |
+| `service-{id}-tab` | Per service | Last active tab on ServiceDetail |
 
-## 10.6 High Latency Detection
+## 10.8 High Latency Detection
 
 The dependency graph automatically flags edges as "high latency" using an adaptive threshold with an absolute floor. No user configuration is required.
 

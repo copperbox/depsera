@@ -1,36 +1,37 @@
 .content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-5);
 }
 
 .message {
   color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.5;
+  line-height: var(--line-height-normal);
+  font-size: var(--font-base);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .cancelButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-card);
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
 .cancelButton:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-text-muted);
+  background-color: var(--color-surface-hover);
+  color: var(--color-text);
 }
 
 .cancelButton:disabled {
@@ -39,19 +40,19 @@
 }
 
 .confirmButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-inverse);
-  background-color: var(--color-accent);
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-4);
+  color: #fff;
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .confirmButton:hover:not(:disabled) {
-  background-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
 }
 
 .confirmButton:disabled {
@@ -60,13 +61,9 @@
 }
 
 .confirmButton.destructive {
-  background-color: var(--color-error);
+  background: var(--color-critical);
 }
 
 .confirmButton.destructive:hover:not(:disabled) {
-  background-color: #dc2626;
-}
-
-[data-theme="dark"] .confirmButton.destructive:hover:not(:disabled) {
-  background-color: #b91c1c;
+  background: color-mix(in srgb, var(--color-critical) 85%, black);
 }

@@ -13,7 +13,7 @@
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .sectionToggle:hover {
@@ -54,8 +54,8 @@
 }
 
 .badgeWarning {
-  background-color: var(--color-warning-bg, #fef3c7);
-  color: var(--color-warning, #d97706);
+  background-color: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
 }
 
 .badgeNeutral {
@@ -64,7 +64,7 @@
 }
 
 .chevron {
-  transition: transform 0.2s ease;
+  transition: transform var(--duration-normal) ease;
   flex-shrink: 0;
   color: var(--color-text-muted);
 }
@@ -129,7 +129,7 @@
   border: 1px solid var(--color-border-input);
   border-radius: 0.375rem;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .retryButton:hover {
@@ -147,7 +147,7 @@
 }
 
 .emptyState svg {
-  color: #10b981;
+  color: var(--color-healthy);
   flex-shrink: 0;
 }
 
@@ -179,18 +179,14 @@
   font-size: 0.8125rem;
   color: var(--color-text-primary);
   padding: 0.5rem 0.75rem;
-  background: var(--color-warning-bg, #fef3c7);
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
   border-radius: 0.375rem;
-}
-
-[data-theme="dark"] .warningItem {
-  background: #78350f33;
 }
 
 .warningIcon {
   flex-shrink: 0;
   margin-top: 0.125rem;
-  color: var(--color-warning, #d97706);
+  color: var(--color-warning);
 }
 
 /* Timeline */
@@ -240,7 +236,7 @@
 }
 
 .timelineItem.recovery .timelineDot {
-  background: #10b981;
+  background: var(--color-healthy);
 }
 
 .timelineContent {
@@ -276,13 +272,8 @@
 }
 
 .recoveryStatus {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-[data-theme="dark"] .recoveryStatus {
-  background: #064e3b;
-  color: #34d399;
+  background: color-mix(in srgb, var(--color-healthy) 15%, transparent);
+  color: var(--color-healthy);
 }
 
 .timelineMessage {

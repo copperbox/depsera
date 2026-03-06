@@ -15,7 +15,7 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all var(--duration-fast);
   line-height: 1.4;
 }
 

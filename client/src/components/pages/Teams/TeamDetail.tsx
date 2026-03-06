@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ChevronLeft, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
 import { parseContact } from '../../../utils/dependency';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
+import { Tabs, TabList, Tab, TabPanel } from '../../common/Tabs';
 import TeamForm from './TeamForm';
 import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
 import AlertMutes from './AlertMutes';
+import TeamOverviewStats from './TeamOverviewStats';
 import ManifestStatusCard from './ManifestStatusCard';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import styles from './Teams.module.css';
@@ -115,16 +118,7 @@ function TeamDetail() {
   return (
     <div className={styles.container}>
       <Link to="/teams" className={styles.backLink}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M10 12L6 8l4-4" />
-        </svg>
+        <ChevronLeft size={16} />
         Back to Teams
       </Link>
 
@@ -134,244 +128,234 @@ function TeamDetail() {
         </div>
       )}
 
-      <div className={styles.detailHeader}>
-        <div className={styles.teamTitle}>
-          <h1>{team.name}</h1>
-          {team.key && (
-            <code className={styles.teamKey}>{team.key}</code>
-          )}
-          {team.description && (
-            <p className={styles.teamDescription}>{team.description}</p>
-          )}
-          {team.contact && (() => {
-            const contactData = parseContact(team.contact);
-            if (!contactData) return null;
-            return (
-              <div className={styles.contactInfo}>
-                {Object.entries(contactData).map(([label, value]) => (
-                  <span key={label} className={styles.contactItem}>
-                    <span className={styles.contactLabel}>{label}:</span>{' '}
-                    <span className={styles.contactValue}>{String(value)}</span>
-                  </span>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
-        {isAdmin && (
-          <div className={styles.actions}>
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className={`${styles.actionButton} ${styles.editButton}`}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M11.5 2.5a2.121 2.121 0 0 1 3 3L5 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              Edit
-            </button>
-            <button
-              onClick={() => setIsDeleteDialogOpen(true)}
-              className={`${styles.actionButton} ${styles.deleteButton}`}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334z" />
-              </svg>
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
+      <Tabs defaultTab="overview" urlParam="tab" storageKey={`team-${id}-tab`}>
+        <TabList aria-label="Team detail tabs">
+          <Tab value="overview">Overview</Tab>
+          <Tab value="members">
+            Members ({team.members.length})
+          </Tab>
+          <Tab value="manifests">Manifests</Tab>
+          <Tab value="services">
+            Services ({team.services.length})
+          </Tab>
+          <Tab value="alerts">Alerts Config</Tab>
+        </TabList>
 
-      {/* Members Section */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Members</h2>
-          <span className={styles.sectionSubtitle}>
-            {team.members.length} {team.members.length === 1 ? 'member' : 'members'}
-          </span>
-        </div>
-
-        {isAdmin && availableUsers.length > 0 && (
-          <div className={styles.addMemberForm} style={{ marginBottom: '1rem' }}>
-            <div className={styles.field}>
-              <label className={styles.label}>User</label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className={styles.select}
-                disabled={isAddingMember}
-              >
-                <option value="">Select a user...</option>
-                {availableUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.field} style={{ maxWidth: '8rem' }}>
-              <label className={styles.label}>Role</label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as 'lead' | 'member')}
-                className={styles.select}
-                disabled={isAddingMember}
-              >
-                <option value="member">Member</option>
-                <option value="lead">Lead</option>
-              </select>
-            </div>
-            <button
-              onClick={handleAddMember}
-              disabled={!selectedUserId || isAddingMember}
-              className={styles.addMemberButton}
-            >
-              {isAddingMember ? 'Adding...' : 'Add Member'}
-            </button>
-          </div>
-        )}
-
-        {addMemberError && (
-          <div className={styles.error} style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', fontSize: '0.875rem' }}>
-            {addMemberError}
-          </div>
-        )}
-
-        {team.members.length === 0 ? (
-          <div className={styles.noItems}>
-            <p>No members in this team yet.</p>
-          </div>
-        ) : (
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  {isAdmin && <th>Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {team.members.map((member) => (
-                  <tr key={member.user_id} className={styles.memberRow}>
-                    <td>{member.user.name}</td>
-                    <td className={styles.emailCell}>{member.user.email}</td>
-                    <td>
-                      <span
-                        className={`${styles.roleBadge} ${
-                          member.role === 'lead' ? styles.roleLead : styles.roleMember
-                        }`}
-                      >
-                        {member.role === 'lead' ? 'Lead' : 'Member'}
+        {/* Overview Tab */}
+        <TabPanel value="overview">
+          <div className={styles.overviewPanel}>
+            <div className={styles.teamTitle}>
+              <h1>{team.name}</h1>
+              {team.key && (
+                <code className={styles.teamKey}>{team.key}</code>
+              )}
+              {team.description && (
+                <p className={styles.teamDescription}>{team.description}</p>
+              )}
+              {team.contact && (() => {
+                const contactData = parseContact(team.contact);
+                if (!contactData) return null;
+                return (
+                  <div className={styles.contactInfo}>
+                    {Object.entries(contactData).map(([label, value]) => (
+                      <span key={label} className={styles.contactItem}>
+                        <span className={styles.contactLabel}>{label}:</span>{' '}
+                        <span className={styles.contactValue}>{String(value)}</span>
                       </span>
-                    </td>
-                    {isAdmin && (
-                      <td>
-                        <div className={styles.memberActions}>
-                          <button
-                            onClick={() => handleToggleRole(member)}
-                            disabled={actionInProgress === member.user_id}
-                            className={`${styles.smallButton} ${styles.roleButton}`}
-                          >
-                            {member.role === 'lead' ? 'Demote' : 'Promote'}
-                          </button>
-                          <button
-                            onClick={() => handleRemoveMember(member.user_id)}
-                            disabled={actionInProgress === member.user_id}
-                            className={`${styles.smallButton} ${styles.removeButton}`}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Manifest Sync Section */}
-      <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
-
-      {/* Services Section */}
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Services</h2>
-          <span className={styles.sectionSubtitle}>
-            {team.services.length} {team.services.length === 1 ? 'service' : 'services'}
-          </span>
-        </div>
-
-        {team.services.length === 0 ? (
-          <div className={styles.noItems}>
-            <p>No services assigned to this team yet.</p>
-          </div>
-        ) : (
-          <div className={styles.tableWrapper}>
-            {team.services.map((service) => (
-              <div key={service.id} className={styles.serviceItem}>
-                <div className={styles.serviceInfo}>
-                  <Link to={`/services/${service.id}`} className={styles.serviceName}>
-                    {service.name}
-                  </Link>
-                  {service.manifest_managed === 1 && (
-                    <span className={styles.manifestBadge} title="Managed by manifest">M</span>
-                  )}
-                  {!service.is_active && (
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#6b7280',
-                        backgroundColor: '#f3f4f6',
-                        padding: '0.125rem 0.5rem',
-                        borderRadius: '9999px',
-                      }}
-                    >
-                      Inactive
-                    </span>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+            {isAdmin && (
+              <div className={styles.actions}>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className={styles.ghostButton}
+                >
+                  <Pencil size={14} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  className={styles.dangerButton}
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+          <TeamOverviewStats
+            teamId={id!}
+            members={team.members}
+            services={team.services}
+          />
+        </TabPanel>
 
-      {/* Alert Channels & Rules (side-by-side on wider screens) */}
-      <div className={styles.alertGrid}>
-        <AlertChannels teamId={id!} canManage={canManageAlerts} />
-        <AlertRules teamId={id!} canManage={canManageAlerts} />
-      </div>
+        {/* Members Tab */}
+        <TabPanel value="members">
+          {isAdmin && availableUsers.length > 0 && (
+            <div className={styles.addMemberForm}>
+              <div className={styles.field}>
+                <label className={styles.label}>User</label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  className={styles.select}
+                  disabled={isAddingMember}
+                >
+                  <option value="">Select a user...</option>
+                  {availableUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field} style={{ maxWidth: '8rem' }}>
+                <label className={styles.label}>Role</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as 'lead' | 'member')}
+                  className={styles.select}
+                  disabled={isAddingMember}
+                >
+                  <option value="member">Member</option>
+                  <option value="lead">Lead</option>
+                </select>
+              </div>
+              <button
+                onClick={handleAddMember}
+                disabled={!selectedUserId || isAddingMember}
+                className={styles.addMemberButton}
+              >
+                {isAddingMember ? 'Adding...' : 'Add Member'}
+              </button>
+            </div>
+          )}
 
-      {/* Alert Mutes Section */}
-      <AlertMutes teamId={id!} canManage={canManageAlerts} />
+          {addMemberError && (
+            <div className={styles.error} style={{ marginBottom: '1rem', padding: '0.5rem 0.75rem', fontSize: '0.875rem' }}>
+              {addMemberError}
+            </div>
+          )}
 
-      {/* Alert History Section */}
-      <AlertHistory teamId={id!} channels={alertChannels} />
+          {team.members.length === 0 ? (
+            <div className={styles.noItems}>
+              <p>No members in this team yet.</p>
+            </div>
+          ) : (
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    {isAdmin && <th>Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {team.members.map((member) => (
+                    <tr key={member.user_id} className={styles.memberRow}>
+                      <td>{member.user.name}</td>
+                      <td className={styles.emailCell}>{member.user.email}</td>
+                      <td>
+                        <span
+                          className={`${styles.roleBadge} ${
+                            member.role === 'lead' ? styles.roleLead : styles.roleMember
+                          }`}
+                        >
+                          {member.role === 'lead' ? 'Lead' : 'Member'}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td>
+                          <div className={styles.memberActions}>
+                            <button
+                              onClick={() => handleToggleRole(member)}
+                              disabled={actionInProgress === member.user_id}
+                              className={`${styles.smallButton} ${styles.roleButton}`}
+                            >
+                              {member.role === 'lead' ? 'Demote' : 'Promote'}
+                            </button>
+                            <button
+                              onClick={() => handleRemoveMember(member.user_id)}
+                              disabled={actionInProgress === member.user_id}
+                              className={`${styles.smallButton} ${styles.removeButton}`}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </TabPanel>
+
+        {/* Manifests Tab */}
+        <TabPanel value="manifests">
+          <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
+        </TabPanel>
+
+        {/* Services Tab */}
+        <TabPanel value="services">
+          {team.services.length === 0 ? (
+            <div className={styles.noItems}>
+              <p>No services assigned to this team yet.</p>
+            </div>
+          ) : (
+            <div className={styles.tableWrapper}>
+              {team.services.map((service) => (
+                <div key={service.id} className={styles.serviceItem}>
+                  <div className={styles.serviceInfo}>
+                    <Link to={`/services/${service.id}`} className={styles.serviceName}>
+                      {service.name}
+                    </Link>
+                    {service.manifest_managed === 1 && (
+                      <span className={styles.manifestBadge} title="Managed by manifest">M</span>
+                    )}
+                    {!service.is_active && (
+                      <span className={styles.inactiveBadge}>
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </TabPanel>
+
+        {/* Alerts Config Tab */}
+        <TabPanel value="alerts">
+          <div className={styles.alertsPanel}>
+            <div className={styles.alertCard}>
+              <AlertChannels teamId={id!} canManage={canManageAlerts} />
+            </div>
+            <div className={styles.alertCard}>
+              <AlertRules teamId={id!} canManage={canManageAlerts} />
+            </div>
+            <div className={styles.alertCard}>
+              <AlertMutes teamId={id!} canManage={canManageAlerts} />
+            </div>
+            <div className={styles.alertCard}>
+              <AlertHistory teamId={id!} channels={alertChannels} />
+            </div>
+          </div>
+        </TabPanel>
+      </Tabs>
 
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Team"
-        size="medium"
+        size="md"
       >
         <TeamForm
           team={team}
