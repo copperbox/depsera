@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { fetchTeams } from '../../../api/teams';
 import {
@@ -257,18 +258,14 @@ function ExternalServicesManager() {
                             onClick={() => startEdit(svc)}
                             title="Edit"
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11.333 2A1.886 1.886 0 0 1 14 4.667l-9 9-3.667 1L3.333 11l9-9z" />
-                            </svg>
+                            <Pencil size={14} />
                           </button>
                           <button
                             className={`${styles.iconButton} ${styles.deleteButton}`}
                             onClick={() => handleDelete(svc.id)}
                             title="Delete"
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4h9.334z" />
-                            </svg>
+                            <Trash2 size={14} />
                           </button>
                         </td>
                       )}

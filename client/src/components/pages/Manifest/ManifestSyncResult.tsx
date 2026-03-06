@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { Plus, Minus, Equal, AlertTriangle, RefreshCw } from 'lucide-react';
 import type {
   TeamManifestConfig,
   ManifestSyncResult as SyncResult,
@@ -30,20 +31,20 @@ function formatSyncSummaryText(summary: ManifestSyncSummary): string {
   return parts.join(', ');
 }
 
-const ACTION_ICONS: Record<string, { icon: string; className: string }> = {
-  created: { icon: '+', className: styles.changeCreated },
-  updated: { icon: '~', className: styles.changeUpdated },
-  unchanged: { icon: '=', className: styles.changeUnchanged },
-  drift_flagged: { icon: '⚠', className: styles.changeDrift },
-  deactivated: { icon: '×', className: styles.changeRemoved },
-  deleted: { icon: '×', className: styles.changeRemoved },
+const ACTION_ICONS: Record<string, { icon: ReactNode; className: string }> = {
+  created: { icon: <Plus size={14} />, className: styles.changeCreated },
+  updated: { icon: <RefreshCw size={14} />, className: styles.changeUpdated },
+  unchanged: { icon: <Equal size={14} />, className: styles.changeUnchanged },
+  drift_flagged: { icon: <AlertTriangle size={14} />, className: styles.changeDrift },
+  deactivated: { icon: <Minus size={14} />, className: styles.changeRemoved },
+  deleted: { icon: <Minus size={14} />, className: styles.changeRemoved },
 };
 
 function ChangeList({ changes }: { changes: ManifestSyncChange[] }) {
   return (
     <div className={styles.changeList}>
       {changes.map((change, i) => {
-        const { icon, className } = ACTION_ICONS[change.action] || { icon: '?', className: '' };
+        const { icon, className } = ACTION_ICONS[change.action] || { icon: null, className: '' };
         return (
           <div key={`${change.manifest_key}-${i}`} className={styles.changeItem}>
             <span className={`${styles.changeIcon} ${className}`}>{icon}</span>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   fetchAdminManifests,
@@ -71,7 +72,7 @@ function ManifestAdmin() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Loader2 size={24} className={styles.spinner} />
           <span>Loading manifest configurations...</span>
         </div>
       </div>
@@ -99,18 +100,7 @@ function ManifestAdmin() {
 
       <div className={styles.toolbar}>
         <div className={styles.searchWrapper}>
-          <svg
-            className={styles.searchIcon}
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="7" cy="7" r="4" />
-            <path d="M16 16l-3.5-3.5" />
-          </svg>
+          <Search size={16} className={styles.searchIcon} />
           <input
             type="text"
             className={styles.searchInput}

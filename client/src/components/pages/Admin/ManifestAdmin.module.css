@@ -1,7 +1,7 @@
 /* Container & Layout */
 .container {
   height: 100%;
-  padding: 2rem;
+  padding: var(--space-6);
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -11,21 +11,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-5);
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-text-heading);
+  font-size: var(--font-2xl);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
   margin: 0;
 }
 
 /* Filters & Actions Bar */
 .toolbar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
   align-items: center;
 }
 
@@ -37,7 +37,7 @@
 
 .searchIcon {
   position: absolute;
-  left: 0.75rem;
+  left: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
   color: var(--color-text-muted);
@@ -46,35 +46,35 @@
 
 .searchInput {
   width: 100%;
-  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
-  font-size: 0.875rem;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
-  background-color: var(--color-bg-input);
-  color: var(--color-text-primary);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  padding: var(--space-2) var(--space-3) var(--space-2) 2.5rem;
+  font-size: var(--font-base);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .searchInput:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .syncAllButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-inverse);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  color: #fff;
   background-color: var(--color-accent);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s;
+  transition: background-color var(--duration-fast);
 }
 
 .syncAllButton:hover:not(:disabled) {
@@ -88,9 +88,9 @@
 
 /* Table */
 .tableWrapper {
-  background-color: var(--color-bg-card);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   overflow: auto;
 }
 
@@ -102,21 +102,21 @@
 
 .table th {
   text-align: left;
-  padding: 0.75rem 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
 }
 
 .table td {
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-base);
+  color: var(--color-text);
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
@@ -126,13 +126,13 @@
 }
 
 .table tbody tr:hover {
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
 }
 
 .teamLink {
   color: var(--color-accent);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-medium);
 }
 
 .teamLink:hover {
@@ -145,32 +145,27 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
 }
 
 /* Badges */
 .badge {
   display: inline-flex;
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 500;
+  padding: 0.125rem var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
   border-radius: 9999px;
   white-space: nowrap;
 }
 
 .badgeEnabled {
-  color: #166534;
-  background-color: #dcfce7;
-}
-
-[data-theme="dark"] .badgeEnabled {
-  color: #86efac;
-  background-color: #14532d;
+  color: var(--color-healthy);
+  background-color: color-mix(in srgb, var(--color-healthy) 10%, transparent);
 }
 
 .badgeDisabled {
   color: var(--color-text-muted);
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
 }
 
 .badgeNone {
@@ -179,51 +174,36 @@
 }
 
 .badgeSuccess {
-  color: #166534;
-  background-color: #dcfce7;
-}
-
-[data-theme="dark"] .badgeSuccess {
-  color: #86efac;
-  background-color: #14532d;
+  color: var(--color-healthy);
+  background-color: color-mix(in srgb, var(--color-healthy) 10%, transparent);
 }
 
 .badgeFailed {
-  color: #991b1b;
-  background-color: #fee2e2;
-}
-
-[data-theme="dark"] .badgeFailed {
-  color: #fca5a5;
-  background-color: #450a0a;
+  color: var(--color-critical);
+  background-color: color-mix(in srgb, var(--color-critical) 10%, transparent);
 }
 
 .badgePartial {
-  color: #92400e;
-  background-color: #fef3c7;
-}
-
-[data-theme="dark"] .badgePartial {
-  color: #fcd34d;
-  background-color: #451a03;
+  color: var(--color-warning);
+  background-color: color-mix(in srgb, var(--color-warning) 10%, transparent);
 }
 
 .badgeNever {
   color: var(--color-text-muted);
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
 }
 
 .driftCount {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   font-variant-numeric: tabular-nums;
 }
 
 .driftCountPositive {
-  color: #dc2626;
+  color: var(--color-critical);
 }
 
 .contactCell {
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
   max-width: 150px;
   overflow: hidden;
@@ -233,47 +213,47 @@
 
 /* Sync Results */
 .syncResults {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background-color: var(--color-bg-card);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
 }
 
 .syncResultsHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .syncResultsTitle {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-text-heading);
+  font-size: var(--font-base);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
 }
 
 .dismissButton {
   padding: 0.125rem 0.375rem;
-  font-size: 0.75rem;
+  font-size: var(--font-xs);
   color: var(--color-text-muted);
   background: none;
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .dismissButton:hover {
-  color: var(--color-text-primary);
+  color: var(--color-text);
   border-color: var(--color-text-muted);
 }
 
 .syncResultItem {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-  padding: 0.25rem 0;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  padding: var(--space-1) 0;
 }
 
 /* States */
@@ -282,17 +262,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 4rem 2rem;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
   color: var(--color-text-muted);
 }
 
 .spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
+  color: var(--color-accent);
   animation: spin 1s linear infinite;
 }
 
@@ -306,34 +282,34 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 4rem 2rem;
-  color: var(--color-error);
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  color: var(--color-critical);
   text-align: center;
 }
 
 .retryButton {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-card);
-  border: 1px solid var(--color-border-input);
-  border-radius: 0.375rem;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-base);
+  font-weight: var(--font-medium);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .retryButton:hover {
-  background-color: var(--color-bg-hover);
+  background-color: var(--color-surface-hover);
 }
 
 .emptyState {
-  padding: 4rem 2rem;
+  padding: var(--space-8) var(--space-6);
   text-align: center;
   color: var(--color-text-muted);
 }
 
 .relativeTime {
-  font-size: 0.8125rem;
+  font-size: var(--font-sm);
   color: var(--color-text-muted);
 }
