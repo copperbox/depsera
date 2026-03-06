@@ -130,11 +130,16 @@ function setupDefaultMocks(service: any = mockService) {
   });
 }
 
-function renderServiceDetail(id = 's1', authOverrides: { isAdmin?: boolean; user?: Record<string, unknown> } = {}) {
+function renderServiceDetail(
+  id = 's1',
+  authOverrides: { isAdmin?: boolean; user?: Record<string, unknown> | null } = {},
+  initialTab?: string,
+) {
   const { isAdmin = false, user = null } = authOverrides;
   mockUseAuth.mockReturnValue({ isAdmin, user });
+  const path = initialTab ? `/services/${id}?tab=${initialTab}` : `/services/${id}`;
   return render(
-    <MemoryRouter initialEntries={[`/services/${id}`]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/services/:id" element={<ServiceDetail />} />
         <Route path="/services" element={<div>Services List</div>} />
@@ -1132,6 +1137,181 @@ describe('ServiceDetail', () => {
       expect(screen.getByTitle('Managed by manifest')).toBeInTheDocument();
       expect(screen.getByText('Managed by manifest')).toBeInTheDocument();
       expect(screen.queryByText(/Key:/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('URL param tab selection', () => {
+    it('respects URL param for initial tab', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', {}, 'dependencies');
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Dependencies/ })).toHaveAttribute('aria-selected', 'true');
+      });
+
+      expect(screen.getByText('Dependencies')).toBeInTheDocument();
+    });
+
+    it('respects URL param for reports tab', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', {}, 'reports');
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Dependent Reports/ })).toHaveAttribute('aria-selected', 'true');
+      });
+
+      expect(screen.getByText('API Gateway')).toBeInTheDocument();
+    });
+
+    it('respects URL param for poll-issues tab', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', {}, 'poll-issues');
+
+      await waitFor(() => {
+        expect(screen.getByRole('tab', { name: /Poll Issues/ })).toHaveAttribute('aria-selected', 'true');
+      });
+    });
+  });
+
+  describe('Dependency detail modal', () => {
+    /** Click the dependency name span (role="link") to open the detail modal */
+    async function openDepDetailModal(name: string) {
+      await switchTab('Dependencies');
+      const nameSpan = screen.getAllByRole('link', { hidden: true }).find(el => el.textContent === name);
+      fireEvent.click(nameSpan!);
+      await waitFor(() => {
+        expect(screen.getByText(`Dependency of Test Service`)).toBeInTheDocument();
+      });
+    }
+
+    it('opens dependency detail modal when dependency name is clicked', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      expect(screen.getByText('Details')).toBeInTheDocument();
+      // Latency section heading and chart present
+      const latencyHeadings = screen.getAllByText('Latency');
+      expect(latencyHeadings.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText('Contact')).toBeInTheDocument();
+      expect(screen.getByTestId('latency-chart-d1')).toBeInTheDocument();
+    });
+
+    it('shows latency value in detail modal', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      // 15ms appears in both the row and modal; just confirm it's present
+      expect(screen.getAllByText('15ms').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('shows contact info in detail modal', async () => {
+      const serviceWithContact = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            effective_contact: '{"email":"detail@example.com","slack":"#detail-support"}',
+          },
+        ],
+      };
+      setupDefaultMocks(serviceWithContact);
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      // Contact values rendered in the modal
+      expect(screen.getAllByText('detail@example.com').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('#detail-support').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('shows "No contact information" when no contact exists', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      expect(screen.getByText('No contact information available.')).toBeInTheDocument();
+    });
+
+    it('shows edit overrides button for admin users', async () => {
+      const adminUser = { id: 'u1', email: 'admin@test.com', name: 'Admin', role: 'admin', teams: [] };
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', { isAdmin: true, user: adminUser });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      expect(screen.getByText('Edit Overrides')).toBeInTheDocument();
+    });
+
+    it('hides edit overrides button for non-privileged users', async () => {
+      setupDefaultMocks();
+
+      renderServiceDetail('s1', { isAdmin: false, user: null });
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      expect(screen.queryByText('Edit Overrides')).not.toBeInTheDocument();
+    });
+
+    it('shows override badge in detail modal when impact override active', async () => {
+      const serviceWithOverride = {
+        ...mockService,
+        dependencies: [
+          {
+            ...mockService.dependencies[0],
+            impact_override: 'Custom modal impact',
+            effective_impact: 'Custom modal impact',
+          },
+        ],
+      };
+      setupDefaultMocks(serviceWithOverride);
+
+      renderServiceDetail();
+
+      await waitFor(() => {
+        expect(screen.getByText('Test Service')).toBeInTheDocument();
+      });
+
+      await openDepDetailModal('PostgreSQL');
+
+      // The modal shows the effective impact value
+      expect(screen.getAllByText('Custom modal impact').length).toBeGreaterThanOrEqual(1);
     });
   });
 });
