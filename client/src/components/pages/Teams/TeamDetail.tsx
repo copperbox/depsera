@@ -3,7 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
+import { useManifestConfig } from '../../../hooks/useManifestConfig';
 import { parseContact } from '../../../utils/dependency';
+import { formatRelativeTime } from '../../../utils/formatting';
 import Modal from '../../common/Modal';
 import ConfirmDialog from '../../common/ConfirmDialog';
 import { Tabs, TabList, Tab, TabPanel } from '../../common/Tabs';
@@ -13,8 +15,14 @@ import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
 import AlertMutes from './AlertMutes';
 import TeamOverviewStats from './TeamOverviewStats';
-import ManifestStatusCard from './ManifestStatusCard';
+import ManifestConfig from '../Manifest/ManifestConfig';
+import ManifestSyncResult from '../Manifest/ManifestSyncResult';
+import DriftReview from '../Manifest/DriftReview';
+import SyncHistory from '../Manifest/SyncHistory';
+import ServiceKeyLookup from '../Manifest/ServiceKeyLookup';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
+import cardStyles from '../../common/SummaryCards.module.css';
+import manifestStyles from '../Manifest/ManifestPage.module.css';
 import styles from './Teams.module.css';
 
 function TeamDetail() {
@@ -29,6 +37,24 @@ function TeamDetail() {
   }, [isAdmin, user?.teams, id]);
 
   const { channels: alertChannels, loadChannels: loadAlertChannels } = useAlertChannels(id);
+
+  const {
+    config: manifestConfig,
+    isLoading: manifestLoading,
+    error: manifestError,
+    isSaving: manifestSaving,
+    isSyncing: manifestSyncing,
+    syncResult: manifestSyncResult,
+    loadConfig: loadManifestConfig,
+    saveConfig: saveManifestConfig,
+    removeConfig: removeManifestConfig,
+    toggleEnabled: toggleManifestEnabled,
+    triggerSync: triggerManifestSync,
+    clearError: clearManifestError,
+    clearSyncResult: clearManifestSyncResult,
+  } = useManifestConfig(id);
+
+  const [isManifestCreating, setIsManifestCreating] = useState(false);
 
   const {
     team,
@@ -60,7 +86,8 @@ function TeamDetail() {
   useEffect(() => {
     loadTeam();
     loadAlertChannels();
-  }, [loadTeam, loadAlertChannels]);
+    loadManifestConfig();
+  }, [loadTeam, loadAlertChannels, loadManifestConfig]);
 
   /* istanbul ignore next -- @preserve
      handleEditSuccess is triggered by TeamForm onSuccess inside a Modal.
@@ -146,26 +173,6 @@ function TeamDetail() {
           <div className={styles.overviewPanel}>
             <div className={styles.teamTitle}>
               <h1>{team.name}</h1>
-              {team.key && (
-                <code className={styles.teamKey}>{team.key}</code>
-              )}
-              {team.description && (
-                <p className={styles.teamDescription}>{team.description}</p>
-              )}
-              {team.contact && (() => {
-                const contactData = parseContact(team.contact);
-                if (!contactData) return null;
-                return (
-                  <div className={styles.contactInfo}>
-                    {Object.entries(contactData).map(([label, value]) => (
-                      <span key={label} className={styles.contactItem}>
-                        <span className={styles.contactLabel}>{label}:</span>{' '}
-                        <span className={styles.contactValue}>{String(value)}</span>
-                      </span>
-                    ))}
-                  </div>
-                );
-              })()}
             </div>
             {isAdmin && (
               <div className={styles.actions}>
@@ -183,6 +190,65 @@ function TeamDetail() {
                   <Trash2 size={14} />
                   Delete
                 </button>
+              </div>
+            )}
+          </div>
+          <div className={styles.infoCardsGrid}>
+            {team.key && (
+              <div className={cardStyles.summaryCardAccent}>
+                <span className={cardStyles.cardLabel}>Team Key</span>
+                <code className={styles.infoCardCode}>{team.key}</code>
+              </div>
+            )}
+            {team.description && (
+              <div className={cardStyles.summaryCardAccent}>
+                <span className={cardStyles.cardLabel}>Description</span>
+                <span className={styles.infoCardText}>{team.description}</span>
+              </div>
+            )}
+            {team.contact && (() => {
+              const contactData = parseContact(team.contact);
+              if (!contactData) return null;
+              return (
+                <div className={cardStyles.summaryCardAccent}>
+                  <span className={cardStyles.cardLabel}>Contact</span>
+                  <div className={styles.infoCardContact}>
+                    {Object.entries(contactData).map(([label, value]) => (
+                      <div key={label} className={styles.contactItem}>
+                        <span className={styles.contactLabel}>{label}:</span>{' '}
+                        <span className={styles.contactValue}>{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+            {!manifestLoading && (
+              <div className={manifestConfig
+                ? (manifestConfig.is_enabled
+                  ? cardStyles.summaryCardHealthy
+                  : cardStyles.summaryCardWarning)
+                : cardStyles.summaryCardAccent
+              }>
+                <span className={cardStyles.cardLabel}>Manifest Sync</span>
+                {manifestConfig ? (
+                  <>
+                    <span className={styles.infoCardText}>
+                      {manifestConfig.is_enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                    {manifestConfig.last_sync_at && (
+                      <span className={cardStyles.cardSubtext}>
+                        Last sync: {formatRelativeTime(manifestConfig.last_sync_at)}
+                        {manifestConfig.last_sync_status === 'failed' && ' (failed)'}
+                      </span>
+                    )}
+                    {!manifestConfig.last_sync_at && (
+                      <span className={cardStyles.cardSubtext}>No syncs yet</span>
+                    )}
+                  </>
+                ) : (
+                  <span className={styles.infoCardText}>Not configured</span>
+                )}
               </div>
             )}
           </div>
@@ -300,7 +366,105 @@ function TeamDetail() {
 
         {/* Manifests Tab */}
         <TabPanel value="manifests">
-          <ManifestStatusCard teamId={id!} canManage={canManageAlerts} />
+          {manifestLoading ? (
+            <div className={styles.loading} style={{ padding: '2rem' }}>
+              <div className={styles.spinner} />
+              <span>Loading manifest config...</span>
+            </div>
+          ) : (
+            <>
+              {manifestError && (
+                <div className={manifestStyles.errorBanner}>
+                  {manifestError}
+                  <button
+                    onClick={clearManifestError}
+                    style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 600 }}
+                  >
+                    &times;
+                  </button>
+                </div>
+              )}
+
+              {/* No manifest configured — empty state */}
+              {!manifestConfig && !isManifestCreating && (
+                <div className={manifestStyles.emptyState}>
+                  <p>
+                    No manifest configured for this team. A manifest lets you declaratively define services, aliases,
+                    and associations using a JSON file. Changes are automatically synced and manual edits are detected as drift.
+                  </p>
+                  {canManageAlerts && (
+                    <button className={manifestStyles.configureButton} onClick={() => setIsManifestCreating(true)}>
+                      Configure Manifest
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Create mode */}
+              {!manifestConfig && isManifestCreating && (
+                <div className={manifestStyles.section}>
+                  <div className={manifestStyles.sectionHeader}>
+                    <h2 className={manifestStyles.sectionTitle}>Configuration</h2>
+                  </div>
+                  <ManifestConfig
+                    config={null}
+                    canManage={canManageAlerts}
+                    isSaving={manifestSaving}
+                    isNew
+                    onSave={saveManifestConfig}
+                    onRemove={removeManifestConfig}
+                    onToggleEnabled={toggleManifestEnabled}
+                    onCancelCreate={() => setIsManifestCreating(false)}
+                  />
+                </div>
+              )}
+
+              {/* Full configuration when manifest exists */}
+              {manifestConfig && (
+                <>
+                  <div className={manifestStyles.section}>
+                    <div className={manifestStyles.sectionHeader}>
+                      <h2 className={manifestStyles.sectionTitle}>Configuration</h2>
+                    </div>
+                    <ManifestConfig
+                      config={manifestConfig}
+                      canManage={canManageAlerts}
+                      isSaving={manifestSaving}
+                      onSave={saveManifestConfig}
+                      onRemove={removeManifestConfig}
+                      onToggleEnabled={toggleManifestEnabled}
+                    />
+                  </div>
+
+                  <ServiceKeyLookup />
+
+                  <div className={manifestStyles.section}>
+                    <ManifestSyncResult
+                      config={manifestConfig}
+                      isSyncing={manifestSyncing}
+                      syncResult={manifestSyncResult}
+                      onSync={triggerManifestSync}
+                      onClearSyncResult={clearManifestSyncResult}
+                    />
+                  </div>
+
+                  <div className={manifestStyles.section}>
+                    <div className={manifestStyles.sectionHeader}>
+                      <h2 className={manifestStyles.sectionTitle}>Drift Review</h2>
+                    </div>
+                    <DriftReview teamId={id!} canManage={canManageAlerts} />
+                  </div>
+
+                  <div className={manifestStyles.section}>
+                    <div className={manifestStyles.sectionHeader}>
+                      <h2 className={manifestStyles.sectionTitle}>Sync History</h2>
+                    </div>
+                    <SyncHistory teamId={id!} />
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </TabPanel>
 
         {/* Services Tab */}

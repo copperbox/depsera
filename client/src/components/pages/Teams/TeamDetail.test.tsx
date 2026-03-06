@@ -45,10 +45,38 @@ jest.mock('./AlertMutes', () => {
   AlertMutes.displayName = 'AlertMutes';
   return AlertMutes;
 });
-jest.mock('./ManifestStatusCard', () => {
-  const ManifestStatusCard = () => <div data-testid="manifest-status-card" />;
-  ManifestStatusCard.displayName = 'ManifestStatusCard';
-  return ManifestStatusCard;
+// Mock useManifestConfig
+const mockLoadManifestConfig = jest.fn();
+const mockUseManifestConfig = jest.fn();
+jest.mock('../../../hooks/useManifestConfig', () => ({
+  useManifestConfig: (...args: unknown[]) => mockUseManifestConfig(...args),
+}));
+
+// Mock manifest sub-components
+jest.mock('../Manifest/ManifestConfig', () => {
+  const ManifestConfig = () => <div data-testid="manifest-config" />;
+  ManifestConfig.displayName = 'ManifestConfig';
+  return ManifestConfig;
+});
+jest.mock('../Manifest/ManifestSyncResult', () => {
+  const ManifestSyncResult = () => <div data-testid="manifest-sync-result" />;
+  ManifestSyncResult.displayName = 'ManifestSyncResult';
+  return ManifestSyncResult;
+});
+jest.mock('../Manifest/DriftReview', () => {
+  const DriftReview = () => <div data-testid="manifest-drift-review" />;
+  DriftReview.displayName = 'DriftReview';
+  return DriftReview;
+});
+jest.mock('../Manifest/SyncHistory', () => {
+  const SyncHistory = () => <div data-testid="manifest-sync-history" />;
+  SyncHistory.displayName = 'SyncHistory';
+  return SyncHistory;
+});
+jest.mock('../Manifest/ServiceKeyLookup', () => {
+  const ServiceKeyLookup = () => <div data-testid="manifest-service-key-lookup" />;
+  ServiceKeyLookup.displayName = 'ServiceKeyLookup';
+  return ServiceKeyLookup;
 });
 
 function jsonResponse(data: unknown, status = 200) {
@@ -97,6 +125,22 @@ beforeEach(() => {
   mockFetch.mockReset();
   mockUseAuth.mockReset();
   mockNavigate.mockReset();
+  mockLoadManifestConfig.mockReset();
+  mockUseManifestConfig.mockReturnValue({
+    config: null,
+    isLoading: false,
+    error: null,
+    isSaving: false,
+    isSyncing: false,
+    syncResult: null,
+    loadConfig: mockLoadManifestConfig,
+    saveConfig: jest.fn(),
+    removeConfig: jest.fn(),
+    toggleEnabled: jest.fn(),
+    triggerSync: jest.fn(),
+    clearError: jest.fn(),
+    clearSyncResult: jest.fn(),
+  });
   localStorage.clear();
 });
 
@@ -703,7 +747,7 @@ describe('TeamDetail', () => {
   });
 
   describe('manifests tab', () => {
-    it('renders ManifestStatusCard', async () => {
+    it('renders empty state when no manifest configured', async () => {
       mockFetch
         .mockResolvedValueOnce(jsonResponse(mockTeam))
         .mockResolvedValueOnce(jsonResponse([]));
@@ -711,8 +755,52 @@ describe('TeamDetail', () => {
       renderTeamDetail('t1', false, 'manifests');
 
       await waitFor(() => {
-        expect(screen.getByTestId('manifest-status-card')).toBeInTheDocument();
+        expect(screen.getByText(/No manifest configured/)).toBeInTheDocument();
       });
+    });
+
+    it('renders manifest configuration when config exists', async () => {
+      mockUseManifestConfig.mockReturnValue({
+        config: {
+          id: 'mc1',
+          team_id: 't1',
+          manifest_url: 'https://example.com/manifest.json',
+          is_enabled: 1,
+          sync_policy: null,
+          last_sync_at: '2024-06-01T00:00:00Z',
+          last_sync_status: 'success',
+          last_sync_error: null,
+          last_sync_summary: null,
+          created_at: '2024-01-01',
+          updated_at: '2024-01-01',
+        },
+        isLoading: false,
+        error: null,
+        isSaving: false,
+        isSyncing: false,
+        syncResult: null,
+        loadConfig: mockLoadManifestConfig,
+        saveConfig: jest.fn(),
+        removeConfig: jest.fn(),
+        toggleEnabled: jest.fn(),
+        triggerSync: jest.fn(),
+        clearError: jest.fn(),
+        clearSyncResult: jest.fn(),
+      });
+
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse(mockTeam))
+        .mockResolvedValueOnce(jsonResponse([]));
+
+      renderTeamDetail('t1', false, 'manifests');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('manifest-config')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('manifest-sync-result')).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-drift-review')).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-sync-history')).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-service-key-lookup')).toBeInTheDocument();
     });
   });
 
