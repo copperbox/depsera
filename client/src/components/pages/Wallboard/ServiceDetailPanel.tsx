@@ -1,5 +1,6 @@
 import { useState, useEffect, memo } from 'react';
 import { Link } from 'react-router-dom';
+import { X, AlertCircle, ChevronRight } from 'lucide-react';
 import { fetchService } from '../../../api/services';
 import { formatRelativeTime } from '../../../utils/formatting';
 import type { ServiceWithDependencies, HealthStatus } from '../../../types/service';
@@ -71,9 +72,7 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
         <div className={styles.header}>
           <h3 className={styles.title}>Loading...</h3>
           <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 5L5 15M5 5l10 10" />
-            </svg>
+            <X size={18} />
           </button>
         </div>
         <div className={styles.loadingBody}>
@@ -89,9 +88,7 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
         <div className={styles.header}>
           <h3 className={styles.title}>Error</h3>
           <button className={styles.closeButton} onClick={onClose} aria-label="Close panel">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 5L5 15M5 5l10 10" />
-            </svg>
+            <X size={18} />
           </button>
         </div>
         <div className={styles.errorBody}>{error || 'Service not found'}</div>
@@ -120,10 +117,7 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
           </div>
           {service.is_external !== 1 && service.last_poll_success === 0 && (
             <div className={styles.pollFailure}>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="8" cy="8" r="6" />
-                <path d="M8 5v3M8 10v1" />
-              </svg>
+              <AlertCircle size={14} />
               Poll failed{service.last_poll_error ? `: ${service.last_poll_error}` : ''}
             </div>
           )}
@@ -267,9 +261,7 @@ function ServiceDetailPanelComponent({ serviceId, onClose }: ServiceDetailPanelP
       <div className={styles.actions}>
         <Link to={`/services/${serviceId}`} className={styles.viewDetailsButton}>
           View Full Details
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M6 12l4-4-4-4" />
-          </svg>
+          <ChevronRight size={16} />
         </Link>
       </div>
     </div>
