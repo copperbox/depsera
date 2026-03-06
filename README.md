@@ -133,7 +133,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 
 ## Tech Stack
 
-- **Frontend:** React 18, TypeScript, Vite, CSS Modules, React Flow, Recharts
+- **Frontend:** React 18, TypeScript, Vite, CSS Modules (design tokens + `color-mix()`), Lucide React icons, Inter font, React Flow, Recharts
 - **Backend:** Express.js, TypeScript, SQLite (better-sqlite3)
 - **Authentication:** OpenID Connect (openid-client) or local auth (bcryptjs)
 - **Testing:** Jest, React Testing Library
