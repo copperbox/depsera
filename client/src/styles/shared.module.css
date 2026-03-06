@@ -1,0 +1,137 @@
+/* =============================================================
+   Shared CSS Module Classes
+   Composable building blocks for consistent UI patterns.
+   Components use these via CSS Modules `composes:` syntax.
+   ============================================================= */
+
+/* --- Cards --- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.cardInteractive {
+  composes: card;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+.cardInteractive:hover {
+  background: var(--color-surface-hover);
+}
+
+/* --- Typography --- */
+
+.sectionHeader {
+  font-size: var(--font-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+  line-height: var(--line-height-tight);
+}
+
+.label {
+  font-size: var(--font-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dataValue {
+  font-size: var(--font-base);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tables --- */
+
+.tableRow {
+  height: 36px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color var(--duration-fast) ease;
+}
+.tableRow:hover {
+  background: var(--color-surface-hover);
+}
+
+.tableHeader {
+  font-size: var(--font-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* --- Inputs --- */
+
+.input {
+  font-size: var(--font-base);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) ease;
+}
+.input:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* --- Buttons --- */
+
+.buttonPrimary {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+}
+.buttonPrimary:hover {
+  background: var(--color-accent-hover);
+}
+
+.buttonGhost {
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+.buttonGhost:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.buttonDanger {
+  composes: buttonPrimary;
+  background: var(--color-critical);
+}
+.buttonDanger:hover {
+  background: #b91c1c;
+}
+
+/* --- Loading --- */
+
+.skeleton {
+  background: var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
