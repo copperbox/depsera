@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Pencil, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTeamDetail, useTeamMembers } from '../../../hooks/useTeamDetail';
-import { useManifestConfig } from '../../../hooks/useManifestConfig';
+import { useManifestConfigs } from '../../../hooks/useManifestConfigs';
 import { parseContact } from '../../../utils/dependency';
 import { formatRelativeTime } from '../../../utils/formatting';
 import Modal from '../../common/Modal';
@@ -15,14 +15,9 @@ import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
 import AlertMutes from './AlertMutes';
 import TeamOverviewStats from './TeamOverviewStats';
-import ManifestConfig from '../Manifest/ManifestConfig';
-import ManifestSyncResult from '../Manifest/ManifestSyncResult';
-import DriftReview from '../Manifest/DriftReview';
-import SyncHistory from '../Manifest/SyncHistory';
-import ServiceKeyLookup from '../Manifest/ServiceKeyLookup';
+import ManifestList from '../Manifest/ManifestList';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
 import cardStyles from '../../common/SummaryCards.module.css';
-import manifestStyles from '../Manifest/ManifestPage.module.css';
 import styles from './Teams.module.css';
 
 function TeamDetail() {
@@ -39,22 +34,10 @@ function TeamDetail() {
   const { channels: alertChannels, loadChannels: loadAlertChannels } = useAlertChannels(id);
 
   const {
-    config: manifestConfig,
+    configs: manifestConfigs,
     isLoading: manifestLoading,
-    error: manifestError,
-    isSaving: manifestSaving,
-    isSyncing: manifestSyncing,
-    syncResult: manifestSyncResult,
-    loadConfig: loadManifestConfig,
-    saveConfig: saveManifestConfig,
-    removeConfig: removeManifestConfig,
-    toggleEnabled: toggleManifestEnabled,
-    triggerSync: triggerManifestSync,
-    clearError: clearManifestError,
-    clearSyncResult: clearManifestSyncResult,
-  } = useManifestConfig(id);
-
-  const [isManifestCreating, setIsManifestCreating] = useState(false);
+    loadConfigs: loadManifestConfigs,
+  } = useManifestConfigs(id);
 
   const {
     team,
@@ -86,8 +69,8 @@ function TeamDetail() {
   useEffect(() => {
     loadTeam();
     loadAlertChannels();
-    loadManifestConfig();
-  }, [loadTeam, loadAlertChannels, loadManifestConfig]);
+    loadManifestConfigs();
+  }, [loadTeam, loadAlertChannels, loadManifestConfigs]);
 
   /* istanbul ignore next -- @preserve
      handleEditSuccess is triggered by TeamForm onSuccess inside a Modal.
@@ -223,34 +206,42 @@ function TeamDetail() {
                 </div>
               );
             })()}
-            {!manifestLoading && (
-              <div className={manifestConfig
-                ? (manifestConfig.is_enabled
-                  ? cardStyles.summaryCardHealthy
-                  : cardStyles.summaryCardWarning)
-                : cardStyles.summaryCardAccent
-              }>
-                <span className={cardStyles.cardLabel}>Manifest Sync</span>
-                {manifestConfig ? (
-                  <>
-                    <span className={styles.infoCardText}>
-                      {manifestConfig.is_enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                    {manifestConfig.last_sync_at && (
-                      <span className={cardStyles.cardSubtext}>
-                        Last sync: {formatRelativeTime(manifestConfig.last_sync_at)}
-                        {manifestConfig.last_sync_status === 'failed' && ' (failed)'}
+            {!manifestLoading && (() => {
+              const enabledCount = manifestConfigs.filter(c => c.is_enabled).length;
+              const hasAnyEnabled = enabledCount > 0;
+              const mostRecentSync = manifestConfigs
+                .filter(c => c.last_sync_at)
+                .sort((a, b) => new Date(b.last_sync_at!).getTime() - new Date(a.last_sync_at!).getTime())[0];
+              const hasFailure = manifestConfigs.some(c => c.last_sync_status === 'failed');
+
+              return (
+                <div className={manifestConfigs.length > 0
+                  ? (hasAnyEnabled
+                    ? cardStyles.summaryCardHealthy
+                    : cardStyles.summaryCardWarning)
+                  : cardStyles.summaryCardAccent
+                }>
+                  <span className={cardStyles.cardLabel}>Manifest Sync</span>
+                  {manifestConfigs.length > 0 ? (
+                    <>
+                      <span className={styles.infoCardText}>
+                        {manifestConfigs.length} manifest{manifestConfigs.length !== 1 ? 's' : ''}, {enabledCount} enabled
                       </span>
-                    )}
-                    {!manifestConfig.last_sync_at && (
-                      <span className={cardStyles.cardSubtext}>No syncs yet</span>
-                    )}
-                  </>
-                ) : (
-                  <span className={styles.infoCardText}>Not configured</span>
-                )}
-              </div>
-            )}
+                      {mostRecentSync ? (
+                        <span className={cardStyles.cardSubtext}>
+                          Last sync: {formatRelativeTime(mostRecentSync.last_sync_at!)}
+                          {hasFailure && ' (has failures)'}
+                        </span>
+                      ) : (
+                        <span className={cardStyles.cardSubtext}>No syncs yet</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className={styles.infoCardText}>Not configured</span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <TeamOverviewStats
             teamId={id!}
@@ -366,105 +357,7 @@ function TeamDetail() {
 
         {/* Manifests Tab */}
         <TabPanel value="manifests">
-          {manifestLoading ? (
-            <div className={styles.loading} style={{ padding: '2rem' }}>
-              <div className={styles.spinner} />
-              <span>Loading manifest config...</span>
-            </div>
-          ) : (
-            <>
-              {manifestError && (
-                <div className={manifestStyles.errorBanner}>
-                  {manifestError}
-                  <button
-                    onClick={clearManifestError}
-                    style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 600 }}
-                  >
-                    &times;
-                  </button>
-                </div>
-              )}
-
-              {/* No manifest configured — empty state */}
-              {!manifestConfig && !isManifestCreating && (
-                <div className={manifestStyles.emptyState}>
-                  <p>
-                    No manifest configured for this team. A manifest lets you declaratively define services, aliases,
-                    and associations using a JSON file. Changes are automatically synced and manual edits are detected as drift.
-                  </p>
-                  {canManageAlerts && (
-                    <button className={manifestStyles.configureButton} onClick={() => setIsManifestCreating(true)}>
-                      Configure Manifest
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Create mode */}
-              {!manifestConfig && isManifestCreating && (
-                <div className={manifestStyles.section}>
-                  <div className={manifestStyles.sectionHeader}>
-                    <h2 className={manifestStyles.sectionTitle}>Configuration</h2>
-                  </div>
-                  <ManifestConfig
-                    config={null}
-                    canManage={canManageAlerts}
-                    isSaving={manifestSaving}
-                    isNew
-                    onSave={saveManifestConfig}
-                    onRemove={removeManifestConfig}
-                    onToggleEnabled={toggleManifestEnabled}
-                    onCancelCreate={() => setIsManifestCreating(false)}
-                  />
-                </div>
-              )}
-
-              {/* Full configuration when manifest exists */}
-              {manifestConfig && (
-                <>
-                  <div className={manifestStyles.section}>
-                    <div className={manifestStyles.sectionHeader}>
-                      <h2 className={manifestStyles.sectionTitle}>Configuration</h2>
-                    </div>
-                    <ManifestConfig
-                      config={manifestConfig}
-                      canManage={canManageAlerts}
-                      isSaving={manifestSaving}
-                      onSave={saveManifestConfig}
-                      onRemove={removeManifestConfig}
-                      onToggleEnabled={toggleManifestEnabled}
-                    />
-                  </div>
-
-                  <ServiceKeyLookup />
-
-                  <div className={manifestStyles.section}>
-                    <ManifestSyncResult
-                      config={manifestConfig}
-                      isSyncing={manifestSyncing}
-                      syncResult={manifestSyncResult}
-                      onSync={triggerManifestSync}
-                      onClearSyncResult={clearManifestSyncResult}
-                    />
-                  </div>
-
-                  <div className={manifestStyles.section}>
-                    <div className={manifestStyles.sectionHeader}>
-                      <h2 className={manifestStyles.sectionTitle}>Drift Review</h2>
-                    </div>
-                    <DriftReview teamId={id!} canManage={canManageAlerts} />
-                  </div>
-
-                  <div className={manifestStyles.section}>
-                    <div className={manifestStyles.sectionHeader}>
-                      <h2 className={manifestStyles.sectionTitle}>Sync History</h2>
-                    </div>
-                    <SyncHistory teamId={id!} />
-                  </div>
-                </>
-              )}
-            </>
-          )}
+          <ManifestList teamId={id!} canManage={canManageAlerts} />
         </TabPanel>
 
         {/* Services Tab */}

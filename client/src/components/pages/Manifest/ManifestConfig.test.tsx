@@ -11,6 +11,7 @@ beforeAll(() => {
 const baseConfig: TeamManifestConfig = {
   id: 'mc1',
   team_id: 't1',
+  name: 'Default',
   manifest_url: 'https://example.com/manifest.json',
   is_enabled: 1,
   sync_policy: JSON.stringify({
@@ -160,6 +161,7 @@ describe('ManifestConfig — edit mode', () => {
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith({
+        name: 'Default',
         manifest_url: 'https://new.example.com/manifest.json',
         sync_policy: {
           on_field_drift: 'flag',

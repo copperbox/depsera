@@ -18,12 +18,13 @@ export class ManifestSyncHistoryStore implements IManifestSyncHistoryStore {
     this.db
       .prepare(
         `INSERT INTO manifest_sync_history
-           (id, team_id, trigger_type, triggered_by, manifest_url, status, summary, errors, warnings, duration_ms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (id, team_id, manifest_config_id, trigger_type, triggered_by, manifest_url, status, summary, errors, warnings, duration_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         id,
         entry.team_id,
+        entry.manifest_config_id,
         entry.trigger_type,
         entry.triggered_by,
         entry.manifest_url,
@@ -60,6 +61,31 @@ export class ManifestSyncHistoryStore implements IManifestSyncHistoryStore {
          LIMIT ? OFFSET ?`
       )
       .all(teamId, limit, offset) as ManifestSyncHistoryEntry[];
+
+    return { history, total: total.count };
+  }
+
+  findByConfigId(
+    configId: string,
+    options?: { limit?: number; offset?: number }
+  ): { history: ManifestSyncHistoryEntry[]; total: number } {
+    const limit = Math.min(options?.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const offset = options?.offset ?? 0;
+
+    const total = this.db
+      .prepare(
+        'SELECT COUNT(*) as count FROM manifest_sync_history WHERE manifest_config_id = ?'
+      )
+      .get(configId) as { count: number };
+
+    const history = this.db
+      .prepare(
+        `SELECT * FROM manifest_sync_history
+         WHERE manifest_config_id = ?
+         ORDER BY created_at DESC
+         LIMIT ? OFFSET ?`
+      )
+      .all(configId, limit, offset) as ManifestSyncHistoryEntry[];
 
     return { history, total: total.count };
   }

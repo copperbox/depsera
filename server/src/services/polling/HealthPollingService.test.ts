@@ -34,6 +34,7 @@ const createService = (
   poll_warnings: null,
   manifest_key: null,
   manifest_managed: 0,
+  manifest_config_id: null,
   manifest_last_synced_values: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),

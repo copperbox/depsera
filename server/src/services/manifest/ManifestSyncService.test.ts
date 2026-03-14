@@ -65,6 +65,7 @@ function makeConfig(overrides: Partial<TeamManifestConfig> = {}): TeamManifestCo
   return {
     id: 'config-1',
     team_id: 'team-1',
+    name: 'Default',
     manifest_url: 'https://example.com/manifest.json',
     is_enabled: 1,
     sync_policy: null,
@@ -95,6 +96,7 @@ function makeService(overrides: Partial<Service> = {}): Service {
     poll_warnings: null,
     manifest_key: 'svc-a',
     manifest_managed: 1,
+    manifest_config_id: null,
     manifest_last_synced_values: null,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
@@ -116,7 +118,8 @@ function createMockStores() {
       ]),
     },
     manifestConfig: {
-      findByTeamId: jest.fn(),
+      findById: jest.fn(),
+      findByTeamId: jest.fn().mockReturnValue([]),
       findAllEnabled: jest.fn().mockReturnValue([]),
       updateSyncResult: jest.fn().mockReturnValue(true),
     },
@@ -173,7 +176,9 @@ function createSyncService(stores: any): ManifestSyncService {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setupEmptyManifestSync(stores: any) {
-  stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+  const config = makeConfig();
+  stores.manifestConfig.findByTeamId.mockReturnValue([config]);
+  stores.manifestConfig.findById.mockReturnValue(config);
   stores.services.findByTeamId.mockReturnValue([]);
   mockFetch.mockResolvedValue({
     success: true,
@@ -216,21 +221,22 @@ describe('ManifestSyncService', () => {
   // =========================================================================
   describe('syncTeam — early returns', () => {
     it('returns failed if config not found', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(undefined);
+      stores.manifestConfig.findByTeamId.mockReturnValue([]);
       const result = await service.syncTeam('team-1', 'manual', 'user-1');
       expect(result.status).toBe('failed');
-      expect(result.errors).toContain('Manifest config not found');
+      expect(result.errors).toContain('No enabled manifest configs found for this team');
     });
 
     it('returns failed if config is disabled', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig({ is_enabled: 0 }));
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig({ is_enabled: 0 })]);
       const result = await service.syncTeam('team-1', 'manual', 'user-1');
       expect(result.status).toBe('failed');
-      expect(result.errors).toContain('Manifest sync is disabled for this team');
+      expect(result.errors).toContain('No enabled manifest configs found for this team');
     });
 
     it('returns failed if fetch fails', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       mockFetch.mockResolvedValue({
         success: false, error: 'HTTP 404: Not Found', url: 'https://example.com/manifest.json',
       });
@@ -240,7 +246,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('returns failed if validation fails', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       mockFetch.mockResolvedValue({
         success: true, data: { version: 2 }, url: 'https://example.com/manifest.json',
       });
@@ -270,7 +277,8 @@ describe('ManifestSyncService', () => {
 
     it('creates new services from diff.toCreate', async () => {
       const entry = { key: 'new-svc', name: 'New Service', health_endpoint: 'https://new.example.com/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
@@ -294,7 +302,8 @@ describe('ManifestSyncService', () => {
 
     it('produces detailed error on service creation FOREIGN KEY constraint', async () => {
       const entry = { key: 'new-svc', name: 'New Service', health_endpoint: 'https://new.example.com/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.services.create.mockImplementation(() => {
         throw new Error('FOREIGN KEY constraint failed');
@@ -318,7 +327,8 @@ describe('ManifestSyncService', () => {
 
     it('updates services from diff.toUpdate', async () => {
       const entry = { key: 'svc-a', name: 'Updated Name', health_endpoint: 'https://svc-a.example.com/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
@@ -346,7 +356,8 @@ describe('ManifestSyncService', () => {
         manifest_value: 'https://new.example.com/health',
         current_value: 'https://old.example.com/health',
       };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [driftEntry.manifest_entry] }, url: 'https://example.com/manifest.json',
@@ -364,12 +375,13 @@ describe('ManifestSyncService', () => {
       expect(stores.driftFlags.upsertFieldDrift).toHaveBeenCalledWith(
         'svc-1', 'health_endpoint',
         'https://new.example.com/health', 'https://old.example.com/health',
-        null,
+        null, 'config-1',
       );
     });
 
     it('deactivates services from diff.toDeactivate', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       stores.services.findById.mockReturnValue(makeService());
       mockFetch.mockResolvedValue({
@@ -390,7 +402,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('deletes services from diff.toDelete', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       stores.services.findById.mockReturnValue(makeService());
       mockFetch.mockResolvedValue({
@@ -411,7 +424,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('records unchanged services', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       stores.services.findById.mockReturnValue(makeService());
       mockFetch.mockResolvedValue({
@@ -437,7 +451,8 @@ describe('ManifestSyncService', () => {
   describe('SSRF filtering', () => {
     it('skips creating services with SSRF-blocked endpoints', async () => {
       const entry = { key: 'bad-svc', name: 'Bad', health_endpoint: 'https://10.0.0.1/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
@@ -473,7 +488,8 @@ describe('ManifestSyncService', () => {
     it('emits DRIFT_DETECTED when drift flags are created', async () => {
       const listener = jest.fn();
       service.on(ManifestSyncEventType.DRIFT_DETECTED, listener);
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       stores.services.findById.mockReturnValue(makeService());
       mockFetch.mockResolvedValue({
@@ -494,7 +510,8 @@ describe('ManifestSyncService', () => {
     it('emits SYNC_ERROR on exception', async () => {
       const listener = jest.fn();
       service.on(ManifestSyncEventType.SYNC_ERROR, listener);
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       mockFetch.mockRejectedValue(new Error('Network failure'));
 
       await service.syncTeam('team-1', 'manual', 'user-1');
@@ -507,19 +524,19 @@ describe('ManifestSyncService', () => {
   // =========================================================================
   describe('concurrency', () => {
     it('canManualSync returns true when no recent sync', () => {
-      expect(service.canManualSync('team-1').allowed).toBe(true);
+      expect(service.canManualSync('config-1').allowed).toBe(true);
     });
 
     it('canManualSync returns false within cooldown', async () => {
       setupEmptyManifestSync(stores);
       await service.syncTeam('team-1', 'manual', 'user-1');
-      const cooldown = service.canManualSync('team-1');
+      const cooldown = service.canManualSync('config-1');
       expect(cooldown.allowed).toBe(false);
       expect(cooldown.retryAfterMs).toBeGreaterThan(0);
     });
 
     it('isSyncing returns false when no sync in progress', () => {
-      expect(service.isSyncing('team-1')).toBe(false);
+      expect(service.isSyncingConfig('config-1')).toBe(false);
     });
   });
 
@@ -528,7 +545,8 @@ describe('ManifestSyncService', () => {
   // =========================================================================
   describe('sync policy', () => {
     it('uses DEFAULT_SYNC_POLICY when sync_policy is null', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig({ sync_policy: null }));
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig({ sync_policy: null })]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig({ sync_policy: null }));
       stores.services.findByTeamId.mockReturnValue([]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [] }, url: 'https://example.com/manifest.json',
@@ -550,7 +568,8 @@ describe('ManifestSyncService', () => {
         on_field_drift: 'manifest_wins', on_removal: 'deactivate',
         on_alias_removal: 'remove', on_override_removal: 'remove', on_association_removal: 'remove',
       };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig({ sync_policy: JSON.stringify(custom) }));
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig({ sync_policy: JSON.stringify(custom) })]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig({ sync_policy: JSON.stringify(custom) }));
       stores.services.findByTeamId.mockReturnValue([]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [] }, url: 'https://example.com/manifest.json',
@@ -568,7 +587,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('falls back to DEFAULT_SYNC_POLICY on invalid JSON', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig({ sync_policy: 'not-json' }));
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig({ sync_policy: 'not-json' })]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig({ sync_policy: 'not-json' }));
       stores.services.findByTeamId.mockReturnValue([]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [] }, url: 'https://example.com/manifest.json',
@@ -592,7 +612,8 @@ describe('ManifestSyncService', () => {
   describe('polling integration', () => {
     it('restarts polling for updated services with endpoint changes', async () => {
       const entry = { key: 'svc-a', name: 'Service A', health_endpoint: 'https://new.example.com/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
@@ -613,7 +634,8 @@ describe('ManifestSyncService', () => {
 
     it('does not restart polling for name-only updates', async () => {
       const entry = { key: 'svc-a', name: 'Updated', health_endpoint: 'https://svc-a.example.com/health' };
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       mockFetch.mockResolvedValue({
         success: true, data: { version: 1, services: [entry] }, url: 'https://example.com/manifest.json',
@@ -698,7 +720,8 @@ describe('ManifestSyncService', () => {
   // =========================================================================
   describe('alias sync', () => {
     it('creates team-scoped aliases from manifest', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.aliases.findAll.mockReturnValue([]);
       mockFetch.mockResolvedValue({
@@ -719,7 +742,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('produces detailed error on alias UNIQUE constraint instead of crashing', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.aliases.findAll.mockReturnValue([]);
 
@@ -751,7 +775,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('produces detailed error on alias FOREIGN KEY constraint', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.aliases.findAll.mockReturnValue([]);
 
@@ -785,7 +810,8 @@ describe('ManifestSyncService', () => {
   // =========================================================================
   describe('override sync', () => {
     it('creates team-scoped overrides from manifest', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.canonicalOverrides.findAll.mockReturnValue([]);
       mockFetch.mockResolvedValue({
@@ -809,7 +835,8 @@ describe('ManifestSyncService', () => {
     });
 
     it('produces detailed error on override FOREIGN KEY constraint', async () => {
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([]);
       stores.canonicalOverrides.findAll.mockReturnValue([]);
       stores.canonicalOverrides.upsert.mockImplementation(() => {
@@ -850,7 +877,8 @@ describe('ManifestSyncService', () => {
         created_at: '2026-01-01T00:00:00.000Z',
       };
       stores.driftFlags.findActiveByServiceId.mockReturnValue([removalDrift]);
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([makeService()]);
       stores.services.findById.mockReturnValue(makeService());
       mockFetch.mockResolvedValue({
@@ -880,7 +908,8 @@ describe('ManifestSyncService', () => {
       const remoteService = makeService({ id: 'svc-remote', name: 'Payment API', manifest_key: 'payment-api', manifest_managed: 1, team_id: 'team-2' });
       const dep = { id: 'dep-1', service_id: 'svc-local', name: 'payment-api', canonical_name: null };
 
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([localService]);
       stores.services.findAll.mockReturnValue([localService, remoteService]);
       stores.dependencies.findByServiceId.mockReturnValue([dep]);
@@ -921,7 +950,8 @@ describe('ManifestSyncService', () => {
       const localService = makeService({ id: 'svc-local', name: 'Gateway', manifest_key: 'gateway', manifest_managed: 1, team_id: 'team-1' });
       const dep = { id: 'dep-1', service_id: 'svc-local', name: 'pg-main', canonical_name: null };
 
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([localService]);
       stores.services.findAll.mockReturnValue([localService]);
       stores.dependencies.findByServiceId.mockReturnValue([dep]);
@@ -954,7 +984,8 @@ describe('ManifestSyncService', () => {
       const remoteService = makeService({ id: 'svc-remote', name: 'PostgreSQL DB', manifest_key: 'postgres-db', manifest_managed: 1, team_id: 'team-2' });
       const dep = { id: 'dep-1', service_id: 'svc-local', name: 'pg-main', canonical_name: null };
 
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([localService]);
       stores.services.findAll.mockReturnValue([localService, remoteService]);
       stores.dependencies.findByServiceId.mockReturnValue([dep]);
@@ -1005,7 +1036,8 @@ describe('ManifestSyncService', () => {
         manifest_managed: 0,
       };
 
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([localService]);
       stores.services.findAll.mockReturnValue([localService, remoteService]);
       stores.dependencies.findByServiceId.mockReturnValue([dep]);
@@ -1055,7 +1087,8 @@ describe('ManifestSyncService', () => {
         manifest_managed: 1,
       };
 
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([localService]);
       stores.services.findAll.mockReturnValue([localService, remoteService]);
       stores.dependencies.findByServiceId.mockReturnValue([dep]);
@@ -1088,7 +1121,8 @@ describe('ManifestSyncService', () => {
     it('produces detailed error on association FOREIGN KEY constraint', async () => {
       const existingService = makeService({ id: 'svc-gw', name: 'Gateway', manifest_key: 'gateway' });
       const linkedService = makeService({ id: 'svc-pay', name: 'Payment', team_id: 'team-2', manifest_key: 'payment-api' });
-      stores.manifestConfig.findByTeamId.mockReturnValue(makeConfig());
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
       stores.services.findByTeamId.mockReturnValue([existingService]);
       stores.services.findAll.mockReturnValue([existingService, linkedService]);
       stores.dependencies.findByServiceId.mockReturnValue([

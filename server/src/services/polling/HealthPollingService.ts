@@ -343,6 +343,7 @@ export class HealthPollingService extends EventEmitter {
     this.loopTimer = setInterval(() => {
       this.runPollCycle();
     }, POLL_CYCLE_MS);
+    this.loopTimer.unref(); // Don't keep process alive for this timer
   }
 
   private stopLoop(): void {
@@ -358,7 +359,13 @@ export class HealthPollingService extends EventEmitter {
     if (this.isShuttingDown) return;
 
     // Sync with database to pick up new/removed/changed services
-    this.syncServices();
+    try {
+      this.syncServices();
+    } catch (err) {
+      // Database may be closed during shutdown/test teardown — stop the loop
+      this.stopLoop();
+      return;
+    }
 
     // Determine which services are eligible for polling this tick
     const allStates = this.stateManager.getAllStates()

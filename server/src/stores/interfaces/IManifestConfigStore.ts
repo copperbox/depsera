@@ -13,10 +13,11 @@ export interface ManifestSyncResultInput {
 
 export interface IManifestConfigStore {
   create(input: ManifestConfigCreateInput): TeamManifestConfig;
-  findByTeamId(teamId: string): TeamManifestConfig | undefined;
-  update(teamId: string, input: ManifestConfigUpdateInput): TeamManifestConfig | undefined;
-  delete(teamId: string): boolean;
+  findById(configId: string): TeamManifestConfig | undefined;
+  findByTeamId(teamId: string): TeamManifestConfig[];
+  update(configId: string, input: ManifestConfigUpdateInput): TeamManifestConfig | undefined;
+  delete(configId: string): boolean;
   findAll(): TeamManifestConfig[];
   findAllEnabled(): TeamManifestConfig[];
-  updateSyncResult(teamId: string, result: ManifestSyncResultInput): boolean;
+  updateSyncResult(configId: string, result: ManifestSyncResultInput): boolean;
 }

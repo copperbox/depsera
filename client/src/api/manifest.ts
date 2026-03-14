@@ -15,23 +15,49 @@ import type {
 import { handleResponse } from './common';
 import { withCsrfToken } from './csrf';
 
-// --- Configuration ---
+// --- Configuration (multi-config) ---
 
-export async function getManifestConfig(
+export async function getManifestConfigs(
   teamId: string
-): Promise<TeamManifestConfig | null> {
-  const response = await fetch(`/api/teams/${teamId}/manifest`, {
+): Promise<TeamManifestConfig[]> {
+  const response = await fetch(`/api/teams/${teamId}/manifests`, {
     credentials: 'include',
   });
-  const data = await handleResponse<{ config: TeamManifestConfig | null }>(response);
+  const data = await handleResponse<{ configs: TeamManifestConfig[] }>(response);
+  return data.configs;
+}
+
+export async function getManifestConfig(
+  teamId: string,
+  configId: string
+): Promise<TeamManifestConfig> {
+  const response = await fetch(`/api/teams/${teamId}/manifests/${configId}`, {
+    credentials: 'include',
+  });
+  const data = await handleResponse<{ config: TeamManifestConfig }>(response);
   return data.config;
 }
 
-export async function saveManifestConfig(
+export async function createManifestConfig(
   teamId: string,
   input: ManifestConfigInput
 ): Promise<TeamManifestConfig> {
-  const response = await fetch(`/api/teams/${teamId}/manifest`, {
+  const response = await fetch(`/api/teams/${teamId}/manifests`, {
+    method: 'POST',
+    headers: withCsrfToken({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input),
+    credentials: 'include',
+  });
+  const data = await handleResponse<{ config: TeamManifestConfig }>(response);
+  return data.config;
+}
+
+export async function updateManifestConfig(
+  teamId: string,
+  configId: string,
+  input: Partial<ManifestConfigInput>
+): Promise<TeamManifestConfig> {
+  const response = await fetch(`/api/teams/${teamId}/manifests/${configId}`, {
     method: 'PUT',
     headers: withCsrfToken({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
@@ -41,8 +67,11 @@ export async function saveManifestConfig(
   return data.config;
 }
 
-export async function removeManifestConfig(teamId: string): Promise<void> {
-  const response = await fetch(`/api/teams/${teamId}/manifest`, {
+export async function removeManifestConfig(
+  teamId: string,
+  configId: string
+): Promise<void> {
+  const response = await fetch(`/api/teams/${teamId}/manifests/${configId}`, {
     method: 'DELETE',
     headers: withCsrfToken(),
     credentials: 'include',
@@ -55,8 +84,8 @@ export async function removeManifestConfig(teamId: string): Promise<void> {
 
 // --- Sync ---
 
-export async function triggerSync(teamId: string): Promise<ManifestSyncResult> {
-  const response = await fetch(`/api/teams/${teamId}/manifest/sync`, {
+export async function triggerTeamSync(teamId: string): Promise<ManifestSyncResult> {
+  const response = await fetch(`/api/teams/${teamId}/manifests/sync`, {
     method: 'POST',
     headers: withCsrfToken(),
     credentials: 'include',
@@ -65,8 +94,22 @@ export async function triggerSync(teamId: string): Promise<ManifestSyncResult> {
   return data.result;
 }
 
-export async function getSyncHistory(
+export async function triggerConfigSync(
   teamId: string,
+  configId: string
+): Promise<ManifestSyncResult> {
+  const response = await fetch(`/api/teams/${teamId}/manifests/${configId}/sync`, {
+    method: 'POST',
+    headers: withCsrfToken(),
+    credentials: 'include',
+  });
+  const data = await handleResponse<{ result: ManifestSyncResult }>(response);
+  return data.result;
+}
+
+export async function getConfigSyncHistory(
+  teamId: string,
+  configId: string,
   options: SyncHistoryListOptions = {}
 ): Promise<SyncHistoryResponse> {
   const params = new URLSearchParams();
@@ -74,7 +117,7 @@ export async function getSyncHistory(
   if (options.offset !== undefined) params.set('offset', String(options.offset));
 
   const query = params.toString();
-  const url = `/api/teams/${teamId}/manifest/sync-history${query ? `?${query}` : ''}`;
+  const url = `/api/teams/${teamId}/manifests/${configId}/sync-history${query ? `?${query}` : ''}`;
 
   const response = await fetch(url, { credentials: 'include' });
   return handleResponse<SyncHistoryResponse>(response);
@@ -118,6 +161,7 @@ export async function getDriftFlags(
   if (options.status) params.set('status', options.status);
   if (options.drift_type) params.set('drift_type', options.drift_type);
   if (options.service_id) params.set('service_id', options.service_id);
+  if (options.manifest_config_id) params.set('manifest_config_id', options.manifest_config_id);
   if (options.limit !== undefined) params.set('limit', String(options.limit));
   if (options.offset !== undefined) params.set('offset', String(options.offset));
 
@@ -201,4 +245,46 @@ export async function bulkDismissDrifts(
   });
   const data = await handleResponse<{ result: BulkDriftActionResult }>(response);
   return data.result;
+}
+
+// --- Legacy aliases for backwards compatibility during transition ---
+// These can be removed once all consumers are migrated to multi-config API
+
+/** @deprecated Use getManifestConfigs instead */
+export async function getManifestConfig_legacy(
+  teamId: string
+): Promise<TeamManifestConfig | null> {
+  const configs = await getManifestConfigs(teamId);
+  return configs.length > 0 ? configs[0] : null;
+}
+
+/** @deprecated Use createManifestConfig or updateManifestConfig instead */
+export async function saveManifestConfig(
+  teamId: string,
+  input: ManifestConfigInput
+): Promise<TeamManifestConfig> {
+  // Check if any config exists
+  const configs = await getManifestConfigs(teamId);
+  if (configs.length > 0) {
+    return updateManifestConfig(teamId, configs[0].id, input);
+  }
+  return createManifestConfig(teamId, input);
+}
+
+/** @deprecated Use triggerTeamSync or triggerConfigSync instead */
+export async function triggerSync(teamId: string): Promise<ManifestSyncResult> {
+  return triggerTeamSync(teamId);
+}
+
+/** @deprecated Use getConfigSyncHistory instead */
+export async function getSyncHistory(
+  teamId: string,
+  options: SyncHistoryListOptions = {}
+): Promise<SyncHistoryResponse> {
+  // Try to get config ID for the first config
+  const configs = await getManifestConfigs(teamId);
+  if (configs.length > 0) {
+    return getConfigSyncHistory(teamId, configs[0].id, options);
+  }
+  return { history: [], total: 0 };
 }

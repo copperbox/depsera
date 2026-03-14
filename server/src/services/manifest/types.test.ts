@@ -84,6 +84,7 @@ describe('Manifest types', () => {
       const config: TeamManifestConfig = {
         id: 'config-1',
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
         is_enabled: 1,
         sync_policy: JSON.stringify(DEFAULT_SYNC_POLICY),
@@ -101,9 +102,10 @@ describe('Manifest types', () => {
   });
 
   describe('ManifestConfigCreateInput', () => {
-    it('requires team_id and manifest_url', () => {
+    it('requires team_id, name, and manifest_url', () => {
       const input: ManifestConfigCreateInput = {
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       };
       expect(input.team_id).toBe('team-1');
@@ -114,6 +116,7 @@ describe('Manifest types', () => {
     it('accepts optional fields', () => {
       const input: ManifestConfigCreateInput = {
         team_id: 'team-1',
+        name: 'Test Config',
         manifest_url: 'https://example.com/manifest.json',
         is_enabled: false,
         sync_policy: { ...DEFAULT_SYNC_POLICY, on_field_drift: 'manifest_wins' },
@@ -301,6 +304,7 @@ describe('Manifest types', () => {
       const entry: ManifestSyncHistoryEntry = {
         id: 'hist-1',
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'manual',
         triggered_by: 'user-1',
         manifest_url: 'https://example.com/manifest.json',
@@ -319,6 +323,7 @@ describe('Manifest types', () => {
       const entry: ManifestSyncHistoryEntry = {
         id: 'hist-2',
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'scheduled',
         triggered_by: null,
         manifest_url: 'https://example.com/manifest.json',
@@ -558,6 +563,7 @@ describe('Updated existing types with manifest columns', () => {
         poll_warnings: null,
         manifest_key: 'test-svc',
         manifest_managed: 1,
+        manifest_config_id: null,
         manifest_last_synced_values: JSON.stringify({ name: 'Test', health_endpoint: 'https://test.local/health' }),
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
@@ -584,6 +590,7 @@ describe('Updated existing types with manifest columns', () => {
         poll_warnings: null,
         manifest_key: null,
         manifest_managed: 0,
+        manifest_config_id: null,
         manifest_last_synced_values: null,
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',

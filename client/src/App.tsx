@@ -36,6 +36,7 @@ function App() {
         <Route path="teams" element={<TeamsList />} />
         <Route path="teams/:id" element={<TeamDetail />} />
         <Route path="teams/:id/manifest" element={<ManifestPage />} />
+        <Route path="teams/:id/manifest/:configId" element={<ManifestPage />} />
         <Route path="graph" element={<DependencyGraph />} />
         <Route
           path="admin/associations"

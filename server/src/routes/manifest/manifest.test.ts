@@ -125,15 +125,19 @@ jest.mock('../../utils/ssrf', () => ({
 
 // Mock ManifestSyncService
 const mockSyncTeam = jest.fn();
+const mockSyncManifest = jest.fn();
 const mockCanManualSync = jest.fn();
 const mockIsSyncing = jest.fn();
+const mockIsSyncingConfig = jest.fn();
 
 jest.mock('../../services/manifest/ManifestSyncService', () => ({
   ManifestSyncService: {
     getInstance: () => ({
       syncTeam: mockSyncTeam,
+      syncManifest: mockSyncManifest,
       canManualSync: mockCanManualSync,
       isSyncing: mockIsSyncing,
+      isSyncingConfig: mockIsSyncingConfig,
     }),
   },
 }));
@@ -202,7 +206,8 @@ describe('Manifest API Routes', () => {
 
       CREATE TABLE team_manifest_config (
         id TEXT PRIMARY KEY,
-        team_id TEXT NOT NULL UNIQUE,
+        team_id TEXT NOT NULL,
+        name TEXT NOT NULL,
         manifest_url TEXT NOT NULL,
         is_enabled INTEGER NOT NULL DEFAULT 1,
         sync_policy TEXT,
@@ -218,6 +223,7 @@ describe('Manifest API Routes', () => {
       CREATE TABLE manifest_sync_history (
         id TEXT PRIMARY KEY,
         team_id TEXT NOT NULL,
+        manifest_config_id TEXT,
         trigger_type TEXT NOT NULL,
         triggered_by TEXT,
         manifest_url TEXT NOT NULL,
@@ -256,90 +262,67 @@ describe('Manifest API Routes', () => {
     testDb.exec('DELETE FROM team_manifest_config');
     currentUser = adminUser;
     mockSyncTeam.mockReset();
+    mockSyncManifest.mockReset();
     mockCanManualSync.mockReset();
     mockIsSyncing.mockReset();
+    mockIsSyncingConfig.mockReset();
     mockValidateManifest.mockReset();
     mockFetchManifest.mockReset();
   });
 
-  // ─── Configuration Routes (DPS-57a) ────────────────────────────
+  // ─── Multi-Config Routes ──────────────────────────────────────
 
-  describe('GET /api/teams/:id/manifest', () => {
-    it('should return null when no config exists', async () => {
-      const res = await request(app).get(`/api/teams/${teamId}/manifest`);
+  describe('GET /api/teams/:id/manifests', () => {
+    it('should return empty array when no configs exist', async () => {
+      const res = await request(app).get(`/api/teams/${teamId}/manifests`);
       expect(res.status).toBe(200);
-      expect(res.body.config).toBeNull();
+      expect(res.body.configs).toEqual([]);
     });
 
-    it('should return config when it exists', async () => {
+    it('should return configs when they exist', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-1', 'team-1', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-1', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
       `).run();
 
-      const res = await request(app).get(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests`);
       expect(res.status).toBe(200);
-      expect(res.body.config).not.toBeNull();
-      expect(res.body.config.manifest_url).toBe('https://example.com/manifest.json');
-      expect(res.body.config.is_enabled).toBe(1);
+      expect(res.body.configs).toHaveLength(1);
+      expect(res.body.configs[0].manifest_url).toBe('https://example.com/manifest.json');
+      expect(res.body.configs[0].name).toBe('Default');
     });
 
-    it('should include last_sync fields', async () => {
-      testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, last_sync_at, last_sync_status, last_sync_error, created_at, updated_at)
-        VALUES ('cfg-2', 'team-1', 'https://example.com/manifest.json', 1, '2024-01-15T10:00:00.000Z', 'success', NULL, datetime('now'), datetime('now'))
-      `).run();
-
-      const res = await request(app).get(`/api/teams/${teamId}/manifest`);
-      expect(res.status).toBe(200);
-      expect(res.body.config.last_sync_at).toBe('2024-01-15T10:00:00.000Z');
-      expect(res.body.config.last_sync_status).toBe('success');
-      expect(res.body.config.last_sync_error).toBeNull();
-    });
-
-    it('should allow team members to read config', async () => {
+    it('should allow team members to list configs', async () => {
       currentUser = memberUser;
-      const res = await request(app).get(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests`);
       expect(res.status).toBe(200);
     });
 
     it('should deny non-members access', async () => {
       currentUser = nonMemberUser;
-      const res = await request(app).get(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests`);
       expect(res.status).toBe(403);
     });
   });
 
-  describe('PUT /api/teams/:id/manifest', () => {
-    it('should create new config', async () => {
+  describe('POST /api/teams/:id/manifests', () => {
+    it('should create a new config', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'https://example.com/manifest.json' });
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'https://example.com/manifest.json' });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(201);
       expect(res.body.config.manifest_url).toBe('https://example.com/manifest.json');
+      expect(res.body.config.name).toBe('Default');
       expect(res.body.config.team_id).toBe(teamId);
       expect(res.body.config.is_enabled).toBe(1);
     });
 
-    it('should update existing config', async () => {
-      testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-up', 'team-1', 'https://old.example.com/manifest.json', 1, datetime('now'), datetime('now'))
-      `).run();
-
-      const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'https://new.example.com/manifest.json' });
-
-      expect(res.status).toBe(200);
-      expect(res.body.config.manifest_url).toBe('https://new.example.com/manifest.json');
-    });
-
     it('should accept sync_policy fields', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'With Policy',
           manifest_url: 'https://example.com/manifest.json',
           sync_policy: {
             on_field_drift: 'manifest_wins',
@@ -347,16 +330,25 @@ describe('Manifest API Routes', () => {
           },
         });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(201);
       const policy = JSON.parse(res.body.config.sync_policy);
       expect(policy.on_field_drift).toBe('manifest_wins');
       expect(policy.on_removal).toBe('deactivate');
     });
 
+    it('should reject missing name', async () => {
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ manifest_url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('name');
+    });
+
     it('should reject missing manifest_url', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({});
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default' });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('manifest_url');
@@ -364,8 +356,8 @@ describe('Manifest API Routes', () => {
 
     it('should reject invalid manifest_url', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'not-a-url' });
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'not-a-url' });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('valid URL');
@@ -373,8 +365,8 @@ describe('Manifest API Routes', () => {
 
     it('should reject SSRF-blocked URLs', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'https://localhost/manifest.json' });
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'https://localhost/manifest.json' });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('not allowed');
@@ -382,8 +374,9 @@ describe('Manifest API Routes', () => {
 
     it('should reject invalid sync_policy values', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'Default',
           manifest_url: 'https://example.com/manifest.json',
           sync_policy: { on_field_drift: 'invalid' },
         });
@@ -394,8 +387,9 @@ describe('Manifest API Routes', () => {
 
     it('should reject invalid on_removal policy', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'Default',
           manifest_url: 'https://example.com/manifest.json',
           sync_policy: { on_removal: 'destroy' },
         });
@@ -406,8 +400,9 @@ describe('Manifest API Routes', () => {
 
     it('should reject invalid metadata removal policy', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'Default',
           manifest_url: 'https://example.com/manifest.json',
           sync_policy: { on_alias_removal: 'delete' },
         });
@@ -418,8 +413,9 @@ describe('Manifest API Routes', () => {
 
     it('should reject non-object sync_policy', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'Default',
           manifest_url: 'https://example.com/manifest.json',
           sync_policy: 'flag',
         });
@@ -428,130 +424,250 @@ describe('Manifest API Routes', () => {
       expect(res.body.error).toContain('sync_policy must be an object');
     });
 
-    it('should allow team leads to save config', async () => {
-      currentUser = leadUser;
-      const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'https://example.com/manifest.json' });
+    it('should reject duplicate name within team', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-dup', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
 
-      expect(res.status).toBe(200);
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'https://other.com/manifest.json' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('already exists');
     });
 
-    it('should deny members from saving config', async () => {
+    it('should allow team leads to create config', async () => {
+      currentUser = leadUser;
+      const res = await request(app)
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(201);
+    });
+
+    it('should deny members from creating config', async () => {
       currentUser = memberUser;
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
-        .send({ manifest_url: 'https://example.com/manifest.json' });
+        .post(`/api/teams/${teamId}/manifests`)
+        .send({ name: 'Default', manifest_url: 'https://example.com/manifest.json' });
 
       expect(res.status).toBe(403);
     });
 
     it('should allow setting is_enabled to false', async () => {
       const res = await request(app)
-        .put(`/api/teams/${teamId}/manifest`)
+        .post(`/api/teams/${teamId}/manifests`)
         .send({
+          name: 'Disabled Config',
           manifest_url: 'https://example.com/manifest.json',
           is_enabled: false,
         });
+
+      expect(res.status).toBe(201);
+      expect(res.body.config.is_enabled).toBe(0);
+    });
+  });
+
+  describe('GET /api/teams/:id/manifests/:configId', () => {
+    it('should return config when it exists', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, last_sync_at, last_sync_status, created_at, updated_at)
+        VALUES ('cfg-get', 'team-1', 'Default', 'https://example.com/manifest.json', 1, '2024-01-15T10:00:00.000Z', 'success', datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-get`);
+      expect(res.status).toBe(200);
+      expect(res.body.config.manifest_url).toBe('https://example.com/manifest.json');
+      expect(res.body.config.last_sync_at).toBe('2024-01-15T10:00:00.000Z');
+      expect(res.body.config.last_sync_status).toBe('success');
+    });
+
+    it('should return 404 when config does not exist', async () => {
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/nonexistent`);
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 404 when config belongs to different team', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-other', 'team-2', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-other`);
+      expect(res.status).toBe(404);
+    });
+
+    it('should allow team members to read config', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-mem-read', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
+      currentUser = memberUser;
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-mem-read`);
+      expect(res.status).toBe(200);
+    });
+
+    it('should deny non-members access', async () => {
+      currentUser = nonMemberUser;
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-get`);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  describe('PUT /api/teams/:id/manifests/:configId', () => {
+    it('should update existing config', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-up', 'team-1', 'Default', 'https://old.example.com/manifest.json', 1, datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/cfg-up`)
+        .send({ manifest_url: 'https://new.example.com/manifest.json' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.config.manifest_url).toBe('https://new.example.com/manifest.json');
+    });
+
+    it('should update name', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-rename', 'team-1', 'Old Name', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/cfg-rename`)
+        .send({ name: 'New Name' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.config.name).toBe('New Name');
+    });
+
+    it('should return 404 for nonexistent config', async () => {
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/nonexistent`)
+        .send({ manifest_url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(404);
+    });
+
+    it('should allow team leads to update config', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-lead-up', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
+      currentUser = leadUser;
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/cfg-lead-up`)
+        .send({ manifest_url: 'https://new.example.com/manifest.json' });
+
+      expect(res.status).toBe(200);
+    });
+
+    it('should deny members from updating config', async () => {
+      currentUser = memberUser;
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/cfg-up`)
+        .send({ manifest_url: 'https://example.com/manifest.json' });
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should allow setting is_enabled to false', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-dis', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app)
+        .put(`/api/teams/${teamId}/manifests/cfg-dis`)
+        .send({ is_enabled: false });
 
       expect(res.status).toBe(200);
       expect(res.body.config.is_enabled).toBe(0);
     });
   });
 
-  describe('DELETE /api/teams/:id/manifest', () => {
+  describe('DELETE /api/teams/:id/manifests/:configId', () => {
     it('should delete manifest config', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, created_at, updated_at)
-        VALUES ('cfg-del', 'team-1', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-del', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
       `).run();
 
-      const res = await request(app).delete(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).delete(`/api/teams/${teamId}/manifests/cfg-del`);
       expect(res.status).toBe(204);
 
       // Verify deleted
-      const row = testDb.prepare('SELECT * FROM team_manifest_config WHERE team_id = ?').get(teamId);
+      const row = testDb.prepare('SELECT * FROM team_manifest_config WHERE id = ?').get('cfg-del');
       expect(row).toBeUndefined();
     });
 
-    it('should return 204 even when no config exists', async () => {
-      const res = await request(app).delete(`/api/teams/${teamId}/manifest`);
-      expect(res.status).toBe(204);
+    it('should return 404 when config does not exist', async () => {
+      const res = await request(app).delete(`/api/teams/${teamId}/manifests/nonexistent`);
+      expect(res.status).toBe(404);
     });
 
     it('should allow team leads to delete config', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, created_at, updated_at)
-        VALUES ('cfg-del2', 'team-1', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-del2', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
       `).run();
 
       currentUser = leadUser;
-      const res = await request(app).delete(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).delete(`/api/teams/${teamId}/manifests/cfg-del2`);
       expect(res.status).toBe(204);
     });
 
     it('should deny members from deleting config', async () => {
       currentUser = memberUser;
-      const res = await request(app).delete(`/api/teams/${teamId}/manifest`);
+      const res = await request(app).delete(`/api/teams/${teamId}/manifests/cfg-del`);
       expect(res.status).toBe(403);
     });
   });
 
-  // ─── Sync Routes (DPS-57b) ─────────────────────────────────────
+  // ─── Team Sync Route ──────────────────────────────────────────
 
-  describe('POST /api/teams/:id/manifest/sync', () => {
-    it('should return 404 when no config exists', async () => {
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
+  describe('POST /api/teams/:id/manifests/sync', () => {
+    it('should return 404 when no enabled configs exist', async () => {
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
       expect(res.status).toBe(404);
-      expect(res.body.error).toContain('No manifest configured');
+      expect(res.body.error).toContain('No enabled manifest configs');
     });
 
-    it('should return 400 when manifest is disabled', async () => {
+    it('should return 404 when all configs are disabled', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-dis', 'team-1', 'https://example.com/manifest.json', 0, datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-dis-sync', 'team-1', 'Default', 'https://example.com/manifest.json', 0, datetime('now'), datetime('now'))
       `).run();
 
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
-      expect(res.status).toBe(400);
-      expect(res.body.error).toContain('disabled');
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
+      expect(res.status).toBe(404);
+      expect(res.body.error).toContain('No enabled manifest configs');
     });
 
     it('should return 409 when sync is already in progress', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-ip', 'team-1', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-ip', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
       `).run();
       mockIsSyncing.mockReturnValue(true);
-      mockCanManualSync.mockReturnValue({ allowed: true });
 
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
       expect(res.status).toBe(409);
       expect(res.body.error).toContain('already in progress');
     });
 
-    it('should return 429 when cooldown has not elapsed', async () => {
-      testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-cd', 'team-1', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
-      `).run();
-      mockIsSyncing.mockReturnValue(false);
-      mockCanManualSync.mockReturnValue({ allowed: false, retryAfterMs: 45000 });
-
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
-      expect(res.status).toBe(429);
-      expect(res.body.error).toContain('wait');
-      expect(res.body.retry_after_ms).toBe(45000);
-      expect(res.headers['retry-after']).toBe('45');
-    });
-
     it('should trigger sync successfully', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-sync', 'team-1', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-sync', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
       `).run();
       mockIsSyncing.mockReturnValue(false);
-      mockCanManualSync.mockReturnValue({ allowed: true });
       mockSyncTeam.mockResolvedValue({
         status: 'success',
         summary: { services: { created: 2, updated: 0, deactivated: 0, deleted: 0, drift_flagged: 0, unchanged: 0 } },
@@ -561,7 +677,7 @@ describe('Manifest API Routes', () => {
         duration_ms: 150,
       });
 
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
       expect(res.status).toBe(200);
       expect(res.body.result.status).toBe('success');
       expect(res.body.result.summary.services.created).toBe(2);
@@ -570,11 +686,10 @@ describe('Manifest API Routes', () => {
 
     it('should allow team members to trigger sync', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, created_at, updated_at)
-        VALUES ('cfg-mem', 'team-1', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-mem', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
       `).run();
       mockIsSyncing.mockReturnValue(false);
-      mockCanManualSync.mockReturnValue({ allowed: true });
       mockSyncTeam.mockResolvedValue({
         status: 'success',
         summary: { services: { created: 0, updated: 0, deactivated: 0, deleted: 0, drift_flagged: 0, unchanged: 0 } },
@@ -585,75 +700,166 @@ describe('Manifest API Routes', () => {
       });
 
       currentUser = memberUser;
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
       expect(res.status).toBe(200);
     });
 
     it('should deny non-members from triggering sync', async () => {
       currentUser = nonMemberUser;
-      const res = await request(app).post(`/api/teams/${teamId}/manifest/sync`);
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/sync`);
       expect(res.status).toBe(403);
     });
   });
 
-  describe('GET /api/teams/:id/manifest/sync-history', () => {
+  // ─── Config Sync Route ────────────────────────────────────────
+
+  describe('POST /api/teams/:id/manifests/:configId/sync', () => {
+    it('should return 404 when config does not exist', async () => {
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/nonexistent/sync`);
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 400 when config is disabled', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-dis-cs', 'team-1', 'Default', 'https://example.com/manifest.json', 0, datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/cfg-dis-cs/sync`);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('disabled');
+    });
+
+    it('should return 409 when config sync is already in progress', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-ip-cs', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+      `).run();
+      mockIsSyncingConfig.mockReturnValue(true);
+      mockCanManualSync.mockReturnValue({ allowed: true });
+
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/cfg-ip-cs/sync`);
+      expect(res.status).toBe(409);
+      expect(res.body.error).toContain('already in progress');
+    });
+
+    it('should return 429 when cooldown has not elapsed', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-cd-cs', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+      `).run();
+      mockIsSyncingConfig.mockReturnValue(false);
+      mockCanManualSync.mockReturnValue({ allowed: false, retryAfterMs: 45000 });
+
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/cfg-cd-cs/sync`);
+      expect(res.status).toBe(429);
+      expect(res.body.error).toContain('wait');
+      expect(res.body.retry_after_ms).toBe(45000);
+      expect(res.headers['retry-after']).toBe('45');
+    });
+
+    it('should trigger config sync successfully', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, created_at, updated_at)
+        VALUES ('cfg-sync-cs', 'team-1', 'Default', 'https://example.com/manifest.json', 1, datetime('now'), datetime('now'))
+      `).run();
+      mockIsSyncingConfig.mockReturnValue(false);
+      mockCanManualSync.mockReturnValue({ allowed: true });
+      mockSyncManifest.mockResolvedValue({
+        status: 'success',
+        summary: { services: { created: 2, updated: 0, deactivated: 0, deleted: 0, drift_flagged: 0, unchanged: 0 } },
+        errors: [],
+        warnings: [],
+        changes: [],
+        duration_ms: 150,
+      });
+
+      const res = await request(app).post(`/api/teams/${teamId}/manifests/cfg-sync-cs/sync`);
+      expect(res.status).toBe(200);
+      expect(res.body.result.status).toBe('success');
+      expect(res.body.result.summary.services.created).toBe(2);
+      expect(mockSyncManifest).toHaveBeenCalledWith('cfg-sync-cs', 'manual', adminUser.id);
+    });
+  });
+
+  // ─── Config Sync History ──────────────────────────────────────
+
+  describe('GET /api/teams/:id/manifests/:configId/sync-history', () => {
+    it('should return 404 when config does not exist', async () => {
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/nonexistent/sync-history`);
+      expect(res.status).toBe(404);
+    });
+
     it('should return empty when no history exists', async () => {
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history`);
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-hist', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-hist/sync-history`);
       expect(res.status).toBe(200);
       expect(res.body.history).toEqual([]);
       expect(res.body.total).toBe(0);
     });
 
-    it('should return sync history entries', async () => {
+    it('should return sync history entries for config', async () => {
       testDb.prepare(`
-        INSERT INTO manifest_sync_history (id, team_id, trigger_type, triggered_by, manifest_url, status, duration_ms, created_at)
-        VALUES ('sh-1', 'team-1', 'manual', 'admin-1', 'https://example.com/manifest.json', 'success', 150, '2024-01-15T10:00:00.000Z')
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-hist2', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
       `).run();
       testDb.prepare(`
-        INSERT INTO manifest_sync_history (id, team_id, trigger_type, triggered_by, manifest_url, status, duration_ms, created_at)
-        VALUES ('sh-2', 'team-1', 'scheduled', NULL, 'https://example.com/manifest.json', 'failed', 200, '2024-01-15T11:00:00.000Z')
+        INSERT INTO manifest_sync_history (id, team_id, manifest_config_id, trigger_type, triggered_by, manifest_url, status, duration_ms, created_at)
+        VALUES ('sh-1', 'team-1', 'cfg-hist2', 'manual', 'admin-1', 'https://example.com/manifest.json', 'success', 150, '2024-01-15T10:00:00.000Z')
+      `).run();
+      testDb.prepare(`
+        INSERT INTO manifest_sync_history (id, team_id, manifest_config_id, trigger_type, manifest_url, status, duration_ms, created_at)
+        VALUES ('sh-2', 'team-1', 'cfg-hist2', 'scheduled', 'https://example.com/manifest.json', 'failed', 200, '2024-01-15T11:00:00.000Z')
       `).run();
 
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-hist2/sync-history`);
       expect(res.status).toBe(200);
       expect(res.body.history).toHaveLength(2);
       expect(res.body.total).toBe(2);
     });
 
     it('should respect limit and offset', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-hist3', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
       for (let i = 0; i < 5; i++) {
         testDb.prepare(`
-          INSERT INTO manifest_sync_history (id, team_id, trigger_type, manifest_url, status, created_at)
-          VALUES ('sh-p${i}', 'team-1', 'scheduled', 'https://example.com/manifest.json', 'success', '2024-01-15T${10 + i}:00:00.000Z')
+          INSERT INTO manifest_sync_history (id, team_id, manifest_config_id, trigger_type, manifest_url, status, created_at)
+          VALUES ('sh-p${i}', 'team-1', 'cfg-hist3', 'scheduled', 'https://example.com/manifest.json', 'success', '2024-01-15T${10 + i}:00:00.000Z')
         `).run();
       }
 
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history?limit=2&offset=1`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-hist3/sync-history?limit=2&offset=1`);
       expect(res.status).toBe(200);
       expect(res.body.history).toHaveLength(2);
       expect(res.body.total).toBe(5);
     });
 
-    it('should clamp limit to 100', async () => {
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history?limit=200`);
-      expect(res.status).toBe(200);
-      // The response should work — store internally clamps
-    });
-
     it('should allow team members to view history', async () => {
+      testDb.prepare(`
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, created_at, updated_at)
+        VALUES ('cfg-hist-mem', 'team-1', 'Default', 'https://example.com/manifest.json', datetime('now'), datetime('now'))
+      `).run();
+
       currentUser = memberUser;
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-hist-mem/sync-history`);
       expect(res.status).toBe(200);
     });
 
     it('should deny non-members access', async () => {
       currentUser = nonMemberUser;
-      const res = await request(app).get(`/api/teams/${teamId}/manifest/sync-history`);
+      const res = await request(app).get(`/api/teams/${teamId}/manifests/cfg-hist/sync-history`);
       expect(res.status).toBe(403);
     });
   });
 
-  // ─── Validation Route (DPS-57c) ────────────────────────────────
+  // ─── Validation Route ─────────────────────────────────────────
 
   describe('POST /api/manifest/validate', () => {
     it('should validate manifest JSON and return result', async () => {

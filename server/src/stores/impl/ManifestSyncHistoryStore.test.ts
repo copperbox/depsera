@@ -29,6 +29,7 @@ describe('ManifestSyncHistoryStore', () => {
       CREATE TABLE manifest_sync_history (
         id TEXT PRIMARY KEY,
         team_id TEXT NOT NULL,
+        manifest_config_id TEXT,
         trigger_type TEXT NOT NULL,
         triggered_by TEXT,
         manifest_url TEXT NOT NULL,
@@ -57,6 +58,7 @@ describe('ManifestSyncHistoryStore', () => {
     it('should create a manual sync history entry', () => {
       const entry = store.create({
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'manual',
         triggered_by: 'user-1',
         manifest_url: 'https://example.com/manifest.json',
@@ -81,6 +83,7 @@ describe('ManifestSyncHistoryStore', () => {
     it('should create a scheduled sync history entry', () => {
       const entry = store.create({
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'scheduled',
         triggered_by: null,
         manifest_url: 'https://example.com/manifest.json',
@@ -98,6 +101,7 @@ describe('ManifestSyncHistoryStore', () => {
     it('should create a failed sync history entry with errors', () => {
       const entry = store.create({
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'manual',
         triggered_by: 'user-1',
         manifest_url: 'https://example.com/manifest.json',
@@ -120,6 +124,7 @@ describe('ManifestSyncHistoryStore', () => {
       for (let i = 0; i < 5; i++) {
         store.create({
           team_id: 'team-1',
+          manifest_config_id: null,
           trigger_type: 'scheduled',
           triggered_by: null,
           manifest_url: 'https://example.com/manifest.json',
@@ -156,6 +161,7 @@ describe('ManifestSyncHistoryStore', () => {
       for (let i = 0; i < 25; i++) {
         store.create({
           team_id: 'team-1',
+          manifest_config_id: null,
           trigger_type: 'scheduled',
           triggered_by: null,
           manifest_url: 'https://example.com/manifest.json',
@@ -182,6 +188,7 @@ describe('ManifestSyncHistoryStore', () => {
       for (let i = 0; i < 5; i++) {
         store.create({
           team_id: 'team-1',
+          manifest_config_id: null,
           trigger_type: 'scheduled',
           triggered_by: null,
           manifest_url: 'https://example.com/manifest.json',
@@ -213,6 +220,7 @@ describe('ManifestSyncHistoryStore', () => {
     it('should only return history for the specified team', () => {
       store.create({
         team_id: 'team-1',
+        manifest_config_id: null,
         trigger_type: 'manual',
         triggered_by: 'user-1',
         manifest_url: 'https://example.com/a.json',
@@ -224,6 +232,7 @@ describe('ManifestSyncHistoryStore', () => {
       });
       store.create({
         team_id: 'team-2',
+        manifest_config_id: null,
         trigger_type: 'manual',
         triggered_by: 'user-1',
         manifest_url: 'https://example.com/b.json',

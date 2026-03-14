@@ -17,6 +17,7 @@ export interface ManifestSyncPolicy {
 export interface TeamManifestConfig {
   id: string;
   team_id: string;
+  name: string;
   manifest_url: string;
   is_enabled: number; // SQLite boolean
   sync_policy: string | null; // JSON string of ManifestSyncPolicy
@@ -29,6 +30,7 @@ export interface TeamManifestConfig {
 }
 
 export interface ManifestConfigInput {
+  name: string;
   manifest_url: string;
   is_enabled?: boolean;
   sync_policy?: Partial<ManifestSyncPolicy>;
@@ -86,6 +88,7 @@ export interface ManifestSyncResult {
 export interface ManifestSyncHistoryEntry {
   id: string;
   team_id: string;
+  manifest_config_id: string | null;
   trigger_type: 'manual' | 'scheduled';
   triggered_by: string | null;
   manifest_url: string;
@@ -179,6 +182,7 @@ export interface DriftFlagListOptions {
   status?: DriftFlagStatus;
   drift_type?: DriftType;
   service_id?: string;
+  manifest_config_id?: string;
   limit?: number;
   offset?: number;
 }

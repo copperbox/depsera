@@ -423,6 +423,7 @@ function createService(id: string, name: string): ServiceWithTeam {
     poll_warnings: null,
     manifest_key: null,
     manifest_managed: 0,
+    manifest_config_id: null,
     manifest_last_synced_values: null,
     is_active: 1,
     is_external: 0,

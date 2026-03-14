@@ -1,9 +1,11 @@
 import {
   getManifestConfig,
-  saveManifestConfig,
+  getManifestConfigs,
+  createManifestConfig,
   removeManifestConfig,
   triggerSync,
-  getSyncHistory,
+  triggerConfigSync,
+  getConfigSyncHistory,
   validateManifest,
   getDriftFlags,
   getDriftSummary,
@@ -29,44 +31,48 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
-// --- Configuration ---
+// --- Configuration (multi-config) ---
+
+describe('getManifestConfigs', () => {
+  it('fetches manifest configs for a team', async () => {
+    const configs = [{ id: 'c1', team_id: 't1', name: 'Default', manifest_url: 'https://example.com/manifest.json' }];
+    mockFetch.mockResolvedValue(jsonResponse({ configs }));
+
+    const result = await getManifestConfigs('t1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests', { credentials: 'include' });
+    expect(result).toEqual(configs);
+  });
+});
 
 describe('getManifestConfig', () => {
-  it('fetches manifest config for a team', async () => {
-    const config = { id: 'c1', team_id: 't1', manifest_url: 'https://example.com/manifest.json' };
+  it('fetches a single manifest config', async () => {
+    const config = { id: 'c1', team_id: 't1', name: 'Default', manifest_url: 'https://example.com/manifest.json' };
     mockFetch.mockResolvedValue(jsonResponse({ config }));
 
-    const result = await getManifestConfig('t1');
+    const result = await getManifestConfig('t1', 'c1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest', { credentials: 'include' });
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests/c1', { credentials: 'include' });
     expect(result).toEqual(config);
-  });
-
-  it('returns null when no config exists', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ config: null }));
-
-    const result = await getManifestConfig('t1');
-
-    expect(result).toBeNull();
   });
 
   it('throws on error response', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ message: 'Not found' }, 404));
 
-    await expect(getManifestConfig('t1')).rejects.toThrow('Not found');
+    await expect(getManifestConfig('t1', 'c1')).rejects.toThrow('Not found');
   });
 });
 
-describe('saveManifestConfig', () => {
-  it('saves manifest config', async () => {
-    const input = { manifest_url: 'https://example.com/manifest.json' };
+describe('createManifestConfig', () => {
+  it('creates a manifest config', async () => {
+    const input = { name: 'Default', manifest_url: 'https://example.com/manifest.json' };
     const config = { id: 'c1', team_id: 't1', ...input };
     mockFetch.mockResolvedValue(jsonResponse({ config }));
 
-    const result = await saveManifestConfig('t1', input);
+    const result = await createManifestConfig('t1', input);
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest', {
-      method: 'PUT',
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
@@ -74,18 +80,19 @@ describe('saveManifestConfig', () => {
     expect(result).toEqual(config);
   });
 
-  it('saves config with sync policy', async () => {
+  it('creates config with sync policy', async () => {
     const input = {
+      name: 'Default',
       manifest_url: 'https://example.com/manifest.json',
       sync_policy: { on_field_drift: 'manifest_wins' as const },
     };
-    const config = { id: 'c1', team_id: 't1', manifest_url: input.manifest_url };
+    const config = { id: 'c1', team_id: 't1', name: input.name, manifest_url: input.manifest_url };
     mockFetch.mockResolvedValue(jsonResponse({ config }));
 
-    await saveManifestConfig('t1', input);
+    await createManifestConfig('t1', input);
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest', {
-      method: 'PUT',
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': 'test-csrf-token' },
       body: JSON.stringify(input),
       credentials: 'include',
@@ -96,7 +103,7 @@ describe('saveManifestConfig', () => {
     mockFetch.mockResolvedValue(jsonResponse({ message: 'SSRF blocked' }, 400));
 
     await expect(
-      saveManifestConfig('t1', { manifest_url: 'http://localhost' })
+      createManifestConfig('t1', { name: 'Default', manifest_url: 'http://localhost' })
     ).rejects.toThrow('SSRF blocked');
   });
 });
@@ -105,9 +112,9 @@ describe('removeManifestConfig', () => {
   it('removes manifest config', async () => {
     mockFetch.mockResolvedValue({ ok: true, status: 204, json: () => Promise.resolve({}) });
 
-    await removeManifestConfig('t1');
+    await removeManifestConfig('t1', 'c1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest', {
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests/c1', {
       method: 'DELETE',
       headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
@@ -121,7 +128,7 @@ describe('removeManifestConfig', () => {
       json: () => Promise.resolve({ message: 'Config not found' }),
     });
 
-    await expect(removeManifestConfig('t1')).rejects.toThrow('Config not found');
+    await expect(removeManifestConfig('t1', 'c1')).rejects.toThrow('Config not found');
   });
 
   it('throws with default message when json parse fails', async () => {
@@ -131,20 +138,20 @@ describe('removeManifestConfig', () => {
       json: () => Promise.reject(new Error('Parse error')),
     });
 
-    await expect(removeManifestConfig('t1')).rejects.toThrow('Delete failed');
+    await expect(removeManifestConfig('t1', 'c1')).rejects.toThrow('Delete failed');
   });
 });
 
 // --- Sync ---
 
 describe('triggerSync', () => {
-  it('triggers manual sync', async () => {
+  it('triggers manual team sync', async () => {
     const syncResult = { status: 'success', summary: {}, errors: [], warnings: [], changes: [], duration_ms: 500 };
     mockFetch.mockResolvedValue(jsonResponse({ result: syncResult }));
 
     const result = await triggerSync('t1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest/sync', {
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests/sync', {
       method: 'POST',
       headers: { 'X-CSRF-Token': 'test-csrf-token' },
       credentials: 'include',
@@ -165,14 +172,30 @@ describe('triggerSync', () => {
   });
 });
 
-describe('getSyncHistory', () => {
-  it('fetches sync history with defaults', async () => {
+describe('triggerConfigSync', () => {
+  it('triggers manual config sync', async () => {
+    const syncResult = { status: 'success', summary: {}, errors: [], warnings: [], changes: [], duration_ms: 500 };
+    mockFetch.mockResolvedValue(jsonResponse({ result: syncResult }));
+
+    const result = await triggerConfigSync('t1', 'c1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests/c1/sync', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': 'test-csrf-token' },
+      credentials: 'include',
+    });
+    expect(result).toEqual(syncResult);
+  });
+});
+
+describe('getConfigSyncHistory', () => {
+  it('fetches sync history for a config', async () => {
     const data = { history: [], total: 0 };
     mockFetch.mockResolvedValue(jsonResponse(data));
 
-    const result = await getSyncHistory('t1');
+    const result = await getConfigSyncHistory('t1', 'c1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifest/sync-history', {
+    expect(mockFetch).toHaveBeenCalledWith('/api/teams/t1/manifests/c1/sync-history', {
       credentials: 'include',
     });
     expect(result).toEqual(data);
@@ -182,10 +205,10 @@ describe('getSyncHistory', () => {
     const data = { history: [{ id: 'h1' }], total: 5 };
     mockFetch.mockResolvedValue(jsonResponse(data));
 
-    const result = await getSyncHistory('t1', { limit: 10, offset: 20 });
+    const result = await getConfigSyncHistory('t1', 'c1', { limit: 10, offset: 20 });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/teams/t1/manifest/sync-history?limit=10&offset=20',
+      '/api/teams/t1/manifests/c1/sync-history?limit=10&offset=20',
       { credentials: 'include' }
     );
     expect(result).toEqual(data);
@@ -194,7 +217,7 @@ describe('getSyncHistory', () => {
   it('throws on error response', async () => {
     mockFetch.mockResolvedValue(jsonResponse({ message: 'Server error' }, 500));
 
-    await expect(getSyncHistory('t1')).rejects.toThrow('Server error');
+    await expect(getConfigSyncHistory('t1', 'c1')).rejects.toThrow('Server error');
   });
 });
 

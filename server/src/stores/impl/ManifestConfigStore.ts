@@ -12,10 +12,20 @@ import {
   ManifestSyncResultInput,
 } from '../interfaces/IManifestConfigStore';
 
+const MAX_CONFIGS_PER_TEAM = 20;
+
 export class ManifestConfigStore implements IManifestConfigStore {
   constructor(private db: Database) {}
 
   create(input: ManifestConfigCreateInput): TeamManifestConfig {
+    // Enforce per-team limit
+    const count = this.db
+      .prepare('SELECT COUNT(*) as count FROM team_manifest_config WHERE team_id = ?')
+      .get(input.team_id) as { count: number };
+    if (count.count >= MAX_CONFIGS_PER_TEAM) {
+      throw new Error(`Maximum of ${MAX_CONFIGS_PER_TEAM} manifest configs per team`);
+    }
+
     const id = randomUUID();
     const syncPolicyJson = input.sync_policy
       ? JSON.stringify(input.sync_policy)
@@ -24,36 +34,42 @@ export class ManifestConfigStore implements IManifestConfigStore {
 
     this.db
       .prepare(
-        `INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, sync_policy)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(team_id) DO UPDATE SET
-           manifest_url = excluded.manifest_url,
-           is_enabled = excluded.is_enabled,
-           sync_policy = excluded.sync_policy,
-           updated_at = datetime('now')`
+        `INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, sync_policy)
+         VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(id, input.team_id, input.manifest_url, isEnabled, syncPolicyJson);
+      .run(id, input.team_id, input.name, input.manifest_url, isEnabled, syncPolicyJson);
 
     return this.db
-      .prepare('SELECT * FROM team_manifest_config WHERE team_id = ?')
-      .get(input.team_id) as TeamManifestConfig;
+      .prepare('SELECT * FROM team_manifest_config WHERE id = ?')
+      .get(id) as TeamManifestConfig;
   }
 
-  findByTeamId(teamId: string): TeamManifestConfig | undefined {
+  findById(configId: string): TeamManifestConfig | undefined {
     return this.db
-      .prepare('SELECT * FROM team_manifest_config WHERE team_id = ?')
-      .get(teamId) as TeamManifestConfig | undefined;
+      .prepare('SELECT * FROM team_manifest_config WHERE id = ?')
+      .get(configId) as TeamManifestConfig | undefined;
+  }
+
+  findByTeamId(teamId: string): TeamManifestConfig[] {
+    return this.db
+      .prepare('SELECT * FROM team_manifest_config WHERE team_id = ? ORDER BY created_at ASC')
+      .all(teamId) as TeamManifestConfig[];
   }
 
   update(
-    teamId: string,
+    configId: string,
     input: ManifestConfigUpdateInput
   ): TeamManifestConfig | undefined {
-    const existing = this.findByTeamId(teamId);
+    const existing = this.findById(configId);
     if (!existing) return undefined;
 
     const fields: string[] = [];
     const params: unknown[] = [];
+
+    if (input.name !== undefined) {
+      fields.push('name = ?');
+      params.push(input.name);
+    }
 
     if (input.manifest_url !== undefined) {
       fields.push('manifest_url = ?');
@@ -77,23 +93,23 @@ export class ManifestConfigStore implements IManifestConfigStore {
     if (fields.length === 0) return existing;
 
     fields.push("updated_at = datetime('now')");
-    params.push(teamId);
+    params.push(configId);
 
     this.db
       .prepare(
-        `UPDATE team_manifest_config SET ${fields.join(', ')} WHERE team_id = ?`
+        `UPDATE team_manifest_config SET ${fields.join(', ')} WHERE id = ?`
       )
       .run(...params);
 
     return this.db
-      .prepare('SELECT * FROM team_manifest_config WHERE team_id = ?')
-      .get(teamId) as TeamManifestConfig;
+      .prepare('SELECT * FROM team_manifest_config WHERE id = ?')
+      .get(configId) as TeamManifestConfig;
   }
 
-  delete(teamId: string): boolean {
+  delete(configId: string): boolean {
     const result = this.db
-      .prepare('DELETE FROM team_manifest_config WHERE team_id = ?')
-      .run(teamId);
+      .prepare('DELETE FROM team_manifest_config WHERE id = ?')
+      .run(configId);
     return result.changes > 0;
   }
 
@@ -111,19 +127,19 @@ export class ManifestConfigStore implements IManifestConfigStore {
       .all() as TeamManifestConfig[];
   }
 
-  updateSyncResult(teamId: string, result: ManifestSyncResultInput): boolean {
+  updateSyncResult(configId: string, result: ManifestSyncResultInput): boolean {
     const res = this.db
       .prepare(
         `UPDATE team_manifest_config
          SET last_sync_at = ?, last_sync_status = ?, last_sync_error = ?, last_sync_summary = ?, updated_at = datetime('now')
-         WHERE team_id = ?`
+         WHERE id = ?`
       )
       .run(
         result.last_sync_at,
         result.last_sync_status,
         result.last_sync_error,
         result.last_sync_summary,
-        teamId
+        configId
       );
     return res.changes > 0;
   }

@@ -38,6 +38,7 @@ function makeService(
     poll_warnings: null,
     manifest_key: 'svc-a',
     manifest_managed: 1,
+    manifest_config_id: null,
     manifest_last_synced_values: null,
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',

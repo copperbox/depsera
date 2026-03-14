@@ -2,6 +2,7 @@ import { ManifestSyncHistoryEntry } from '../../services/manifest/types';
 
 export interface ManifestSyncHistoryCreateInput {
   team_id: string;
+  manifest_config_id: string | null;
   trigger_type: 'manual' | 'scheduled';
   triggered_by: string | null;
   manifest_url: string;
@@ -16,6 +17,10 @@ export interface IManifestSyncHistoryStore {
   create(entry: ManifestSyncHistoryCreateInput): ManifestSyncHistoryEntry;
   findByTeamId(
     teamId: string,
+    options?: { limit?: number; offset?: number }
+  ): { history: ManifestSyncHistoryEntry[]; total: number };
+  findByConfigId(
+    configId: string,
     options?: { limit?: number; offset?: number }
   ): { history: ManifestSyncHistoryEntry[]; total: number };
   deleteOlderThan(timestamp: string): number;

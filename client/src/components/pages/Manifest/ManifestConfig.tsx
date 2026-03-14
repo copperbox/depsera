@@ -60,10 +60,12 @@ function ManifestConfig({
 
   // Form state
   const policy = parseSyncPolicy(config?.sync_policy ?? null);
+  const [formName, setFormName] = useState(config?.name ?? '');
   const [formUrl, setFormUrl] = useState(config?.manifest_url ?? '');
   const [formFieldDrift, setFormFieldDrift] = useState(policy.on_field_drift || 'flag');
   const [formRemoval, setFormRemoval] = useState(policy.on_removal || 'flag');
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   // Test URL state
   const [isTesting, setIsTesting] = useState(false);
@@ -72,10 +74,12 @@ function ManifestConfig({
 
   const handleEdit = () => {
     const p = parseSyncPolicy(config?.sync_policy ?? null);
+    setFormName(config?.name ?? '');
     setFormUrl(config?.manifest_url ?? '');
     setFormFieldDrift(p.on_field_drift || 'flag');
     setFormRemoval(p.on_removal || 'flag');
     setUrlError(null);
+    setNameError(null);
     setTestResult(null);
     setTestError(null);
     setIsEditing(true);
@@ -119,17 +123,32 @@ function ManifestConfig({
   };
 
   const handleSave = async () => {
+    const trimmedName = formName.trim();
     const trimmedUrl = formUrl.trim();
-    if (!trimmedUrl) {
-      setUrlError('Manifest URL is required');
-      return;
-    }
-    if (!isValidUrl(trimmedUrl)) {
-      setUrlError('Please enter a valid HTTP or HTTPS URL');
-      return;
+
+    let hasError = false;
+
+    if (!trimmedName) {
+      setNameError('Name is required');
+      hasError = true;
+    } else {
+      setNameError(null);
     }
 
+    if (!trimmedUrl) {
+      setUrlError('Manifest URL is required');
+      hasError = true;
+    } else if (!isValidUrl(trimmedUrl)) {
+      setUrlError('Please enter a valid HTTP or HTTPS URL');
+      hasError = true;
+    } else {
+      setUrlError(null);
+    }
+
+    if (hasError) return;
+
     const input: ManifestConfigInput = {
+      name: trimmedName,
       manifest_url: trimmedUrl,
       sync_policy: {
         on_field_drift: formFieldDrift,
@@ -154,6 +173,26 @@ function ManifestConfig({
     return (
       <div className={styles.configCard}>
         <div className={styles.configForm}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="manifest-name">
+              Name
+            </label>
+            <input
+              id="manifest-name"
+              type="text"
+              className={`${styles.input} ${nameError ? styles.inputError : ''}`}
+              value={formName}
+              onChange={(e) => {
+                setFormName(e.target.value);
+                setNameError(null);
+              }}
+              placeholder="e.g. Production, Staging, Core Services"
+              required
+              maxLength={100}
+            />
+            {nameError && <span className={styles.fieldError}>{nameError}</span>}
+          </div>
+
           <div className={styles.field}>
             <label className={styles.label} htmlFor="manifest-url">
               Manifest URL
@@ -306,6 +345,11 @@ function ManifestConfig({
   return (
     <>
       <div className={styles.configCard}>
+        <div className={styles.configRow}>
+          <span className={styles.configLabel}>Name</span>
+          <span className={styles.configValue}>{config.name}</span>
+        </div>
+
         <div className={styles.configRow}>
           <span className={styles.configLabel}>URL</span>
           <span className={styles.configValue}>

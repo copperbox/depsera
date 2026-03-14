@@ -23,8 +23,8 @@ jest.mock('../../services/manifest/ManifestSyncService', () => ({
 }));
 
 const mockSyncService = {
-  isSyncing: jest.fn().mockReturnValue(false),
-  syncTeam: jest.fn().mockResolvedValue({ status: 'success' }),
+  isSyncingConfig: jest.fn().mockReturnValue(false),
+  syncManifest: jest.fn().mockResolvedValue({ status: 'success' }),
 };
 
 import adminRouter from './index';
@@ -55,7 +55,8 @@ describe('Admin Manifests API', () => {
     testDb.exec(`
       CREATE TABLE IF NOT EXISTS team_manifest_config (
         id TEXT PRIMARY KEY,
-        team_id TEXT NOT NULL UNIQUE,
+        team_id TEXT NOT NULL,
+        name TEXT NOT NULL,
         manifest_url TEXT NOT NULL,
         is_enabled INTEGER NOT NULL DEFAULT 1,
         sync_policy TEXT,
@@ -87,6 +88,7 @@ describe('Admin Manifests API', () => {
         manifest_key TEXT,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         manifest_last_synced_values TEXT,
+        manifest_config_id TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id)
@@ -98,6 +100,7 @@ describe('Admin Manifests API', () => {
         id TEXT PRIMARY KEY,
         team_id TEXT NOT NULL,
         service_id TEXT NOT NULL,
+        manifest_config_id TEXT,
         drift_type TEXT NOT NULL,
         field_name TEXT,
         manifest_value TEXT,
@@ -130,8 +133,8 @@ describe('Admin Manifests API', () => {
     testDb.prepare(`INSERT INTO teams (id, name, key) VALUES (?, ?, ?)`)
       .run(team2Id, 'Beta Team', 'beta-team');
 
-    mockSyncService.isSyncing.mockReturnValue(false);
-    mockSyncService.syncTeam.mockResolvedValue({ status: 'success' });
+    mockSyncService.isSyncingConfig.mockReturnValue(false);
+    mockSyncService.syncManifest.mockResolvedValue({ status: 'success' });
   });
 
   afterAll(() => {
@@ -148,7 +151,7 @@ describe('Admin Manifests API', () => {
       const alpha = response.body.find((e: { team_name: string }) => e.team_name === 'Alpha Team');
       expect(alpha).toBeDefined();
       expect(alpha.team_key).toBe('alpha-team');
-      expect(alpha.has_config).toBe(false);
+      expect(alpha.config_id).toBeNull();
       expect(alpha.manifest_url).toBeNull();
       expect(alpha.is_enabled).toBe(false);
       expect(alpha.pending_drift_count).toBe(0);
@@ -156,15 +159,17 @@ describe('Admin Manifests API', () => {
     });
 
     it('should include manifest config data when present', async () => {
+      const configId = randomUUID();
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled, last_sync_status, last_sync_at)
-        VALUES (?, ?, ?, 1, 'success', datetime('now'))
-      `).run(randomUUID(), teamId, 'https://example.com/manifest.json');
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled, last_sync_status, last_sync_at)
+        VALUES (?, ?, 'Default', ?, 1, 'success', datetime('now'))
+      `).run(configId, teamId, 'https://example.com/manifest.json');
 
       const response = await request(app).get('/api/admin/manifests');
       const alpha = response.body.find((e: { team_name: string }) => e.team_name === 'Alpha Team');
 
-      expect(alpha.has_config).toBe(true);
+      expect(alpha.config_id).toBe(configId);
+      expect(alpha.config_name).toBe('Default');
       expect(alpha.manifest_url).toBe('https://example.com/manifest.json');
       expect(alpha.is_enabled).toBe(true);
       expect(alpha.last_sync_status).toBe('success');
@@ -176,8 +181,8 @@ describe('Admin Manifests API', () => {
         .run(serviceId, 'Test Service', teamId, 'https://example.com/health');
 
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled)
-        VALUES (?, ?, ?, 1)
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled)
+        VALUES (?, ?, 'Default', ?, 1)
       `).run(randomUUID(), teamId, 'https://example.com/manifest.json');
 
       testDb.prepare(`
@@ -199,10 +204,11 @@ describe('Admin Manifests API', () => {
 
   describe('POST /api/admin/manifests/sync-all', () => {
     it('should sync all enabled configs', async () => {
+      const configId = randomUUID();
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled)
-        VALUES (?, ?, ?, 1)
-      `).run(randomUUID(), teamId, 'https://example.com/manifest.json');
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled)
+        VALUES (?, ?, 'Default', ?, 1)
+      `).run(configId, teamId, 'https://example.com/manifest.json');
 
       const response = await request(app)
         .post('/api/admin/manifests/sync-all')
@@ -212,15 +218,18 @@ describe('Admin Manifests API', () => {
       expect(response.body.results).toHaveLength(1);
       expect(response.body.results[0].status).toBe('success');
       expect(response.body.results[0].team_name).toBe('Alpha Team');
+      expect(response.body.results[0].config_id).toBe(configId);
+      expect(response.body.results[0].config_name).toBe('Default');
     });
 
-    it('should skip teams already syncing', async () => {
+    it('should skip configs already syncing', async () => {
+      const configId = randomUUID();
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled)
-        VALUES (?, ?, ?, 1)
-      `).run(randomUUID(), teamId, 'https://example.com/manifest.json');
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled)
+        VALUES (?, ?, 'Default', ?, 1)
+      `).run(configId, teamId, 'https://example.com/manifest.json');
 
-      mockSyncService.isSyncing.mockReturnValue(true);
+      mockSyncService.isSyncingConfig.mockReturnValue(true);
 
       const response = await request(app)
         .post('/api/admin/manifests/sync-all')
@@ -232,11 +241,11 @@ describe('Admin Manifests API', () => {
 
     it('should handle sync failures gracefully', async () => {
       testDb.prepare(`
-        INSERT INTO team_manifest_config (id, team_id, manifest_url, is_enabled)
-        VALUES (?, ?, ?, 1)
+        INSERT INTO team_manifest_config (id, team_id, name, manifest_url, is_enabled)
+        VALUES (?, ?, 'Default', ?, 1)
       `).run(randomUUID(), teamId, 'https://example.com/manifest.json');
 
-      mockSyncService.syncTeam.mockRejectedValue(new Error('Network error'));
+      mockSyncService.syncManifest.mockRejectedValue(new Error('Network error'));
 
       const response = await request(app)
         .post('/api/admin/manifests/sync-all')

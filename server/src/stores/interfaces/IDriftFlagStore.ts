@@ -11,6 +11,7 @@ export interface DriftFlagListOptions {
   status?: DriftFlagStatus;
   drift_type?: string;
   service_id?: string;
+  manifest_config_id?: string;
   limit?: number;
   offset?: number;
 }
@@ -43,10 +44,12 @@ export interface IDriftFlagStore {
     manifestValue: string,
     currentValue: string,
     syncHistoryId: string | null,
+    manifestConfigId?: string | null,
   ): DriftFlagUpsertResult;
   upsertRemovalDrift(
     serviceId: string,
     syncHistoryId: string | null,
+    manifestConfigId?: string | null,
   ): DriftFlagUpsertResult;
 
   // Cleanup
