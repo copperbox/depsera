@@ -343,6 +343,7 @@ export class HealthPollingService extends EventEmitter {
     this.loopTimer = setInterval(() => {
       this.runPollCycle();
     }, POLL_CYCLE_MS);
+    this.loopTimer.unref(); // Don't keep process alive for this timer
   }
 
   private stopLoop(): void {
