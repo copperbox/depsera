@@ -35,6 +35,7 @@ export const DEFAULT_SYNC_POLICY: ManifestSyncPolicy = {
 export interface TeamManifestConfig {
   id: string;
   team_id: string;
+  name: string;
   manifest_url: string;
   is_enabled: number; // SQLite boolean
   sync_policy: string | null; // JSON string of ManifestSyncPolicy
@@ -49,6 +50,7 @@ export interface TeamManifestConfig {
 /** Input for creating a new manifest config. */
 export interface ManifestConfigCreateInput {
   team_id: string;
+  name: string;
   manifest_url: string;
   is_enabled?: boolean;
   sync_policy?: ManifestSyncPolicy;
@@ -56,6 +58,7 @@ export interface ManifestConfigCreateInput {
 
 /** Input for updating an existing manifest config. */
 export interface ManifestConfigUpdateInput {
+  name?: string;
   manifest_url?: string;
   is_enabled?: boolean;
   sync_policy?: Partial<ManifestSyncPolicy>;
@@ -212,6 +215,7 @@ export interface ManifestDiffResult {
 export interface ManifestSyncHistoryEntry {
   id: string;
   team_id: string;
+  manifest_config_id: string | null;
   trigger_type: 'manual' | 'scheduled';
   triggered_by: string | null; // FK → users.id, NULL for scheduled
   manifest_url: string;

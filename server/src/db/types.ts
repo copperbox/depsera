@@ -108,6 +108,7 @@ export interface Service {
   poll_warnings: string | null; // JSON array of warning strings
   manifest_key: string | null;
   manifest_managed: number; // SQLite boolean — 1 if managed by manifest
+  manifest_config_id: string | null; // FK → team_manifest_config.id
   manifest_last_synced_values: string | null; // JSON snapshot of last synced field values
   created_at: string;
   updated_at: string;
@@ -541,6 +542,7 @@ export interface DriftFlagCreateInput {
   manifest_value?: string;
   current_value?: string;
   sync_history_id?: string;
+  manifest_config_id?: string;
 }
 
 /** Summary counts for a team's drift flags. */

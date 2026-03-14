@@ -39,13 +39,13 @@ beforeEach(() => {
 describe('SyncHistory', () => {
   it('shows loading state initially', () => {
     mockFetch.mockImplementation(() => new Promise(() => {}));
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
     expect(screen.getByText('Loading sync history...')).toBeInTheDocument();
   });
 
   it('shows empty state when no history', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ history: [], total: 0 }));
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
     await waitFor(() => {
       expect(screen.getByText('No sync history yet.')).toBeInTheDocument();
     });
@@ -53,7 +53,7 @@ describe('SyncHistory', () => {
 
   it('shows error state', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ error: 'fail' }, 500));
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
     await waitFor(() => {
       expect(screen.getByText(/fail/i)).toBeInTheDocument();
     });
@@ -66,7 +66,7 @@ describe('SyncHistory', () => {
         total: 2,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('manual')).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe('SyncHistory', () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ history: [mockEntry('h1')], total: 1 })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText(/\+1/)).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('SyncHistory', () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ history: [mockEntry('h1', { duration_ms: 1500 })], total: 1 })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('1.5s')).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe('SyncHistory', () => {
         total: 30,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('Load more')).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('SyncHistory', () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ history: [mockEntry('h1')], total: 1 })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.queryByText('Load more')).not.toBeInTheDocument();
@@ -130,7 +130,7 @@ describe('SyncHistory', () => {
         total: 25,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('Load more')).toBeInTheDocument();
@@ -161,7 +161,7 @@ describe('SyncHistory', () => {
         total: 1,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('Fetch timeout')).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('SyncHistory', () => {
         total: 1,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText('Service X has unknown field')).toBeInTheDocument();
@@ -199,7 +199,7 @@ describe('SyncHistory', () => {
         total: 1,
       })
     );
-    render(<SyncHistory teamId="t1" />);
+    render(<SyncHistory teamId="t1" configId="c1" />);
 
     await waitFor(() => {
       expect(screen.getByText(/Alias "pg"/)).toBeInTheDocument();

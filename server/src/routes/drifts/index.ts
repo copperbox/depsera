@@ -178,6 +178,9 @@ function listDriftFlags(req: Request, res: Response): void {
     const service_id = typeof req.query.service_id === 'string' && req.query.service_id
       ? req.query.service_id
       : undefined;
+    const manifest_config_id = typeof req.query.manifest_config_id === 'string' && req.query.manifest_config_id
+      ? req.query.manifest_config_id
+      : undefined;
     const limit = parseLimit(req.query.limit, 250, 50);
     const offset = parseOffset(req.query.offset);
 
@@ -185,6 +188,7 @@ function listDriftFlags(req: Request, res: Response): void {
       status,
       drift_type,
       service_id,
+      manifest_config_id,
       limit,
       offset,
     });

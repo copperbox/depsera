@@ -6,6 +6,7 @@ import styles from './ManifestPage.module.css';
 
 interface SyncHistoryProps {
   teamId: string;
+  configId: string;
 }
 
 function formatDuration(ms: number | null): string {
@@ -104,8 +105,8 @@ function HistoryEntry({ entry }: { entry: ManifestSyncHistoryEntry }) {
   );
 }
 
-function SyncHistory({ teamId }: SyncHistoryProps) {
-  const { history, isLoading, hasMore, error, loadHistory, loadMore } = useSyncHistory(teamId);
+function SyncHistory({ teamId, configId }: SyncHistoryProps) {
+  const { history, isLoading, hasMore, error, loadHistory, loadMore } = useSyncHistory(teamId, configId);
 
   useEffect(() => {
     loadHistory();

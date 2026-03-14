@@ -57,7 +57,7 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Full alert delivery history (sent, failed, suppressed, muted)
 
 **Manifest Sync & Drift Detection**
-- Declarative service configuration via JSON manifest URL per team
+- Declarative service configuration via JSON manifest URLs (up to 20 per team)
 - Automated sync engine: fetch, validate, diff, and apply service definitions
 - Field-level drift detection when local edits diverge from the manifest
 - Sync policies: configurable behavior for field drift (flag/manifest wins/local wins) and service removal (flag/deactivate/delete)
@@ -285,7 +285,7 @@ For production deployments with reverse proxy (nginx/Caddy), backup procedures, 
 | `/` | Dashboard — health distribution, services with issues, polling issues (schema warnings + poll failures), team health summaries |
 | `/services` | Service list (team-scoped) with search and team filter; service detail with dependencies, charts, poll issues history, inline alias management (admin), and manual poll |
 | `/teams` | Team list with member/service counts; team detail with member management, manifest status, alert channels, rules, mutes, and history |
-| `/teams/:id/manifest` | Manifest configuration, last sync result, drift review inbox, and sync history |
+| `/teams/:id/manifest` | Manifest list (multi-config); `/teams/:id/manifest/:configId` for config detail with sync result, drift review, and sync history |
 | `/graph` | Interactive dependency graph with team filter, search, layout controls, automatic high-latency detection, and isolated tree view (right-click or detail panel) |
 | `/associations` | Manage associations (accordion browser with inline create/delete), alias management, and external service registry |
 | `/catalog` | Cross-team catalog with two tabs: **Services** (browse/search manifest keys) and **External Dependencies** (canonical name registry showing usage across teams, descriptions, and aliases) |
@@ -312,7 +312,7 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
 | Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
-| Manifest | `GET/PUT/DELETE /api/teams/:id/manifest`, `POST /:id/manifest/sync`, `GET /:id/manifest/sync-history`, `POST /api/manifest/validate` |
+| Manifest | `GET/POST /api/teams/:id/manifests`, `GET/PUT/DELETE /:id/manifests/:configId`, `POST /:id/manifests/sync`, `POST /:id/manifests/:configId/sync`, `GET /:id/manifests/:configId/sync-history`, `POST /api/manifest/validate`, `POST /api/manifest/test-url` |
 | Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
 | Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history`, `GET/POST /:id/alert-mutes`, `DELETE /:id/alert-mutes/:muteId`, `GET /api/admin/alert-mutes` |

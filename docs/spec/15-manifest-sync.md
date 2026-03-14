@@ -2,7 +2,7 @@
 
 ## Overview
 
-The ManifestSyncService orchestrates manifest-driven service synchronization with drift detection. Teams configure a manifest URL pointing to a JSON file that declaratively defines services, aliases, canonical overrides, and associations. The sync engine fetches, validates, diffs, and applies changes — flagging manual edits as "drift" for review.
+The ManifestSyncService orchestrates manifest-driven service synchronization with drift detection. Teams configure one or more manifest URLs (up to 20 per team), each pointing to a JSON file that declaratively defines services, aliases, canonical overrides, and associations. The sync engine fetches, validates, diffs, and applies changes per-config — flagging manual edits as "drift" for review.
 
 **File:** `server/src/services/manifest/ManifestSyncService.ts`
 
@@ -24,23 +24,23 @@ Typed events via `EventEmitter`:
 
 | Event | Payload | Emitted When |
 |---|---|---|
-| `SYNC_COMPLETE` | `{ teamId, summary, duration }` | Successful sync |
-| `SYNC_ERROR` | `{ teamId, error }` | Sync fails with exception |
-| `DRIFT_DETECTED` | `{ teamId, driftCount }` | New drift flags created |
+| `SYNC_COMPLETE` | `{ teamId, configId, summary, duration }` | Successful sync |
+| `SYNC_ERROR` | `{ teamId, configId, error }` | Sync fails with exception |
+| `DRIFT_DETECTED` | `{ teamId, configId, driftCount }` | New drift flags created |
 
 ## Sync Pipeline
 
-`syncTeam(teamId, triggerType, triggeredBy)` executes the full sync pipeline:
+`syncManifest(configId, triggerType, triggeredBy)` executes the full sync pipeline for a single manifest config. `syncTeam(teamId, triggerType, triggeredBy)` loads all enabled configs for the team and calls `syncManifest()` for each sequentially:
 
-1. **Load config** — `manifestConfig.findByTeamId()`, return early if not found or disabled
+1. **Load config** — `manifestConfig.findById(configId)`, return early if not found or disabled
 2. **Parse sync policy** — JSON parse `sync_policy` field, fallback to `DEFAULT_SYNC_POLICY` on parse error
-3. **Acquire lock** — Per-team in-memory lock prevents concurrent syncs (5-minute stale timeout)
+3. **Acquire lock** — Per-config in-memory lock prevents concurrent syncs (5-minute stale timeout)
 4. **Fetch** — `fetchManifest(url)` with SSRF protection, timeout, size limits
 5. **Validate** — `validateManifest(data)` with 3-level structural/semantic validation
 6. **SSRF check** — `Promise.allSettled` on all health/metrics endpoints; blocked entries are filtered out with warnings
-7. **Diff** — `diffManifest(manifestEntries, existingServices, policy)` computes changes
+7. **Diff** — `diffManifest(manifestEntries, existingServices, policy)` computes changes (services filtered by `manifest_config_id`)
 8. **Apply** (within `withTransaction`):
-   - Create new services (raw DB for `manifest_key`, `manifest_managed`, `manifest_last_synced_values`)
+   - Create new services (raw DB for `manifest_key`, `manifest_managed`, `manifest_last_synced_values`, `manifest_config_id`)
    - Update changed services (raw DB for `manifest_last_synced_values`)
    - Upsert field drift flags for drift entries
    - Upsert removal drift flags
@@ -61,17 +61,19 @@ Several store interfaces don't include manifest-specific columns (`manifest_key`
 
 ## Concurrency Control
 
-- **Per-team sync lock**: In-memory `Map<string, { locked, timestamp }>`. Only one sync per team at a time.
+- **Per-config sync lock**: In-memory `Map<string, { locked, timestamp }>` keyed by `configId`. Only one sync per config at a time.
 - **Stale lock timeout**: 5 minutes — if a lock is older than 5 minutes, it's considered stale and can be acquired.
-- **Manual sync cooldown**: 60 seconds per team. `canManualSync(teamId)` returns `{ allowed, retryAfterMs? }`.
+- **Manual sync cooldown**: 60 seconds per config. `canManualSync(configId)` returns `{ allowed, retryAfterMs? }`.
+- **`isSyncingConfig(configId)`**: Check if a specific config is syncing.
+- **`isSyncing(teamId)`**: Check if any config for the team is syncing (used by team-wide sync endpoint).
 - **Shutting down guard**: Rejects new syncs when `isShuttingDown` flag is set.
 
 ## Scheduling
 
 - **`start()`** — Creates a 60-second check interval via `setInterval`
-- **`checkSchedule()`** — Loads all enabled configs, syncs teams where `last_sync_at` is older than the sync interval
+- **`checkSchedule()`** — Loads all enabled configs, syncs each config where `last_sync_at` is older than the sync interval via `syncManifest(config.id, ...)`
 - **Sync interval**: Default 1 hour (3,600,000ms), configurable via `MANIFEST_SYNC_INTERVAL_MS` env var
-- **Sequential execution**: Teams are synced one at a time (not parallel) to limit resource usage
+- **Sequential execution**: Configs are synced one at a time (not parallel) to limit resource usage (SQLite single-writer)
 - **Disable**: Set `MANIFEST_SYNC_ENABLED=false` or `MANIFEST_SYNC_ENABLED=0` to disable scheduled sync
 
 ## Shutdown
@@ -123,7 +125,7 @@ const DEFAULT_SYNC_POLICY: ManifestSyncPolicy = {
 
 ## Return Type
 
-`syncTeam()` returns `ManifestSyncResult`:
+`syncManifest()` / `syncTeam()` returns `ManifestSyncResult`:
 
 ```typescript
 interface ManifestSyncResult {
@@ -164,31 +166,38 @@ Exports two routers:
 - `manifestTeamRouter` — team-scoped routes mounted under `/api/teams`
 - `manifestRouter` — standalone routes mounted at `/api/manifest`
 
-### Configuration Routes
+### Configuration Routes (multi-config)
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| GET | `/api/teams/:id/manifest` | requireTeamAccess | Get manifest config (returns `null` if none) |
-| PUT | `/api/teams/:id/manifest` | requireTeamLead | Upsert manifest config with SSRF URL validation |
-| DELETE | `/api/teams/:id/manifest` | requireTeamLead | Remove config (does not delete services) |
+| GET | `/api/teams/:id/manifests` | requireTeamAccess | List all manifest configs for team |
+| POST | `/api/teams/:id/manifests` | requireTeamLead | Create new config (name + URL required, max 20 per team) |
+| GET | `/api/teams/:id/manifests/:configId` | requireTeamAccess | Get single config |
+| PUT | `/api/teams/:id/manifests/:configId` | requireTeamLead | Update config (name, URL, sync_policy, is_enabled) |
+| DELETE | `/api/teams/:id/manifests/:configId` | requireTeamLead | Remove config (does not delete services) |
 
 ### Sync Routes
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| POST | `/api/teams/:id/manifest/sync` | requireTeamAccess | Trigger manual sync (409/429/404/400 guards) |
-| GET | `/api/teams/:id/manifest/sync-history` | requireTeamAccess | Paginated sync history (limit/offset) |
+| POST | `/api/teams/:id/manifests/sync` | requireTeamAccess | Sync all enabled configs for team (409 if any syncing) |
+| POST | `/api/teams/:id/manifests/:configId/sync` | requireTeamAccess | Sync single config (409/429/404/400 guards) |
+| GET | `/api/teams/:id/manifests/:configId/sync-history` | requireTeamAccess | Paginated sync history for specific config (limit/offset) |
 
-### Validation Route
+### Validation Routes
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | POST | `/api/manifest/validate` | requireAuth | Dry-run manifest validation |
+| POST | `/api/manifest/test-url` | requireAuth | Fetch URL and validate manifest content |
 
 ### Validation
 
+- `name`: required (max 100 chars), must be unique within team
 - `manifest_url`: required, validated with `validateUrlHostname()` synchronous SSRF check
 - `sync_policy`: optional partial object, each field validated against allowed enum values
+- Create: enforces 20-config limit per team, name uniqueness
+- Update: verifies config belongs to team, name uniqueness if changed
 - Sync guards: config existence check → disabled check → in-progress check → cooldown check
 
 ### Tests
@@ -223,6 +232,7 @@ Exports `driftRouter` — team-scoped routes mounted under `/api/teams`.
 - `status` — `pending` (default), `dismissed`, `accepted`, `resolved`
 - `drift_type` — `field_change`, `service_removal`
 - `service_id` — filter by service UUID
+- `manifest_config_id` — filter by manifest config
 - `limit` — max 250, default 50
 - `offset` — default 0
 
@@ -383,12 +393,16 @@ All functions use `credentials: 'include'` and `withCsrfToken` for mutations.
 
 | Function | Method | Endpoint | Returns |
 |---|---|---|---|
-| `getManifestConfig(teamId)` | GET | `/api/teams/:id/manifest` | `TeamManifestConfig \| null` |
-| `saveManifestConfig(teamId, input)` | PUT | `/api/teams/:id/manifest` | `TeamManifestConfig` |
-| `removeManifestConfig(teamId)` | DELETE | `/api/teams/:id/manifest` | `void` |
-| `triggerSync(teamId)` | POST | `/api/teams/:id/manifest/sync` | `ManifestSyncResult` |
-| `getSyncHistory(teamId, options?)` | GET | `/api/teams/:id/manifest/sync-history` | `SyncHistoryResponse` |
+| `getManifestConfigs(teamId)` | GET | `/api/teams/:id/manifests` | `TeamManifestConfig[]` |
+| `getManifestConfig(teamId, configId)` | GET | `/api/teams/:id/manifests/:configId` | `TeamManifestConfig` |
+| `createManifestConfig(teamId, input)` | POST | `/api/teams/:id/manifests` | `TeamManifestConfig` |
+| `updateManifestConfig(teamId, configId, input)` | PUT | `/api/teams/:id/manifests/:configId` | `TeamManifestConfig` |
+| `removeManifestConfig(teamId, configId)` | DELETE | `/api/teams/:id/manifests/:configId` | `void` |
+| `triggerTeamSync(teamId)` | POST | `/api/teams/:id/manifests/sync` | `ManifestSyncResult` |
+| `triggerConfigSync(teamId, configId)` | POST | `/api/teams/:id/manifests/:configId/sync` | `ManifestSyncResult` |
+| `getConfigSyncHistory(teamId, configId, options?)` | GET | `/api/teams/:id/manifests/:configId/sync-history` | `SyncHistoryResponse` |
 | `validateManifest(manifestJson)` | POST | `/api/manifest/validate` | `ManifestValidationResult` |
+| `testManifestUrl(url)` | POST | `/api/manifest/test-url` | `ManifestTestUrlResult` |
 | `getDriftFlags(teamId, options?)` | GET | `/api/teams/:id/drifts` | `DriftFlagsResponse` |
 | `getDriftSummary(teamId)` | GET | `/api/teams/:id/drifts/summary` | `DriftSummary` |
 | `acceptDrift(teamId, driftId)` | PUT | `.../drifts/:id/accept` | `DriftFlagWithContext` |
@@ -397,15 +411,25 @@ All functions use `credentials: 'include'` and `withCsrfToken` for mutations.
 | `bulkAcceptDrifts(teamId, flagIds)` | POST | `.../drifts/bulk-accept` | `BulkDriftActionResult` |
 | `bulkDismissDrifts(teamId, flagIds)` | POST | `.../drifts/bulk-dismiss` | `BulkDriftActionResult` |
 
+`getDriftFlags` supports an optional `manifest_config_id` filter parameter.
+
 ### Hooks
 
-**`useManifestConfig(teamId)`** — `client/src/hooks/useManifestConfig.ts`
+**`useManifestConfigs(teamId)`** — `client/src/hooks/useManifestConfigs.ts`
 
-State management for manifest configuration and sync triggering. Follows `useAlertChannels` pattern.
+State management for the list of manifest configurations for a team.
+
+- State: `configs`, `isLoading`, `error`, `isCreating`
+- Actions: `loadConfigs`, `createConfig`, `refresh`, `clearError`
+- `createConfig` auto-reloads the list after creation
+
+**`useManifestConfig(teamId, configId)`** — `client/src/hooks/useManifestConfig.ts`
+
+State management for a single manifest configuration and sync triggering.
 
 - State: `config`, `isLoading`, `error`, `isSaving`, `isSyncing`, `syncResult`
 - Actions: `loadConfig`, `saveConfig`, `removeConfig`, `toggleEnabled`, `triggerSync`, `clearError`, `clearSyncResult`
-- `triggerSync` reloads config after completion to reflect updated sync status
+- `triggerSync` calls `triggerConfigSync(teamId, configId)` and reloads config after completion
 
 **`useDriftFlags(teamId)`** — `client/src/hooks/useDriftFlags.ts`
 
@@ -418,13 +442,14 @@ State management for drift flag listing, filtering, selection, and actions.
 - Actions: `accept`, `dismiss`, `reopen`, `bulkAccept`, `bulkDismiss` — all auto-reload after completion
 - Bulk operations clear selection on success
 
-**`useSyncHistory(teamId)`** — `client/src/hooks/useSyncHistory.ts`
+**`useSyncHistory(teamId, configId)`** — `client/src/hooks/useSyncHistory.ts`
 
-Paginated sync history with load-more pattern. Page size of 20.
+Paginated sync history for a specific config with load-more pattern. Page size of 20.
 
 - State: `history`, `total`, `isLoading`, `hasMore`, `error`
 - Actions: `loadHistory` (reset to page 1), `loadMore` (append next page), `clearError`
 - Internal offset tracking via `useRef`
+- Uses `getConfigSyncHistory(teamId, configId, ...)` API
 
 ### Tests
 
@@ -511,17 +536,18 @@ Compact status card on the team detail page showing manifest configuration statu
 
 **Props:** `teamId: string`, `canManage: boolean`
 
-Fetches two lightweight endpoints on mount:
-- `GET /api/teams/:id/manifest` — manifest config (via `useManifestConfig` hook)
-- `GET /api/teams/:id/drifts/summary` — drift badge counts (via `getDriftSummary` API)
+Uses a two-phase loading pattern on mount:
+1. `GET /api/teams/:id/manifests` — list all configs (via `useManifestConfigs` hook), derives `primaryConfigId` from first config
+2. `GET /api/teams/:id/manifests/:configId` — load primary config details (via `useManifestConfig(teamId, primaryConfigId)`)
+3. `GET /api/teams/:id/drifts/summary` — drift badge counts (via `getDriftSummary` API)
 
 ### States
 
 | State | Trigger | Display |
 |---|---|---|
-| No manifest | `config` is null | "No manifest URL configured." + "Configure Manifest →" link (lead only) |
-| Configured OK | Config present, enabled, no drift, no error | URL (truncated), last sync time + status + service count, Sync Now + Manage Manifest |
-| Configured with drift | Config present + pending drift count > 0 | Same as OK plus warning banner: "N pending drift flags (M dismissed)" linking to manifest page |
+| No manifest | No configs exist | "No manifest URL configured." + "Configure Manifest →" link (lead only) |
+| Configured OK | Primary config present, enabled, no drift, no error | URL (truncated), last sync time + status + service count, Sync Now + Manage Manifest |
+| Configured with drift | Primary config present + pending drift count > 0 | Same as OK plus warning banner: "N pending drift flags (M dismissed)" linking to manifest page |
 | Last sync errored | `last_sync_status === 'failed'` | URL, red status dot, error message |
 | Manifest disabled | `is_enabled === 0` | URL, "Scheduled syncs are paused", Manage Manifest only (no Sync Now) |
 
@@ -573,25 +599,43 @@ Uses shared `Teams.module.css` section classes (`.section`, `.sectionHeader`, `.
 
 **File:** `client/src/App.tsx`
 
-Route `teams/:id/manifest` renders `ManifestPage` component within the protected layout.
+Two routes render `ManifestPage`:
+- `teams/:id/manifest` — list view (shows ManifestList)
+- `teams/:id/manifest/:configId` — detail view (shows config, sync result, drift review, sync history)
 
 ### ManifestPage
 
 **File:** `client/src/components/pages/Manifest/ManifestPage.tsx`
 
-Full manifest management page with back navigation, configuration, sync results, and history.
+Dual-mode manifest management page with list and detail views.
 
 **Dependencies:** `useManifestConfig`, `useSyncHistory`, `fetchTeam`
 
-**Layout:**
+**List view** (no `configId`):
 - Back link: "← Back to {teamName}" linking to `/teams/:id`
-- Page title: "Manifest Configuration"
-- Error banner for API errors (dismissible)
-- Empty state when no manifest configured (description text + "Configure Manifest" button for leads)
-- When configured: Configuration section, Last Sync Result section, Sync History section
-- When configured: Configuration section, Last Sync Result section, Drift Review section, Sync History section
+- Renders `ManifestList` component with `teamId` and `canManage` props
 
-**Permission model:** Team leads and admins can manage (edit, toggle, remove, sync). Members have read-only access.
+**Detail view** (with `configId`):
+- Back link: "← Back to Manifests" linking to `/teams/:id/manifest`
+- Config name as heading
+- Configuration section, Last Sync Result section, Drift Review section, Sync History section
+
+**Permission model:** Team leads and admins can manage (edit, toggle, remove, sync, create). Members have read-only access.
+
+### ManifestList
+
+**File:** `client/src/components/pages/Manifest/ManifestList.tsx`
+
+Table listing all manifest configs for a team with create capability.
+
+**Props:** `teamId`, `canManage`
+
+**Features:**
+- Table with columns: Name, URL (truncated), Enabled/Disabled, Last Sync Status + Time
+- "Add Manifest" button (managers only, disabled if >= 20 configs)
+- Row click navigates to `/teams/:id/manifest/:configId`
+- Add manifest inline form with name, URL, and sync policy inputs
+- Empty state with "Add Manifest" button
 
 ### ManifestConfig
 
@@ -602,6 +646,7 @@ Configuration CRUD with display and edit modes.
 **Props:** `config`, `canManage`, `isSaving`, `onSave`, `onRemove`, `onToggleEnabled`
 
 **Display mode:**
+- Config name
 - Manifest URL (monospace code block)
 - Enabled/Disabled status indicator
 - Field drift policy label (Flag for review / Use manifest value / Keep local value)
@@ -687,7 +732,7 @@ Individual drift flag card with type-specific rendering, actions, and permission
 
 Paginated timeline of past syncs using `useSyncHistory` hook.
 
-**Props:** `teamId`
+**Props:** `teamId`, `configId`
 
 **Features:**
 - Timeline of entries with status dot, timestamp, trigger type badge, triggered by (manual), summary counts, duration
@@ -703,7 +748,7 @@ Paginated timeline of past syncs using `useSyncHistory` hook.
 
 ### Tests
 
-- 9 tests in `ManifestPage.test.tsx` — loading state, team error, back link with team name, page title, empty state, configure button visibility (lead/member/admin), sections rendering (incl. drift review)
+- 11 tests in `ManifestPage.test.tsx` — list view (loading, team error, back link, ManifestList rendering, canManage prop), detail view (config loading, sections rendering, back to manifests link, not found state)
 - 25 tests in `ManifestConfig.test.tsx` — display mode (URL, status, policy labels, action visibility), edit mode (pre-fill, validation, save, cancel, delete warning, saving state), remove confirmation dialog
 - 17 tests in `ManifestSyncResult.test.tsx` — no syncs state, sync button visibility, sync status display, summary counts, manual sync trigger, success/error banners, auto-dismiss, expandable details
 - 10 tests in `SyncHistory.test.tsx` — loading/empty/error states, entry rendering, summary counts, duration, load more, error entries, expandable warnings

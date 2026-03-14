@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { getSyncHistory } from '../api/manifest';
+import { getConfigSyncHistory } from '../api/manifest';
 import type { ManifestSyncHistoryEntry } from '../types/manifest';
 
 const PAGE_SIZE = 20;
@@ -15,7 +15,10 @@ export interface UseSyncHistoryReturn {
   clearError: () => void;
 }
 
-export function useSyncHistory(teamId: string | undefined): UseSyncHistoryReturn {
+export function useSyncHistory(
+  teamId: string | undefined,
+  configId: string | undefined
+): UseSyncHistoryReturn {
   const [history, setHistory] = useState<ManifestSyncHistoryEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,12 +28,12 @@ export function useSyncHistory(teamId: string | undefined): UseSyncHistoryReturn
   const hasMore = history.length < total;
 
   const loadHistory = useCallback(async () => {
-    if (!teamId) return;
+    if (!teamId || !configId) return;
     setIsLoading(true);
     setError(null);
     offsetRef.current = 0;
     try {
-      const data = await getSyncHistory(teamId, { limit: PAGE_SIZE, offset: 0 });
+      const data = await getConfigSyncHistory(teamId, configId, { limit: PAGE_SIZE, offset: 0 });
       setHistory(data.history);
       setTotal(data.total);
       offsetRef.current = data.history.length;
@@ -39,14 +42,14 @@ export function useSyncHistory(teamId: string | undefined): UseSyncHistoryReturn
     } finally {
       setIsLoading(false);
     }
-  }, [teamId]);
+  }, [teamId, configId]);
 
   const loadMore = useCallback(async () => {
-    if (!teamId || isLoading || !hasMore) return;
+    if (!teamId || !configId || isLoading || !hasMore) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getSyncHistory(teamId, {
+      const data = await getConfigSyncHistory(teamId, configId, {
         limit: PAGE_SIZE,
         offset: offsetRef.current,
       });
@@ -58,7 +61,7 @@ export function useSyncHistory(teamId: string | undefined): UseSyncHistoryReturn
     } finally {
       setIsLoading(false);
     }
-  }, [teamId, isLoading, hasMore]);
+  }, [teamId, configId, isLoading, hasMore]);
 
   const clearError = useCallback(() => setError(null), []);
 

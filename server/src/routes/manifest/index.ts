@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireTeamAccess, requireTeamLead } from '../../auth';
 import { getStores } from '../../stores';
-import { sendErrorResponse, ValidationError } from '../../utils/errors';
+import { sendErrorResponse, ValidationError, NotFoundError } from '../../utils/errors';
 import { validateUrlHostname } from '../../utils/ssrf';
 import { ManifestSyncService } from '../../services/manifest/ManifestSyncService';
 import { validateManifest as runManifestValidation } from '../../services/manifest/ManifestValidator';
@@ -14,6 +14,7 @@ import type { ManifestSyncPolicy, ManifestConfigUpdateInput } from '../../servic
 const VALID_FIELD_DRIFT_POLICIES = ['flag', 'manifest_wins', 'local_wins'] as const;
 const VALID_REMOVAL_POLICIES = ['flag', 'deactivate', 'delete'] as const;
 const VALID_METADATA_REMOVAL_POLICIES = ['remove', 'keep'] as const;
+const MAX_NAME_LENGTH = 100;
 
 function validateSyncPolicy(policy: unknown): Partial<ManifestSyncPolicy> | undefined {
   if (policy === undefined || policy === null) return undefined;
@@ -107,86 +108,155 @@ function validateManifestUrl(url: unknown): string {
   return trimmed;
 }
 
-// --- Configuration routes (DPS-57a) ---
+function validateName(name: unknown): string {
+  if (!name || typeof name !== 'string') {
+    throw new ValidationError('name is required', 'name');
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new ValidationError('name is required', 'name');
+  }
+  if (trimmed.length > MAX_NAME_LENGTH) {
+    throw new ValidationError(`name must be at most ${MAX_NAME_LENGTH} characters`, 'name');
+  }
+  return trimmed;
+}
 
-function getManifestConfig(req: Request, res: Response): void {
+// --- Multi-config routes ---
+
+function listManifestConfigs(req: Request, res: Response): void {
   try {
     const teamId = req.params.id;
     const stores = getStores();
-    const config = stores.manifestConfig.findByTeamId(teamId);
-    res.json({ config: config ?? null });
+    const configs = stores.manifestConfig.findByTeamId(teamId);
+    res.json({ configs });
+  } catch (error) {
+    sendErrorResponse(res, error, 'listing manifest configs');
+  }
+}
+
+function createManifestConfig(req: Request, res: Response): void {
+  try {
+    const teamId = req.params.id;
+    const stores = getStores();
+
+    const name = validateName(req.body.name);
+    const manifestUrl = validateManifestUrl(req.body.manifest_url);
+    const syncPolicy = validateSyncPolicy(req.body.sync_policy);
+
+    // Check name uniqueness within team
+    const existing = stores.manifestConfig.findByTeamId(teamId);
+    if (existing.some(c => c.name === name)) {
+      throw new ValidationError(`A manifest config named "${name}" already exists for this team`, 'name');
+    }
+
+    const config = stores.manifestConfig.create({
+      team_id: teamId,
+      name,
+      manifest_url: manifestUrl,
+      is_enabled: req.body.is_enabled !== undefined ? Boolean(req.body.is_enabled) : undefined,
+      sync_policy: syncPolicy as ManifestSyncPolicy | undefined,
+    });
+
+    auditFromRequest(
+      req,
+      'manifest_config.created',
+      'team',
+      teamId,
+      { config_id: config.id, name, manifest_url: manifestUrl },
+    );
+
+    res.status(201).json({ config });
+  } catch (error) {
+    sendErrorResponse(res, error, 'creating manifest config');
+  }
+}
+
+function getManifestConfig(req: Request, res: Response): void {
+  try {
+    const { id: teamId, configId } = req.params;
+    const stores = getStores();
+
+    const config = stores.manifestConfig.findById(configId);
+    if (!config || config.team_id !== teamId) {
+      throw new NotFoundError('ManifestConfig');
+    }
+
+    res.json({ config });
   } catch (error) {
     sendErrorResponse(res, error, 'getting manifest config');
   }
 }
 
-function saveManifestConfig(req: Request, res: Response): void {
+function updateManifestConfig(req: Request, res: Response): void {
   try {
-    const teamId = req.params.id;
+    const { id: teamId, configId } = req.params;
     const stores = getStores();
 
-    const manifestUrl = validateManifestUrl(req.body.manifest_url);
-    const syncPolicy = validateSyncPolicy(req.body.sync_policy);
-
-    const existing = stores.manifestConfig.findByTeamId(teamId);
-
-    let config;
-    if (existing) {
-      // Update existing config
-      const updateInput: ManifestConfigUpdateInput = {
-        manifest_url: manifestUrl,
-      };
-      if (syncPolicy) {
-        updateInput.sync_policy = syncPolicy;
-      }
-      if (req.body.is_enabled !== undefined) {
-        updateInput.is_enabled = Boolean(req.body.is_enabled);
-      }
-      config = stores.manifestConfig.update(teamId, updateInput);
-
-      auditFromRequest(
-        req,
-        'manifest_config.updated',
-        'team',
-        teamId,
-        { manifest_url: manifestUrl },
-      );
-    } else {
-      // Create new config
-      config = stores.manifestConfig.create({
-        team_id: teamId,
-        manifest_url: manifestUrl,
-        is_enabled: req.body.is_enabled !== undefined ? Boolean(req.body.is_enabled) : undefined,
-        sync_policy: syncPolicy as ManifestSyncPolicy | undefined,
-      });
-
-      auditFromRequest(
-        req,
-        'manifest_config.created',
-        'team',
-        teamId,
-        { manifest_url: manifestUrl },
-      );
+    const existing = stores.manifestConfig.findById(configId);
+    if (!existing || existing.team_id !== teamId) {
+      throw new NotFoundError('ManifestConfig');
     }
+
+    const updateInput: ManifestConfigUpdateInput = {};
+
+    if (req.body.name !== undefined) {
+      const name = validateName(req.body.name);
+      // Check name uniqueness within team (excluding this config)
+      const others = stores.manifestConfig.findByTeamId(teamId);
+      if (others.some(c => c.id !== configId && c.name === name)) {
+        throw new ValidationError(`A manifest config named "${name}" already exists for this team`, 'name');
+      }
+      updateInput.name = name;
+    }
+
+    if (req.body.manifest_url !== undefined) {
+      updateInput.manifest_url = validateManifestUrl(req.body.manifest_url);
+    }
+
+    const syncPolicy = validateSyncPolicy(req.body.sync_policy);
+    if (syncPolicy) {
+      updateInput.sync_policy = syncPolicy;
+    }
+
+    if (req.body.is_enabled !== undefined) {
+      updateInput.is_enabled = Boolean(req.body.is_enabled);
+    }
+
+    const config = stores.manifestConfig.update(configId, updateInput);
+
+    auditFromRequest(
+      req,
+      'manifest_config.updated',
+      'team',
+      teamId,
+      { config_id: configId },
+    );
 
     res.json({ config });
   } catch (error) {
-    sendErrorResponse(res, error, 'saving manifest config');
+    sendErrorResponse(res, error, 'updating manifest config');
   }
 }
 
 function deleteManifestConfig(req: Request, res: Response): void {
   try {
-    const teamId = req.params.id;
+    const { id: teamId, configId } = req.params;
     const stores = getStores();
 
-    stores.manifestConfig.delete(teamId);
+    const existing = stores.manifestConfig.findById(configId);
+    if (!existing || existing.team_id !== teamId) {
+      throw new NotFoundError('ManifestConfig');
+    }
+
+    stores.manifestConfig.delete(configId);
 
     auditFromRequest(
       req,
       'manifest_config.deleted',
       'team',
       teamId,
+      { config_id: configId, name: existing.name },
     );
 
     res.status(204).send();
@@ -195,35 +265,58 @@ function deleteManifestConfig(req: Request, res: Response): void {
   }
 }
 
-// --- Sync routes (DPS-57b) ---
+// --- Sync routes ---
 
-async function triggerSync(req: Request, res: Response): Promise<void> {
+async function triggerTeamSync(req: Request, res: Response): Promise<void> {
   try {
     const teamId = req.params.id;
     const stores = getStores();
     const syncService = ManifestSyncService.getInstance();
 
-    // Check if config exists
-    const config = stores.manifestConfig.findByTeamId(teamId);
-    if (!config) {
-      res.status(404).json({ error: 'No manifest configured for this team' });
+    const configs = stores.manifestConfig.findByTeamId(teamId)
+      .filter(c => c.is_enabled === 1);
+
+    if (configs.length === 0) {
+      res.status(404).json({ error: 'No enabled manifest configs for this team' });
       return;
     }
 
-    // Check if disabled
-    if (!config.is_enabled) {
-      res.status(400).json({ error: 'Manifest sync is disabled for this team' });
-      return;
-    }
-
-    // Check if already syncing
+    // Check if any are already syncing
     if (syncService.isSyncing(teamId)) {
       res.status(409).json({ error: 'Sync already in progress' });
       return;
     }
 
-    // Check cooldown
-    const cooldownCheck = syncService.canManualSync(teamId);
+    const result = await syncService.syncTeam(teamId, 'manual', req.user!.id);
+    res.json({ result });
+  } catch (error) {
+    sendErrorResponse(res, error, 'triggering team manifest sync');
+  }
+}
+
+async function triggerConfigSync(req: Request, res: Response): Promise<void> {
+  try {
+    const { id: teamId, configId } = req.params;
+    const stores = getStores();
+    const syncService = ManifestSyncService.getInstance();
+
+    const config = stores.manifestConfig.findById(configId);
+    if (!config || config.team_id !== teamId) {
+      res.status(404).json({ error: 'Manifest config not found' });
+      return;
+    }
+
+    if (!config.is_enabled) {
+      res.status(400).json({ error: 'Manifest sync is disabled for this config' });
+      return;
+    }
+
+    if (syncService.isSyncingConfig(configId)) {
+      res.status(409).json({ error: 'Sync already in progress for this config' });
+      return;
+    }
+
+    const cooldownCheck = syncService.canManualSync(configId);
     if (!cooldownCheck.allowed) {
       const retryAfterSeconds = Math.ceil((cooldownCheck.retryAfterMs ?? 60000) / 1000);
       res.setHeader('Retry-After', String(retryAfterSeconds));
@@ -234,18 +327,22 @@ async function triggerSync(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Trigger sync
-    const result = await syncService.syncTeam(teamId, 'manual', req.user!.id);
+    const result = await syncService.syncManifest(configId, 'manual', req.user!.id);
     res.json({ result });
   } catch (error) {
-    sendErrorResponse(res, error, 'triggering manifest sync');
+    sendErrorResponse(res, error, 'triggering manifest config sync');
   }
 }
 
-function getSyncHistory(req: Request, res: Response): void {
+function getConfigSyncHistory(req: Request, res: Response): void {
   try {
-    const teamId = req.params.id;
+    const { id: teamId, configId } = req.params;
     const stores = getStores();
+
+    const config = stores.manifestConfig.findById(configId);
+    if (!config || config.team_id !== teamId) {
+      throw new NotFoundError('ManifestConfig');
+    }
 
     const limit = Math.min(
       Math.max(parseInt(String(req.query.limit), 10) || 20, 1),
@@ -253,14 +350,14 @@ function getSyncHistory(req: Request, res: Response): void {
     );
     const offset = Math.max(parseInt(String(req.query.offset), 10) || 0, 0);
 
-    const { history, total } = stores.manifestSyncHistory.findByTeamId(teamId, { limit, offset });
+    const { history, total } = stores.manifestSyncHistory.findByConfigId(configId, { limit, offset });
     res.json({ history, total });
   } catch (error) {
-    sendErrorResponse(res, error, 'listing sync history');
+    sendErrorResponse(res, error, 'listing config sync history');
   }
 }
 
-// --- Validation route (DPS-57c) ---
+// --- Validation route ---
 
 function validateManifestEndpoint(req: Request, res: Response): void {
   try {
@@ -339,19 +436,25 @@ async function testManifestUrl(req: Request, res: Response): Promise<void> {
  * Mounted under /api/teams via: app.use('/api/teams', requireAuth, manifestTeamRouter)
  *
  * Routes:
- *   GET    /:id/manifest             — get manifest config
- *   PUT    /:id/manifest             — create/update manifest config
- *   DELETE /:id/manifest             — remove manifest config
- *   POST   /:id/manifest/sync        — trigger manual sync
- *   GET    /:id/manifest/sync-history — list sync history
+ *   GET    /:id/manifests                        — list all configs for team
+ *   POST   /:id/manifests                        — create new config
+ *   POST   /:id/manifests/sync                   — sync all enabled configs for team
+ *   GET    /:id/manifests/:configId               — get single config
+ *   PUT    /:id/manifests/:configId               — update config
+ *   DELETE /:id/manifests/:configId               — remove config
+ *   POST   /:id/manifests/:configId/sync          — sync single config
+ *   GET    /:id/manifests/:configId/sync-history   — history for specific config
  */
 const manifestTeamRouter = Router();
 
-manifestTeamRouter.get('/:id/manifest', requireTeamAccess, getManifestConfig);
-manifestTeamRouter.put('/:id/manifest', requireTeamLead, saveManifestConfig);
-manifestTeamRouter.delete('/:id/manifest', requireTeamLead, deleteManifestConfig);
-manifestTeamRouter.post('/:id/manifest/sync', requireTeamAccess, triggerSync);
-manifestTeamRouter.get('/:id/manifest/sync-history', requireTeamAccess, getSyncHistory);
+manifestTeamRouter.get('/:id/manifests', requireTeamAccess, listManifestConfigs);
+manifestTeamRouter.post('/:id/manifests', requireTeamLead, createManifestConfig);
+manifestTeamRouter.post('/:id/manifests/sync', requireTeamAccess, triggerTeamSync);
+manifestTeamRouter.get('/:id/manifests/:configId', requireTeamAccess, getManifestConfig);
+manifestTeamRouter.put('/:id/manifests/:configId', requireTeamLead, updateManifestConfig);
+manifestTeamRouter.delete('/:id/manifests/:configId', requireTeamLead, deleteManifestConfig);
+manifestTeamRouter.post('/:id/manifests/:configId/sync', requireTeamAccess, triggerConfigSync);
+manifestTeamRouter.get('/:id/manifests/:configId/sync-history', requireTeamAccess, getConfigSyncHistory);
 
 /**
  * Standalone manifest routes (not team-scoped).
@@ -359,6 +462,7 @@ manifestTeamRouter.get('/:id/manifest/sync-history', requireTeamAccess, getSyncH
  *
  * Routes:
  *   POST /validate — validate manifest JSON (dry run)
+ *   POST /test-url — fetch and validate from URL
  */
 const manifestRouter = Router();
 

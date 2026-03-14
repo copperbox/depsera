@@ -21,7 +21,8 @@ describe('ManifestConfigStore', () => {
 
       CREATE TABLE team_manifest_config (
         id TEXT PRIMARY KEY,
-        team_id TEXT NOT NULL UNIQUE,
+        team_id TEXT NOT NULL,
+        name TEXT NOT NULL,
         manifest_url TEXT NOT NULL,
         is_enabled INTEGER NOT NULL DEFAULT 1,
         sync_policy TEXT,
@@ -49,11 +50,13 @@ describe('ManifestConfigStore', () => {
     it('should create a manifest config with required fields', () => {
       const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
       expect(config.id).toBeDefined();
       expect(config.team_id).toBe('team-1');
+      expect(config.name).toBe('Default');
       expect(config.manifest_url).toBe('https://example.com/manifest.json');
       expect(config.is_enabled).toBe(1);
       expect(config.sync_policy).toBeNull();
@@ -66,6 +69,7 @@ describe('ManifestConfigStore', () => {
     it('should create a config with is_enabled = false', () => {
       const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
         is_enabled: false,
       });
@@ -77,6 +81,7 @@ describe('ManifestConfigStore', () => {
       const policy = { ...DEFAULT_SYNC_POLICY, on_field_drift: 'manifest_wins' as const };
       const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
         sync_policy: policy,
       });
@@ -85,51 +90,52 @@ describe('ManifestConfigStore', () => {
       expect(JSON.parse(config.sync_policy!)).toEqual(policy);
     });
 
-    it('should upsert on duplicate team_id', () => {
+    it('should allow multiple configs per team', () => {
       store.create({
         team_id: 'team-1',
-        manifest_url: 'https://example.com/old.json',
+        name: 'Config A',
+        manifest_url: 'https://example.com/a.json',
       });
 
-      const updated = store.create({
+      store.create({
         team_id: 'team-1',
-        manifest_url: 'https://example.com/new.json',
+        name: 'Config B',
+        manifest_url: 'https://example.com/b.json',
       });
 
-      expect(updated.manifest_url).toBe('https://example.com/new.json');
-      // Should only be one row for team-1
-      const all = db
-        .prepare('SELECT COUNT(*) as count FROM team_manifest_config WHERE team_id = ?')
-        .get('team-1') as { count: number };
-      expect(all.count).toBe(1);
+      const configs = store.findByTeamId('team-1');
+      expect(configs).toHaveLength(2);
     });
   });
 
   describe('findByTeamId', () => {
-    it('should find config by team id', () => {
+    it('should find configs by team id', () => {
       store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
       const found = store.findByTeamId('team-1');
-      expect(found).toBeDefined();
-      expect(found!.team_id).toBe('team-1');
+      expect(found).toHaveLength(1);
+      expect(found[0].team_id).toBe('team-1');
     });
 
-    it('should return undefined for nonexistent team', () => {
-      expect(store.findByTeamId('nonexistent')).toBeUndefined();
+    it('should return empty array for nonexistent team', () => {
+      const found = store.findByTeamId('nonexistent');
+      expect(found).toHaveLength(0);
     });
   });
 
   describe('update', () => {
     it('should update manifest_url', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/old.json',
       });
 
-      const updated = store.update('team-1', {
+      const updated = store.update(config.id, {
         manifest_url: 'https://example.com/new.json',
       });
 
@@ -138,24 +144,26 @@ describe('ManifestConfigStore', () => {
     });
 
     it('should update is_enabled', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const updated = store.update('team-1', { is_enabled: false });
+      const updated = store.update(config.id, { is_enabled: false });
       expect(updated).toBeDefined();
       expect(updated!.is_enabled).toBe(0);
     });
 
     it('should merge sync_policy with existing', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
         sync_policy: DEFAULT_SYNC_POLICY,
       });
 
-      const updated = store.update('team-1', {
+      const updated = store.update(config.id, {
         sync_policy: { on_field_drift: 'manifest_wins' },
       });
 
@@ -168,12 +176,13 @@ describe('ManifestConfigStore', () => {
     });
 
     it('should merge sync_policy with default when no existing policy', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const updated = store.update('team-1', {
+      const updated = store.update(config.id, {
         sync_policy: { on_removal: 'deactivate' },
       });
 
@@ -183,30 +192,32 @@ describe('ManifestConfigStore', () => {
       expect(policy.on_field_drift).toBe('flag');
     });
 
-    it('should return undefined for nonexistent team', () => {
+    it('should return undefined for nonexistent config', () => {
       expect(
         store.update('nonexistent', { manifest_url: 'https://example.com' })
       ).toBeUndefined();
     });
 
     it('should return existing when no fields to update', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const result = store.update('team-1', {});
+      const result = store.update(config.id, {});
       expect(result).toBeDefined();
       expect(result!.team_id).toBe('team-1');
     });
 
     it('should update updated_at timestamp', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const updated = store.update('team-1', {
+      const updated = store.update(config.id, {
         manifest_url: 'https://example.com/new.json',
       });
 
@@ -216,17 +227,18 @@ describe('ManifestConfigStore', () => {
 
   describe('delete', () => {
     it('should delete a manifest config', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const deleted = store.delete('team-1');
+      const deleted = store.delete(config.id);
       expect(deleted).toBe(true);
-      expect(store.findByTeamId('team-1')).toBeUndefined();
+      expect(store.findByTeamId('team-1')).toHaveLength(0);
     });
 
-    it('should return false for nonexistent team', () => {
+    it('should return false for nonexistent config', () => {
       expect(store.delete('nonexistent')).toBe(false);
     });
   });
@@ -235,15 +247,18 @@ describe('ManifestConfigStore', () => {
     it('should return only enabled configs', () => {
       store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/a.json',
       });
       store.create({
         team_id: 'team-2',
+        name: 'Default',
         manifest_url: 'https://example.com/b.json',
         is_enabled: false,
       });
       store.create({
         team_id: 'team-3',
+        name: 'Default',
         manifest_url: 'https://example.com/c.json',
       });
 
@@ -255,6 +270,7 @@ describe('ManifestConfigStore', () => {
     it('should return empty array when none enabled', () => {
       store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/a.json',
         is_enabled: false,
       });
@@ -265,12 +281,13 @@ describe('ManifestConfigStore', () => {
 
   describe('updateSyncResult', () => {
     it('should update sync result fields', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      const success = store.updateSyncResult('team-1', {
+      const success = store.updateSyncResult(config.id, {
         last_sync_at: '2026-02-28T12:00:00.000Z',
         last_sync_status: 'success',
         last_sync_error: null,
@@ -279,32 +296,33 @@ describe('ManifestConfigStore', () => {
 
       expect(success).toBe(true);
 
-      const config = store.findByTeamId('team-1');
-      expect(config!.last_sync_at).toBe('2026-02-28T12:00:00.000Z');
-      expect(config!.last_sync_status).toBe('success');
-      expect(config!.last_sync_error).toBeNull();
-      expect(config!.last_sync_summary).toBeDefined();
+      const configs = store.findByTeamId('team-1');
+      expect(configs[0].last_sync_at).toBe('2026-02-28T12:00:00.000Z');
+      expect(configs[0].last_sync_status).toBe('success');
+      expect(configs[0].last_sync_error).toBeNull();
+      expect(configs[0].last_sync_summary).toBeDefined();
     });
 
     it('should update sync result with error', () => {
-      store.create({
+      const config = store.create({
         team_id: 'team-1',
+        name: 'Default',
         manifest_url: 'https://example.com/manifest.json',
       });
 
-      store.updateSyncResult('team-1', {
+      store.updateSyncResult(config.id, {
         last_sync_at: '2026-02-28T12:00:00.000Z',
         last_sync_status: 'failed',
         last_sync_error: 'Failed to fetch manifest',
         last_sync_summary: null,
       });
 
-      const config = store.findByTeamId('team-1');
-      expect(config!.last_sync_status).toBe('failed');
-      expect(config!.last_sync_error).toBe('Failed to fetch manifest');
+      const configs = store.findByTeamId('team-1');
+      expect(configs[0].last_sync_status).toBe('failed');
+      expect(configs[0].last_sync_error).toBe('Failed to fetch manifest');
     });
 
-    it('should return false for nonexistent team', () => {
+    it('should return false for nonexistent config', () => {
       expect(
         store.updateSyncResult('nonexistent', {
           last_sync_at: '2026-02-28T12:00:00.000Z',

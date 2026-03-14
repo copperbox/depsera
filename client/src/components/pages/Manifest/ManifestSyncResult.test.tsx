@@ -5,6 +5,7 @@ import type { TeamManifestConfig, ManifestSyncResult as SyncResult } from '../..
 const baseConfig: TeamManifestConfig = {
   id: 'mc1',
   team_id: 't1',
+  name: 'Default',
   manifest_url: 'https://example.com/manifest.json',
   is_enabled: 1,
   sync_policy: null,

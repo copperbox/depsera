@@ -71,6 +71,7 @@ describe('DriftFlagStore', () => {
         resolved_at TEXT,
         resolved_by TEXT,
         sync_history_id TEXT,
+        manifest_config_id TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,

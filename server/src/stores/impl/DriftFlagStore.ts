@@ -43,6 +43,10 @@ export class DriftFlagStore implements IDriftFlagStore {
       conditions.push('df.service_id = ?');
       params.push(options.service_id);
     }
+    if (options?.manifest_config_id) {
+      conditions.push('df.manifest_config_id = ?');
+      params.push(options.manifest_config_id);
+    }
 
     const where = conditions.join(' AND ');
 
@@ -138,8 +142,8 @@ export class DriftFlagStore implements IDriftFlagStore {
       .prepare(
         `INSERT INTO drift_flags
            (id, team_id, service_id, drift_type, field_name, manifest_value, current_value,
-            status, first_detected_at, last_detected_at, sync_history_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`,
+            status, first_detected_at, last_detected_at, sync_history_id, manifest_config_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -152,6 +156,7 @@ export class DriftFlagStore implements IDriftFlagStore {
         now,
         now,
         input.sync_history_id ?? null,
+        input.manifest_config_id ?? null,
         now,
       );
 
@@ -262,6 +267,7 @@ export class DriftFlagStore implements IDriftFlagStore {
     manifestValue: string,
     currentValue: string,
     syncHistoryId: string | null,
+    manifestConfigId?: string | null,
   ): DriftFlagUpsertResult {
     const existing = this.findActiveByServiceAndField(serviceId, fieldName);
 
@@ -280,6 +286,7 @@ export class DriftFlagStore implements IDriftFlagStore {
         manifest_value: manifestValue,
         current_value: currentValue,
         sync_history_id: syncHistoryId ?? undefined,
+        manifest_config_id: manifestConfigId ?? undefined,
       });
       return { action: 'created', flag };
     }
@@ -324,6 +331,7 @@ export class DriftFlagStore implements IDriftFlagStore {
   upsertRemovalDrift(
     serviceId: string,
     syncHistoryId: string | null,
+    manifestConfigId?: string | null,
   ): DriftFlagUpsertResult {
     const existing = this.findActiveRemovalByServiceId(serviceId);
 
@@ -339,6 +347,7 @@ export class DriftFlagStore implements IDriftFlagStore {
         service_id: serviceId,
         drift_type: 'service_removal',
         sync_history_id: syncHistoryId ?? undefined,
+        manifest_config_id: manifestConfigId ?? undefined,
       });
       return { action: 'created', flag };
     }

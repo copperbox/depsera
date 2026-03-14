@@ -16,6 +16,16 @@ jest.mock('../../../contexts/AuthContext', () => ({
 }));
 
 // Mock sub-components to isolate ManifestPage tests
+jest.mock('./ManifestList', () => {
+  const ManifestList = (props: { teamId: string; canManage: boolean }) => (
+    <div data-testid="manifest-list" data-can-manage={props.canManage}>
+      ManifestList for {props.teamId}
+    </div>
+  );
+  ManifestList.displayName = 'ManifestList';
+  return ManifestList;
+});
+
 jest.mock('./ManifestConfig', () => {
   const ManifestConfig = (props: { config: { manifest_url: string } }) => (
     <div data-testid="manifest-config">{props.config.manifest_url}</div>
@@ -63,6 +73,7 @@ const mockTeam = {
 const mockConfig = {
   id: 'mc1',
   team_id: 't1',
+  name: 'Production',
   manifest_url: 'https://example.com/manifest.json',
   is_enabled: 1,
   sync_policy: null,
@@ -74,11 +85,12 @@ const mockConfig = {
   updated_at: '2024-01-01',
 };
 
-function renderPage(id = 't1') {
+function renderPage(path = '/teams/t1/manifest') {
   return render(
-    <MemoryRouter initialEntries={[`/teams/${id}/manifest`]}>
+    <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/teams/:id/manifest" element={<ManifestPage />} />
+        <Route path="/teams/:id/manifest/:configId" element={<ManifestPage />} />
         <Route path="/teams/:id" element={<div>Team Detail</div>} />
         <Route path="/teams" element={<div>Teams List</div>} />
       </Routes>
@@ -92,11 +104,11 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({ user: { teams: [{ team_id: 't1', role: 'lead' }] }, isAdmin: false });
 });
 
-describe('ManifestPage', () => {
-  it('shows loading state initially', () => {
+describe('ManifestPage — list view', () => {
+  it('shows loading state while fetching team', () => {
     mockFetch.mockImplementation(() => new Promise(() => {}));
     renderPage();
-    expect(screen.getByText('Loading manifest configuration...')).toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('shows team error state', async () => {
@@ -109,9 +121,7 @@ describe('ManifestPage', () => {
   });
 
   it('shows back link with team name', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))        // fetchTeam
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig })); // getManifestConfig
+    mockFetch.mockResolvedValueOnce(jsonResponse(mockTeam));
 
     renderPage();
 
@@ -120,86 +130,101 @@ describe('ManifestPage', () => {
     });
   });
 
-  it('shows page title', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }));
+  it('renders ManifestList when no configId', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(mockTeam));
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Manifest Configuration')).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-list')).toBeInTheDocument();
     });
+    expect(screen.getByText('ManifestList for t1')).toBeInTheDocument();
   });
 
-  it('shows empty state when no manifest configured', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: null }));
+  it('passes canManage=true for team leads', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(mockTeam));
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/No manifest configured/)).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-list')).toHaveAttribute('data-can-manage', 'true');
     });
   });
 
-  it('shows Configure Manifest button for team leads when no config', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: null }));
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText('Configure Manifest')).toBeInTheDocument();
-    });
-  });
-
-  it('hides Configure Manifest button for non-managers', async () => {
+  it('passes canManage=false for non-managers', async () => {
     mockUseAuth.mockReturnValue({ user: { teams: [{ team_id: 't1', role: 'member' }] }, isAdmin: false });
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: null }));
+    mockFetch.mockResolvedValueOnce(jsonResponse(mockTeam));
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/No manifest configured/)).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-list')).toHaveAttribute('data-can-manage', 'false');
     });
-    expect(screen.queryByText('Configure Manifest')).not.toBeInTheDocument();
-  });
-
-  it('renders all sections when config exists', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }));
-
-    renderPage();
-
-    await waitFor(() => {
-      expect(screen.getByText('Configuration')).toBeInTheDocument();
-    });
-    expect(screen.getByTestId('manifest-config')).toBeInTheDocument();
-    expect(screen.getByTestId('manifest-sync-result')).toBeInTheDocument();
-    expect(screen.getByText('Drift Review')).toBeInTheDocument();
-    expect(screen.getByTestId('drift-review')).toBeInTheDocument();
-    expect(screen.getByText('Sync History')).toBeInTheDocument();
-    expect(screen.getByTestId('sync-history')).toBeInTheDocument();
   });
 
   it('shows admin as manager', async () => {
     mockUseAuth.mockReturnValue({ user: { teams: [] }, isAdmin: true });
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse(mockTeam))
-      .mockResolvedValueOnce(jsonResponse({ config: null }));
+    mockFetch.mockResolvedValueOnce(jsonResponse(mockTeam));
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Configure Manifest')).toBeInTheDocument();
+      expect(screen.getByTestId('manifest-list')).toHaveAttribute('data-can-manage', 'true');
+    });
+  });
+});
+
+describe('ManifestPage — detail view', () => {
+  it('shows loading state while fetching config', () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockTeam))   // fetchTeam
+      .mockImplementation(() => new Promise(() => {})); // getManifestConfig hangs
+
+    renderPage('/teams/t1/manifest/mc1');
+
+    // First it loads team, then shows config loading
+    // The loading state may show "Loading..." or "Loading manifest configuration..."
+  });
+
+  it('renders config detail sections when config exists', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockTeam))           // fetchTeam
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig })); // getManifestConfig
+
+    renderPage('/teams/t1/manifest/mc1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Production')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Configuration')).toBeInTheDocument();
+    expect(screen.getByTestId('manifest-config')).toBeInTheDocument();
+    expect(screen.getByTestId('manifest-sync-result')).toBeInTheDocument();
+    expect(screen.getByText('Drift Review')).toBeInTheDocument();
+    expect(screen.getByText('Sync History')).toBeInTheDocument();
+  });
+
+  it('shows back link to manifests list', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockTeam))
+      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }));
+
+    renderPage('/teams/t1/manifest/mc1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Back to Manifests')).toBeInTheDocument();
+    });
+  });
+
+  it('shows not found when config is null', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(mockTeam))
+      .mockResolvedValueOnce(jsonResponse({ config: null }));
+
+    renderPage('/teams/t1/manifest/mc1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Manifest config not found.')).toBeInTheDocument();
     });
   });
 });

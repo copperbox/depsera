@@ -3,14 +3,15 @@ import { useSyncHistory } from './useSyncHistory';
 
 jest.mock('../api/manifest');
 
-import { getSyncHistory } from '../api/manifest';
+import { getConfigSyncHistory } from '../api/manifest';
 
-const mockGetSyncHistory = getSyncHistory as jest.MockedFunction<typeof getSyncHistory>;
+const mockGetSyncHistory = getConfigSyncHistory as jest.MockedFunction<typeof getConfigSyncHistory>;
 
 function makeHistoryEntry(overrides: Record<string, unknown> = {}) {
   return {
     id: 'h1',
     team_id: 't1',
+    manifest_config_id: null,
     trigger_type: 'manual',
     triggered_by: 'u1',
     manifest_url: 'https://example.com/manifest.json',
@@ -33,7 +34,7 @@ describe('useSyncHistory', () => {
     const history = [makeHistoryEntry()];
     mockGetSyncHistory.mockResolvedValue({ history, total: 1 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -48,19 +49,19 @@ describe('useSyncHistory', () => {
   it('requests with limit 20 and offset 0', async () => {
     mockGetSyncHistory.mockResolvedValue({ history: [], total: 0 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
     });
 
-    expect(mockGetSyncHistory).toHaveBeenCalledWith('t1', { limit: 20, offset: 0 });
+    expect(mockGetSyncHistory).toHaveBeenCalledWith('t1', 'c1', { limit: 20, offset: 0 });
   });
 
   it('handles load error', async () => {
     mockGetSyncHistory.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -72,7 +73,7 @@ describe('useSyncHistory', () => {
   it('handles non-Error exception in load', async () => {
     mockGetSyncHistory.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -82,7 +83,7 @@ describe('useSyncHistory', () => {
   });
 
   it('does nothing when teamId is undefined', async () => {
-    const { result } = renderHook(() => useSyncHistory(undefined));
+    const { result } = renderHook(() => useSyncHistory(undefined, undefined));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -96,7 +97,7 @@ describe('useSyncHistory', () => {
     const history = Array.from({ length: 5 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history, total: 5 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -109,7 +110,7 @@ describe('useSyncHistory', () => {
     const history = Array.from({ length: 20 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history, total: 50 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -122,7 +123,7 @@ describe('useSyncHistory', () => {
     const page1 = Array.from({ length: 20 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history: page1, total: 30 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -140,14 +141,14 @@ describe('useSyncHistory', () => {
 
     expect(result.current.history).toHaveLength(30);
     expect(result.current.hasMore).toBe(false);
-    expect(mockGetSyncHistory).toHaveBeenLastCalledWith('t1', { limit: 20, offset: 20 });
+    expect(mockGetSyncHistory).toHaveBeenLastCalledWith('t1', 'c1', { limit: 20, offset: 20 });
   });
 
   it('does not load more when no more entries', async () => {
     const history = [makeHistoryEntry()];
     mockGetSyncHistory.mockResolvedValue({ history, total: 1 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -166,7 +167,7 @@ describe('useSyncHistory', () => {
     const page1 = Array.from({ length: 20 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history: page1, total: 30 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -187,7 +188,7 @@ describe('useSyncHistory', () => {
     const page1 = Array.from({ length: 20 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history: page1, total: 30 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -206,7 +207,7 @@ describe('useSyncHistory', () => {
     const page1 = Array.from({ length: 20 }, (_, i) => makeHistoryEntry({ id: `h${i}` }));
     mockGetSyncHistory.mockResolvedValue({ history: page1, total: 30 } as never);
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();
@@ -230,13 +231,13 @@ describe('useSyncHistory', () => {
 
     expect(result.current.history).toHaveLength(1);
     expect(result.current.history[0].id).toBe('fresh1');
-    expect(mockGetSyncHistory).toHaveBeenLastCalledWith('t1', { limit: 20, offset: 0 });
+    expect(mockGetSyncHistory).toHaveBeenLastCalledWith('t1', 'c1', { limit: 20, offset: 0 });
   });
 
   it('clears error', async () => {
     mockGetSyncHistory.mockRejectedValue(new Error('Error'));
 
-    const { result } = renderHook(() => useSyncHistory('t1'));
+    const { result } = renderHook(() => useSyncHistory('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadHistory();

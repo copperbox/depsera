@@ -5,17 +5,10 @@ import ManifestStatusCard from './ManifestStatusCard';
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-function jsonResponse(data: unknown, status = 200) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(data),
-  };
-}
-
 const mockConfig = {
   id: 'mc1',
   team_id: 't1',
+  name: 'Default',
   manifest_url: 'https://example.com/manifest.json',
   is_enabled: 1,
   sync_policy: null,
@@ -56,6 +49,29 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
+function ok(data: unknown) {
+  return { ok: true, status: 200, json: () => Promise.resolve(data) };
+}
+
+// Helper: set up mocks for a loaded state with config
+// Sequence: getManifestConfigs → getDriftSummary (initial) → getManifestConfig → getDriftSummary (re-run)
+function setupConfigLoaded(configOverrides = {}) {
+  const config = { ...mockConfig, ...configOverrides };
+  mockFetch
+    .mockResolvedValueOnce(ok({ configs: [config] }))          // 1: getManifestConfigs
+    .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))  // 2: getDriftSummary (initial, primaryConfigId undefined)
+    .mockResolvedValueOnce(ok({ config }))                     // 3: getManifestConfig (primaryConfigId set)
+    .mockResolvedValueOnce(ok({ summary: mockDriftSummary })); // 4: getDriftSummary (re-run)
+  return config;
+}
+
+// Helper: set up mocks for no config
+function setupNoConfig() {
+  mockFetch
+    .mockResolvedValueOnce(ok({ configs: [] }))               // getManifestConfigs
+    .mockResolvedValueOnce(ok({ summary: mockDriftSummary })); // getDriftSummary
+}
+
 describe('ManifestStatusCard', () => {
   it('shows loading state initially', () => {
     mockFetch.mockImplementation(() => new Promise(() => {}));
@@ -66,9 +82,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows empty state when no manifest configured', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: null }))      // getManifestConfig
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));  // getDriftSummary
+    setupNoConfig();
 
     renderCard();
 
@@ -78,9 +92,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows "Configure Manifest" link for managers when no config', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: null }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupNoConfig();
 
     renderCard('t1', true);
 
@@ -90,9 +102,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('hides "Configure Manifest" link for non-managers', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: null }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupNoConfig();
 
     renderCard('t1', false);
 
@@ -104,9 +114,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('displays manifest URL and sync status when configured', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded();
 
     renderCard();
 
@@ -118,9 +126,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows service count from last sync summary', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded();
 
     renderCard();
 
@@ -130,14 +136,9 @@ describe('ManifestStatusCard', () => {
   });
 
   it('truncates long manifest URLs', async () => {
-    const longUrlConfig = {
-      ...mockConfig,
+    setupConfigLoaded({
       manifest_url: 'https://very-long-domain-name.example.com/api/v2/teams/my-team/manifest.json',
-    };
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: longUrlConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    });
 
     renderCard();
 
@@ -147,9 +148,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows "Sync Now" button for managers', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded();
 
     renderCard('t1', true);
 
@@ -159,9 +158,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('hides "Sync Now" button for non-managers', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded();
 
     renderCard('t1', false);
 
@@ -173,9 +170,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows "Manage Manifest" link', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded();
 
     renderCard();
 
@@ -185,11 +180,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows disabled state when manifest is disabled', async () => {
-    const disabledConfig = { ...mockConfig, is_enabled: 0 };
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: disabledConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded({ is_enabled: 0 });
 
     renderCard();
 
@@ -202,15 +193,10 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows error status with error message', async () => {
-    const errorConfig = {
-      ...mockConfig,
+    setupConfigLoaded({
       last_sync_status: 'failed',
       last_sync_error: 'Connection refused',
-    };
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: errorConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    });
 
     renderCard();
 
@@ -222,14 +208,7 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows partial sync status with yellow indicator', async () => {
-    const partialConfig = {
-      ...mockConfig,
-      last_sync_status: 'partial',
-    };
-
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: partialConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupConfigLoaded({ last_sync_status: 'partial' });
 
     renderCard();
 
@@ -246,9 +225,12 @@ describe('ManifestStatusCard', () => {
       service_removal_pending: 1,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: driftSummaryWithPending }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryWithPending }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryWithPending }));
 
     renderCard();
 
@@ -267,9 +249,12 @@ describe('ManifestStatusCard', () => {
       service_removal_pending: 0,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: driftSummaryOne }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryOne }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryOne }));
 
     renderCard();
 
@@ -286,9 +271,12 @@ describe('ManifestStatusCard', () => {
       service_removal_pending: 1,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: driftSummaryNoDismissed }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryNoDismissed }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: driftSummaryNoDismissed }));
 
     renderCard();
 
@@ -314,12 +302,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 1500,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))       // initial load
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary })) // initial drift
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))        // trigger sync
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))        // reload config
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary })); // reload drift
+      .mockResolvedValueOnce(ok({ configs: [config] }))          // 1: getManifestConfigs
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))   // 2: getDriftSummary (initial)
+      .mockResolvedValueOnce(ok({ config }))                      // 3: getManifestConfig
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))   // 4: getDriftSummary (re-run)
+      .mockResolvedValueOnce(ok({ result: syncResult }))          // 5: triggerConfigSync
+      .mockResolvedValueOnce(ok({ config }))                      // 6: reload config
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));  // 7: reload drift
 
     renderCard();
 
@@ -354,12 +345,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 500,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -389,12 +383,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 500,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -431,12 +428,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 500,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -456,9 +456,12 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows error message when sync fails', async () => {
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
       .mockRejectedValueOnce(new Error('Failed to trigger sync'));
 
     renderCard();
@@ -475,10 +478,13 @@ describe('ManifestStatusCard', () => {
   });
 
   it('shows 429 cooldown error from hook', async () => {
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ error: 'Please wait before syncing again' }, 429));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce({ ok: false, status: 429, json: () => Promise.resolve({ error: 'Please wait before syncing again' }) });
 
     renderCard();
 
@@ -508,12 +514,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 500,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -544,12 +553,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 100,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -572,7 +584,7 @@ describe('ManifestStatusCard', () => {
     expect(screen.queryByText(/Available in/)).not.toBeInTheDocument();
   });
 
-  it('calls triggerSync API on Sync Now click', async () => {
+  it('calls triggerConfigSync API on Sync Now click', async () => {
     const syncResult = {
       status: 'success',
       summary: {
@@ -587,12 +599,15 @@ describe('ManifestStatusCard', () => {
       duration_ms: 100,
     };
 
+    const config = { ...mockConfig };
     mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }))
-      .mockResolvedValueOnce(jsonResponse({ result: syncResult }))
-      .mockResolvedValueOnce(jsonResponse({ config: mockConfig }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+      .mockResolvedValueOnce(ok({ configs: [config] }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }))
+      .mockResolvedValueOnce(ok({ result: syncResult }))
+      .mockResolvedValueOnce(ok({ config }))
+      .mockResolvedValueOnce(ok({ summary: mockDriftSummary }));
 
     renderCard();
 
@@ -604,16 +619,14 @@ describe('ManifestStatusCard', () => {
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/teams/t1/manifest/sync',
+        '/api/teams/t1/manifests/mc1/sync',
         expect.objectContaining({ method: 'POST' })
       );
     });
   });
 
   it('shows section title "Manifest Sync"', async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ config: null }))
-      .mockResolvedValueOnce(jsonResponse({ summary: mockDriftSummary }));
+    setupNoConfig();
 
     renderCard();
 

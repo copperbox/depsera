@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useManifestConfigs } from '../../../hooks/useManifestConfigs';
 import { useManifestConfig } from '../../../hooks/useManifestConfig';
 import { getDriftSummary } from '../../../api/manifest';
 import type { DriftSummary, ManifestSyncSummary } from '../../../types/manifest';
@@ -31,6 +32,9 @@ function truncateUrl(url: string, maxLen = 60): string {
 }
 
 function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
+  const { configs, isLoading: isLoadingConfigs, loadConfigs } = useManifestConfigs(teamId);
+  const primaryConfigId = configs.length > 0 ? configs[0].id : undefined;
+
   const {
     config,
     isLoading,
@@ -39,7 +43,7 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
     loadConfig,
     triggerSync,
     clearSyncResult,
-  } = useManifestConfig(teamId);
+  } = useManifestConfig(teamId, primaryConfigId);
 
   const [driftSummary, setDriftSummary] = useState<DriftSummary | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -58,9 +62,15 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
   }, [teamId]);
 
   useEffect(() => {
-    loadConfig();
+    loadConfigs();
+  }, [loadConfigs]);
+
+  useEffect(() => {
+    if (primaryConfigId) {
+      loadConfig();
+    }
     loadDriftSummary();
-  }, [loadConfig, loadDriftSummary]);
+  }, [primaryConfigId, loadConfig, loadDriftSummary]);
 
   // Auto-dismiss sync result banner after 8s
   useEffect(() => {
@@ -122,7 +132,7 @@ function ManifestStatusCard({ teamId, canManage }: ManifestStatusCardProps) {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingConfigs) {
     return (
       <div className={teamStyles.section}>
         <div className={teamStyles.sectionHeader}>

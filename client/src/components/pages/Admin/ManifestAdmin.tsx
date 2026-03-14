@@ -49,7 +49,9 @@ function ManifestAdmin() {
     if (!searchQuery.trim()) return entries;
     const q = searchQuery.toLowerCase();
     return entries.filter(
-      e => e.team_name.toLowerCase().includes(q) || (e.team_key ?? '').toLowerCase().includes(q)
+      e => e.team_name.toLowerCase().includes(q)
+        || (e.team_key ?? '').toLowerCase().includes(q)
+        || (e.config_name ?? '').toLowerCase().includes(q)
     );
   }, [entries, searchQuery]);
 
@@ -130,11 +132,11 @@ function ManifestAdmin() {
             </button>
           </div>
           {syncResults.map((r) => (
-            <div key={r.team_id} className={styles.syncResultItem}>
+            <div key={`${r.team_id}-${r.config_id}`} className={styles.syncResultItem}>
               <span className={`${styles.badge} ${getStatusBadgeClass(r.status)}`}>
                 {r.status}
               </span>
-              <span>{r.team_name}</span>
+              <span>{r.team_name} / {r.config_name}</span>
               {r.error && <span style={{ color: 'var(--color-error)', fontSize: '0.75rem' }}>— {r.error}</span>}
             </div>
           ))}
@@ -157,6 +159,7 @@ function ManifestAdmin() {
             <thead>
               <tr>
                 <th>Team</th>
+                <th>Config</th>
                 <th>URL</th>
                 <th>Enabled</th>
                 <th>Last Sync</th>
@@ -173,17 +176,26 @@ function ManifestAdmin() {
                   : null;
 
                 return (
-                  <tr key={entry.team_id}>
+                  <tr key={entry.config_id ?? entry.team_id}>
                     <td>
                       <Link to={`/teams/${entry.team_id}/manifest`} className={styles.teamLink}>
                         {entry.team_name}
                       </Link>
                     </td>
+                    <td>
+                      {entry.config_id ? (
+                        <Link to={`/teams/${entry.team_id}/manifest/${entry.config_id}`} className={styles.teamLink}>
+                          {entry.config_name ?? 'Default'}
+                        </Link>
+                      ) : (
+                        <span className={styles.badgeNone}>—</span>
+                      )}
+                    </td>
                     <td className={styles.urlCell} title={entry.manifest_url ?? undefined}>
                       {entry.manifest_url ?? '—'}
                     </td>
                     <td>
-                      {entry.has_config ? (
+                      {entry.config_id ? (
                         <span className={`${styles.badge} ${entry.is_enabled ? styles.badgeEnabled : styles.badgeDisabled}`}>
                           {entry.is_enabled ? 'Enabled' : 'Disabled'}
                         </span>

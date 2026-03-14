@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import {
   getManifestConfig,
-  saveManifestConfig,
+  updateManifestConfig,
   removeManifestConfig,
-  triggerSync,
+  triggerConfigSync,
 } from '../api/manifest';
 import type {
   TeamManifestConfig,
@@ -19,7 +19,7 @@ export interface UseManifestConfigReturn {
   isSyncing: boolean;
   syncResult: ManifestSyncResult | null;
   loadConfig: () => Promise<void>;
-  saveConfig: (input: ManifestConfigInput) => Promise<boolean>;
+  saveConfig: (input: Partial<ManifestConfigInput>) => Promise<boolean>;
   removeConfig: () => Promise<boolean>;
   toggleEnabled: () => Promise<boolean>;
   triggerSync: () => Promise<ManifestSyncResult | null>;
@@ -27,7 +27,10 @@ export interface UseManifestConfigReturn {
   clearSyncResult: () => void;
 }
 
-export function useManifestConfig(teamId: string | undefined): UseManifestConfigReturn {
+export function useManifestConfig(
+  teamId: string | undefined,
+  configId: string | undefined
+): UseManifestConfigReturn {
   const [config, setConfig] = useState<TeamManifestConfig | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,26 +39,26 @@ export function useManifestConfig(teamId: string | undefined): UseManifestConfig
   const [syncResult, setSyncResult] = useState<ManifestSyncResult | null>(null);
 
   const loadConfig = useCallback(async () => {
-    if (!teamId) return;
+    if (!teamId || !configId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getManifestConfig(teamId);
+      const data = await getManifestConfig(teamId, configId);
       setConfig(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load manifest config');
     } finally {
       setIsLoading(false);
     }
-  }, [teamId]);
+  }, [teamId, configId]);
 
   const saveConfig = useCallback(
-    async (input: ManifestConfigInput): Promise<boolean> => {
-      if (!teamId) return false;
+    async (input: Partial<ManifestConfigInput>): Promise<boolean> => {
+      if (!teamId || !configId) return false;
       setIsSaving(true);
       setError(null);
       try {
-        const updated = await saveManifestConfig(teamId, input);
+        const updated = await updateManifestConfig(teamId, configId, input);
         setConfig(updated);
         return true;
       } catch (err) {
@@ -65,15 +68,15 @@ export function useManifestConfig(teamId: string | undefined): UseManifestConfig
         setIsSaving(false);
       }
     },
-    [teamId]
+    [teamId, configId]
   );
 
   const removeConfigAction = useCallback(async (): Promise<boolean> => {
-    if (!teamId) return false;
+    if (!teamId || !configId) return false;
     setIsSaving(true);
     setError(null);
     try {
-      await removeManifestConfig(teamId);
+      await removeManifestConfig(teamId, configId);
       setConfig(null);
       setSyncResult(null);
       return true;
@@ -83,15 +86,14 @@ export function useManifestConfig(teamId: string | undefined): UseManifestConfig
     } finally {
       setIsSaving(false);
     }
-  }, [teamId]);
+  }, [teamId, configId]);
 
   const toggleEnabled = useCallback(async (): Promise<boolean> => {
-    if (!teamId || !config) return false;
+    if (!teamId || !configId || !config) return false;
     setIsSaving(true);
     setError(null);
     try {
-      const updated = await saveManifestConfig(teamId, {
-        manifest_url: config.manifest_url,
+      const updated = await updateManifestConfig(teamId, configId, {
         is_enabled: !config.is_enabled,
       });
       setConfig(updated);
@@ -102,15 +104,15 @@ export function useManifestConfig(teamId: string | undefined): UseManifestConfig
     } finally {
       setIsSaving(false);
     }
-  }, [teamId, config]);
+  }, [teamId, configId, config]);
 
   const triggerSyncAction = useCallback(async (): Promise<ManifestSyncResult | null> => {
-    if (!teamId) return null;
+    if (!teamId || !configId) return null;
     setIsSyncing(true);
     setError(null);
     setSyncResult(null);
     try {
-      const result = await triggerSync(teamId);
+      const result = await triggerConfigSync(teamId, configId);
       setSyncResult(result);
       // Reload config to get updated sync status
       await loadConfig();
@@ -121,7 +123,7 @@ export function useManifestConfig(teamId: string | undefined): UseManifestConfig
     } finally {
       setIsSyncing(false);
     }
-  }, [teamId, loadConfig]);
+  }, [teamId, configId, loadConfig]);
 
   const clearError = useCallback(() => setError(null), []);
   const clearSyncResult = useCallback(() => setSyncResult(null), []);

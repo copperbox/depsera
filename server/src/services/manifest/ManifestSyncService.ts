@@ -47,16 +47,19 @@ export enum ManifestSyncEventType {
 
 export interface SyncCompleteEvent {
   teamId: string;
+  configId: string;
   result: ManifestSyncResult;
 }
 
 export interface SyncErrorEvent {
   teamId: string;
+  configId: string;
   error: string;
 }
 
 export interface DriftDetectedEvent {
   teamId: string;
+  configId: string;
   driftCount: number;
 }
 
@@ -140,7 +143,7 @@ export class ManifestSyncService extends EventEmitter {
 
         const lastSync = config.last_sync_at ? new Date(config.last_sync_at).getTime() : 0;
         if (now - lastSync >= syncInterval) {
-          await this.syncTeam(config.team_id, 'scheduled', null);
+          await this.syncManifest(config.id, 'scheduled', null);
         }
       }
     } catch (error) {
@@ -160,10 +163,10 @@ export class ManifestSyncService extends EventEmitter {
   // --- Concurrency ---
 
   /**
-   * Check whether a manual sync is allowed (60s cooldown per team).
+   * Check whether a manual sync is allowed (60s cooldown per config).
    */
-  canManualSync(teamId: string): { allowed: boolean; retryAfterMs?: number } {
-    const lastSync = this.lastManualSync.get(teamId);
+  canManualSync(configId: string): { allowed: boolean; retryAfterMs?: number } {
+    const lastSync = this.lastManualSync.get(configId);
     if (!lastSync) return { allowed: true };
 
     const elapsed = Date.now() - lastSync;
@@ -173,40 +176,148 @@ export class ManifestSyncService extends EventEmitter {
   }
 
   /**
-   * Check if a sync is currently in progress for this team.
+   * Check whether a manual sync is allowed for any config in a team.
    */
-  isSyncing(teamId: string): boolean {
-    const lock = this.locks.get(teamId);
+  canManualSyncTeam(teamId: string): { allowed: boolean; retryAfterMs?: number } {
+    const configs = this.stores.manifestConfig.findByTeamId(teamId);
+    let maxRetryAfter = 0;
+    for (const config of configs) {
+      const check = this.canManualSync(config.id);
+      if (!check.allowed && check.retryAfterMs) {
+        maxRetryAfter = Math.max(maxRetryAfter, check.retryAfterMs);
+      }
+    }
+    if (maxRetryAfter > 0) {
+      return { allowed: false, retryAfterMs: maxRetryAfter };
+    }
+    return { allowed: true };
+  }
+
+  /**
+   * Check if a sync is currently in progress for this config.
+   */
+  isSyncingConfig(configId: string): boolean {
+    const lock = this.locks.get(configId);
     if (!lock) return false;
 
     // Check for stale lock
     if (Date.now() - lock.acquiredAt > STALE_LOCK_TIMEOUT_MS) {
-      this.locks.delete(teamId);
+      this.locks.delete(configId);
       return false;
     }
 
     return true;
   }
 
-  private acquireLock(teamId: string): boolean {
-    if (this.isSyncing(teamId)) return false;
-    this.locks.set(teamId, { acquiredAt: Date.now() });
+  /**
+   * Check if any sync is in progress for this team.
+   */
+  isSyncing(teamId: string): boolean {
+    const configs = this.stores.manifestConfig.findByTeamId(teamId);
+    return configs.some(c => this.isSyncingConfig(c.id));
+  }
+
+  private acquireLock(configId: string): boolean {
+    if (this.isSyncingConfig(configId)) return false;
+    this.locks.set(configId, { acquiredAt: Date.now() });
     return true;
   }
 
-  private releaseLock(teamId: string): void {
-    this.locks.delete(teamId);
+  private releaseLock(configId: string): void {
+    this.locks.delete(configId);
   }
 
   // --- Core Sync Flow ---
 
   /**
-   * Sync a team's services against their manifest.
+   * Sync a single manifest config.
+   *
+   * @param configId - The config to sync
+   * @param triggerType - 'manual' or 'scheduled'
+   * @param triggeredBy - User ID for manual syncs, null for scheduled
+   * @returns ManifestSyncResult
+   */
+  async syncManifest(
+    configId: string,
+    triggerType: 'manual' | 'scheduled',
+    triggeredBy: string | null,
+  ): Promise<ManifestSyncResult> {
+    const startTime = Date.now();
+
+    // Load config by ID
+    const config = this.stores.manifestConfig.findById(configId);
+    if (!config) {
+      return this.failResult('Manifest config not found', startTime);
+    }
+    if (!config.is_enabled) {
+      return this.failResult('Manifest sync is disabled for this config', startTime);
+    }
+
+    // Acquire per-config lock
+    if (!this.acquireLock(configId)) {
+      return this.failResult('Sync already in progress for this config', startTime);
+    }
+
+    this.activeSyncs++;
+
+    if (triggerType === 'manual') {
+      this.lastManualSync.set(configId, Date.now());
+    }
+
+    try {
+      const result = await this.executeSyncPipeline(config.team_id, config, triggerType, triggeredBy, startTime);
+
+      // Record history and update config
+      this.recordSyncCompletion(config.team_id, config, result, triggerType, triggeredBy);
+
+      // Emit events
+      this.emit(ManifestSyncEventType.SYNC_COMPLETE, {
+        teamId: config.team_id,
+        configId,
+        result,
+      } as SyncCompleteEvent);
+
+      if (result.summary.services.drift_flagged > 0) {
+        this.emit(ManifestSyncEventType.DRIFT_DETECTED, {
+          teamId: config.team_id,
+          configId,
+          driftCount: result.summary.services.drift_flagged,
+        } as DriftDetectedEvent);
+      }
+
+      // Audit log
+      this.logSyncAudit(config.team_id, triggerType, triggeredBy, result, configId);
+
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error({ err: error, configId, teamId: config.team_id }, '[ManifestSync] Sync failed');
+
+      const failResult = this.failResult(errorMessage, startTime);
+
+      // Record failure
+      this.recordSyncCompletion(config.team_id, config, failResult, triggerType, triggeredBy);
+
+      this.emit(ManifestSyncEventType.SYNC_ERROR, {
+        teamId: config.team_id,
+        configId,
+        error: errorMessage,
+      } as SyncErrorEvent);
+
+      return failResult;
+    } finally {
+      this.releaseLock(configId);
+      this.activeSyncs--;
+    }
+  }
+
+  /**
+   * Sync all enabled configs for a team sequentially.
    *
    * @param teamId - The team to sync
    * @param triggerType - 'manual' or 'scheduled'
    * @param triggeredBy - User ID for manual syncs, null for scheduled
-   * @returns ManifestSyncResult
+   * @returns ManifestSyncResult (merged summary of all config syncs)
    */
   async syncTeam(
     teamId: string,
@@ -215,68 +326,22 @@ export class ManifestSyncService extends EventEmitter {
   ): Promise<ManifestSyncResult> {
     const startTime = Date.now();
 
-    // Load config
-    const config = this.stores.manifestConfig.findByTeamId(teamId);
-    if (!config) {
-      return this.failResult('Manifest config not found', startTime);
-    }
-    if (!config.is_enabled) {
-      return this.failResult('Manifest sync is disabled for this team', startTime);
+    const configs = this.stores.manifestConfig.findByTeamId(teamId)
+      .filter(c => c.is_enabled === 1);
+
+    if (configs.length === 0) {
+      return this.failResult('No enabled manifest configs found for this team', startTime);
     }
 
-    // Acquire lock
-    if (!this.acquireLock(teamId)) {
-      return this.failResult('Sync already in progress for this team', startTime);
+    // Sync each config sequentially (SQLite single-writer)
+    const results: ManifestSyncResult[] = [];
+    for (const config of configs) {
+      const result = await this.syncManifest(config.id, triggerType, triggeredBy);
+      results.push(result);
     }
 
-    this.activeSyncs++;
-
-    if (triggerType === 'manual') {
-      this.lastManualSync.set(teamId, Date.now());
-    }
-
-    try {
-      const result = await this.executeSyncPipeline(teamId, config, triggerType, triggeredBy, startTime);
-
-      // Record history and update config
-      this.recordSyncCompletion(teamId, config, result, triggerType, triggeredBy);
-
-      // Emit events
-      this.emit(ManifestSyncEventType.SYNC_COMPLETE, {
-        teamId,
-        result,
-      } as SyncCompleteEvent);
-
-      if (result.summary.services.drift_flagged > 0) {
-        this.emit(ManifestSyncEventType.DRIFT_DETECTED, {
-          teamId,
-          driftCount: result.summary.services.drift_flagged,
-        } as DriftDetectedEvent);
-      }
-
-      // Audit log
-      this.logSyncAudit(teamId, triggerType, triggeredBy, result);
-
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error({ err: error, teamId }, '[ManifestSync] Sync failed');
-
-      const failResult = this.failResult(errorMessage, startTime);
-
-      // Record failure
-      this.recordSyncCompletion(teamId, config, failResult, triggerType, triggeredBy);
-
-      this.emit(ManifestSyncEventType.SYNC_ERROR, {
-        teamId,
-        error: errorMessage,
-      } as SyncErrorEvent);
-
-      return failResult;
-    } finally {
-      this.releaseLock(teamId);
-      this.activeSyncs--;
-    }
+    // Merge results
+    return this.mergeResults(results, startTime);
   }
 
   private async executeSyncPipeline(
@@ -344,10 +409,10 @@ export class ManifestSyncService extends EventEmitter {
     // Filter to only SSRF-safe services for creation (existing services keep their endpoints)
     const safeServices = validServices;
 
-    // Step 4: Load existing manifest-managed services for this team
+    // Step 4: Load existing manifest-managed services for this config
     const existingServices = this.stores.services
       .findByTeamId(teamId)
-      .filter((s: Service) => s.manifest_managed === 1);
+      .filter((s: Service) => s.manifest_managed === 1 && s.manifest_config_id === config.id);
 
     // Step 5: Diff
     const diff = diffManifest(safeServices, existingServices, policy);
@@ -364,6 +429,7 @@ export class ManifestSyncService extends EventEmitter {
         triggeredBy,
         config.manifest_url,
         ssrfSafe,
+        config.id,
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -408,6 +474,7 @@ export class ManifestSyncService extends EventEmitter {
     triggeredBy: string | null,
     manifestUrl: string,
     ssrfSafe: Set<string>,
+    configId: string,
   ): { summary: ManifestSyncSummary; changes: ManifestSyncChange[] } {
     const summary = this.emptySummary();
     const changes: ManifestSyncChange[] = [];
@@ -431,7 +498,7 @@ export class ManifestSyncService extends EventEmitter {
         });
 
         // Set manifest columns via raw update (not in ServiceUpdateInput)
-        this.setManifestColumns(txStores, service.id, entry);
+        this.setManifestColumns(txStores, service.id, entry, configId);
 
         summary.services.created++;
         changes.push({
@@ -476,6 +543,7 @@ export class ManifestSyncService extends EventEmitter {
           driftEntry.manifest_value,
           driftEntry.current_value,
           null,
+          configId,
         );
 
         summary.services.drift_flagged++;
@@ -519,7 +587,7 @@ export class ManifestSyncService extends EventEmitter {
 
       // Upsert removal drift flags
       for (const serviceId of diff.removalDrift) {
-        txStores.driftFlags.upsertRemovalDrift(serviceId, null);
+        txStores.driftFlags.upsertRemovalDrift(serviceId, null, configId);
 
         const svc = txStores.services.findById(serviceId);
         summary.services.drift_flagged++;
@@ -565,11 +633,12 @@ export class ManifestSyncService extends EventEmitter {
     return { summary, changes };
   }
 
-  /** Set manifest_key, manifest_managed, manifest_last_synced_values on a service. */
+  /** Set manifest_key, manifest_managed, manifest_config_id, manifest_last_synced_values on a service. */
   private setManifestColumns(
     txStores: StoreRegistry,
     serviceId: string,
     entry: ManifestServiceEntry,
+    configId: string,
   ): void {
     // Use the raw db from the store registry to set manifest-specific columns
     // that aren't in ServiceUpdateInput
@@ -577,9 +646,9 @@ export class ManifestSyncService extends EventEmitter {
     const syncedValues = this.buildSyncedValues(entry);
     db.prepare(`
       UPDATE services
-      SET manifest_key = ?, manifest_managed = 1, manifest_last_synced_values = ?, updated_at = ?
+      SET manifest_key = ?, manifest_managed = 1, manifest_config_id = ?, manifest_last_synced_values = ?, updated_at = ?
       WHERE id = ?
-    `).run(entry.key, JSON.stringify(syncedValues), new Date().toISOString(), serviceId);
+    `).run(entry.key, configId, JSON.stringify(syncedValues), new Date().toISOString(), serviceId);
   }
 
   /** Update manifest_last_synced_values snapshot after updating a service. */
@@ -1046,8 +1115,8 @@ export class ManifestSyncService extends EventEmitter {
     try {
       const now = new Date().toISOString();
 
-      // Update config with sync result
-      this.stores.manifestConfig.updateSyncResult(teamId, {
+      // Update config with sync result (keyed by config id)
+      this.stores.manifestConfig.updateSyncResult(config.id, {
         last_sync_at: now,
         last_sync_status: result.status,
         last_sync_error: result.status === 'failed' ? result.errors.join('; ') : null,
@@ -1057,6 +1126,7 @@ export class ManifestSyncService extends EventEmitter {
       // Create sync history record
       this.stores.manifestSyncHistory.create({
         team_id: teamId,
+        manifest_config_id: config.id,
         trigger_type: triggerType,
         triggered_by: triggeredBy,
         manifest_url: config.manifest_url,
@@ -1067,7 +1137,7 @@ export class ManifestSyncService extends EventEmitter {
         duration_ms: result.duration_ms,
       });
     } catch (error) {
-      logger.error({ err: error, teamId }, '[ManifestSync] Failed to record sync result');
+      logger.error({ err: error, teamId, configId: config.id }, '[ManifestSync] Failed to record sync result');
     }
   }
 
@@ -1078,6 +1148,7 @@ export class ManifestSyncService extends EventEmitter {
     triggerType: 'manual' | 'scheduled',
     triggeredBy: string | null,
     result: ManifestSyncResult,
+    configId?: string,
   ): void {
     try {
       logAuditEvent({
@@ -1086,6 +1157,7 @@ export class ManifestSyncService extends EventEmitter {
         resourceType: 'team',
         resourceId: teamId,
         details: {
+          config_id: configId,
           trigger_type: triggerType,
           status: result.status,
           summary: result.summary,
@@ -1155,6 +1227,57 @@ export class ManifestSyncService extends EventEmitter {
       aliases: { created: 0, updated: 0, removed: 0, unchanged: 0 },
       overrides: { created: 0, updated: 0, removed: 0, unchanged: 0 },
       associations: { created: 0, removed: 0, unchanged: 0 },
+    };
+  }
+
+  /** Merge multiple per-config sync results into one team-level result. */
+  private mergeResults(results: ManifestSyncResult[], startTime: number): ManifestSyncResult {
+    const summary = this.emptySummary();
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const changes: ManifestSyncChange[] = [];
+    let hasFailure = false;
+    let hasSuccess = false;
+
+    for (const r of results) {
+      summary.services.created += r.summary.services.created;
+      summary.services.updated += r.summary.services.updated;
+      summary.services.deactivated += r.summary.services.deactivated;
+      summary.services.deleted += r.summary.services.deleted;
+      summary.services.drift_flagged += r.summary.services.drift_flagged;
+      summary.services.unchanged += r.summary.services.unchanged;
+      summary.aliases.created += r.summary.aliases.created;
+      summary.aliases.updated += r.summary.aliases.updated;
+      summary.aliases.removed += r.summary.aliases.removed;
+      summary.aliases.unchanged += r.summary.aliases.unchanged;
+      summary.overrides.created += r.summary.overrides.created;
+      summary.overrides.updated += r.summary.overrides.updated;
+      summary.overrides.removed += r.summary.overrides.removed;
+      summary.overrides.unchanged += r.summary.overrides.unchanged;
+      summary.associations.created += r.summary.associations.created;
+      summary.associations.removed += r.summary.associations.removed;
+      summary.associations.unchanged += r.summary.associations.unchanged;
+
+      errors.push(...r.errors);
+      warnings.push(...r.warnings);
+      changes.push(...r.changes);
+
+      if (r.status === 'failed') hasFailure = true;
+      if (r.status === 'success' || r.status === 'partial') hasSuccess = true;
+    }
+
+    const status = hasFailure && hasSuccess ? 'partial'
+      : hasFailure ? 'failed'
+      : errors.length > 0 ? 'partial'
+      : 'success';
+
+    return {
+      status,
+      summary,
+      errors,
+      warnings,
+      changes,
+      duration_ms: Date.now() - startTime,
     };
   }
 

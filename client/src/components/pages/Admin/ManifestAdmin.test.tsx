@@ -19,7 +19,8 @@ const mockEntries = [
     team_name: 'Alpha Team',
     team_key: 'alpha-team',
     contact: JSON.stringify({ email: 'alpha@example.com' }),
-    has_config: true,
+    config_id: 'mc1',
+    config_name: 'Production',
     manifest_url: 'https://example.com/manifest.json',
     is_enabled: true,
     last_sync_at: new Date().toISOString(),
@@ -33,7 +34,8 @@ const mockEntries = [
     team_name: 'Beta Team',
     team_key: 'beta-team',
     contact: null,
-    has_config: false,
+    config_id: null,
+    config_name: null,
     manifest_url: null,
     is_enabled: false,
     last_sync_at: null,
@@ -133,7 +135,7 @@ describe('ManifestAdmin', () => {
     // Mock sync-all response followed by data reload
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
-        results: [{ team_id: 't1', team_name: 'Alpha Team', status: 'success' }],
+        results: [{ team_id: 't1', team_name: 'Alpha Team', config_id: 'mc1', config_name: 'Production', status: 'success' }],
       })
     );
     mockFetch.mockResolvedValueOnce(jsonResponse(mockEntries));

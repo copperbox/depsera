@@ -5,20 +5,21 @@ jest.mock('../api/manifest');
 
 import {
   getManifestConfig,
-  saveManifestConfig,
+  updateManifestConfig,
   removeManifestConfig,
-  triggerSync,
+  triggerConfigSync,
 } from '../api/manifest';
 
 const mockGetConfig = getManifestConfig as jest.MockedFunction<typeof getManifestConfig>;
-const mockSaveConfig = saveManifestConfig as jest.MockedFunction<typeof saveManifestConfig>;
+const mockUpdateConfig = updateManifestConfig as jest.MockedFunction<typeof updateManifestConfig>;
 const mockRemoveConfig = removeManifestConfig as jest.MockedFunction<typeof removeManifestConfig>;
-const mockTriggerSync = triggerSync as jest.MockedFunction<typeof triggerSync>;
+const mockTriggerSync = triggerConfigSync as jest.MockedFunction<typeof triggerConfigSync>;
 
 function makeConfig(overrides: Record<string, unknown> = {}) {
   return {
     id: 'c1',
     team_id: 't1',
+    name: 'Default',
     manifest_url: 'https://example.com/manifest.json',
     is_enabled: 1,
     sync_policy: null,
@@ -34,7 +35,7 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   mockGetConfig.mockReset();
-  mockSaveConfig.mockReset();
+  mockUpdateConfig.mockReset();
   mockRemoveConfig.mockReset();
   mockTriggerSync.mockReset();
 });
@@ -44,7 +45,7 @@ describe('useManifestConfig', () => {
     const config = makeConfig();
     mockGetConfig.mockResolvedValue(config as never);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -55,22 +56,10 @@ describe('useManifestConfig', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('returns null config when none exists', async () => {
-    mockGetConfig.mockResolvedValue(null);
-
-    const { result } = renderHook(() => useManifestConfig('t1'));
-
-    await act(async () => {
-      await result.current.loadConfig();
-    });
-
-    expect(result.current.config).toBeNull();
-  });
-
   it('handles load error', async () => {
     mockGetConfig.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -82,7 +71,7 @@ describe('useManifestConfig', () => {
   it('handles non-Error exception in load', async () => {
     mockGetConfig.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -92,7 +81,7 @@ describe('useManifestConfig', () => {
   });
 
   it('does nothing when teamId is undefined', async () => {
-    const { result } = renderHook(() => useManifestConfig(undefined));
+    const { result } = renderHook(() => useManifestConfig(undefined, undefined));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -104,9 +93,9 @@ describe('useManifestConfig', () => {
   it('saves config', async () => {
     const input = { manifest_url: 'https://example.com/manifest.json' };
     const updated = makeConfig();
-    mockSaveConfig.mockResolvedValue(updated as never);
+    mockUpdateConfig.mockResolvedValue(updated as never);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let success: boolean;
     await act(async () => {
@@ -119,9 +108,9 @@ describe('useManifestConfig', () => {
   });
 
   it('handles save error', async () => {
-    mockSaveConfig.mockRejectedValue(new Error('SSRF blocked'));
+    mockUpdateConfig.mockRejectedValue(new Error('SSRF blocked'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let success: boolean;
     await act(async () => {
@@ -133,9 +122,9 @@ describe('useManifestConfig', () => {
   });
 
   it('handles non-Error exception in save', async () => {
-    mockSaveConfig.mockRejectedValue('String error');
+    mockUpdateConfig.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.saveConfig({ manifest_url: 'https://example.com' });
@@ -145,7 +134,7 @@ describe('useManifestConfig', () => {
   });
 
   it('returns false for save when teamId is undefined', async () => {
-    const { result } = renderHook(() => useManifestConfig(undefined));
+    const { result } = renderHook(() => useManifestConfig(undefined, undefined));
 
     let success: boolean;
     await act(async () => {
@@ -160,7 +149,7 @@ describe('useManifestConfig', () => {
     mockGetConfig.mockResolvedValue(config as never);
     mockRemoveConfig.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -179,7 +168,7 @@ describe('useManifestConfig', () => {
   it('handles remove error', async () => {
     mockRemoveConfig.mockRejectedValue(new Error('Delete failed'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let success: boolean;
     await act(async () => {
@@ -193,7 +182,7 @@ describe('useManifestConfig', () => {
   it('handles non-Error exception in remove', async () => {
     mockRemoveConfig.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.removeConfig();
@@ -207,9 +196,9 @@ describe('useManifestConfig', () => {
     mockGetConfig.mockResolvedValue(config as never);
 
     const disabledConfig = makeConfig({ is_enabled: 0 });
-    mockSaveConfig.mockResolvedValue(disabledConfig as never);
+    mockUpdateConfig.mockResolvedValue(disabledConfig as never);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -221,15 +210,14 @@ describe('useManifestConfig', () => {
     });
 
     expect(success!).toBe(true);
-    expect(mockSaveConfig).toHaveBeenCalledWith('t1', {
-      manifest_url: 'https://example.com/manifest.json',
+    expect(mockUpdateConfig).toHaveBeenCalledWith('t1', 'c1', {
       is_enabled: false,
     });
     expect(result.current.config).toEqual(disabledConfig);
   });
 
   it('returns false for toggle when no config loaded', async () => {
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let success: boolean;
     await act(async () => {
@@ -242,9 +230,9 @@ describe('useManifestConfig', () => {
   it('handles toggle error', async () => {
     const config = makeConfig();
     mockGetConfig.mockResolvedValue(config as never);
-    mockSaveConfig.mockRejectedValue(new Error('Toggle failed'));
+    mockUpdateConfig.mockRejectedValue(new Error('Toggle failed'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -260,9 +248,9 @@ describe('useManifestConfig', () => {
   it('handles non-Error exception in toggle', async () => {
     const config = makeConfig();
     mockGetConfig.mockResolvedValue(config as never);
-    mockSaveConfig.mockRejectedValue('String error');
+    mockUpdateConfig.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -287,7 +275,7 @@ describe('useManifestConfig', () => {
     mockTriggerSync.mockResolvedValue(syncResult as never);
     mockGetConfig.mockResolvedValue(makeConfig({ last_sync_status: 'success' }) as never);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let syncResponse: unknown;
     await act(async () => {
@@ -304,7 +292,7 @@ describe('useManifestConfig', () => {
   it('handles sync error', async () => {
     mockTriggerSync.mockRejectedValue(new Error('Sync already in progress'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     let syncResponse: unknown;
     await act(async () => {
@@ -318,7 +306,7 @@ describe('useManifestConfig', () => {
   it('handles non-Error exception in sync', async () => {
     mockTriggerSync.mockRejectedValue('String error');
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.triggerSync();
@@ -328,7 +316,7 @@ describe('useManifestConfig', () => {
   });
 
   it('returns null for sync when teamId is undefined', async () => {
-    const { result } = renderHook(() => useManifestConfig(undefined));
+    const { result } = renderHook(() => useManifestConfig(undefined, undefined));
 
     let syncResponse: unknown;
     await act(async () => {
@@ -341,7 +329,7 @@ describe('useManifestConfig', () => {
   it('clears error', async () => {
     mockGetConfig.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.loadConfig();
@@ -357,9 +345,9 @@ describe('useManifestConfig', () => {
   it('clears sync result', async () => {
     const syncResult = { status: 'success' as const, summary: {} as never, errors: [], warnings: [], changes: [], duration_ms: 100 };
     mockTriggerSync.mockResolvedValue(syncResult as never);
-    mockGetConfig.mockResolvedValue(null);
+    mockGetConfig.mockResolvedValue(makeConfig() as never);
 
-    const { result } = renderHook(() => useManifestConfig('t1'));
+    const { result } = renderHook(() => useManifestConfig('t1', 'c1'));
 
     await act(async () => {
       await result.current.triggerSync();

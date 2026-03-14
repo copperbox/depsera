@@ -6,7 +6,8 @@ export interface AdminManifestEntry {
   team_name: string;
   team_key: string | null;
   contact: string | null;
-  has_config: boolean;
+  config_id: string | null;
+  config_name: string | null;
   manifest_url: string | null;
   is_enabled: boolean;
   last_sync_at: string | null;
@@ -19,6 +20,8 @@ export interface AdminManifestEntry {
 export interface SyncAllResultEntry {
   team_id: string;
   team_name: string;
+  config_id: string;
+  config_name: string;
   status: string;
   error?: string;
 }

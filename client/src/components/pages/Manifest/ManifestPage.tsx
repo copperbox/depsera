@@ -9,16 +9,16 @@ import ManifestSyncResult from './ManifestSyncResult';
 import DriftReview from './DriftReview';
 import SyncHistory from './SyncHistory';
 import ServiceKeyLookup from './ServiceKeyLookup';
+import ManifestList from './ManifestList';
 import styles from './ManifestPage.module.css';
 
 function ManifestPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, configId } = useParams<{ id: string; configId?: string }>();
   const { user, isAdmin } = useAuth();
 
   const [teamName, setTeamName] = useState<string | null>(null);
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamError, setTeamError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
 
   const canManage = useMemo(() => {
     if (isAdmin) return true;
@@ -41,7 +41,7 @@ function ManifestPage() {
     triggerSync,
     clearError,
     clearSyncResult,
-  } = useManifestConfig(id);
+  } = useManifestConfig(id, configId);
 
   // Fetch team name for the back link
   useEffect(() => {
@@ -61,17 +61,17 @@ function ManifestPage() {
   }, [id]);
 
   useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
+    if (configId) {
+      loadConfig();
+    }
+  }, [loadConfig, configId]);
 
-  const isLoading = teamLoading || configLoading;
-
-  if (isLoading) {
+  if (teamLoading) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
           <Loader2 size={24} className={styles.spinner} />
-          <span>Loading manifest configuration...</span>
+          <span>Loading...</span>
         </div>
       </div>
     );
@@ -90,18 +90,42 @@ function ManifestPage() {
     );
   }
 
-  const handleConfigureClick = () => {
-    setIsCreating(true);
-  };
+  // No configId → show list view
+  if (!configId) {
+    return (
+      <div className={styles.container}>
+        <Link to={`/teams/${id}`} className={styles.backLink}>
+          <ChevronLeft size={16} />
+          Back to {teamName || 'Team'}
+        </Link>
+
+        <ManifestList teamId={id!} canManage={canManage} />
+      </div>
+    );
+  }
+
+  // Detail view for a specific config
+  if (configLoading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>
+          <Loader2 size={24} className={styles.spinner} />
+          <span>Loading manifest configuration...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
-      <Link to={`/teams/${id}`} className={styles.backLink}>
+      <Link to={`/teams/${id}/manifest`} className={styles.backLink}>
         <ChevronLeft size={16} />
-        Back to {teamName || 'Team'}
+        Back to Manifests
       </Link>
 
-      <h1 className={styles.pageTitle}>Manifest Configuration</h1>
+      <h1 className={styles.pageTitle}>
+        {config?.name || 'Manifest Configuration'}
+      </h1>
 
       {configError && (
         <div className={styles.errorBanner}>
@@ -115,41 +139,15 @@ function ManifestPage() {
         </div>
       )}
 
-      {/* No manifest configured — empty state */}
-      {!config && !isCreating && (
-        <div className={styles.emptyState}>
-          <p>
-            No manifest configured for this team. A manifest lets you declaratively define services, aliases,
-            and associations using a JSON file. Changes are automatically synced and manual edits are detected as drift.
-          </p>
-          {canManage && (
-            <button className={styles.configureButton} onClick={handleConfigureClick}>
-              Configure Manifest
-            </button>
-          )}
+      {!config && (
+        <div className={styles.error}>
+          <p>Manifest config not found.</p>
+          <Link to={`/teams/${id}/manifest`} className={styles.retryButton}>
+            Back to Manifests
+          </Link>
         </div>
       )}
 
-      {/* Create mode — show config form for new manifest */}
-      {!config && isCreating && (
-        <div className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>Configuration</h2>
-          </div>
-          <ManifestConfig
-            config={null}
-            canManage={canManage}
-            isSaving={isSaving}
-            isNew
-            onSave={saveConfig}
-            onRemove={removeConfig}
-            onToggleEnabled={toggleEnabled}
-            onCancelCreate={() => setIsCreating(false)}
-          />
-        </div>
-      )}
-
-      {/* Configuration Section */}
       {config && (
         <>
           <div className={styles.section}>
@@ -193,7 +191,7 @@ function ManifestPage() {
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Sync History</h2>
             </div>
-            <SyncHistory teamId={id!} />
+            <SyncHistory teamId={id!} configId={configId} />
           </div>
         </>
       )}
