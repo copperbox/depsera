@@ -40,6 +40,7 @@ function extractServiceFields(row: Service | ServiceWithTeam) {
     description: row.description ?? null,
     last_poll_success: row.last_poll_success ?? null,
     last_poll_error: row.last_poll_error ?? null,
+    health_endpoint_format: row.health_endpoint_format ?? 'default',
     poll_warnings: row.poll_warnings ?? null,
     manifest_managed: row.manifest_managed ?? 0,
     manifest_key: row.manifest_key ?? null,

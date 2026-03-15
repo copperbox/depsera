@@ -3,8 +3,10 @@ import { getStores } from '../../stores';
 import { OtlpParser, OtlpParseResult } from '../../services/polling/OtlpParser';
 import { getDependencyUpsertService } from '../../services/polling/DependencyUpsertService';
 import { HealthPollingService } from '../../services/polling';
-import { Service } from '../../db/types';
+import { Service, MetricSchemaConfig } from '../../db/types';
+import { isMetricSchemaConfig } from '../../services/polling/metricSchemaUtils';
 import { StatusChangeEvent, PollingEventType } from '../../services/polling/types';
+import { OtlpExportMetricsServiceRequest } from '../../services/polling/otlp-types';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -13,7 +15,7 @@ const parser = new OtlpParser();
 /**
  * POST /v1/metrics
  * OTLP JSON metrics receiver. Authenticated via API key (requireApiKeyAuth middleware).
- * Parses OTLP payload, auto-registers unknown services, and upserts dependencies.
+ * Parses OTLP payload per-service with config-aware metric mapping.
  */
 router.post('/', (req: Request, res: Response): void => {
   const teamId = req.apiKeyTeamId;
@@ -23,32 +25,44 @@ router.post('/', (req: Request, res: Response): void => {
     return;
   }
 
-  // Parse the OTLP payload
-  let results: OtlpParseResult[];
-  try {
-    results = parser.parseRequest(req.body);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid OTLP payload';
-    logger.warn({ err }, 'OTLP parse error');
+  // Validate basic OTLP structure
+  const data = req.body;
+  if (!data || typeof data !== 'object' || !Array.isArray(data.resourceMetrics)) {
+    logger.warn('OTLP parse error: invalid payload structure');
     res.status(400).json({
       partialSuccess: {
         rejectedDataPoints: -1,
-        errorMessage: message,
+        errorMessage: 'Invalid OTLP payload: expected object with resourceMetrics array',
       },
     });
     return;
   }
 
+  const request = data as OtlpExportMetricsServiceRequest;
   const stores = getStores();
   const upsertService = getDependencyUpsertService();
-  const warnings: string[] = [...parser.lastWarnings];
+  const warnings: string[] = [];
   let totalRejected = 0;
   const allChanges: StatusChangeEvent[] = [];
 
-  for (const result of results) {
+  // Process each resourceMetrics entry with per-service config
+  for (const rm of request.resourceMetrics) {
     try {
+      const serviceName = parser.extractServiceName(rm);
+      if (!serviceName) {
+        warnings.push('Skipping resourceMetrics entry: missing service.name resource attribute');
+        continue;
+      }
+
       // Find or auto-register the service
-      const service = findOrCreateService(stores, teamId, result.serviceName, warnings);
+      const service = findOrCreateService(stores, teamId, serviceName, warnings);
+
+      // Load per-service metric schema config
+      const metricConfig = loadMetricConfig(service);
+
+      // Parse this resourceMetrics with the service's config
+      const result = parser.parseResourceMetrics(rm, metricConfig);
+      warnings.push(...parser.lastWarnings);
 
       // Upsert dependencies
       const changes = upsertService.upsert(service, result.dependencies);
@@ -58,9 +72,9 @@ router.post('/', (req: Request, res: Response): void => {
       stores.services.updatePollResult(service.id, true, undefined, warnings.length > 0 ? warnings : undefined);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      logger.error({ err, serviceName: result.serviceName }, 'OTLP upsert failed for service');
-      warnings.push(`Service "${result.serviceName}": ${message}`);
-      totalRejected += result.dependencies.length;
+      logger.error({ err }, 'OTLP processing failed for resourceMetrics entry');
+      warnings.push(message);
+      totalRejected++;
     }
   }
 
@@ -117,6 +131,19 @@ function findOrCreateService(
   logger.info({ serviceId: service.id, serviceName, teamId }, 'auto-registered OTLP service');
 
   return service;
+}
+
+/**
+ * Load a MetricSchemaConfig from a service's schema_config if present and valid.
+ */
+function loadMetricConfig(service: Service): MetricSchemaConfig | undefined {
+  if (!service.schema_config) return undefined;
+  try {
+    const parsed = JSON.parse(service.schema_config);
+    return isMetricSchemaConfig(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export default router;

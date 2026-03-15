@@ -28,8 +28,8 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
 - Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.) with skipped-check support
-- **OTLP push ingestion** — receive metrics from OpenTelemetry collectors via `POST /v1/metrics` with team-scoped API key authentication and auto-registration of unknown services
-- **Prometheus scraping** — poll Prometheus text exposition endpoints (`text/plain; version=0.0.4`) with automatic metric-to-dependency mapping
+- **OTLP push ingestion** — receive metrics from OpenTelemetry collectors via `POST /v1/metrics` with team-scoped API key authentication, auto-registration of unknown services, and per-service custom metric/attribute name mappings
+- **Prometheus scraping** — poll Prometheus text exposition endpoints (`text/plain; version=0.0.4`) with automatic metric-to-dependency mapping and per-service custom metric/label name mappings
 - Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 

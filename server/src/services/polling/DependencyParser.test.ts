@@ -379,14 +379,14 @@ describe('DependencyParser', () => {
       const promText = [
         'dependency_health_status{name="postgres"} 0',
         'dependency_health_healthy{name="postgres"} 1',
-        'dependency_health_latency_seconds{name="postgres"} 0.025',
+        'dependency_health_latency_ms{name="postgres"} 25',
       ].join('\n');
 
       const result = parser.parse(promText, null, undefined, 'prometheus');
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('postgres');
       expect(result[0].healthy).toBe(true);
-      expect(result[0].health.latency).toBe(25); // 0.025s → 25ms
+      expect(result[0].health.latency).toBe(25);
     });
 
     it('should throw when format is "otlp"', () => {

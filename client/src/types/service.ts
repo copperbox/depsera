@@ -71,6 +71,14 @@ export interface SchemaMapping {
   };
 }
 
+// Metric schema config for Prometheus and OTLP custom metric/label mappings
+export interface MetricSchemaConfig {
+  metrics: Record<string, string>;  // user metric name → depsera field
+  labels: Record<string, string>;   // user label/attribute name → depsera field
+  latency_unit?: 'ms' | 's';
+  healthy_value?: number;           // value that means healthy for the 'healthy' target (default: 1)
+}
+
 export interface Service {
   id: string;
   name: string;

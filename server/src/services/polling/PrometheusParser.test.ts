@@ -1,3 +1,4 @@
+import { MetricSchemaConfig } from '../../db/types';
 import { PrometheusParser } from './PrometheusParser';
 
 describe('PrometheusParser', () => {
@@ -13,7 +14,7 @@ describe('PrometheusParser', () => {
       '# TYPE dependency_health_status gauge',
       'dependency_health_status{name="PostgreSQL",type="database",impact="critical",description="Primary database"} 0',
       'dependency_health_healthy{name="PostgreSQL"} 1',
-      'dependency_health_latency_seconds{name="PostgreSQL"} 0.012',
+      'dependency_health_latency_ms{name="PostgreSQL"} 12',
       'dependency_health_code{name="PostgreSQL"} 200',
     ].join('\n');
 
@@ -25,7 +26,7 @@ describe('PrometheusParser', () => {
     expect(dep.healthy).toBe(true);
     expect(dep.health.state).toBe(0);
     expect(dep.health.code).toBe(200);
-    expect(dep.health.latency).toBe(12); // 0.012s * 1000
+    expect(dep.health.latency).toBe(12);
     expect(dep.type).toBe('database');
     expect(dep.impact).toBe('critical');
     expect(dep.description).toBe('Primary database');
@@ -77,24 +78,14 @@ describe('PrometheusParser', () => {
     expect(redis.type).toBe('cache');
   });
 
-  it('converts latency from seconds to milliseconds', () => {
+  it('uses raw latency value when unit is ms (default)', () => {
     const text = [
       'dependency_health_status{name="Redis"} 0',
-      'dependency_health_latency_seconds{name="Redis"} 0.045',
+      'dependency_health_latency_ms{name="Redis"} 45',
     ].join('\n');
 
     const deps = parser.parse(text);
     expect(deps[0].health.latency).toBe(45);
-  });
-
-  it('rounds latency to nearest millisecond', () => {
-    const text = [
-      'dependency_health_status{name="Redis"} 0',
-      'dependency_health_latency_seconds{name="Redis"} 0.0123',
-    ].join('\n');
-
-    const deps = parser.parse(text);
-    expect(deps[0].health.latency).toBe(12);
   });
 
   it('skips # HELP and # TYPE lines', () => {
@@ -230,5 +221,131 @@ describe('PrometheusParser', () => {
     const deps = parser.parse(text);
     expect(deps).toHaveLength(1);
     expect(deps[0].description).toBe('Cache, primary');
+  });
+
+  describe('custom MetricSchemaConfig', () => {
+    it('should use custom metric names from config', () => {
+      const config: MetricSchemaConfig = {
+        metrics: { my_dep_status: 'state' },
+        labels: {},
+      };
+
+      const text = 'my_dep_status{name="x"} 2\n';
+      const deps = parser.parse(text, config);
+
+      expect(deps).toHaveLength(1);
+      expect(deps[0].name).toBe('x');
+      expect(deps[0].health.state).toBe(2);
+    });
+
+    it('should use custom label names from config', () => {
+      const config: MetricSchemaConfig = {
+        metrics: {},
+        labels: { dependency: 'name' },
+      };
+
+      const text = 'dependency_health_status{dependency="x"} 0\n';
+      const deps = parser.parse(text, config);
+
+      expect(deps).toHaveLength(1);
+      expect(deps[0].name).toBe('x');
+    });
+
+    it('should apply latency_unit s conversion', () => {
+      const config: MetricSchemaConfig = {
+        metrics: {},
+        labels: {},
+        latency_unit: 's',
+      };
+
+      const text = [
+        'dependency_health_status{name="Redis"} 0',
+        'dependency_health_latency_ms{name="Redis"} 0.045',
+      ].join('\n');
+
+      const deps = parser.parse(text, config);
+      expect(deps[0].health.latency).toBe(45); // 0.045s * 1000
+    });
+
+    it('should default latency_unit to ms (no conversion)', () => {
+      const text = [
+        'dependency_health_status{name="Redis"} 0',
+        'dependency_health_latency_ms{name="Redis"} 45',
+      ].join('\n');
+
+      const deps = parser.parse(text);
+      expect(deps[0].health.latency).toBe(45);
+    });
+
+    it('should merge partial overrides with defaults', () => {
+      const config: MetricSchemaConfig = {
+        metrics: { my_custom_state: 'state' },
+        labels: {},
+      };
+
+      const text = [
+        'my_custom_state{name="Redis"} 1',
+        'dependency_health_healthy{name="Redis"} 1',
+        'dependency_health_latency_ms{name="Redis"} 30',
+      ].join('\n');
+
+      const deps = parser.parse(text, config);
+      expect(deps).toHaveLength(1);
+      expect(deps[0].health.state).toBe(1);
+      expect(deps[0].healthy).toBe(true);
+      expect(deps[0].health.latency).toBe(30);
+    });
+
+    it('should use defaults when config has empty metrics/labels', () => {
+      const config: MetricSchemaConfig = {
+        metrics: {},
+        labels: {},
+      };
+
+      const text = [
+        'dependency_health_status{name="PostgreSQL",type="database"} 0',
+        'dependency_health_healthy{name="PostgreSQL"} 1',
+        'dependency_health_latency_ms{name="PostgreSQL"} 12',
+      ].join('\n');
+
+      const deps = parser.parse(text, config);
+      expect(deps).toHaveLength(1);
+      expect(deps[0].name).toBe('PostgreSQL');
+      expect(deps[0].health.state).toBe(0);
+      expect(deps[0].healthy).toBe(true);
+      expect(deps[0].health.latency).toBe(12);
+      expect(deps[0].type).toBe('database');
+    });
+
+    it('should use healthy_value to determine healthy status', () => {
+      const config: MetricSchemaConfig = {
+        metrics: { dependency_health: 'healthy' },
+        labels: { dependency: 'name' },
+        healthy_value: 0,
+      };
+
+      const text = [
+        'dependency_health{dependency="auth-svc"} 0',
+        'dependency_health{dependency="broken-svc"} 2',
+      ].join('\n');
+
+      const deps = parser.parse(text, config);
+      expect(deps).toHaveLength(2);
+
+      const auth = deps.find(d => d.name === 'auth-svc')!;
+      expect(auth.healthy).toBe(true);
+
+      const broken = deps.find(d => d.name === 'broken-svc')!;
+      expect(broken.healthy).toBe(false);
+    });
+
+    it('should default healthy_value to 1 when not specified', () => {
+      const text = [
+        'dependency_health_healthy{name="svc"} 1',
+      ].join('\n');
+
+      const deps = parser.parse(text);
+      expect(deps[0].healthy).toBe(true);
+    });
   });
 });

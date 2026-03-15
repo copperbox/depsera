@@ -1,6 +1,7 @@
-import { ProactiveDepsStatus, DependencyType, SchemaMapping, HealthEndpointFormat } from '../../db/types';
+import { ProactiveDepsStatus, DependencyType, SchemaMapping, HealthEndpointFormat, MetricSchemaConfig } from '../../db/types';
 import { SchemaMapper } from './SchemaMapper';
 import { PrometheusParser } from './PrometheusParser';
+import { isMetricSchemaConfig } from './metricSchemaUtils';
 
 /**
  * Parses health endpoint responses into ProactiveDepsStatus objects.
@@ -25,7 +26,7 @@ export class DependencyParser {
    * @returns Array of parsed ProactiveDepsStatus objects
    * @throws Error if the data format is invalid or format is 'otlp' (push-only)
    */
-  parse(data: unknown, schemaConfig?: SchemaMapping | null, serviceName?: string, format?: HealthEndpointFormat): ProactiveDepsStatus[] {
+  parse(data: unknown, schemaConfig?: SchemaMapping | MetricSchemaConfig | null, serviceName?: string, format?: HealthEndpointFormat): ProactiveDepsStatus[] {
     this._lastWarnings = [];
     const effectiveFormat = format ?? 'default';
 
@@ -34,8 +35,9 @@ export class DependencyParser {
     }
 
     if (effectiveFormat === 'prometheus') {
+      const metricConfig = isMetricSchemaConfig(schemaConfig) ? schemaConfig : undefined;
       const prometheusParser = new PrometheusParser();
-      const results = prometheusParser.parse(data as string);
+      const results = prometheusParser.parse(data as string, metricConfig);
       this._lastWarnings = prometheusParser.lastWarnings;
       return results;
     }
@@ -43,7 +45,7 @@ export class DependencyParser {
     // 'schema' format or 'default' with schemaConfig
     if (effectiveFormat === 'schema' || schemaConfig) {
       if (schemaConfig) {
-        const mapper = new SchemaMapper(schemaConfig, serviceName);
+        const mapper = new SchemaMapper(schemaConfig as SchemaMapping, serviceName);
         const results = mapper.parse(data);
         this._lastWarnings = mapper.warnings;
         return results;

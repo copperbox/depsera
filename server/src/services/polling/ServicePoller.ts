@@ -1,4 +1,4 @@
-import { Service, ProactiveDepsStatus, SchemaMapping } from '../../db/types';
+import { Service, ProactiveDepsStatus, SchemaMapping, MetricSchemaConfig } from '../../db/types';
 import { ExponentialBackoff } from './backoff';
 import { PollResult } from './types';
 import { DependencyParser, getDependencyParser } from './DependencyParser';
@@ -74,15 +74,15 @@ export class ServicePoller {
   }
 
   /**
-   * Parse the service's schema_config JSON string into a SchemaMapping object.
+   * Parse the service's schema_config JSON string into a SchemaMapping or MetricSchemaConfig.
    * Returns null if no schema config is set or if parsing fails.
    */
-  private getSchemaConfig(): SchemaMapping | null {
+  private getSchemaConfig(): SchemaMapping | MetricSchemaConfig | null {
     if (!this.service.schema_config) {
       return null;
     }
     try {
-      return JSON.parse(this.service.schema_config) as SchemaMapping;
+      return JSON.parse(this.service.schema_config);
     } catch {
       return null;
     }

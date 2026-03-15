@@ -468,7 +468,7 @@ describe('OTLP Receiver Route', () => {
     });
 
     it('should report rejected data points on partial failure', async () => {
-      // Create a payload with missing service.name to trigger error
+      // Create a payload with missing service.name — handled gracefully with warning
       const payload = {
         resourceMetrics: [
           {
@@ -492,8 +492,9 @@ describe('OTLP Receiver Route', () => {
         .post('/v1/metrics')
         .send(payload);
 
-      // Should return 400 since parseRequest throws for missing service.name
-      expect(res.status).toBe(400);
+      // Should return 200 with warning about missing service.name
+      expect(res.status).toBe(200);
+      expect(res.body.partialSuccess.errorMessage).toContain('missing service.name');
     });
   });
 });

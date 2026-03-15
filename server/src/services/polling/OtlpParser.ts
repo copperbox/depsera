@@ -1,11 +1,11 @@
-import { ProactiveDepsStatus, HealthState, DependencyType } from '../../db/types';
+import { ProactiveDepsStatus, HealthState, DependencyType, MetricSchemaConfig } from '../../db/types';
 import {
   OtlpExportMetricsServiceRequest,
   OtlpResourceMetrics,
-  OtlpKeyValue,
   OtlpAnyValue,
   OtlpNumberDataPoint,
 } from './otlp-types';
+import { buildEffectiveMaps, findKeyForField } from './metricSchemaUtils';
 
 export interface OtlpParseResult {
   serviceName: string;
@@ -13,7 +13,7 @@ export interface OtlpParseResult {
 }
 
 /** Metric name → field it maps to */
-const METRIC_MAP: Record<string, string> = {
+const DEFAULT_METRIC_MAP: Record<string, string> = {
   'dependency.health.status': 'state',
   'dependency.health.healthy': 'healthy',
   'dependency.health.latency': 'latency',
@@ -22,7 +22,7 @@ const METRIC_MAP: Record<string, string> = {
 };
 
 /** Attribute key → field it maps to */
-const ATTRIBUTE_MAP: Record<string, string> = {
+const DEFAULT_ATTRIBUTE_MAP: Record<string, string> = {
   'dependency.name': 'name',
   'dependency.type': 'type',
   'dependency.impact': 'impact',
@@ -46,7 +46,7 @@ export class OtlpParser {
    * Parse an OTLP ExportMetricsServiceRequest into per-service results.
    * Each resourceMetrics entry may represent a different service.
    */
-  parseRequest(data: unknown): OtlpParseResult[] {
+  parseRequest(data: unknown, config?: MetricSchemaConfig): OtlpParseResult[] {
     this._lastWarnings = [];
 
     if (!data || typeof data !== 'object') {
@@ -62,18 +62,22 @@ export class OtlpParser {
     const results: OtlpParseResult[] = [];
 
     for (const rm of request.resourceMetrics) {
-      results.push(this.parseResourceMetrics(rm));
+      results.push(this.parseResourceMetrics(rm, config));
     }
 
     return results;
   }
 
-  private parseResourceMetrics(rm: OtlpResourceMetrics): OtlpParseResult {
+  parseResourceMetrics(rm: OtlpResourceMetrics, config?: MetricSchemaConfig): OtlpParseResult {
     const serviceName = this.extractServiceName(rm);
 
     if (!serviceName) {
       throw new Error('OTLP payload missing required resource attribute: service.name');
     }
+
+    const { metricMap, labelMap, latencyUnit, healthyValue } = buildEffectiveMaps(
+      DEFAULT_METRIC_MAP, DEFAULT_ATTRIBUTE_MAP, config
+    );
 
     // Collect all data points across all scope metrics, grouped by dependency name
     const depMap = new Map<string, Record<string, unknown>>();
@@ -86,7 +90,7 @@ export class OtlpParser {
       if (!Array.isArray(sm.metrics)) continue;
 
       for (const metric of sm.metrics) {
-        const field = METRIC_MAP[metric.name];
+        const field = metricMap[metric.name];
         if (!field) {
           // Unknown metric — skip silently
           continue;
@@ -95,12 +99,13 @@ export class OtlpParser {
         if (!metric.gauge?.dataPoints) continue;
 
         for (const dp of metric.gauge.dataPoints) {
-          const attrs = this.extractAttributes(dp);
+          const attrs = this.extractAttributes(dp, labelMap);
           const depName = attrs.name as string | undefined;
 
           if (!depName) {
+            const nameAttrKey = findKeyForField(labelMap, 'name', 'dependency.name');
             throw new Error(
-              `OTLP data point for metric "${metric.name}" missing required attribute: dependency.name`
+              `OTLP data point for metric "${metric.name}" missing required attribute: ${nameAttrKey}`
             );
           }
 
@@ -128,13 +133,13 @@ export class OtlpParser {
     }
 
     const dependencies = Array.from(depMap.entries()).map(([name, fields]) =>
-      this.buildDependency(name, fields)
+      this.buildDependency(name, fields, latencyUnit, healthyValue)
     );
 
     return { serviceName, dependencies };
   }
 
-  private extractServiceName(rm: OtlpResourceMetrics): string | undefined {
+  extractServiceName(rm: OtlpResourceMetrics): string | undefined {
     const attrs = rm.resource?.attributes;
     if (!Array.isArray(attrs)) return undefined;
 
@@ -146,12 +151,12 @@ export class OtlpParser {
     return undefined;
   }
 
-  private extractAttributes(dp: OtlpNumberDataPoint): Record<string, unknown> {
+  private extractAttributes(dp: OtlpNumberDataPoint, attrMap: Record<string, string>): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     if (!Array.isArray(dp.attributes)) return result;
 
     for (const kv of dp.attributes) {
-      const field = ATTRIBUTE_MAP[kv.key];
+      const field = attrMap[kv.key];
       if (field) {
         result[field] = this.unwrapValue(kv.value);
       }
@@ -174,10 +179,11 @@ export class OtlpParser {
     return 0;
   }
 
-  private buildDependency(name: string, fields: Record<string, unknown>): ProactiveDepsStatus {
+  private buildDependency(name: string, fields: Record<string, unknown>, latencyUnit: 'ms' | 's', healthyValue: number = 1): ProactiveDepsStatus {
     const state = typeof fields.state === 'number' ? (fields.state as HealthState) : 0;
-    const healthy = fields.healthy !== undefined ? fields.healthy === 1 : state !== 2;
-    const latency = typeof fields.latency === 'number' ? fields.latency : 0;
+    const healthy = fields.healthy !== undefined ? fields.healthy === healthyValue : state !== 2;
+    const rawLatency = typeof fields.latency === 'number' ? fields.latency : 0;
+    const latency = latencyUnit === 's' ? Math.round(rawLatency * 1000) : rawLatency;
     const code = typeof fields.code === 'number' ? fields.code : 200;
     const skipped = fields.skipped === 1;
 

@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { validateSchemaConfig } from '../../utils/validation';
+import { validateSchemaConfig, validateMetricSchemaConfig } from '../../utils/validation';
 import { validateUrlNotPrivate, validateUrlHostname } from '../../utils/ssrf';
 import { DependencyParser } from '../../services/polling/DependencyParser';
 import { PrometheusParser } from '../../services/polling/PrometheusParser';
-import { SchemaMapping, HealthEndpointFormat } from '../../db/types';
+import { SchemaMapping, HealthEndpointFormat, MetricSchemaConfig } from '../../db/types';
 import { ValidationError, ForbiddenError, sendErrorResponse } from '../../utils/errors';
 
 const TEST_SCHEMA_TIMEOUT_MS = 10_000;
@@ -109,6 +109,13 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       clearTimeout(timeout);
     }
 
+    // Parse MetricSchemaConfig for prometheus format if provided
+    let metricConfig: MetricSchemaConfig | undefined;
+    if (isPrometheus && schema_config !== undefined && schema_config !== null) {
+      const validatedJson = validateMetricSchemaConfig(schema_config);
+      metricConfig = JSON.parse(validatedJson);
+    }
+
     // Parse based on format
     const parser = new DependencyParser();
     const warnings: string[] = [];
@@ -117,7 +124,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
     try {
       if (isPrometheus) {
         const promParser = new PrometheusParser();
-        dependencies = promParser.parse(responseData as string);
+        dependencies = promParser.parse(responseData as string, metricConfig);
         warnings.push(...promParser.lastWarnings);
       } else {
         dependencies = parser.parse(responseData, schemaConfig);

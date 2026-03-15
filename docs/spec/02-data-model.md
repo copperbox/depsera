@@ -311,7 +311,35 @@ Records admin actions (role changes, user deactivation/reactivation, team CRUD, 
 
 ### schema_config (on services) **[Implemented]**
 
-Custom health endpoint schema configuration stored as a nullable `schema_config TEXT` column on the `services` table (JSON string of `SchemaMapping`). Services without a mapping default to proactive-deps format.
+Custom health endpoint schema configuration stored as a nullable `schema_config TEXT` column on the `services` table. The column stores a JSON string whose shape depends on the service's `health_endpoint_format`:
+
+- **`schema` format:** `SchemaMapping` — root path and field mappings for custom JSON health endpoints.
+- **`prometheus` / `otlp` formats:** `MetricSchemaConfig` — custom metric name and label/attribute name mappings (see below).
+- **`default` format:** Always `null`.
+
+Services without a mapping default to proactive-deps format.
+
+### MetricSchemaConfig **[Implemented]**
+
+Configuration type for customizing Prometheus and OTLP metric/label mappings. Stored in the `schema_config` TEXT column on `services` when `health_endpoint_format` is `'prometheus'` or `'otlp'`.
+
+```typescript
+interface MetricSchemaConfig {
+  metrics: Record<string, string>;  // user metric name → depsera field
+  labels: Record<string, string>;   // user label/attribute name → depsera field
+  latency_unit?: 'ms' | 's';       // default 'ms'
+}
+```
+
+**Valid metric targets:** `state`, `healthy`, `latency`, `code`, `skipped`
+
+**Valid label targets:** `name`, `type`, `impact`, `description`, `errorMessage`
+
+**Merge behavior:** User-provided mappings in `metrics` and `labels` override the defaults. When a user maps a custom name to a target field (e.g., `{ "my_latency": "latency" }`), the default entry for that target is removed and replaced. Entries not overridden retain their defaults.
+
+**Validation:** `validateMetricSchemaConfig()` in `server/src/utils/validation.ts`. Both `metrics` and `labels` are required objects. Each value must be a valid target string. Duplicate targets within `metrics` or `labels` are rejected. `latency_unit` must be `'ms'` or `'s'` if provided. Schema config validation is format-aware: `prometheus`/`otlp` formats validate as `MetricSchemaConfig`, `schema` format validates as `SchemaMapping`, `default` format sets `schema_config` to `null`.
+
+**Type guard:** `isMetricSchemaConfig()` in `server/src/services/polling/metricSchemaUtils.ts` distinguishes `MetricSchemaConfig` (has `metrics`/`labels`) from `SchemaMapping` (has `root`/`fields`).
 
 ### alert_channels **[Implemented]**
 

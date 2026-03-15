@@ -91,6 +91,17 @@ export interface SchemaMapping {
   };
 }
 
+// Metric schema config for Prometheus and OTLP custom metric/label mappings
+export interface MetricSchemaConfig {
+  metrics: Record<string, string>;  // user metric name → depsera field (state, healthy, latency, code, skipped)
+  labels: Record<string, string>;   // user label/attribute name → depsera field (name, type, impact, description, errorMessage)
+  latency_unit?: 'ms' | 's';       // default 'ms'
+  healthy_value?: number;           // value that means healthy for the 'healthy' target (default: 1)
+}
+
+export const VALID_METRIC_TARGETS = ['state', 'healthy', 'latency', 'code', 'skipped'] as const;
+export const VALID_LABEL_TARGETS = ['name', 'type', 'impact', 'description', 'errorMessage'] as const;
+
 // Health endpoint format types
 export type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
 

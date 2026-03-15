@@ -63,14 +63,14 @@ Rate limited: 20 requests/minute per IP.
 ```json
 {
   "url": "https://example.com/health (required, SSRF-validated)",
-  "schema_config": "SchemaMapping object or JSON string (required for 'schema' format)",
+  "schema_config": "SchemaMapping or MetricSchemaConfig object, or JSON string (required for 'schema' format, optional for 'prometheus')",
   "format": "'default' | 'schema' | 'prometheus' | 'otlp' (optional, default 'schema')"
 }
 ```
 
 **Format-specific behavior:**
-- `'schema'`/`'default'`: fetches JSON, parses with SchemaMapper (existing behavior)
-- `'prometheus'`: fetches with `Accept: text/plain; version=0.0.4`, parses with PrometheusParser
+- `'schema'`/`'default'`: fetches JSON, parses with SchemaMapper (existing behavior). `schema_config` is a `SchemaMapping`.
+- `'prometheus'`: fetches with `Accept: text/plain; version=0.0.4`, parses with PrometheusParser. Optional `schema_config` (`MetricSchemaConfig`) for custom metric/label name mappings.
 - `'otlp'`: returns error — OTLP services receive pushed metrics and cannot be tested via URL
 
 **POST /api/services/test-schema response:**
@@ -96,16 +96,16 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
   "health_endpoint": "url (required for polled formats, SSRF-validated)",
   "health_endpoint_format": "'default' | 'schema' | 'prometheus' | 'otlp' (optional, default 'default')",
   "metrics_endpoint": "url (optional)",
-  "schema_config": "SchemaMapping object or null (optional, required for 'schema' format)",
+  "schema_config": "SchemaMapping or MetricSchemaConfig object, or null (optional, see format-specific rules)",
   "poll_interval_ms": "number (optional, default 30000, min 5000, max 3600000)"
 }
 ```
 
 **Format-specific rules:**
-- `'default'`: health endpoint URL required, no schema config needed
-- `'schema'`: health endpoint URL required, `schema_config` required
-- `'prometheus'`: health endpoint URL required, fetched with `Accept: text/plain; version=0.0.4`
-- `'otlp'`: health endpoint URL not required (push-only), `poll_interval_ms` set to 0, service receives metrics via `POST /v1/metrics`
+- `'default'`: health endpoint URL required, `schema_config` set to `null`
+- `'schema'`: health endpoint URL required, `schema_config` required (`SchemaMapping`)
+- `'prometheus'`: health endpoint URL required, fetched with `Accept: text/plain; version=0.0.4`. Optional `schema_config` (`MetricSchemaConfig`) for custom metric/label name mappings.
+- `'otlp'`: health endpoint URL not required (push-only), `poll_interval_ms` set to 0, service receives metrics via `POST /v1/metrics`. Optional `schema_config` (`MetricSchemaConfig`) for custom metric/attribute name mappings.
 
 **GET /api/services/:id response:**
 
@@ -982,7 +982,7 @@ OpenTelemetry metrics push endpoint. Mounted at `/v1/metrics` (standard OTLP HTT
 }
 ```
 
-**OTLP metric mapping:**
+**OTLP metric mapping (defaults, customizable via MetricSchemaConfig):**
 
 | OTLP Gauge Metric | Maps To |
 |---|---|
@@ -992,7 +992,9 @@ OpenTelemetry metrics push endpoint. Mounted at `/v1/metrics` (standard OTLP HTT
 | `dependency.health.code` | `health.code` (HTTP status code) |
 | `dependency.health.check_skipped` | `health.skipped` |
 
-**OTLP attribute mapping:**
+These defaults can be overridden per-service via `MetricSchemaConfig` stored in `schema_config`. See the `MetricSchemaConfig` section in the data model spec.
+
+**OTLP attribute mapping (defaults, customizable via MetricSchemaConfig):**
 
 | Resource/Data Point Attribute | Maps To |
 |---|---|
@@ -1002,5 +1004,9 @@ OpenTelemetry metrics push endpoint. Mounted at `/v1/metrics` (standard OTLP HTT
 | `dependency.impact` (data point, optional) | Impact description |
 | `dependency.description` (data point, optional) | Dependency description |
 | `dependency.error_message` (data point, optional) | Error message |
+
+Attribute defaults (except `service.name`) can be overridden per-service via the `labels` field in `MetricSchemaConfig`.
+
+**OTLP per-service config loading:** The OTLP receiver loads `schema_config` for each service individually when processing pushed metrics, allowing per-service metric and attribute name customization.
 
 **Timestamp handling:** `timeUnixNano` from data points is converted to ISO string for `lastChecked`. Falls back to `Date.now()` if missing.

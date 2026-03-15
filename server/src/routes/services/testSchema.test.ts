@@ -570,7 +570,7 @@ describe('POST /api/services/test-schema', () => {
     const promText = [
       'dependency_health_status{name="postgres"} 0',
       'dependency_health_healthy{name="postgres"} 1',
-      'dependency_health_latency_seconds{name="postgres"} 0.012',
+      'dependency_health_latency_ms{name="postgres"} 12',
     ].join('\n');
 
     mockFetch.mockResolvedValue({

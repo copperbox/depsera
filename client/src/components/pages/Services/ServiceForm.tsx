@@ -6,9 +6,11 @@ import type {
   CreateServiceInput,
   UpdateServiceInput,
   SchemaMapping,
+  MetricSchemaConfig,
   HealthEndpointFormat,
 } from '../../../types/service';
 import SchemaConfigEditor from './SchemaConfigEditor';
+import MetricSchemaConfigEditor from './MetricSchemaConfigEditor';
 import styles from './ServiceForm.module.css';
 
 interface ServiceFormProps {
@@ -44,6 +46,19 @@ function parseSchemaConfig(raw: string | null): SchemaMapping | null {
   }
 }
 
+function parseMetricSchemaConfig(raw: string | null): MetricSchemaConfig | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && (parsed.metrics || parsed.labels || parsed.latency_unit)) {
+      return parsed as MetricSchemaConfig;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const FORMAT_OPTIONS: { value: HealthEndpointFormat; label: string }[] = [
   { value: 'default', label: 'Default' },
   { value: 'schema', label: 'Custom Schema' },
@@ -65,6 +80,9 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
   const [schemaConfig, setSchemaConfig] = useState<SchemaMapping | null>(
     parseSchemaConfig(service?.schema_config ?? null)
   );
+  const [metricSchemaConfig, setMetricSchemaConfig] = useState<MetricSchemaConfig | null>(
+    parseMetricSchemaConfig(service?.schema_config ?? null)
+  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,8 +92,13 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     setErrors((prev) => ({ ...prev, schema_config: undefined }));
   }, []);
 
+  const handleMetricSchemaChange = useCallback((value: MetricSchemaConfig | null) => {
+    setMetricSchemaConfig(value);
+  }, []);
+
   const requiresHealthEndpoint = formData.health_endpoint_format !== 'otlp';
   const showSchemaEditor = formData.health_endpoint_format === 'schema';
+  const showMetricSchemaEditor = formData.health_endpoint_format === 'prometheus' || formData.health_endpoint_format === 'otlp';
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -115,7 +138,11 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     setIsSubmitting(true);
 
     try {
-      const schemaConfigJson = showSchemaEditor && schemaConfig ? JSON.stringify(schemaConfig) : null;
+      const schemaConfigJson = showSchemaEditor && schemaConfig
+        ? JSON.stringify(schemaConfig)
+        : showMetricSchemaEditor && metricSchemaConfig
+          ? JSON.stringify(metricSchemaConfig)
+          : null;
       const healthEndpoint = requiresHealthEndpoint ? formData.health_endpoint : '';
 
       if (isEdit && service) {
@@ -296,6 +323,15 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
           value={schemaConfig}
           onChange={handleSchemaChange}
           healthEndpoint={formData.health_endpoint}
+          disabled={isSubmitting}
+        />
+      )}
+
+      {showMetricSchemaEditor && (
+        <MetricSchemaConfigEditor
+          value={metricSchemaConfig}
+          onChange={handleMetricSchemaChange}
+          format={formData.health_endpoint_format as 'prometheus' | 'otlp'}
           disabled={isSubmitting}
         />
       )}

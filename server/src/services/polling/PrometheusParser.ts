@@ -1,16 +1,17 @@
-import { ProactiveDepsStatus, HealthState, DependencyType } from '../../db/types';
+import { ProactiveDepsStatus, HealthState, DependencyType, MetricSchemaConfig } from '../../db/types';
+import { buildEffectiveMaps, findKeyForField, EffectiveMaps } from './metricSchemaUtils';
 
 /** Metric name → field it maps to */
-const METRIC_MAP: Record<string, string> = {
+const DEFAULT_METRIC_MAP: Record<string, string> = {
   dependency_health_status: 'state',
   dependency_health_healthy: 'healthy',
-  dependency_health_latency_seconds: 'latency',
+  dependency_health_latency_ms: 'latency',
   dependency_health_code: 'code',
   dependency_health_check_skipped: 'skipped',
 };
 
 /** Label name → field it maps to */
-const LABEL_MAP: Record<string, string> = {
+const DEFAULT_LABEL_MAP: Record<string, string> = {
   name: 'name',
   type: 'type',
   impact: 'impact',
@@ -30,6 +31,8 @@ interface ParsedLine {
  */
 export class PrometheusParser {
   private _lastWarnings: string[] = [];
+  private latencyUnit: 'ms' | 's' = 'ms';
+  private healthyValue: number = 1;
 
   get lastWarnings(): string[] {
     return this._lastWarnings;
@@ -40,8 +43,14 @@ export class PrometheusParser {
    * @param text - Raw Prometheus metrics text
    * @returns Array of parsed dependency statuses
    */
-  parse(text: string): ProactiveDepsStatus[] {
+  parse(text: string, config?: MetricSchemaConfig): ProactiveDepsStatus[] {
     this._lastWarnings = [];
+
+    const { metricMap, labelMap, latencyUnit, healthyValue } = buildEffectiveMaps(
+      DEFAULT_METRIC_MAP, DEFAULT_LABEL_MAP, config
+    );
+    this.latencyUnit = latencyUnit;
+    this.healthyValue = healthyValue;
 
     if (typeof text !== 'string') {
       throw new Error('Invalid Prometheus payload: expected string');
@@ -64,17 +73,18 @@ export class PrometheusParser {
         continue;
       }
 
-      const field = METRIC_MAP[parsed.metricName];
+      const field = metricMap[parsed.metricName];
       if (!field) {
         // Unknown metric — skip silently
         continue;
       }
 
       // Extract dependency name from labels
-      const depName = parsed.labels.name;
+      const nameKey = findKeyForField(labelMap, 'name', 'name');
+      const depName = parsed.labels[nameKey];
       if (!depName) {
         this._lastWarnings.push(
-          `Metric "${parsed.metricName}" missing required "name" label, skipping`
+          `Metric "${parsed.metricName}" missing required "${nameKey}" label, skipping`
         );
         continue;
       }
@@ -84,7 +94,7 @@ export class PrometheusParser {
         const attrs: Record<string, unknown> = { name: depName };
         // Extract optional labels
         for (const [labelKey, labelValue] of Object.entries(parsed.labels)) {
-          const mappedField = LABEL_MAP[labelKey];
+          const mappedField = labelMap[labelKey];
           if (mappedField && mappedField !== 'name') {
             attrs[mappedField] = labelValue;
           }
@@ -94,7 +104,7 @@ export class PrometheusParser {
         // Merge any new labels from this line
         const entry = depMap.get(depName)!;
         for (const [labelKey, labelValue] of Object.entries(parsed.labels)) {
-          const mappedField = LABEL_MAP[labelKey];
+          const mappedField = labelMap[labelKey];
           if (mappedField && mappedField !== 'name' && entry[mappedField] === undefined) {
             entry[mappedField] = labelValue;
           }
@@ -215,10 +225,9 @@ export class PrometheusParser {
 
   private buildDependency(name: string, fields: Record<string, unknown>): ProactiveDepsStatus {
     const state = typeof fields.state === 'number' ? (fields.state as HealthState) : 0;
-    const healthy = fields.healthy !== undefined ? fields.healthy === 1 : state !== 2;
-    // Prometheus latency is in seconds — convert to milliseconds
-    const latency =
-      typeof fields.latency === 'number' ? Math.round(fields.latency * 1000) : 0;
+    const healthy = fields.healthy !== undefined ? fields.healthy === this.healthyValue : state !== 2;
+    const rawLatency = typeof fields.latency === 'number' ? fields.latency : 0;
+    const latency = this.latencyUnit === 's' ? Math.round(rawLatency * 1000) : rawLatency;
     const code = typeof fields.code === 'number' ? fields.code : 200;
     const skipped = fields.skipped === 1;
 

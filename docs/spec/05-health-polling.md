@@ -136,21 +136,39 @@ OTLP services are push-only and are excluded from the polling lifecycle at multi
 - `DependencyParser.parse()`: throws if `format === 'otlp'` (safety check — should never be called)
 - `ServicePoller`: never instantiated for OTLP services
 
+### OtlpParser
+
+Parses OTLP `ExportMetricsServiceRequest` JSON payloads into dependency statuses. Used by the OTLP receiver (`POST /v1/metrics`), not by the polling system.
+
+**Public methods:**
+
+- `parse(request)` — parses a full OTLP request, returns `OtlpParseResult[]` (one per resource)
+- `parseResourceMetrics(rm, config?)` — parses a single `ResourceMetrics` block with optional `MetricSchemaConfig`
+- `extractServiceName(rm)` — extracts `service.name` from resource attributes
+
+**Custom metric/attribute names via MetricSchemaConfig:** The OTLP receiver loads `schema_config` per-service and passes it to `parseResourceMetrics()`. Default metric names (`dependency.health.status`, etc.) and attribute names (`dependency.name`, etc.) can be overridden per-service. See the OTLP metric mapping tables in the API reference and the `MetricSchemaConfig` section in the data model spec.
+
 ### PrometheusParser
 
 Parses Prometheus text exposition format (`metric_name{labels} value`) into `ProactiveDepsStatus[]`.
 
-**Metric mapping:**
+**Default metric mapping (customizable via MetricSchemaConfig):**
 
 | Prometheus Metric | Maps To | Notes |
 |---|---|---|
 | `dependency_health_status` | `health.state` | HealthState 0-2 |
 | `dependency_health_healthy` | `healthy` | 0 or 1 |
-| `dependency_health_latency_seconds` | `health.latency` | Converted: seconds × 1000 → ms |
+| `dependency_health_latency_ms` | `health.latency` | Milliseconds (default). Set `latency_unit: 's'` to convert seconds → ms. |
 | `dependency_health_code` | `health.code` | HTTP status code |
 | `dependency_health_check_skipped` | `health.skipped` | |
 
-**Label mapping:** `name` (required), `type`, `impact`, `description`, `error_message` (all optional).
+**Default label mapping (customizable via MetricSchemaConfig):** `name` (required), `type`, `impact`, `description`, `error_message` (all optional).
+
+**Custom metric/label names via MetricSchemaConfig:**
+
+When a service has a `MetricSchemaConfig` in its `schema_config` column, the parser merges user-provided metric and label mappings into the defaults. For example, if a user maps `{ "my_latency_metric": "latency" }`, the default `dependency_health_latency_ms` entry is removed and `my_latency_metric` is used instead. See the `MetricSchemaConfig` section in the data model spec.
+
+**Latency handling:** Latency is treated as milliseconds by default (no conversion). When `latency_unit` is set to `'s'` in the `MetricSchemaConfig`, the raw value is multiplied by 1000 to convert seconds to milliseconds.
 
 **Parsing rules:**
 - `# HELP` and `# TYPE` comment lines are skipped
