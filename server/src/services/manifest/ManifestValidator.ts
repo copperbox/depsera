@@ -7,13 +7,14 @@ import {
   isNonEmptyString,
   isNumber,
   validateSchemaConfig,
+  validateMetricSchemaConfig,
   VALID_ASSOCIATION_TYPES,
   MIN_POLL_INTERVAL_MS,
   MAX_POLL_INTERVAL_MS,
   TEAM_KEY_REGEX,
   MAX_KEY_LENGTH,
 } from '../../utils/validation';
-import type { AssociationType } from '../../db/types';
+import type { AssociationType, HealthEndpointFormat } from '../../db/types';
 import { validateUrlHostname } from '../../utils/ssrf';
 
 // --- Constants ---
@@ -28,6 +29,8 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'associations',
 ]);
 
+const VALID_FORMATS: HealthEndpointFormat[] = ['default', 'schema', 'prometheus', 'otlp'];
+
 const KNOWN_SERVICE_FIELDS = new Set([
   'key',
   'name',
@@ -36,6 +39,7 @@ const KNOWN_SERVICE_FIELDS = new Set([
   'metrics_endpoint',
   'poll_interval_ms',
   'schema_config',
+  'health_endpoint_format',
 ]);
 
 const KNOWN_ALIAS_FIELDS = new Set(['alias', 'canonical_name']);
@@ -189,13 +193,38 @@ function validateServiceEntry(
     entryValid = false;
   }
 
-  // Required: health_endpoint (URL validation)
-  if (!isNonEmptyString(svc.health_endpoint)) {
-    addError(errors, `${path}.health_endpoint`, 'health_endpoint is required and must be a non-empty string');
-    entryValid = false;
-  } else {
-    if (!validateManifestUrl(svc.health_endpoint, `${path}.health_endpoint`, errors, warnings)) {
+  // Optional: health_endpoint_format (validate before health_endpoint so we know the format)
+  let format: HealthEndpointFormat = 'default';
+  if (svc.health_endpoint_format !== undefined && svc.health_endpoint_format !== null) {
+    if (typeof svc.health_endpoint_format !== 'string' ||
+        !VALID_FORMATS.includes(svc.health_endpoint_format as HealthEndpointFormat)) {
+      addError(
+        errors,
+        `${path}.health_endpoint_format`,
+        `health_endpoint_format must be one of: ${VALID_FORMATS.join(', ')}`,
+      );
       entryValid = false;
+    } else {
+      format = svc.health_endpoint_format as HealthEndpointFormat;
+    }
+  }
+
+  // Required: health_endpoint (URL validation) — relaxed for OTLP (push-only, no endpoint needed)
+  if (format === 'otlp') {
+    // OTLP: health_endpoint is optional (may be empty or missing)
+    if (svc.health_endpoint !== undefined && svc.health_endpoint !== null && svc.health_endpoint !== '') {
+      if (!validateManifestUrl(svc.health_endpoint, `${path}.health_endpoint`, errors, warnings)) {
+        entryValid = false;
+      }
+    }
+  } else {
+    if (!isNonEmptyString(svc.health_endpoint)) {
+      addError(errors, `${path}.health_endpoint`, 'health_endpoint is required and must be a non-empty string');
+      entryValid = false;
+    } else {
+      if (!validateManifestUrl(svc.health_endpoint, `${path}.health_endpoint`, errors, warnings)) {
+        entryValid = false;
+      }
     }
   }
 
@@ -217,8 +246,13 @@ function validateServiceEntry(
     }
   }
 
-  // Optional: poll_interval_ms (bounds check)
-  if (svc.poll_interval_ms !== undefined && svc.poll_interval_ms !== null) {
+  // Optional: poll_interval_ms (bounds check) — OTLP forces 0
+  if (format === 'otlp') {
+    if (svc.poll_interval_ms !== undefined && svc.poll_interval_ms !== null && svc.poll_interval_ms !== 0) {
+      addError(errors, `${path}.poll_interval_ms`, 'poll_interval_ms must be 0 for OTLP format (push-only)');
+      entryValid = false;
+    }
+  } else if (svc.poll_interval_ms !== undefined && svc.poll_interval_ms !== null) {
     if (!isNumber(svc.poll_interval_ms) || !Number.isInteger(svc.poll_interval_ms)) {
       addError(errors, `${path}.poll_interval_ms`, 'poll_interval_ms must be an integer');
       entryValid = false;
@@ -232,10 +266,14 @@ function validateServiceEntry(
     }
   }
 
-  // Optional: schema_config (validate via validateSchemaConfig)
+  // Optional: schema_config (format-aware validation)
   if (svc.schema_config !== undefined && svc.schema_config !== null) {
     try {
-      validateSchemaConfig(svc.schema_config);
+      if (format === 'prometheus' || format === 'otlp') {
+        validateMetricSchemaConfig(svc.schema_config);
+      } else {
+        validateSchemaConfig(svc.schema_config);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid schema_config';
       addError(errors, `${path}.schema_config`, message);

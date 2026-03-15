@@ -1161,4 +1161,121 @@ describe('ManifestSyncService', () => {
       expect(result.errors[0]).toContain('dependency or linked service was removed');
     });
   });
+
+  // =========================================================================
+  // health_endpoint_format support
+  // =========================================================================
+  describe('health_endpoint_format support', () => {
+    it('creates OTLP service with empty health_endpoint and poll_interval_ms=0', async () => {
+      const entry = {
+        key: 'otlp-svc',
+        name: 'OTLP Service',
+        health_endpoint: '',
+        health_endpoint_format: 'otlp' as const,
+      };
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [entry] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [entry], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('success');
+      expect(result.summary.services.created).toBe(1);
+      expect(stores.services.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          health_endpoint: '',
+          poll_interval_ms: 0,
+          health_endpoint_format: 'otlp',
+        }),
+      );
+    });
+
+    it('creates Prometheus service with format passed through', async () => {
+      const entry = {
+        key: 'prom-svc',
+        name: 'Prometheus Service',
+        health_endpoint: 'https://prom.example.com/metrics',
+        health_endpoint_format: 'prometheus' as const,
+      };
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [entry] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [entry], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      const result = await service.syncTeam('team-1', 'manual', 'user-1');
+      expect(result.status).toBe('success');
+      expect(stores.services.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          health_endpoint: 'https://prom.example.com/metrics',
+          health_endpoint_format: 'prometheus',
+        }),
+      );
+    });
+
+    it('includes health_endpoint_format in synced values snapshot', async () => {
+      const entry = {
+        key: 'prom-svc',
+        name: 'Prometheus Service',
+        health_endpoint: 'https://prom.example.com/metrics',
+        health_endpoint_format: 'prometheus' as const,
+      };
+      stores.manifestConfig.findByTeamId.mockReturnValue([makeConfig()]);
+      stores.manifestConfig.findById.mockReturnValue(makeConfig());
+      stores.services.findByTeamId.mockReturnValue([]);
+      stores.services.create.mockReturnValue(makeService({ id: 'new-prom-id' }));
+      mockFetch.mockResolvedValue({
+        success: true,
+        data: { version: 1, services: [entry] },
+        url: 'https://example.com/manifest.json',
+      });
+      mockValidate.mockReturnValue({
+        valid: true, version: 1, service_count: 1, valid_count: 1, errors: [], warnings: [],
+      });
+      mockDiff.mockReturnValue({
+        toCreate: [entry], toUpdate: [], toDrift: [], toKeepLocal: [],
+        unchanged: [], toDeactivate: [], toDelete: [], removalDrift: [],
+      });
+
+      await service.syncTeam('team-1', 'manual', 'user-1');
+
+      // The setManifestColumns call uses db.prepare().run() which receives the synced values JSON
+      // Collect all run() calls from the db.prepare mock
+      const dbPrepare = stores.services.db.prepare;
+      const runMock = dbPrepare.mock.results[0].value.run;
+      const allCalls = runMock.mock.calls;
+
+      // Find the call that includes the health_endpoint_format in the JSON snapshot
+      const syncedCall = allCalls.find((args: unknown[]) =>
+        args.some((arg: unknown) => typeof arg === 'string' && arg.includes('health_endpoint_format')),
+      );
+      expect(syncedCall).toBeDefined();
+      const jsonArg = syncedCall.find((arg: unknown) =>
+        typeof arg === 'string' && arg.includes('health_endpoint_format'),
+      );
+      const snapshot = JSON.parse(jsonArg as string);
+      expect(snapshot.health_endpoint_format).toBe('prometheus');
+    });
+  });
 });

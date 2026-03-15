@@ -55,11 +55,27 @@ Each entry in the `services` array defines a monitored service.
 |-------|------|----------|-------------|
 | `key` | string | Yes | Unique identifier within the manifest. Lowercase alphanumeric, hyphens, and underscores. Must start with a letter or digit. Max 128 characters. Pattern: `^[a-z0-9][a-z0-9_-]*$` |
 | `name` | string | Yes | Human-readable display name. |
-| `health_endpoint` | string | Yes | HTTP or HTTPS URL to poll for health status. |
+| `health_endpoint` | string | Yes* | HTTP or HTTPS URL to poll for health status. *Not required when `health_endpoint_format` is `otlp` (push-only). |
 | `description` | string | No | Service description. |
 | `metrics_endpoint` | string | No | HTTP or HTTPS URL for metrics. |
-| `poll_interval_ms` | integer | No | Polling interval in milliseconds. Must be between **5,000** (5s) and **3,600,000** (1hr). Defaults to the server's configured default if omitted. |
-| `schema_config` | object | No | Custom schema mapping for non-standard health endpoints. See the [Health Endpoint Spec](health-endpoint-spec.md) for details. |
+| `poll_interval_ms` | integer | No | Polling interval in milliseconds. Must be between **5,000** (5s) and **3,600,000** (1hr). Defaults to the server's configured default if omitted. Must be `0` for OTLP format. |
+| `schema_config` | object | No | Custom schema mapping for non-standard health endpoints. Shape depends on `health_endpoint_format` — see below. |
+| `health_endpoint_format` | string | No | Format of the health endpoint. One of: `default`, `schema`, `prometheus`, `otlp`. Defaults to `default` if omitted. |
+
+### Health Endpoint Format
+
+The `health_endpoint_format` field controls how the service's health endpoint is parsed and how `schema_config` is validated:
+
+| Format | Description | `schema_config` shape |
+|--------|-------------|----------------------|
+| `default` | Standard Depsera health endpoint format. | Not applicable (ignored). |
+| `schema` | Custom JSON schema mapping. | `SchemaMapping` — requires `root` and `fields` with `name` and `healthy`. See the [Health Endpoint Spec](health-endpoint-spec.md). |
+| `prometheus` | Prometheus metrics scrape endpoint. | `MetricSchemaConfig` — requires `metrics` and `labels` mappings. |
+| `otlp` | OpenTelemetry push-based ingestion. No polling needed. | `MetricSchemaConfig` — requires `metrics` and `labels` mappings. |
+
+**OTLP notes:**
+- `health_endpoint` may be empty or omitted (OTLP is push-only)
+- `poll_interval_ms` must be `0` if specified
 
 ### Service Key Rules
 
@@ -431,6 +447,54 @@ A service using Spring Boot Actuator's health endpoint with custom schema mappin
         "dependency_healthy_value": "UP",
         "object_keyed": true,
         "skip_checks": ["diskSpace", "ping"]
+      }
+    }
+  ]
+}
+```
+
+### OTLP Service (Push-Based)
+
+An OTLP service that receives telemetry data via push — no health endpoint polling:
+
+```json
+{
+  "version": 1,
+  "services": [
+    {
+      "key": "telemetry-collector",
+      "name": "Telemetry Collector",
+      "health_endpoint_format": "otlp",
+      "description": "Receives OTLP push data from instrumented services",
+      "schema_config": {
+        "metrics": { "up": "healthy", "request_duration_seconds": "latency" },
+        "labels": { "service_name": "name", "service_type": "type" },
+        "latency_unit": "s"
+      }
+    }
+  ]
+}
+```
+
+Note: `health_endpoint` is omitted (not required for OTLP) and `poll_interval_ms` defaults to `0`.
+
+### Prometheus Service with Custom Schema
+
+A service using a Prometheus metrics endpoint with custom metric/label mappings:
+
+```json
+{
+  "version": 1,
+  "services": [
+    {
+      "key": "node-exporter",
+      "name": "Node Exporter",
+      "health_endpoint": "https://node-exporter.example.com/metrics",
+      "health_endpoint_format": "prometheus",
+      "poll_interval_ms": 30000,
+      "schema_config": {
+        "metrics": { "up": "healthy", "node_load1": "latency" },
+        "labels": { "instance": "name", "job": "type" }
       }
     }
   ]

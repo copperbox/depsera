@@ -487,14 +487,16 @@ export class ManifestSyncService extends EventEmitter {
           continue;
         }
 
+        const isOtlp = entry.health_endpoint_format === 'otlp';
         const service = txStores.services.create({
           name: entry.name,
           team_id: teamId,
-          health_endpoint: entry.health_endpoint,
+          health_endpoint: isOtlp ? '' : entry.health_endpoint,
           metrics_endpoint: entry.metrics_endpoint ?? null,
           schema_config: entry.schema_config ? JSON.stringify(entry.schema_config) : null,
-          poll_interval_ms: entry.poll_interval_ms ?? 30000,
+          poll_interval_ms: isOtlp ? 0 : (entry.poll_interval_ms ?? 30000),
           description: entry.description ?? null,
+          health_endpoint_format: entry.health_endpoint_format ?? 'default',
         });
 
         // Set manifest columns via raw update (not in ServiceUpdateInput)
@@ -674,6 +676,7 @@ export class ManifestSyncService extends EventEmitter {
     if (entry.metrics_endpoint !== undefined) values.metrics_endpoint = entry.metrics_endpoint;
     if (entry.poll_interval_ms !== undefined) values.poll_interval_ms = entry.poll_interval_ms;
     if (entry.schema_config !== undefined) values.schema_config = entry.schema_config;
+    if (entry.health_endpoint_format !== undefined) values.health_endpoint_format = entry.health_endpoint_format;
     return values;
   }
 
@@ -690,6 +693,8 @@ export class ManifestSyncService extends EventEmitter {
       case 'poll_interval_ms': return entry.poll_interval_ms;
       case 'schema_config':
         return entry.schema_config ? JSON.stringify(entry.schema_config) : null;
+      case 'health_endpoint_format':
+        return entry.health_endpoint_format ?? 'default';
       default: return undefined;
     }
   }

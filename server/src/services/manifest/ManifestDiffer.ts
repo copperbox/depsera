@@ -16,6 +16,7 @@ const SYNCABLE_FIELDS = [
   'metrics_endpoint',
   'poll_interval_ms',
   'schema_config',
+  'health_endpoint_format',
 ] as const;
 
 type SyncableField = (typeof SYNCABLE_FIELDS)[number];
@@ -236,6 +237,8 @@ function getManifestFieldValue(
       return entry.poll_interval_ms;
     case 'schema_config':
       return entry.schema_config;
+    case 'health_endpoint_format':
+      return entry.health_endpoint_format;
   }
 }
 
@@ -259,6 +262,8 @@ function getDbFieldValue(
       return service.poll_interval_ms;
     case 'schema_config':
       return service.schema_config;
+    case 'health_endpoint_format':
+      return service.health_endpoint_format;
   }
 }
 

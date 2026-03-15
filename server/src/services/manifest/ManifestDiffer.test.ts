@@ -462,6 +462,43 @@ describe('ManifestDiffer', () => {
   });
 
   // =========================================================================
+  // health_endpoint_format drift detection
+  // =========================================================================
+  describe('health_endpoint_format drift detection', () => {
+    it('detects health_endpoint_format changes', () => {
+      const entry = makeManifestEntry({
+        health_endpoint_format: 'prometheus',
+      });
+      const existing = makeService({
+        health_endpoint_format: 'default',
+        manifest_last_synced_values: lastSynced({
+          name: 'Service A',
+          health_endpoint: 'https://svc-a.example.com/health',
+          health_endpoint_format: 'default',
+        }),
+      });
+
+      const result = diffManifest([entry], [existing], makePolicy());
+
+      expect(result.toUpdate).toHaveLength(1);
+      expect(result.toUpdate[0].fields_changed).toContain('health_endpoint_format');
+    });
+
+    it('treats matching health_endpoint_format as unchanged', () => {
+      const entry = makeManifestEntry({
+        health_endpoint_format: 'prometheus',
+      });
+      const existing = makeService({
+        health_endpoint_format: 'prometheus',
+      });
+
+      const result = diffManifest([entry], [existing], makePolicy());
+
+      expect(result.unchanged).toEqual(['svc-id-1']);
+    });
+  });
+
+  // =========================================================================
   // Complex scenario: multiple services, mixed outcomes
   // =========================================================================
   describe('complex scenarios', () => {

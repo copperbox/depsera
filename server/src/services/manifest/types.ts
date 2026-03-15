@@ -1,4 +1,4 @@
-import { AssociationType } from '../../db/types';
+import { AssociationType, HealthEndpointFormat } from '../../db/types';
 
 // --- DPS-49a: Sync policy types ---
 
@@ -75,6 +75,7 @@ export interface ManifestServiceEntry {
   metrics_endpoint?: string;
   poll_interval_ms?: number;
   schema_config?: Record<string, unknown>;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 /** An alias entry in the manifest JSON. */
