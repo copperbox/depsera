@@ -1,5 +1,6 @@
 // Health state values: 0=OK, 1=WARNING, 2=CRITICAL
 export type HealthState = 0 | 1 | 2;
+export type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
 export type HealthStatus =
   | 'healthy'
   | 'warning'
@@ -82,6 +83,7 @@ export interface Service {
   description?: string | null;
   last_poll_success: number | null;
   last_poll_error: string | null;
+  health_endpoint_format: HealthEndpointFormat;
   poll_warnings: string | null;
   manifest_managed?: number;
   manifest_key?: string | null;
@@ -126,6 +128,7 @@ export interface CreateServiceInput {
   health_endpoint: string;
   metrics_endpoint?: string;
   schema_config?: string | null;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface UpdateServiceInput {
@@ -135,6 +138,7 @@ export interface UpdateServiceInput {
   metrics_endpoint?: string;
   schema_config?: string | null;
   is_active?: boolean;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 // Test schema mapping response types

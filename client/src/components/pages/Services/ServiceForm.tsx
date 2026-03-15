@@ -6,6 +6,7 @@ import type {
   CreateServiceInput,
   UpdateServiceInput,
   SchemaMapping,
+  HealthEndpointFormat,
 } from '../../../types/service';
 import SchemaConfigEditor from './SchemaConfigEditor';
 import styles from './ServiceForm.module.css';
@@ -43,6 +44,13 @@ function parseSchemaConfig(raw: string | null): SchemaMapping | null {
   }
 }
 
+const FORMAT_OPTIONS: { value: HealthEndpointFormat; label: string }[] = [
+  { value: 'default', label: 'Default' },
+  { value: 'schema', label: 'Custom Schema' },
+  { value: 'prometheus', label: 'Prometheus' },
+  { value: 'otlp', label: 'OTLP (Push)' },
+];
+
 function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) {
   const isEdit = !!service;
 
@@ -52,6 +60,7 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     health_endpoint: service?.health_endpoint ?? '',
     metrics_endpoint: service?.metrics_endpoint ?? '',
     is_active: service?.is_active === 1,
+    health_endpoint_format: (service?.health_endpoint_format ?? 'default') as HealthEndpointFormat,
   });
   const [schemaConfig, setSchemaConfig] = useState<SchemaMapping | null>(
     parseSchemaConfig(service?.schema_config ?? null)
@@ -65,6 +74,9 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     setErrors((prev) => ({ ...prev, schema_config: undefined }));
   }, []);
 
+  const requiresHealthEndpoint = formData.health_endpoint_format !== 'otlp';
+  const showSchemaEditor = formData.health_endpoint_format === 'schema';
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -76,10 +88,12 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
       newErrors.team_id = 'Team is required';
     }
 
-    if (!formData.health_endpoint.trim()) {
-      newErrors.health_endpoint = 'Health endpoint is required';
-    } else if (!isValidUrl(formData.health_endpoint)) {
-      newErrors.health_endpoint = 'Must be a valid HTTP or HTTPS URL';
+    if (requiresHealthEndpoint) {
+      if (!formData.health_endpoint.trim()) {
+        newErrors.health_endpoint = 'Health endpoint is required';
+      } else if (!isValidUrl(formData.health_endpoint)) {
+        newErrors.health_endpoint = 'Must be a valid HTTP or HTTPS URL';
+      }
     }
 
     if (formData.metrics_endpoint && !isValidUrl(formData.metrics_endpoint)) {
@@ -101,25 +115,28 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
     setIsSubmitting(true);
 
     try {
-      const schemaConfigJson = schemaConfig ? JSON.stringify(schemaConfig) : null;
+      const schemaConfigJson = showSchemaEditor && schemaConfig ? JSON.stringify(schemaConfig) : null;
+      const healthEndpoint = requiresHealthEndpoint ? formData.health_endpoint : '';
 
       if (isEdit && service) {
         const updateData: UpdateServiceInput = {
           name: formData.name,
           team_id: formData.team_id,
-          health_endpoint: formData.health_endpoint,
+          health_endpoint: healthEndpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
           is_active: formData.is_active,
           schema_config: schemaConfigJson,
+          health_endpoint_format: formData.health_endpoint_format,
         };
         await updateService(service.id, updateData);
       } else {
         const createData: CreateServiceInput = {
           name: formData.name,
           team_id: formData.team_id,
-          health_endpoint: formData.health_endpoint,
+          health_endpoint: healthEndpoint,
           metrics_endpoint: formData.metrics_endpoint || undefined,
           schema_config: schemaConfigJson,
+          health_endpoint_format: formData.health_endpoint_format,
         };
         await createService(createData);
       }
@@ -199,55 +216,89 @@ function ServiceForm({ teams, service, onSuccess, onCancel }: ServiceFormProps) 
       </div>
 
       <div className={styles.field}>
-        <label htmlFor="health_endpoint" className={styles.label}>
-          Health Endpoint <span className={styles.required}>*</span>
+        <label htmlFor="health_endpoint_format" className={styles.label}>
+          Format <span className={styles.required}>*</span>
         </label>
-        <input
-          id="health_endpoint"
-          type="url"
-          value={formData.health_endpoint}
-          onChange={(e) => setFormData({ ...formData, health_endpoint: e.target.value })}
-          className={`${styles.input} ${errors.health_endpoint ? styles.inputError : ''}`}
-          placeholder="https://example.com/dependencies"
+        <select
+          id="health_endpoint_format"
+          value={formData.health_endpoint_format}
+          onChange={(e) => setFormData({ ...formData, health_endpoint_format: e.target.value as HealthEndpointFormat })}
+          className={styles.select}
           disabled={isSubmitting}
-          aria-describedby={errors.health_endpoint ? 'health-endpoint-error' : undefined}
-        />
-        {errors.health_endpoint && (
-          <span id="health-endpoint-error" className={styles.fieldError}>
-            {errors.health_endpoint}
-          </span>
-        )}
-        <span className={styles.hint}>URL that returns dependency health status</span>
+        >
+          {FORMAT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <span className={styles.hint}>
+          {formData.health_endpoint_format === 'otlp'
+            ? 'This service receives pushed metrics via OTLP. Configure an API key in Team Settings.'
+            : formData.health_endpoint_format === 'prometheus'
+              ? 'Expects Prometheus text exposition format with dependency_health_* metrics.'
+              : formData.health_endpoint_format === 'schema'
+                ? 'Uses a custom schema mapping to extract dependency data from your endpoint.'
+                : 'Expects a JSON array of dependency status objects.'}
+        </span>
       </div>
 
-      <div className={styles.field}>
-        <label htmlFor="metrics_endpoint" className={styles.label}>
-          Metrics Endpoint
-        </label>
-        <input
-          id="metrics_endpoint"
-          type="url"
-          value={formData.metrics_endpoint}
-          onChange={(e) => setFormData({ ...formData, metrics_endpoint: e.target.value })}
-          className={`${styles.input} ${errors.metrics_endpoint ? styles.inputError : ''}`}
-          placeholder="https://example.com/metrics"
-          disabled={isSubmitting}
-          aria-describedby={errors.metrics_endpoint ? 'metrics-endpoint-error' : undefined}
-        />
-        {errors.metrics_endpoint && (
-          <span id="metrics-endpoint-error" className={styles.fieldError}>
-            {errors.metrics_endpoint}
-          </span>
-        )}
-        <span className={styles.hint}>Optional URL for metrics data</span>
-      </div>
+      {requiresHealthEndpoint && (
+        <div className={styles.field}>
+          <label htmlFor="health_endpoint" className={styles.label}>
+            Health Endpoint <span className={styles.required}>*</span>
+          </label>
+          <input
+            id="health_endpoint"
+            type="url"
+            value={formData.health_endpoint}
+            onChange={(e) => setFormData({ ...formData, health_endpoint: e.target.value })}
+            className={`${styles.input} ${errors.health_endpoint ? styles.inputError : ''}`}
+            placeholder="https://example.com/dependencies"
+            disabled={isSubmitting}
+            aria-describedby={errors.health_endpoint ? 'health-endpoint-error' : undefined}
+          />
+          {errors.health_endpoint && (
+            <span id="health-endpoint-error" className={styles.fieldError}>
+              {errors.health_endpoint}
+            </span>
+          )}
+          <span className={styles.hint}>URL that returns dependency health status</span>
+        </div>
+      )}
 
-      <SchemaConfigEditor
-        value={schemaConfig}
-        onChange={handleSchemaChange}
-        healthEndpoint={formData.health_endpoint}
-        disabled={isSubmitting}
-      />
+      {requiresHealthEndpoint && (
+        <div className={styles.field}>
+          <label htmlFor="metrics_endpoint" className={styles.label}>
+            Metrics Endpoint
+          </label>
+          <input
+            id="metrics_endpoint"
+            type="url"
+            value={formData.metrics_endpoint}
+            onChange={(e) => setFormData({ ...formData, metrics_endpoint: e.target.value })}
+            className={`${styles.input} ${errors.metrics_endpoint ? styles.inputError : ''}`}
+            placeholder="https://example.com/metrics"
+            disabled={isSubmitting}
+            aria-describedby={errors.metrics_endpoint ? 'metrics-endpoint-error' : undefined}
+          />
+          {errors.metrics_endpoint && (
+            <span id="metrics-endpoint-error" className={styles.fieldError}>
+              {errors.metrics_endpoint}
+            </span>
+          )}
+          <span className={styles.hint}>Optional URL for metrics data</span>
+        </div>
+      )}
+
+      {showSchemaEditor && (
+        <SchemaConfigEditor
+          value={schemaConfig}
+          onChange={handleSchemaChange}
+          healthEndpoint={formData.health_endpoint}
+          disabled={isSubmitting}
+        />
+      )}
 
       {isEdit && (
         <div className={styles.checkboxField}>

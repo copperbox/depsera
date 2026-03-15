@@ -25,6 +25,7 @@ const mockService = {
   health_endpoint: 'https://example.com/health',
   metrics_endpoint: 'https://example.com/metrics',
   schema_config: null,
+  health_endpoint_format: 'default' as const,
   is_active: 1,
   last_poll_success: 1,
   last_poll_error: null,
@@ -119,6 +120,7 @@ describe('ServiceForm', () => {
             team_id: 't1',
             health_endpoint: 'https://example.com/health',
             schema_config: null,
+            health_endpoint_format: 'default',
           }),
         })
       );
@@ -154,6 +156,7 @@ describe('ServiceForm', () => {
             health_endpoint: 'https://example.com/health',
             metrics_endpoint: 'https://example.com/metrics',
             schema_config: null,
+            health_endpoint_format: 'default',
           }),
         })
       );
@@ -184,6 +187,7 @@ describe('ServiceForm', () => {
             metrics_endpoint: 'https://example.com/metrics',
             is_active: true,
             schema_config: null,
+            health_endpoint_format: 'default',
           }),
         })
       );
@@ -308,24 +312,43 @@ describe('ServiceForm', () => {
   });
 
   describe('schema config integration', () => {
-    it('renders Health Endpoint Format section', () => {
+    // Helper to select a format from the format dropdown
+    const selectFormat = (format: string) => {
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: format } });
+    };
+
+    it('renders format selector with all options', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
-      expect(screen.getByText('Health Endpoint Format')).toBeInTheDocument();
-      expect(screen.getByText('proactive-deps (default)')).toBeInTheDocument();
-      expect(screen.getByText('Custom schema')).toBeInTheDocument();
+      const formatSelect = screen.getByLabelText(/Format/) as HTMLSelectElement;
+      expect(formatSelect).toBeInTheDocument();
+      expect(formatSelect.value).toBe('default');
+
+      const options = Array.from(formatSelect.options).map(o => o.value);
+      expect(options).toEqual(['default', 'schema', 'prometheus', 'otlp']);
     });
 
-    it('defaults to proactive-deps mode for new service', () => {
+    it('hides schema editor in default format', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
-      // Guided fields should not be visible in default mode
+      // Schema editor should not be visible in default mode
+      expect(screen.queryByText('Health Endpoint Format')).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
     });
 
-    it('shows guided form when Custom schema is selected', () => {
+    it('shows schema editor when Custom Schema format is selected', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
+      selectFormat('schema');
+
+      // SchemaConfigEditor should be visible
+      expect(screen.getByText('Health Endpoint Format')).toBeInTheDocument();
+    });
+
+    it('shows guided form when Custom schema is selected inside schema editor', () => {
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
@@ -337,9 +360,10 @@ describe('ServiceForm', () => {
       expect(screen.getByLabelText(/Description field/)).toBeInTheDocument();
     });
 
-    it('hides guided form when switching back to default', () => {
+    it('hides guided form when switching back to default inside schema editor', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
       expect(screen.getByLabelText(/Path to dependencies/)).toBeInTheDocument();
 
@@ -357,7 +381,8 @@ describe('ServiceForm', () => {
       fireEvent.change(screen.getByLabelText(/Team/), { target: { value: 't1' } });
       fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/health' } });
 
-      // Switch to custom schema
+      // Switch to custom schema format then configure schema
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Fill schema fields
@@ -384,6 +409,7 @@ describe('ServiceForm', () => {
                   healthy: { field: 'status', equals: 'UP' },
                 },
               }),
+              health_endpoint_format: 'schema',
             }),
           })
         );
@@ -410,6 +436,7 @@ describe('ServiceForm', () => {
     it('populates schema editor from existing service schema_config', () => {
       const serviceWithSchema = {
         ...mockService,
+        health_endpoint_format: 'schema' as const,
         schema_config: JSON.stringify({
           root: 'data.checks',
           fields: {
@@ -422,7 +449,7 @@ describe('ServiceForm', () => {
 
       render(<ServiceForm teams={mockTeams} service={serviceWithSchema} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
-      // Should show custom schema mode with populated fields
+      // Should show custom schema mode with populated fields (SchemaConfigEditor auto-detects from value)
       expect(screen.getByLabelText(/Path to dependencies/)).toHaveValue('data.checks');
       expect(screen.getByLabelText(/Name field/)).toHaveValue('serviceName');
       expect(screen.getByLabelText(/Healthy field/)).toHaveValue('status');
@@ -430,16 +457,18 @@ describe('ServiceForm', () => {
       expect(screen.getByLabelText(/Latency field/)).toHaveValue('responseTimeMs');
     });
 
-    it('shows proactive-deps mode for service without schema_config', () => {
+    it('does not show schema editor for service without schema_config', () => {
       render(<ServiceForm teams={mockTeams} service={mockService} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
-      // Should not show guided fields
+      // Default format — no schema editor
+      expect(screen.queryByText('Health Endpoint Format')).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/Path to dependencies/)).not.toBeInTheDocument();
     });
 
     it('shows Test mapping button when in custom schema mode', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       expect(screen.getByText('Test mapping')).toBeInTheDocument();
@@ -448,6 +477,7 @@ describe('ServiceForm', () => {
     it('disables Test mapping button when health endpoint is empty', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       const testButton = screen.getByText('Test mapping');
@@ -457,6 +487,7 @@ describe('ServiceForm', () => {
     it('toggles between guided form and raw JSON editor', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Should show guided form by default
@@ -492,6 +523,7 @@ describe('ServiceForm', () => {
       fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/health' } });
 
       // Switch to custom schema
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       // Fill schema fields
@@ -517,6 +549,7 @@ describe('ServiceForm', () => {
       render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
 
       fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/health' } });
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
@@ -539,6 +572,7 @@ describe('ServiceForm', () => {
       fireEvent.change(screen.getByLabelText(/Team/), { target: { value: 't1' } });
       fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/health' } });
 
+      selectFormat('schema');
       fireEvent.click(screen.getByText('Custom schema'));
 
       fireEvent.change(screen.getByLabelText(/Path to dependencies/), { target: { value: 'checks' } });
@@ -553,6 +587,89 @@ describe('ServiceForm', () => {
         const schema = JSON.parse(body.schema_config);
         expect(schema.fields.healthy).toBe('isHealthy');
       });
+    });
+  });
+
+  describe('format selector', () => {
+    it('selecting OTLP hides health endpoint URL', () => {
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      // Default: health endpoint visible
+      expect(screen.getByLabelText(/Health Endpoint/)).toBeInTheDocument();
+
+      // Switch to OTLP
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'otlp' } });
+
+      // Health endpoint and metrics endpoint should be hidden
+      expect(screen.queryByLabelText(/Health Endpoint/)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Metrics Endpoint/)).not.toBeInTheDocument();
+    });
+
+    it('selecting Prometheus shows health endpoint URL', () => {
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'prometheus' } });
+
+      expect(screen.getByLabelText(/Health Endpoint/)).toBeInTheDocument();
+    });
+
+    it('OTLP format does not require health endpoint for validation', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ id: 's2', name: 'New OTLP Service' }));
+
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText(/Name/), { target: { value: 'New OTLP Service' } });
+      fireEvent.change(screen.getByLabelText(/Team/), { target: { value: 't1' } });
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'otlp' } });
+
+      fireEvent.click(screen.getByText('Create Service'));
+
+      // Should NOT show validation error for health endpoint
+      expect(screen.queryByText('Health endpoint is required')).not.toBeInTheDocument();
+
+      await waitFor(() => {
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+        expect(body.health_endpoint).toBe('');
+        expect(body.health_endpoint_format).toBe('otlp');
+      });
+    });
+
+    it('format is included in submit payload', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ id: 's2', name: 'Prometheus Service' }));
+
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText(/Name/), { target: { value: 'Prometheus Service' } });
+      fireEvent.change(screen.getByLabelText(/Team/), { target: { value: 't1' } });
+      fireEvent.change(screen.getByLabelText(/Health Endpoint/), { target: { value: 'https://example.com/metrics' } });
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'prometheus' } });
+
+      fireEvent.click(screen.getByText('Create Service'));
+
+      await waitFor(() => {
+        const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+        expect(body.health_endpoint_format).toBe('prometheus');
+      });
+    });
+
+    it('shows OTLP info message when OTLP format is selected', () => {
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'otlp' } });
+
+      expect(screen.getByText(/receives pushed metrics via OTLP/)).toBeInTheDocument();
+    });
+
+    it('schema editor hidden when switching from schema to default format', () => {
+      render(<ServiceForm teams={mockTeams} onSuccess={jest.fn()} onCancel={jest.fn()} />);
+
+      // Select schema format
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'schema' } });
+      expect(screen.getByText('Health Endpoint Format')).toBeInTheDocument();
+
+      // Switch back to default
+      fireEvent.change(screen.getByLabelText(/Format/), { target: { value: 'default' } });
+      expect(screen.queryByText('Health Endpoint Format')).not.toBeInTheDocument();
     });
   });
 

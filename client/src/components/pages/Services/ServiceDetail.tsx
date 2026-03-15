@@ -132,6 +132,14 @@ function ServiceDetail() {
             <div className={styles.serviceTitle}>
               <h1>{service.name}</h1>
               <StatusBadge status={getHealthBadgeStatus(service.health.status)} />
+              {service.health_endpoint_format && service.health_endpoint_format !== 'default' && (
+                <span className={styles.formatBadge}>
+                  {service.health_endpoint_format === 'schema' ? 'Custom Schema' :
+                   service.health_endpoint_format === 'prometheus' ? 'Prometheus' :
+                   service.health_endpoint_format === 'otlp' ? 'OTLP' :
+                   service.health_endpoint_format}
+                </span>
+              )}
               {service.manifest_managed === 1 && (
                 <span className={styles.manifestBadge} title="Managed by manifest">M</span>
               )}
@@ -189,14 +197,21 @@ function ServiceDetail() {
                 <span className={styles.metadataLabel}>Team</span>
                 <span className={styles.metadataValue}>{service.team.name}</span>
               </div>
-              <div className={styles.metadataItem}>
-                <span className={styles.metadataLabel}>Health Endpoint</span>
-                <span className={styles.metadataValue}>
-                  <a href={service.health_endpoint} target="_blank" rel="noopener noreferrer">
-                    {service.health_endpoint}
-                  </a>
-                </span>
-              </div>
+              {service.health_endpoint_format === 'otlp' ? (
+                <div className={styles.metadataItem}>
+                  <span className={styles.metadataLabel}>Ingestion</span>
+                  <span className={styles.metadataValue}>Push via OTLP</span>
+                </div>
+              ) : (
+                <div className={styles.metadataItem}>
+                  <span className={styles.metadataLabel}>Health Endpoint</span>
+                  <span className={styles.metadataValue}>
+                    <a href={service.health_endpoint} target="_blank" rel="noopener noreferrer">
+                      {service.health_endpoint}
+                    </a>
+                  </span>
+                </div>
+              )}
               {service.metrics_endpoint && (
                 <div className={styles.metadataItem}>
                   <span className={styles.metadataLabel}>Metrics Endpoint</span>
