@@ -63,9 +63,15 @@ Rate limited: 20 requests/minute per IP.
 ```json
 {
   "url": "https://example.com/health (required, SSRF-validated)",
-  "schema_config": "SchemaMapping object or JSON string (required)"
+  "schema_config": "SchemaMapping object or JSON string (required for 'schema' format)",
+  "format": "'default' | 'schema' | 'prometheus' | 'otlp' (optional, default 'schema')"
 }
 ```
+
+**Format-specific behavior:**
+- `'schema'`/`'default'`: fetches JSON, parses with SchemaMapper (existing behavior)
+- `'prometheus'`: fetches with `Accept: text/plain; version=0.0.4`, parses with PrometheusParser
+- `'otlp'`: returns error — OTLP services receive pushed metrics and cannot be tested via URL
 
 **POST /api/services/test-schema response:**
 
@@ -87,12 +93,19 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
 {
   "name": "string (required)",
   "team_id": "uuid (required)",
-  "health_endpoint": "url (required, SSRF-validated)",
+  "health_endpoint": "url (required for polled formats, SSRF-validated)",
+  "health_endpoint_format": "'default' | 'schema' | 'prometheus' | 'otlp' (optional, default 'default')",
   "metrics_endpoint": "url (optional)",
-  "schema_config": "SchemaMapping object or null (optional, see Section 12.5)",
+  "schema_config": "SchemaMapping object or null (optional, required for 'schema' format)",
   "poll_interval_ms": "number (optional, default 30000, min 5000, max 3600000)"
 }
 ```
+
+**Format-specific rules:**
+- `'default'`: health endpoint URL required, no schema config needed
+- `'schema'`: health endpoint URL required, `schema_config` required
+- `'prometheus'`: health endpoint URL required, fetched with `Accept: text/plain; version=0.0.4`
+- `'otlp'`: health endpoint URL not required (push-only), `poll_interval_ms` set to 0, service receives metrics via `POST /v1/metrics`
 
 **GET /api/services/:id response:**
 
@@ -103,6 +116,7 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
   "team_id": "uuid",
   "team": { "id": "uuid", "name": "Platform", "description": "..." },
   "health_endpoint": "https://payment-svc/health",
+  "health_endpoint_format": "default",
   "metrics_endpoint": null,
   "schema_config": null,
   "poll_interval_ms": 30000,
@@ -163,6 +177,54 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
 - Team name must be unique (409 Conflict on duplicate)
 - Cannot delete team with services (409 Conflict)
 - Cannot add existing member (409 Conflict)
+
+### Team API Keys **[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/api-keys` | requireTeamLead | List API keys for team. Never returns raw key or hash. |
+| POST | `/api/teams/:id/api-keys` | requireTeamLead | Create API key. Returns raw key once. |
+| DELETE | `/api/teams/:id/api-keys/:keyId` | requireTeamLead | Revoke API key. Returns 204. |
+
+**POST /api/teams/:id/api-keys request:**
+
+```json
+{
+  "name": "string (required, descriptive name for the key)"
+}
+```
+
+**POST /api/teams/:id/api-keys response:**
+
+```json
+{
+  "id": "uuid",
+  "team_id": "uuid",
+  "name": "Production Collector",
+  "key_prefix": "dps_a1b2",
+  "raw_key": "dps_a1b2c3d4e5f6... (shown ONCE, never retrievable again)",
+  "created_at": "2026-03-10T10:00:00.000Z",
+  "created_by": "user-uuid"
+}
+```
+
+**GET /api/teams/:id/api-keys response:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "team_id": "uuid",
+    "name": "Production Collector",
+    "key_prefix": "dps_a1b2",
+    "last_used_at": "2026-03-15T08:30:00.000Z",
+    "created_at": "2026-03-10T10:00:00.000Z",
+    "created_by": "user-uuid"
+  }
+]
+```
+
+**Audit actions:** `api_key.created`, `api_key.revoked` (resource type: `team_api_key`). Audit detail includes `key_prefix` and `team_id`.
 
 ## 4.5 Users
 
@@ -885,3 +947,60 @@ Team-scoped drift flag review, actions, and bulk operations. All endpoints are n
 - Reopen only works on dismissed flags (400 otherwise)
 
 **Audit actions:** `drift.accepted`, `drift.dismissed`, `drift.reopened`, `drift.bulk_accepted`, `drift.bulk_dismissed`
+
+## 4.18 OTLP Receiver **[Implemented]**
+
+OpenTelemetry metrics push endpoint. Mounted at `/v1/metrics` (standard OTLP HTTP path), **not** under `/api/`. Authenticated via API key, not session. Mounted before session/CSRF middleware in the middleware chain.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/v1/metrics` | requireApiKeyAuth | Accept OTLP JSON metrics payload. |
+
+**Request:** OTLP `ExportMetricsServiceRequest` JSON body (limit: 1MB).
+
+**Rate limiting:** Dedicated OTLP rate limiter — 600 requests/minute per IP (configurable via `OTLP_RATE_LIMIT_MAX` and `OTLP_RATE_LIMIT_WINDOW_MS`). Separate from the global rate limiter.
+
+**Processing pipeline:**
+
+1. Authenticate via `Authorization: Bearer dps_...` header → resolves `teamId`
+2. Parse OTLP JSON with `OtlpParser` → extracts `service.name` from resource attributes, maps gauge metrics to dependency health fields
+3. **Auto-register services:** For each `service.name` in the payload:
+   - Look up by `name` + `team_id`
+   - Not found → auto-create with `health_endpoint_format = 'otlp'`, `health_endpoint = ''`, `is_active = 1`, `poll_interval_ms = 0`
+   - Found but `health_endpoint_format !== 'otlp'` → include warning (does not overwrite format)
+4. Upsert dependencies via `DependencyUpsertService`
+5. Emit `STATUS_CHANGE` events for alert processing
+
+**POST /v1/metrics response (success):**
+
+```json
+{
+  "partialSuccess": {
+    "rejectedDataPoints": 0,
+    "errorMessage": ""
+  }
+}
+```
+
+**OTLP metric mapping:**
+
+| OTLP Gauge Metric | Maps To |
+|---|---|
+| `dependency.health.status` | `health.state` (HealthState 0-2) |
+| `dependency.health.healthy` | `healthy` (0 or 1) |
+| `dependency.health.latency` | `health.latency` (milliseconds) |
+| `dependency.health.code` | `health.code` (HTTP status code) |
+| `dependency.health.check_skipped` | `health.skipped` |
+
+**OTLP attribute mapping:**
+
+| Resource/Data Point Attribute | Maps To |
+|---|---|
+| `service.name` (resource, required) | Service name for lookup/auto-registration |
+| `dependency.name` (data point, required) | Dependency name |
+| `dependency.type` (data point, optional) | Dependency type |
+| `dependency.impact` (data point, optional) | Impact description |
+| `dependency.description` (data point, optional) | Dependency description |
+| `dependency.error_message` (data point, optional) | Error message |
+
+**Timestamp handling:** `timeUnixNano` from data points is converted to ISO string for `lastChecked`. Falls back to `Date.now()` if missing.

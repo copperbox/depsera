@@ -115,7 +115,52 @@ Promise coalescing for services sharing the same health endpoint URL.
 - Each service maintains independent circuit breaker and backoff state despite sharing the HTTP response
 - No cross-cycle caching — each tick triggers fresh requests
 
-## 5.7 Dependency Parsing & Upsert
+## 5.7 Format-Aware Polling **[Implemented]**
+
+The polling system supports multiple health endpoint formats via the `health_endpoint_format` field on each service.
+
+### Service Format Dispatch
+
+| Format | Polling Behavior | Accept Header | Response Parsing |
+|---|---|---|---|
+| `default` | Poll endpoint, parse JSON array | `application/json` | `DependencyParser` (proactive-deps format) |
+| `schema` | Poll endpoint, parse JSON with schema mapping | `application/json` | `DependencyParser` → `SchemaMapper` |
+| `prometheus` | Poll endpoint, parse text | `text/plain; version=0.0.4` | `DependencyParser` → `PrometheusParser` |
+| `otlp` | **Not polled** (push-only) | N/A | Receives data via `POST /v1/metrics` |
+
+### OTLP Service Exclusion
+
+OTLP services are push-only and are excluded from the polling lifecycle at multiple levels:
+
+- `HealthPollingService.startService()`: skips services with `health_endpoint_format === 'otlp'`, does not create a poller or emit `SERVICE_STARTED`
+- `DependencyParser.parse()`: throws if `format === 'otlp'` (safety check — should never be called)
+- `ServicePoller`: never instantiated for OTLP services
+
+### PrometheusParser
+
+Parses Prometheus text exposition format (`metric_name{labels} value`) into `ProactiveDepsStatus[]`.
+
+**Metric mapping:**
+
+| Prometheus Metric | Maps To | Notes |
+|---|---|---|
+| `dependency_health_status` | `health.state` | HealthState 0-2 |
+| `dependency_health_healthy` | `healthy` | 0 or 1 |
+| `dependency_health_latency_seconds` | `health.latency` | Converted: seconds × 1000 → ms |
+| `dependency_health_code` | `health.code` | HTTP status code |
+| `dependency_health_check_skipped` | `health.skipped` | |
+
+**Label mapping:** `name` (required), `type`, `impact`, `description`, `error_message` (all optional).
+
+**Parsing rules:**
+- `# HELP` and `# TYPE` comment lines are skipped
+- Lines parsed as `metric_name{label1="val1",label2="val2"} value`
+- Dependencies are grouped by `name` label and metrics are merged per dependency
+- Missing `name` label produces a warning, line is skipped
+- Unknown metric names are silently ignored
+- `lastChecked` defaults to current time (no timestamp in text format)
+
+## 5.8 Dependency Parsing & Upsert
 
 When a poll succeeds, the health endpoint response is parsed (proactive-deps format) and each dependency is upserted:
 
@@ -141,7 +186,7 @@ The `DependencyParser.parseItem()` method extracts the following optional fields
 
 Both fields follow the same pattern: present and valid → included in `ProactiveDepsStatus`; missing or invalid type → `undefined`.
 
-## 5.8 Events
+## 5.9 Events
 
 | Event | Emitted When | Payload |
 |---|---|---|
@@ -153,7 +198,7 @@ Both fields follow the same pattern: present and valid → included in `Proactiv
 | `circuit:open` | Circuit transitions to open | serviceId, serviceName |
 | `circuit:close` | Circuit closes from half-open | serviceId, serviceName |
 
-## 5.9 Constants Summary
+## 5.10 Constants Summary
 
 | Constant | Value | Location |
 |---|---|---|

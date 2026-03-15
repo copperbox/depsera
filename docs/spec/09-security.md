@@ -52,6 +52,7 @@ When no cert paths are provided, the server generates a self-signed certificate 
 |---|---|---|---|
 | Global | 1 minute | 3,000 per IP | All requests (applied before session middleware) |
 | Auth | 1 minute | 20 per IP | `/api/auth` endpoints only |
+| OTLP | 1 minute | 600 per IP | `POST /v1/metrics` only (applied before API key auth) |
 
 Returns `429 Too Many Requests` with `RateLimit-*` and `Retry-After` headers.
 
@@ -74,7 +75,8 @@ The order matters — each layer builds on previous:
 | 3 | HTTPS Redirect | 301 redirect if enabled |
 | 4 | CORS | `credentials: true`, configurable origin |
 | 5 | JSON Parser | `express.json()` body parsing |
-| 6 | Global Rate Limit | 100 req/15min per IP — early rejection before session creation |
+| 5.5 | OTLP Route | `POST /v1/metrics` — JSON (1MB limit), OTLP rate limit, API key auth, OTLP router. Mounted before session/CSRF. |
+| 6 | Global Rate Limit | 3,000 req/min per IP — early rejection before session creation |
 | 7 | Session | Populates `req.session` |
 | 8 | Auth Bypass | Dev-only auto-auth |
 | 9 | Request Logger | `pino-http` structured logging (method, path, status, response time, userId) |

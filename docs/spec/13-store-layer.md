@@ -24,6 +24,7 @@ class StoreRegistry {
   public readonly manifestConfig: IManifestConfigStore;
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
   public readonly driftFlags: IDriftFlagStore;
+  public readonly teamApiKeys: ITeamApiKeyStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -319,3 +320,20 @@ deleteOlderThan(timestamp: string, statuses?: DriftFlagStatus[]): number
 - `upsertRemovalDrift`: pending or dismissed exists → update last_detected_at (stay in current status); not found → create new
 
 `deleteOlderThan` supports optional status filter array for targeted cleanup (e.g., only delete terminal statuses like `accepted`, `resolved`).
+
+### ITeamApiKeyStore **[Implemented]**
+```typescript
+findByTeamId(teamId: string): TeamApiKey[]
+findByKeyHash(hash: string): TeamApiKey | undefined
+create(input: CreateTeamApiKeyInput): TeamApiKey & { rawKey: string }
+delete(id: string): void
+updateLastUsed(id: string): void
+```
+
+`CreateTeamApiKeyInput`: `{ team_id: string; name: string; created_by?: string }`. Generates a UUID `id`, raw key (`dps_` + 16 random hex bytes), SHA-256 hash, and 8-character prefix. Returns the full `TeamApiKey` record plus `rawKey` (shown once, never stored).
+
+`findByTeamId` returns keys sorted by `created_at DESC`.
+
+`findByKeyHash` is the primary lookup used during authentication — indexed for fast access.
+
+`updateLastUsed` sets `last_used_at` to current timestamp. Called asynchronously during API key auth (non-critical failure).

@@ -167,3 +167,30 @@ A local authentication mode for zero-external-dependency deployment:
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" }` (public, no auth required)
 - Client login page conditionally renders local auth form or OIDC button based on `GET /api/auth/mode` **[Implemented]** (PRO-100)
 - Admin can create users and reset passwords via API **[Implemented]** (PRO-101). `POST /api/users` creates a local user; `PUT /api/users/:id/password` resets password. Both gated by `requireLocalAuth`.
+
+## 3.8 API Key Authentication **[Implemented]**
+
+Team-scoped API keys for authenticating OTLP metric push requests from OpenTelemetry collectors.
+
+### Key Format
+
+- Format: `dps_` + 32 random hex characters (e.g., `dps_a1b2c3d4e5f6...`)
+- Generated via `crypto.randomBytes(16).toString('hex')`
+- Stored as SHA-256 hash (`key_hash`); raw key returned only once at creation
+- `key_prefix` stores first 8 characters for UI display
+
+### `requireApiKeyAuth` Middleware
+
+Authenticates requests via `Authorization: Bearer dps_...` header:
+
+1. Extracts token from `Authorization: Bearer <token>` header
+2. Computes SHA-256 hash of the raw token
+3. Looks up `team_api_keys` by `key_hash`
+4. On success: sets `req.apiKeyTeamId` to the key's `team_id`, updates `last_used_at` asynchronously
+5. On failure: returns `401 { error: "..." }`
+
+**Key differences from session auth:**
+- Bypasses CSRF validation (collectors don't have CSRF tokens)
+- Bypasses session middleware (mounted before session layer in middleware order)
+- Does not set `req.user` — only `req.apiKeyTeamId`
+- Used exclusively for `POST /v1/metrics` (OTLP receiver endpoint)

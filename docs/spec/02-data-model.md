@@ -81,6 +81,7 @@ erDiagram
 | health_endpoint | TEXT | NOT NULL | |
 | metrics_endpoint | TEXT | | NULL |
 | schema_config | TEXT | | NULL |
+| health_endpoint_format | TEXT | NOT NULL | `'default'` |
 | poll_interval_ms | INTEGER | NOT NULL | 30000 |
 | is_active | INTEGER | NOT NULL | 1 |
 | last_poll_success | INTEGER | | NULL |
@@ -90,6 +91,8 @@ erDiagram
 | updated_at | TEXT | NOT NULL | `datetime('now')` |
 
 **Indexes:** `idx_services_team_id` on (team_id)
+
+**`health_endpoint_format` values:** `'default'` (standard proactive-deps JSON array), `'schema'` (custom schema mapping), `'prometheus'` (Prometheus text exposition format), `'otlp'` (OpenTelemetry push — no polling). OTLP services have `health_endpoint = ''` and `poll_interval_ms = 0`.
 
 **Constraints:** `poll_interval_ms` validated at API level: min 5000, max 3600000. Team delete is RESTRICT (cannot delete team with services).
 
@@ -236,6 +239,23 @@ Records dependency health status transitions detected during polling. `previous_
 
 Records service-level poll success/failure transitions with deduplication. Only state changes are recorded (success→failure, failure→success, or error message change). A null `error` entry represents recovery (poll succeeded after prior failure). Displayed on the service detail page in the "Poll Issues" section. Subject to data retention cleanup.
 
+### team_api_keys **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| name | TEXT | NOT NULL | |
+| key_hash | TEXT | NOT NULL | |
+| key_prefix | TEXT | NOT NULL | |
+| last_used_at | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| created_by | TEXT | FK → users.id | NULL |
+
+**Indexes:** `idx_team_api_keys_key_hash` UNIQUE on (key_hash), `idx_team_api_keys_team_id` on (team_id)
+
+Team-scoped API keys for authenticating OTLP push requests. `key_hash` stores SHA-256 of the raw API key (format: `dps_` + 32 random hex chars). `key_prefix` stores the first 8 characters for UI display (e.g., `dps_a1b2...`). The raw key is only returned once at creation time. Used by the `requireApiKeyAuth` middleware to authenticate `POST /v1/metrics` requests.
+
 ## Type Enumerations
 
 ```typescript
@@ -246,6 +266,7 @@ type AggregatedHealthStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 type DependencyType = 'database' | 'rest' | 'soap' | 'grpc' | 'graphql'
                     | 'message_queue' | 'cache' | 'file_system' | 'smtp' | 'other';
 type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
+type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
 type AlertSeverityFilter = 'critical' | 'warning' | 'all';
 type DriftType = 'field_change' | 'service_removal';
 type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
@@ -284,9 +305,9 @@ Key-value store for runtime-configurable admin settings.
 
 Records admin actions (role changes, user deactivation/reactivation, team CRUD, team member changes, service CRUD, canonical override management, per-instance override management).
 
-**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`, `alert_mute.created`, `alert_mute.deleted`
+**Audit actions:** `user.created`, `user.role_changed`, `user.deactivated`, `user.reactivated`, `user.password_reset`, `team.created`, `team.updated`, `team.deleted`, `team.member_added`, `team.member_removed`, `team.member_role_changed`, `service.created`, `service.updated`, `service.deleted`, `external_service.created`, `external_service.updated`, `external_service.deleted`, `settings.updated`, `canonical_override.upserted`, `canonical_override.deleted`, `dependency_override.updated`, `dependency_override.cleared`, `alert_mute.created`, `alert_mute.deleted`, `api_key.created`, `api_key.revoked`
 
-**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`, `alert_mute`
+**Resource types:** `user`, `team`, `service`, `external_service`, `settings`, `canonical_override`, `dependency`, `alert_mute`, `team_api_key`
 
 ### schema_config (on services) **[Implemented]**
 
@@ -504,7 +525,7 @@ Contains all types specific to the manifest sync engine:
 
 ### Updated existing interfaces
 
-- `Service`: added `manifest_key: string | null`, `manifest_managed: number`, `manifest_last_synced_values: string | null`
+- `Service`: added `manifest_key: string | null`, `manifest_managed: number`, `manifest_last_synced_values: string | null`, `health_endpoint_format: HealthEndpointFormat`
 - `DependencyAlias`: added `manifest_team_id: string | null`
 - `DependencyCanonicalOverride`: added `team_id: string | null`, `manifest_managed: number`
 - `DependencyAssociation`: added `manifest_managed: number`
@@ -621,5 +642,6 @@ Contains all types specific to the manifest sync engine:
 | 030 | add_alert_delay | Adds `alert_delay_minutes INTEGER` to `alert_rules` for requiring continuous unhealthy state before alerting |
 | 031 | add_alert_mutes | Creates `alert_mutes` table with CHECK constraint, unique indexes; rebuilds `alert_history` to add 'muted' to status CHECK |
 | 032 | add_service_mutes | Adds `service_id` column to `alert_mutes`; rebuilds table with updated CHECK constraint (exactly one of three targets); adds `idx_alert_mutes_service` unique index |
+| 034 | add_otel_sources | Adds `health_endpoint_format TEXT NOT NULL DEFAULT 'default'` to `services`; backfills `'schema'` for services with `schema_config`; creates `team_api_keys` table with unique index on `key_hash` and index on `team_id` |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
