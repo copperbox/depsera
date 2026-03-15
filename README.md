@@ -28,6 +28,8 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
 - Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.) with skipped-check support
+- **OTLP push ingestion** — receive metrics from OpenTelemetry collectors via `POST /v1/metrics` with team-scoped API key authentication and auto-registration of unknown services
+- **Prometheus scraping** — poll Prometheus text exposition endpoints (`text/plain; version=0.0.4`) with automatic metric-to-dependency mapping
 - Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
@@ -316,12 +318,15 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
 | Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history`, `GET/POST /:id/alert-mutes`, `DELETE /:id/alert-mutes/:muteId`, `GET /api/admin/alert-mutes` |
+| OTLP | `POST /v1/metrics` (API key auth, OTLP JSON) |
+| API Keys | `GET/POST /api/teams/:id/api-keys`, `DELETE /:id/api-keys/:keyId` |
 
 ## Security
 
 Depsera includes defense-in-depth security:
 
 - **Security headers** via Helmet (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
+- **API key authentication** for OTLP push endpoints — team-scoped keys with SHA-256 hashing, prefix display, and last-used tracking
 - **SSRF protection** on health endpoints with private IP blocking and DNS rebinding prevention; configurable allowlist for internal networks
 - **CSRF protection** via double-submit cookie pattern
 - **Rate limiting** — global (100 req/15min) and auth-specific (10 req/min) per IP
