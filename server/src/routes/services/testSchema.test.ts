@@ -554,4 +554,99 @@ describe('POST /api/services/test-schema', () => {
     expect(response.body.dependencies[1].name).toBe('db');
     expect(response.body.dependencies[1].healthy).toBe(false);
   });
+
+  // --- Format-aware tests ---
+
+  it('should return error for OTLP format', async () => {
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, format: 'otlp' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/OTLP services receive pushed metrics/);
+  });
+
+  it('should fetch with Accept: text/plain for prometheus format', async () => {
+    const promText = [
+      'dependency_health_status{name="postgres"} 0',
+      'dependency_health_healthy{name="postgres"} 1',
+      'dependency_health_latency_seconds{name="postgres"} 0.012',
+    ].join('\n');
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => promText,
+    });
+
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, format: 'prometheus' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.dependencies).toHaveLength(1);
+    expect(response.body.dependencies[0].name).toBe('postgres');
+    expect(response.body.dependencies[0].healthy).toBe(true);
+    expect(response.body.dependencies[0].latency_ms).toBe(12);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      validUrl,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Accept: 'text/plain; version=0.0.4',
+        }),
+      })
+    );
+  });
+
+  it('should not require schema_config for prometheus format', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => 'dependency_health_status{name="db"} 0\ndependency_health_healthy{name="db"} 1\n',
+    });
+
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, format: 'prometheus' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+  });
+
+  it('should still require schema_config for schema format', async () => {
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, format: 'schema' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/schema_config is required/i);
+  });
+
+  it('should default format to schema for backward compatibility', async () => {
+    // Without format field, should still work as before (requiring schema_config)
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/schema_config is required/i);
+  });
+
+  it('should not include schema-specific warnings for prometheus format', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: async () => 'dependency_health_status{name="db"} 0\ndependency_health_healthy{name="db"} 1\n',
+    });
+
+    const response = await request(app)
+      .post('/api/services/test-schema')
+      .send({ url: validUrl, format: 'prometheus' });
+
+    expect(response.status).toBe(200);
+    // Should NOT have schema-specific warnings like "No latency field mapping configured"
+    const schemaWarnings = (response.body.warnings || []).filter(
+      (w: string) => w.includes('field mapping configured')
+    );
+    expect(schemaWarnings).toHaveLength(0);
+  });
 });

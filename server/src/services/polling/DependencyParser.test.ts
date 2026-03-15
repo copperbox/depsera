@@ -349,4 +349,83 @@ describe('DependencyParser', () => {
       expect(() => parser.parse(data)).toThrow('missing healthy');
     });
   });
+
+  describe('format-aware dispatch', () => {
+    it('should use default array parser when format is "default"', () => {
+      const parser = new DependencyParser();
+      const result = parser.parse([{ name: 'test', healthy: true }], null, undefined, 'default');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('test');
+    });
+
+    it('should use SchemaMapper when format is "schema" with schemaConfig', () => {
+      const parser = new DependencyParser();
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'checkName',
+          healthy: { field: 'status', equals: 'ok' },
+        },
+      };
+      const data = { checks: [{ checkName: 'db', status: 'ok' }] };
+      const result = parser.parse(data, schema, undefined, 'schema');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('db');
+      expect(result[0].healthy).toBe(true);
+    });
+
+    it('should delegate to PrometheusParser when format is "prometheus"', () => {
+      const parser = new DependencyParser();
+      const promText = [
+        'dependency_health_status{name="postgres"} 0',
+        'dependency_health_healthy{name="postgres"} 1',
+        'dependency_health_latency_seconds{name="postgres"} 0.025',
+      ].join('\n');
+
+      const result = parser.parse(promText, null, undefined, 'prometheus');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('postgres');
+      expect(result[0].healthy).toBe(true);
+      expect(result[0].health.latency).toBe(25); // 0.025s → 25ms
+    });
+
+    it('should throw when format is "otlp"', () => {
+      const parser = new DependencyParser();
+      expect(() => parser.parse({}, null, undefined, 'otlp')).toThrow(
+        'OTLP services are push-only and cannot be polled'
+      );
+    });
+
+    it('should default to "default" format when format is undefined', () => {
+      const parser = new DependencyParser();
+      const result = parser.parse([{ name: 'test', healthy: true }]);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('test');
+    });
+
+    it('should aggregate warnings from PrometheusParser', () => {
+      const parser = new DependencyParser();
+      // Line with a known metric but missing "name" label
+      const promText = 'dependency_health_status{} 0\n';
+
+      parser.parse(promText, null, undefined, 'prometheus');
+      expect(parser.lastWarnings.length).toBeGreaterThan(0);
+      expect(parser.lastWarnings[0]).toMatch(/missing required "name" label/);
+    });
+
+    it('should aggregate warnings from SchemaMapper', () => {
+      const parser = new DependencyParser();
+      const schema: SchemaMapping = {
+        root: 'checks',
+        fields: {
+          name: 'checkName',
+          healthy: { field: 'status', equals: 'ok' },
+        },
+      };
+      // Non-object entry in array will be skipped with a warning
+      const data = { checks: [null, { checkName: 'db', status: 'ok' }] };
+      parser.parse(data, schema, undefined, 'schema');
+      expect(parser.lastWarnings.length).toBeGreaterThan(0);
+    });
+  });
 });

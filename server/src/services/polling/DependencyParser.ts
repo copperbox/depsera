@@ -1,15 +1,17 @@
-import { ProactiveDepsStatus, DependencyType, SchemaMapping } from '../../db/types';
+import { ProactiveDepsStatus, DependencyType, SchemaMapping, HealthEndpointFormat } from '../../db/types';
 import { SchemaMapper } from './SchemaMapper';
+import { PrometheusParser } from './PrometheusParser';
 
 /**
  * Parses health endpoint responses into ProactiveDepsStatus objects.
  * Handles both nested and flat response formats.
  * When a SchemaMapping is provided, delegates to SchemaMapper for custom schemas.
+ * Dispatches to format-specific parsers based on HealthEndpointFormat.
  */
 export class DependencyParser {
   private _lastWarnings: string[] = [];
 
-  /** Warnings from the most recent parse() call (schema mapping only). */
+  /** Warnings from the most recent parse() call. */
   get lastWarnings(): string[] {
     return this._lastWarnings;
   }
@@ -18,17 +20,34 @@ export class DependencyParser {
    * Parse a health endpoint response into an array of dependency statuses.
    * @param data - The raw response data (expected to be an array, or object for custom schema)
    * @param schemaConfig - Optional schema mapping for custom health endpoint formats
+   * @param serviceName - Optional service name for schema mapping context
+   * @param format - The health endpoint format to use for parsing (default: 'default')
    * @returns Array of parsed ProactiveDepsStatus objects
-   * @throws Error if the data format is invalid
+   * @throws Error if the data format is invalid or format is 'otlp' (push-only)
    */
-  parse(data: unknown, schemaConfig?: SchemaMapping | null, serviceName?: string): ProactiveDepsStatus[] {
+  parse(data: unknown, schemaConfig?: SchemaMapping | null, serviceName?: string, format?: HealthEndpointFormat): ProactiveDepsStatus[] {
     this._lastWarnings = [];
+    const effectiveFormat = format ?? 'default';
 
-    if (schemaConfig) {
-      const mapper = new SchemaMapper(schemaConfig, serviceName);
-      const results = mapper.parse(data);
-      this._lastWarnings = mapper.warnings;
+    if (effectiveFormat === 'otlp') {
+      throw new Error('OTLP services are push-only and cannot be polled');
+    }
+
+    if (effectiveFormat === 'prometheus') {
+      const prometheusParser = new PrometheusParser();
+      const results = prometheusParser.parse(data as string);
+      this._lastWarnings = prometheusParser.lastWarnings;
       return results;
+    }
+
+    // 'schema' format or 'default' with schemaConfig
+    if (effectiveFormat === 'schema' || schemaConfig) {
+      if (schemaConfig) {
+        const mapper = new SchemaMapper(schemaConfig, serviceName);
+        const results = mapper.parse(data);
+        this._lastWarnings = mapper.warnings;
+        return results;
+      }
     }
 
     if (!Array.isArray(data)) {

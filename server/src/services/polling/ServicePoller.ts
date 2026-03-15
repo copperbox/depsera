@@ -92,6 +92,9 @@ export class ServicePoller {
     // Validate URL against private/internal IPs (DNS rebinding protection)
     await validateUrlNotPrivate(this.service.health_endpoint);
 
+    const format = this.service.health_endpoint_format ?? 'default';
+    const isPrometheus = format === 'prometheus';
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), POLL_TIMEOUT_MS);
 
@@ -99,7 +102,7 @@ export class ServicePoller {
       const response = await fetch(this.service.health_endpoint, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          'Accept': isPrometheus ? 'text/plain; version=0.0.4' : 'application/json',
           'User-Agent': 'Dependencies-Dashboard/1.0',
         },
         signal: controller.signal,
@@ -109,9 +112,9 @@ export class ServicePoller {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = isPrometheus ? await response.text() : await response.json();
       const schemaConfig = this.getSchemaConfig();
-      return this.parser.parse(data, schemaConfig, this.service.name);
+      return this.parser.parse(data, schemaConfig, this.service.name, format);
     } finally {
       clearTimeout(timeout);
     }
