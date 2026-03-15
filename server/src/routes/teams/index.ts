@@ -8,6 +8,7 @@ import { deleteTeam } from './delete';
 import { addMember } from './members/add';
 import { updateMember } from './members/update';
 import { removeMember } from './members/remove';
+import apiKeyRoutes from './apiKeys';
 
 const router = Router();
 
@@ -22,5 +23,8 @@ router.delete('/:id', requireAdmin, deleteTeam);
 router.post('/:id/members', requireAdmin, addMember);
 router.put('/:id/members/:userId', requireAdmin, updateMember);
 router.delete('/:id/members/:userId', requireAdmin, removeMember);
+
+// API key management - team lead/admin only (auth handled by apiKeys router)
+router.use('/:id/api-keys', apiKeyRoutes);
 
 export default router;
