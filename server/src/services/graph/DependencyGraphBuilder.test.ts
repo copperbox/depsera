@@ -20,6 +20,7 @@ describe('DependencyGraphBuilder', () => {
     manifest_managed: 0,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     is_active: 1,
     is_external: 0,
     description: null,

@@ -91,6 +91,9 @@ export interface SchemaMapping {
   };
 }
 
+// Health endpoint format types
+export type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
+
 // Service types
 export interface Service {
   id: string;
@@ -108,6 +111,7 @@ export interface Service {
   poll_warnings: string | null; // JSON array of warning strings
   manifest_key: string | null;
   manifest_managed: number; // SQLite boolean — 1 if managed by manifest
+  health_endpoint_format: HealthEndpointFormat;
   manifest_config_id: string | null; // FK → team_manifest_config.id
   manifest_last_synced_values: string | null; // JSON snapshot of last synced field values
   created_at: string;
@@ -369,9 +373,11 @@ export type AuditAction =
   | 'drift.bulk_accepted'
   | 'drift.bulk_dismissed'
   | 'alert_mute.created'
-  | 'alert_mute.deleted';
+  | 'alert_mute.deleted'
+  | 'api_key.created'
+  | 'api_key.revoked';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag' | 'alert_mute';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag' | 'alert_mute' | 'team_api_key';
 
 export interface AuditLogEntry {
   id: string;
@@ -475,6 +481,24 @@ export interface CreateAlertMuteInput {
   reason?: string | null;
   created_by: string;
   expires_at?: string | null;
+}
+
+// Team API key types
+export interface TeamApiKey {
+  id: string;
+  team_id: string;
+  name: string;
+  key_hash: string;
+  key_prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface CreateTeamApiKeyInput {
+  team_id: string;
+  name: string;
+  created_by?: string;
 }
 
 // Status change event types

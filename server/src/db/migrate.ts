@@ -33,6 +33,7 @@ import * as migration030 from './migrations/030_add_alert_delay';
 import * as migration031 from './migrations/031_add_alert_mutes';
 import * as migration032 from './migrations/032_add_service_mutes';
 import * as migration033 from './migrations/033_multi_manifest';
+import * as migration034 from './migrations/034_add_otel_sources';
 
 interface Migration {
   id: string;
@@ -239,6 +240,12 @@ const migrations: Migration[] = [
     name: 'multi_manifest',
     up: migration033.up,
     down: migration033.down
+  },
+  {
+    id: '034',
+    name: 'add_otel_sources',
+    up: migration034.up,
+    down: migration034.down
   }
 ];
 

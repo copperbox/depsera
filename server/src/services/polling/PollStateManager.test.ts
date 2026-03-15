@@ -22,6 +22,7 @@ describe('PollStateManager', () => {
     manifest_managed: 0,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,

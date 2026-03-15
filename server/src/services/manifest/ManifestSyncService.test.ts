@@ -98,6 +98,7 @@ function makeService(overrides: Partial<Service> = {}): Service {
     manifest_managed: 1,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,

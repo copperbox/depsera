@@ -25,6 +25,7 @@ describe('dependencyFormatter', () => {
     manifest_managed: 0,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     created_at: '2024-01-01T00:00:00.000Z',
     updated_at: '2024-01-01T00:00:00.000Z',
   };

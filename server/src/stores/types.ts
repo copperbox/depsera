@@ -7,6 +7,7 @@ import {
   AssociationType,
   TeamMemberRole,
   HealthState,
+  HealthEndpointFormat,
 } from '../db/types';
 
 // Database context for dependency injection
@@ -151,6 +152,7 @@ export interface ServiceCreateInput {
   poll_interval_ms?: number;
   is_external?: boolean;
   description?: string | null;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface ServiceUpdateInput {
@@ -162,6 +164,7 @@ export interface ServiceUpdateInput {
   poll_interval_ms?: number;
   is_active?: boolean;
   description?: string | null;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface TeamCreateInput {
