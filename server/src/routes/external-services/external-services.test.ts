@@ -99,6 +99,7 @@ describe('External Services API', () => {
         is_active INTEGER NOT NULL DEFAULT 1,
         is_external INTEGER NOT NULL DEFAULT 0,
         description TEXT,
+        health_endpoint_format TEXT NOT NULL DEFAULT 'default',
         last_poll_success INTEGER,
         last_poll_error TEXT,
         poll_warnings TEXT,

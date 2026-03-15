@@ -46,3 +46,17 @@ export function createAuthRateLimit(config?: Partial<RateLimitConfig>) {
     message: { error: 'Too many authentication attempts, please try again later' },
   });
 }
+
+export function createOtlpRateLimit(config?: Partial<RateLimitConfig>) {
+  const windowMs = config?.windowMs ?? parseInt(process.env.OTLP_RATE_LIMIT_WINDOW_MS || '60000', 10);
+  const max = config?.max ?? parseInt(process.env.OTLP_RATE_LIMIT_MAX || '600', 10);
+  const isDev = process.env.NODE_ENV === 'development';
+  return rateLimit({
+    windowMs,
+    max,
+    skip: isDev ? () => true : undefined,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests to OTLP endpoint, please try again later' },
+  });
+}
