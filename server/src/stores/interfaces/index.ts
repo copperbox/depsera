@@ -18,3 +18,4 @@ export type { IManifestConfigStore, ManifestSyncResultInput } from './IManifestC
 export type { IManifestSyncHistoryStore, ManifestSyncHistoryCreateInput } from './IManifestSyncHistoryStore';
 export type { IDriftFlagStore, DriftFlagListOptions } from './IDriftFlagStore';
 export type { IAlertMuteStore } from './IAlertMuteStore';
+export type { ITeamApiKeyStore } from './ITeamApiKeyStore';
