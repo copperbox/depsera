@@ -219,6 +219,19 @@ function Layout() {
                   </svg>
                   <span className={styles.navLinkText}>Manifests</span>
                 </NavLink>
+                <NavLink
+                  to="/admin/otlp"
+                  className={({ isActive }) =>
+                    `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`
+                  }
+                  onClick={closeSidebar}
+                  title="OTLP"
+                >
+                  <svg className={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  <span className={styles.navLinkText}>OTLP</span>
+                </NavLink>
               </>
             )}
           </nav>

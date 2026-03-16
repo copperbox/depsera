@@ -17,6 +17,7 @@ import ServiceCatalog from './components/pages/Catalog/ServiceCatalog';
 import ManifestPage from './components/pages/Manifest/ManifestPage';
 import ManifestAdmin from './components/pages/Admin/ManifestAdmin';
 import AlertMutesAdmin from './components/pages/Admin/AlertMutesAdmin';
+import OtlpAdmin from './components/pages/Admin/OtlpAdmin';
 
 function App() {
   return (
@@ -77,6 +78,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <AlertMutesAdmin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin/otlp"
+          element={
+            <ProtectedRoute requireAdmin>
+              <OtlpAdmin />
             </ProtectedRoute>
           }
         />
