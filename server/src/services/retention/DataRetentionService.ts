@@ -138,6 +138,17 @@ export class DataRetentionService {
       // Clean up expired alert mutes (not retention-based — they self-expire)
       const mutesExpired = stores.alertMutes.deleteExpired();
 
+      // Usage bucket retention: minute=24h, hour=30d, orphaned=7d
+      const usageMinuteDeleted = stores.apiKeyUsage.pruneMinuteBuckets(
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      );
+      const usageHourDeleted = stores.apiKeyUsage.pruneHourBuckets(
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      );
+      const usageOrphanedDeleted = stores.apiKeyUsage.pruneOrphanedBuckets(
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      );
+
       const result: CleanupResult = {
         latencyDeleted,
         errorDeleted,
@@ -148,6 +159,9 @@ export class DataRetentionService {
         syncHistoryDeleted,
         driftFlagsDeleted,
         mutesExpired,
+        usageMinuteDeleted,
+        usageHourDeleted,
+        usageOrphanedDeleted,
         retentionDays,
         cutoffTimestamp,
       };
@@ -201,6 +215,9 @@ export interface CleanupResult {
   syncHistoryDeleted: number;
   driftFlagsDeleted: number;
   mutesExpired: number;
+  usageMinuteDeleted: number;
+  usageHourDeleted: number;
+  usageOrphanedDeleted: number;
   retentionDays: number;
   cutoffTimestamp: string;
 }

@@ -41,7 +41,9 @@ import { csrfProtection } from './middleware/csrf';
 import { createSecurityHeaders } from './middleware/securityHeaders';
 import { parseTrustProxy } from './middleware/trustProxy';
 import { createHttpsRedirect } from './middleware/httpsRedirect';
-import { createGlobalRateLimit, createAuthRateLimit, createOtlpRateLimit } from './middleware/rateLimit';
+import { createGlobalRateLimit, createAuthRateLimit, createOtlpGlobalRateLimit } from './middleware/rateLimit';
+import { createPerKeyRateLimit } from './middleware/perKeyRateLimit';
+import { createTrackApiKeyUsage } from './middleware/trackApiKeyUsage';
 import { requireApiKeyAuth } from './auth/apiKeyAuth';
 import otlpRouter from './routes/otlp';
 import { createRequestLogger } from './middleware/requestLogger';
@@ -68,7 +70,14 @@ app.use(cors({
 app.use(express.json({ limit: '100kb' }));
 
 // OTLP receiver — mounted before session/CSRF middleware (collectors use API key auth, not sessions)
-app.use('/v1/metrics', express.json({ limit: '1mb' }), createOtlpRateLimit(), requireApiKeyAuth, otlpRouter);
+app.use('/v1/metrics',
+  express.json({ limit: '1mb' }),
+  createOtlpGlobalRateLimit(),
+  requireApiKeyAuth,
+  createPerKeyRateLimit(),
+  createTrackApiKeyUsage(),
+  otlpRouter,
+);
 
 app.use(createGlobalRateLimit());
 app.use(sessionMiddleware);

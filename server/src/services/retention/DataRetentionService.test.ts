@@ -10,6 +10,9 @@ const mockDeletePollHistory = jest.fn().mockReturnValue(0);
 const mockDeleteSyncHistory = jest.fn().mockReturnValue(0);
 const mockDeleteDriftFlags = jest.fn().mockReturnValue(0);
 const mockDeleteExpiredMutes = jest.fn().mockReturnValue(0);
+const mockPruneMinuteBuckets = jest.fn().mockReturnValue(0);
+const mockPruneHourBuckets = jest.fn().mockReturnValue(0);
+const mockPruneOrphanedBuckets = jest.fn().mockReturnValue(0);
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -23,6 +26,11 @@ jest.mock('../../stores', () => ({
     manifestSyncHistory: { deleteOlderThan: mockDeleteSyncHistory },
     driftFlags: { deleteOlderThan: mockDeleteDriftFlags },
     alertMutes: { deleteExpired: mockDeleteExpiredMutes },
+    apiKeyUsage: {
+      pruneMinuteBuckets: mockPruneMinuteBuckets,
+      pruneHourBuckets: mockPruneHourBuckets,
+      pruneOrphanedBuckets: mockPruneOrphanedBuckets,
+    },
     settings: mockSettingsStore,
   }),
 }));
