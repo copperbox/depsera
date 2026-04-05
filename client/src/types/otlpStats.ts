@@ -69,3 +69,19 @@ export interface AdminOtlpStatsResponse {
   teams: AdminOtlpTeamStats[];
   summary: AdminOtlpStatsSummary;
 }
+
+export interface AdminOtlpUsageBucket {
+  api_key_id: string;
+  bucket_start: string;
+  granularity: 'minute' | 'hour';
+  push_count: number;
+  rejected_count: number;
+  team_id: string;
+  key_name: string;
+}
+
+export interface AdminOtlpUsageResponse {
+  from: string;
+  to: string;
+  buckets: AdminOtlpUsageBucket[];
+}

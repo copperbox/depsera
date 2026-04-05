@@ -1,5 +1,5 @@
 import { handleResponse } from './common';
-import type { OtlpStatsResponse, AdminOtlpStatsResponse, ApiKeyUsageResponse } from '../types/otlpStats';
+import type { OtlpStatsResponse, AdminOtlpStatsResponse, ApiKeyUsageResponse, AdminOtlpUsageResponse } from '../types/otlpStats';
 
 export async function getTeamOtlpStats(teamId: string): Promise<OtlpStatsResponse> {
   const response = await fetch(`/api/teams/${teamId}/otlp-stats`, {
@@ -67,7 +67,7 @@ export async function updateAdminApiKeyRateLimit(
 
 export async function getAdminOtlpUsage(
   params: { from: string; to: string },
-): Promise<unknown> {
+): Promise<AdminOtlpUsageResponse> {
   const qs = new URLSearchParams(params).toString();
   const response = await fetch(`/api/admin/otlp-usage?${qs}`, {
     credentials: 'include',
