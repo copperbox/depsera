@@ -15,6 +15,8 @@ describe('TeamApiKeyStore', () => {
         name TEXT NOT NULL,
         key_hash TEXT NOT NULL,
         key_prefix TEXT NOT NULL,
+        rate_limit_rpm INTEGER,
+        rate_limit_admin_locked INTEGER NOT NULL DEFAULT 0,
         last_used_at TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         created_by TEXT
@@ -175,6 +177,83 @@ describe('TeamApiKeyStore', () => {
       const updated = store.findByKeyHash(hash);
 
       expect(updated!.last_used_at).not.toBeNull();
+    });
+  });
+
+  describe('updateRateLimit (DPS-100m)', () => {
+    it('should persist a custom rate_limit_rpm value', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      const updated = store.updateRateLimit(created.id, 600);
+
+      expect(updated.rate_limit_rpm).toBe(600);
+
+      const found = store.findById(created.id);
+      expect(found!.rate_limit_rpm).toBe(600);
+    });
+
+    it('should reset rate_limit_rpm to null', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      // Set to custom first
+      store.updateRateLimit(created.id, 600);
+      // Reset to null
+      const updated = store.updateRateLimit(created.id, null);
+
+      expect(updated.rate_limit_rpm).toBeNull();
+
+      const found = store.findById(created.id);
+      expect(found!.rate_limit_rpm).toBeNull();
+    });
+
+    it('should throw when key does not exist', () => {
+      expect(() => store.updateRateLimit('nonexistent-id', 600)).toThrow('API key not found');
+    });
+  });
+
+  describe('setAdminLock (DPS-100m)', () => {
+    it('should set rate_limit_admin_locked to 1 when locked', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      const updated = store.setAdminLock(created.id, true);
+
+      expect(updated.rate_limit_admin_locked).toBe(1);
+    });
+
+    it('should set both lock and rate limit atomically', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      const updated = store.setAdminLock(created.id, true, 1200);
+
+      expect(updated.rate_limit_admin_locked).toBe(1);
+      expect(updated.rate_limit_rpm).toBe(1200);
+    });
+
+    it('should clear rate_limit_admin_locked to 0 when unlocked', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      // Lock first
+      store.setAdminLock(created.id, true, 1200);
+      // Unlock
+      const updated = store.setAdminLock(created.id, false);
+
+      expect(updated.rate_limit_admin_locked).toBe(0);
+      // rate_limit_rpm should be preserved since no rateLimit was passed
+      expect(updated.rate_limit_rpm).toBe(1200);
+    });
+
+    it('should not change rate_limit_rpm when rateLimit is not provided', () => {
+      const created = store.create({ team_id: 'team-1', name: 'Test Key' });
+
+      store.updateRateLimit(created.id, 500);
+      const updated = store.setAdminLock(created.id, true);
+
+      expect(updated.rate_limit_admin_locked).toBe(1);
+      expect(updated.rate_limit_rpm).toBe(500);
+    });
+
+    it('should throw when key does not exist', () => {
+      expect(() => store.setAdminLock('nonexistent-id', true)).toThrow('API key not found');
     });
   });
 });
