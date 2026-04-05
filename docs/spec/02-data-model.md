@@ -251,10 +251,27 @@ Records service-level poll success/failure transitions with deduplication. Only 
 | last_used_at | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 | created_by | TEXT | FK → users.id | NULL |
+| rate_limit_rpm | INTEGER | | NULL |
+| rate_limit_admin_locked | INTEGER | NOT NULL | 0 |
 
 **Indexes:** `idx_team_api_keys_key_hash` UNIQUE on (key_hash), `idx_team_api_keys_team_id` on (team_id)
 
-Team-scoped API keys for authenticating OTLP push requests. `key_hash` stores SHA-256 of the raw API key (format: `dps_` + 32 random hex chars). `key_prefix` stores the first 8 characters for UI display (e.g., `dps_a1b2...`). The raw key is only returned once at creation time. Used by the `requireApiKeyAuth` middleware to authenticate `POST /v1/metrics` requests.
+Team-scoped API keys for authenticating OTLP push requests. `key_hash` stores SHA-256 of the raw API key (format: `dps_` + 32 random hex chars). `key_prefix` stores the first 8 characters for UI display (e.g., `dps_a1b2...`). The raw key is only returned once at creation time. Used by the `requireApiKeyAuth` middleware to authenticate `POST /v1/metrics` requests. `rate_limit_rpm`: NULL = system default (env `OTLP_PER_KEY_RATE_LIMIT_RPM`, default 150,000), 0 = unlimited (admin-only), N = custom rpm. `rate_limit_admin_locked`: 0 = unlocked (team can self-serve), 1 = admin has locked against team edits.
+
+### api_key_usage_buckets **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| api_key_id | TEXT | NOT NULL, PK | |
+| bucket_start | TEXT | NOT NULL, PK | |
+| granularity | TEXT | NOT NULL, PK, CHECK (`minute`, `hour`) | |
+| push_count | INTEGER | NOT NULL | 0 |
+| rejected_count | INTEGER | NOT NULL | 0 |
+
+**Primary Key:** (api_key_id, bucket_start, granularity)
+**Indexes:** `idx_usage_buckets_key_start` on (api_key_id, bucket_start), `idx_usage_buckets_start` on (bucket_start)
+
+Time-series bucketed usage counters for API key push requests. No FK cascade by design — when a key is hard-deleted, orphaned usage rows are retained for 7 days then pruned by the retention job. Minute-granularity rows are retained 24 hours; hour-granularity rows are retained 30 days. `bucket_start` is an ISO 8601 UTC timestamp truncated to minute or hour (e.g., `2025-01-15T14:32:00` or `2025-01-15T14:00:00`).
 
 ## Type Enumerations
 
@@ -671,5 +688,7 @@ Contains all types specific to the manifest sync engine:
 | 031 | add_alert_mutes | Creates `alert_mutes` table with CHECK constraint, unique indexes; rebuilds `alert_history` to add 'muted' to status CHECK |
 | 032 | add_service_mutes | Adds `service_id` column to `alert_mutes`; rebuilds table with updated CHECK constraint (exactly one of three targets); adds `idx_alert_mutes_service` unique index |
 | 034 | add_otel_sources | Adds `health_endpoint_format TEXT NOT NULL DEFAULT 'default'` to `services`; backfills `'schema'` for services with `schema_config`; creates `team_api_keys` table with unique index on `key_hash` and index on `team_id` |
+| 035 | api_key_rate_limit_columns | Adds `rate_limit_rpm INTEGER` (NULL = system default, 0 = unlimited, N = custom rpm) and `rate_limit_admin_locked INTEGER NOT NULL DEFAULT 0` to `team_api_keys` |
+| 036 | api_key_usage_buckets | Creates `api_key_usage_buckets` table (composite PK: api_key_id, bucket_start, granularity) with indexes `idx_usage_buckets_key_start` and `idx_usage_buckets_start`; no FK cascade by design — orphaned rows pruned by retention |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.
