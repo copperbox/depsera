@@ -501,6 +501,8 @@ export interface TeamApiKey {
   name: string;
   key_hash: string;
   key_prefix: string;
+  rate_limit_rpm: number | null;        // null = system default
+  rate_limit_admin_locked: number;      // 0 or 1 (SQLite boolean)
   last_used_at: string | null;
   created_at: string;
   created_by: string | null;
@@ -510,6 +512,14 @@ export interface CreateTeamApiKeyInput {
   team_id: string;
   name: string;
   created_by?: string;
+}
+
+export interface ApiKeyUsageBucket {
+  api_key_id: string;
+  bucket_start: string;       // ISO 8601 UTC, e.g. "2025-01-15T14:32:00"
+  granularity: 'minute' | 'hour';
+  push_count: number;
+  rejected_count: number;
 }
 
 // Status change event types

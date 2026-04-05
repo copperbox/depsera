@@ -8,6 +8,7 @@ declare global {
   namespace Express {
     interface Request {
       apiKeyTeamId?: string;
+      apiKeyId?: string;
     }
   }
 }
@@ -44,6 +45,7 @@ export function requireApiKeyAuth(req: Request, res: Response, next: NextFunctio
   }
 
   req.apiKeyTeamId = apiKey.team_id;
+  req.apiKeyId = apiKey.id;
 
   // Update last_used_at asynchronously (fire and forget)
   try {
