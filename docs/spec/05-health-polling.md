@@ -148,6 +148,26 @@ Parses OTLP `ExportMetricsServiceRequest` JSON payloads into dependency statuses
 
 **Custom metric/attribute names via MetricSchemaConfig:** The OTLP receiver loads `schema_config` per-service and passes it to `parseResourceMetrics()`. Default metric names (`dependency.health.status`, etc.) and attribute names (`dependency.name`, etc.) can be overridden per-service. See the OTLP metric mapping tables in the API reference and the `MetricSchemaConfig` section in the data model spec.
 
+**Healthy value comparison:** Health status is determined by comparing the `healthy` metric value against a configurable `healthy_value` (default: `1`). The `healthy_value` can be overridden per-service via the `MetricSchemaConfig`.
+
+**Timestamp handling:** `timeUnixNano` from OTLP data points is converted from nanoseconds to an ISO 8601 string for `lastChecked`. Falls back to `Date.now()` if the timestamp is missing or zero.
+
+### OTLP Receiver Endpoint
+
+The OTLP receiver (`POST /v1/metrics`) is documented in the API reference (section 4.18). Key implementation details relevant to the polling system:
+
+**Middleware chain:** `express.json (1MB limit)` → `OTLP global rate limit (600/min per IP)` → `requireApiKeyAuth` → `per-key rate limit (token bucket)` → `usage tracking` → `OTLP router`.
+
+**Auto-registration:** When the receiver encounters a `service.name` not yet registered for the authenticated team, it auto-creates a service with `health_endpoint_format = 'otlp'`, `health_endpoint = ''`, `is_active = 1`, `poll_interval_ms = 0`. These services are excluded from the polling lifecycle.
+
+**Format mismatch:** If a service exists but has a different `health_endpoint_format`, the receiver logs a warning but continues processing. It does not overwrite the existing format.
+
+**Response format:** Returns an OTLP-standard `partialSuccess` response. On success: `{ partialSuccess: { rejectedDataPoints: 0, errorMessage: "" } }`. Warnings from parsing are aggregated into the `errorMessage` field. On rate limit rejection (429): `{ partialSuccess: { rejectedDataPoints: 0, errorMessage: "Rate limit exceeded..." } }`.
+
+**Per-key rate limiting:** See section 9.4 in the security spec for details on the token bucket algorithm, configuration, and response headers.
+
+**Usage tracking:** Every request (accepted or rejected) increments `push_count` in dual-granularity buckets (minute + hour). Rejected requests additionally increment `rejected_count`. Usage data is accumulated in-memory and flushed to the database every `OTLP_USAGE_FLUSH_INTERVAL_MS` (default 5s).
+
 ### PrometheusParser
 
 Parses Prometheus text exposition format (`metric_name{labels} value`) into `ProactiveDepsStatus[]`.

@@ -25,6 +25,7 @@ class StoreRegistry {
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
   public readonly driftFlags: IDriftFlagStore;
   public readonly teamApiKeys: ITeamApiKeyStore;
+  public readonly apiKeyUsage: IApiKeyUsageStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -325,9 +326,12 @@ deleteOlderThan(timestamp: string, statuses?: DriftFlagStatus[]): number
 ```typescript
 findByTeamId(teamId: string): TeamApiKey[]
 findByKeyHash(hash: string): TeamApiKey | undefined
+findById(id: string): TeamApiKey | undefined
 create(input: CreateTeamApiKeyInput): TeamApiKey & { rawKey: string }
-delete(id: string): void
+delete(id: string): boolean
 updateLastUsed(id: string): void
+updateRateLimit(id: string, rateLimit: number | null): TeamApiKey
+setAdminLock(id: string, locked: boolean, rateLimit?: number | null): TeamApiKey
 ```
 
 `CreateTeamApiKeyInput`: `{ team_id: string; name: string; created_by?: string }`. Generates a UUID `id`, raw key (`dps_` + 16 random hex bytes), SHA-256 hash, and 8-character prefix. Returns the full `TeamApiKey` record plus `rawKey` (shown once, never stored).
@@ -336,4 +340,37 @@ updateLastUsed(id: string): void
 
 `findByKeyHash` is the primary lookup used during authentication — indexed for fast access.
 
+`findById` is used by the per-key rate limiter to look up the key's effective rate limit and by the rate limit management endpoints.
+
 `updateLastUsed` sets `last_used_at` to current timestamp. Called asynchronously during API key auth (non-critical failure).
+
+`updateRateLimit` sets `rate_limit_rpm` to the given value (positive integer, null for system default). Returns the updated `TeamApiKey`. Used by both team-level and admin rate limit endpoints.
+
+`setAdminLock` sets `rate_limit_admin_locked` (0 or 1) and optionally updates `rate_limit_rpm` in the same operation (uses SQL `COALESCE` to skip rate limit update when not provided). Returns the updated `TeamApiKey`. Admin-only.
+
+### IApiKeyUsageStore **[Implemented]**
+```typescript
+bulkUpsert(entries: BulkUpsertEntry[]): void
+getBuckets(apiKeyId: string, granularity: 'minute' | 'hour', from: string, to: string): ApiKeyUsageBucket[]
+getBucketsByTeam(teamId: string, granularity: 'minute' | 'hour', from: string, to: string): (ApiKeyUsageBucket & { key_name: string; key_prefix: string })[]
+getAllBuckets(granularity: 'minute' | 'hour', from: string, to: string): (ApiKeyUsageBucket & { team_id: string; key_name: string })[]
+getSummaryForKeys(apiKeyIds: string[], from: string, to: string): Map<string, { push_count: number; rejected_count: number }>
+pruneMinuteBuckets(olderThan: string): number
+pruneHourBuckets(olderThan: string): number
+pruneOrphanedBuckets(olderThan: string): number
+```
+
+`BulkUpsertEntry`: `{ api_key_id: string; bucket_start: string; granularity: 'minute' | 'hour'; push_count: number; rejected_count: number }`. Uses `INSERT ... ON CONFLICT DO UPDATE SET push_count = push_count + excluded.push_count, rejected_count = rejected_count + excluded.rejected_count` for atomic accumulation.
+
+`getBuckets` returns time-series buckets for a single key, ordered by `bucket_start ASC`.
+
+`getBucketsByTeam` joins through `team_api_keys` to return buckets for all keys belonging to a team, enriched with key metadata.
+
+`getAllBuckets` returns buckets across all keys (admin dashboard), enriched with `team_id` and `key_name`.
+
+`getSummaryForKeys` returns aggregated `push_count` and `rejected_count` totals for a set of key IDs within a time range. Used by the OTLP stats endpoints for usage summaries (1h, 24h, 7d windows).
+
+**Retention pruning:**
+- `pruneMinuteBuckets(olderThan)` — deletes minute-granularity buckets older than the given timestamp (24h retention)
+- `pruneHourBuckets(olderThan)` — deletes hour-granularity buckets older than the given timestamp (30d retention)
+- `pruneOrphanedBuckets(olderThan)` — deletes buckets where `api_key_id` no longer exists in `team_api_keys` and `bucket_start` is older than the given timestamp (7d grace period)

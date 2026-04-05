@@ -44,8 +44,12 @@ All configuration is via environment variables on the server (set in `server/.en
 | `RATE_LIMIT_MAX` | `3000` | Max requests per IP per global window |
 | `AUTH_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | Auth endpoint rate limit window |
 | `AUTH_RATE_LIMIT_MAX` | `20` | Max auth requests per IP per window |
-| `OTLP_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | OTLP receiver rate limit window |
-| `OTLP_RATE_LIMIT_MAX` | `600` | Max OTLP requests per IP per window |
+| `OTLP_RATE_LIMIT_WINDOW_MS` | `60000` (1 min) | OTLP receiver global rate limit window (IP-based) |
+| `OTLP_RATE_LIMIT_MAX` | `600` | Max OTLP requests per IP per global window |
+| `OTLP_PER_KEY_RATE_LIMIT_RPM` | `150000` | Default per-key rate limit (requests/minute) when key's `rate_limit_rpm` is NULL |
+| `OTLP_RATE_LIMIT_BURST_SECONDS` | `6` | Per-key token bucket burst window; capacity = (rpm/60) × this value |
+| `OTLP_RATE_LIMIT_WARNING_THRESHOLD` | `0.80` | Fraction of per-key bucket capacity consumed before `X-RateLimit-Warning` header is set |
+| `OTLP_USAGE_FLUSH_INTERVAL_MS` | `5000` (5s) | How often the in-memory usage accumulator flushes to the database |
 
 ## 11.5 Polling
 

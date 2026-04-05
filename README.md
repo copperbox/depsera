@@ -195,8 +195,10 @@ cp server/.env.example server/.env
 | `SSL_CERT_PATH` | — | PEM certificate path (pair with `SSL_KEY_PATH`) |
 | `SSL_KEY_PATH` | — | PEM private key path (pair with `SSL_CERT_PATH`) |
 | `HTTP_PORT` | — | Plain HTTP port for health checks + redirect when `ENABLE_HTTPS=true` |
-| `RATE_LIMIT_MAX` | `100` | Max requests per IP per 15-minute window |
-| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per minute |
+| `RATE_LIMIT_MAX` | `3000` | Max requests per IP per minute (global) |
+| `AUTH_RATE_LIMIT_MAX` | `20` | Max auth requests per IP per minute |
+| `OTLP_RATE_LIMIT_MAX` | `600` | Max OTLP requests per IP per minute (global) |
+| `OTLP_PER_KEY_RATE_LIMIT_RPM` | `150000` | Default per-API-key rate limit (requests/minute) |
 
 **Operations:**
 
@@ -329,7 +331,7 @@ Depsera includes defense-in-depth security:
 - **API key authentication** for OTLP push endpoints — team-scoped keys with SHA-256 hashing, prefix display, and last-used tracking
 - **SSRF protection** on health endpoints with private IP blocking and DNS rebinding prevention; configurable allowlist for internal networks
 - **CSRF protection** via double-submit cookie pattern
-- **Rate limiting** — global (100 req/15min) and auth-specific (10 req/min) per IP
+- **Rate limiting** — global (3000 req/min), auth-specific (20 req/min), OTLP global (600 req/min per IP), and per-API-key token bucket (150k req/min default)
 - **Session secret validation** — production startup refuses weak or missing secrets
 - **Redirect validation** prevents open redirect attacks on logout
 - **Body size limit** (100KB) on JSON payloads

@@ -226,6 +226,115 @@ On parse failure: `{ success: false, dependencies: [], warnings: ["error message
 
 **Audit actions:** `api_key.created`, `api_key.revoked` (resource type: `team_api_key`). Audit detail includes `key_prefix` and `team_id`.
 
+### Team API Key Rate Limits **[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| PATCH | `/api/teams/:id/api-keys/:keyId/rate-limit` | requireTeamLead | Update per-key rate limit. |
+
+**PATCH /api/teams/:id/api-keys/:keyId/rate-limit request:**
+
+```json
+{
+  "rate_limit_rpm": "number | null (null = reset to system default)"
+}
+```
+
+**Validation:**
+- `rate_limit_rpm` must be a positive integer (1–1,500,000) or `null`
+- Cannot set to `0` (unlimited) — only admins can do this (400)
+- Returns 403 if the key's `rate_limit_admin_locked` is true
+- Returns 404 if the key does not belong to the specified team
+
+**Response:** Returns the updated API key (excluding `key_hash`). Evicts the in-memory rate limit bucket, forcing re-initialization on the next request.
+
+### Team API Key Usage **[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/api-keys/:keyId/usage` | requireTeamLead | Get usage time series for an API key. |
+
+**Query parameters:**
+- `granularity`: `minute` or `hour` (default: `minute`)
+- `from`: ISO 8601 timestamp (default: 24h ago for minute, 30d ago for hour)
+- `to`: ISO 8601 timestamp (default: now)
+
+**GET /api/teams/:id/api-keys/:keyId/usage response:**
+
+```json
+{
+  "api_key_id": "uuid",
+  "granularity": "minute",
+  "from": "2026-04-04T10:00:00.000Z",
+  "to": "2026-04-05T10:00:00.000Z",
+  "buckets": [
+    {
+      "api_key_id": "uuid",
+      "bucket_start": "2026-04-04T10:00:00",
+      "granularity": "minute",
+      "push_count": 42,
+      "rejected_count": 0
+    }
+  ]
+}
+```
+
+### Team OTLP Stats **[Implemented]**
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/teams/:id/otlp-stats` | requireAuth | OTLP dashboard stats for a team. |
+
+**GET /api/teams/:id/otlp-stats response:**
+
+```json
+{
+  "services": [
+    {
+      "id": "uuid",
+      "name": "my-otel-service",
+      "is_active": 1,
+      "last_push_success": 1,
+      "last_push_error": null,
+      "last_push_warnings": null,
+      "last_push_at": "2026-04-05T08:30:00.000Z",
+      "dependency_count": 3,
+      "errors_24h": 0,
+      "schema_config": null
+    }
+  ],
+  "apiKeys": [
+    {
+      "id": "uuid",
+      "name": "Production Collector",
+      "key_prefix": "dps_a1b2",
+      "last_used_at": "2026-04-05T08:30:00.000Z",
+      "created_at": "2026-03-10T10:00:00.000Z",
+      "rate_limit_rpm": 150000,
+      "rate_limit_is_custom": false,
+      "rate_limit_admin_locked": false,
+      "usage_1h": 120,
+      "usage_24h": 2880,
+      "usage_7d": 20160,
+      "rejected_24h": 0,
+      "rejected_7d": 0
+    }
+  ],
+  "summary": {
+    "total_otlp_services": 2,
+    "active_services": 2,
+    "services_with_errors": 0,
+    "services_never_pushed": 0
+  }
+}
+```
+
+- `rate_limit_rpm`: effective rate limit (custom value if set, otherwise system default)
+- `rate_limit_is_custom`: `true` if the key has a non-null `rate_limit_rpm` override
+- `rate_limit_admin_locked`: `true` if admin has locked the key's rate limit
+- Usage summaries (`usage_1h`, `usage_24h`, `usage_7d`) show total `push_count` in each window
+- Rejection summaries (`rejected_24h`, `rejected_7d`) show total `rejected_count` (429s) in each window
+
 ## 4.5 Users
 
 | Method | Path | Auth | Description |
@@ -416,6 +525,10 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
 | PUT | `/api/admin/settings` | requireAdmin | Update settings. Body: partial object of `{ key: value }` pairs. Validates values before persisting. |
 | GET | `/api/admin/manifests` | requireAdmin | List all teams with manifest config status, drift counts, and contact info. |
 | POST | `/api/admin/manifests/sync-all` | requireAdmin | Trigger sync for all enabled manifest configs. Returns per-team results. |
+| PATCH | `/api/admin/api-keys/:keyId/rate-limit` | requireAdmin | Update any API key's rate limit and admin lock. |
+| GET | `/api/admin/api-keys/:keyId/usage` | requireAdmin | Get usage time series for any API key. |
+| GET | `/api/admin/otlp-usage` | requireAdmin | Cross-team aggregated OTLP usage overview. |
+| GET | `/api/admin/otlp-stats` | requireAdmin | Workspace-wide OTLP stats grouped by team. |
 
 **GET /api/admin/audit-log response:**
 
@@ -438,6 +551,94 @@ Transitions derived from `dependency_error_history`: error entries map to `"unhe
   "total": 42,
   "limit": 50,
   "offset": 0
+}
+```
+
+### Admin API Key Rate Limits **[Implemented]**
+
+**PATCH /api/admin/api-keys/:keyId/rate-limit request:**
+
+```json
+{
+  "rate_limit_rpm": "number | null (null = reset to system default, 0 = unlimited)",
+  "admin_locked": "boolean (optional, locks team from editing)"
+}
+```
+
+**Validation:**
+- `rate_limit_rpm` must be a non-negative integer or `null`
+- Can set to `0` (unlimited) — admin-only privilege
+- `admin_locked: true` prevents the owning team from changing the key's rate limit
+- Both fields can be combined in a single request
+
+**Response:** Returns the updated API key (excluding `key_hash`). Evicts the in-memory rate limit bucket.
+
+### Admin API Key Usage **[Implemented]**
+
+**GET /api/admin/api-keys/:keyId/usage** — Same interface as team-level usage endpoint (section 4.4 Team API Key Usage) but without team membership check. Returns usage time series for any API key.
+
+### Admin OTLP Usage Overview **[Implemented]**
+
+**GET /api/admin/otlp-usage** — Cross-team aggregated OTLP usage.
+
+**Query parameters:**
+- `from`: ISO 8601 timestamp (default: 7 days ago)
+- `to`: ISO 8601 timestamp (default: now)
+
+**Response:** `{ from, to, buckets }` — hourly-granularity buckets across all keys and teams.
+
+### Admin OTLP Stats **[Implemented]**
+
+**GET /api/admin/otlp-stats** — Workspace-wide OTLP overview grouped by team.
+
+**GET /api/admin/otlp-stats response:**
+
+```json
+{
+  "teams": [
+    {
+      "team_id": "uuid",
+      "team_name": "Platform",
+      "services": [
+        {
+          "id": "uuid",
+          "name": "my-otel-service",
+          "is_active": 1,
+          "last_push_success": 1,
+          "last_push_error": null,
+          "last_push_warnings": null,
+          "last_push_at": "2026-04-05T08:30:00.000Z",
+          "dependency_count": 3,
+          "errors_24h": 0,
+          "schema_config": null
+        }
+      ],
+      "apiKeys": [
+        {
+          "id": "uuid",
+          "name": "Production Collector",
+          "key_prefix": "dps_a1b2",
+          "last_used_at": "2026-04-05T08:30:00.000Z",
+          "created_at": "2026-03-10T10:00:00.000Z",
+          "rate_limit_rpm": 150000,
+          "rate_limit_is_custom": false,
+          "rate_limit_admin_locked": false,
+          "usage_1h": 120,
+          "usage_24h": 2880,
+          "usage_7d": 20160,
+          "rejected_24h": 0,
+          "rejected_7d": 0
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_otlp_services": 5,
+    "active_services": 4,
+    "services_with_errors": 1,
+    "services_never_pushed": 0,
+    "total_teams": 2
+  }
 }
 ```
 
@@ -958,11 +1159,17 @@ OpenTelemetry metrics push endpoint. Mounted at `/v1/metrics` (standard OTLP HTT
 
 **Request:** OTLP `ExportMetricsServiceRequest` JSON body (limit: 1MB).
 
-**Rate limiting:** Dedicated OTLP rate limiter — 600 requests/minute per IP (configurable via `OTLP_RATE_LIMIT_MAX` and `OTLP_RATE_LIMIT_WINDOW_MS`). Separate from the global rate limiter.
+**Rate limiting:** Two layers:
+1. **Global IP-based:** 600 requests/minute per IP (configurable via `OTLP_RATE_LIMIT_MAX` and `OTLP_RATE_LIMIT_WINDOW_MS`). Applied before API key auth.
+2. **Per-key token bucket:** Configurable per API key (default 150,000 req/min via `OTLP_PER_KEY_RATE_LIMIT_RPM`). See section 9.4 in the security spec.
+
+**Usage tracking:** Every request increments `push_count` in minute and hour buckets. Rejected requests (429) additionally increment `rejected_count`. Data is flushed to `api_key_usage_buckets` every 5 seconds (configurable via `OTLP_USAGE_FLUSH_INTERVAL_MS`).
+
+**Middleware chain:** `express.json (1MB limit)` → OTLP global rate limit → `requireApiKeyAuth` → per-key rate limit → usage tracking → OTLP router.
 
 **Processing pipeline:**
 
-1. Authenticate via `Authorization: Bearer dps_...` header → resolves `teamId`
+1. Authenticate via `Authorization: Bearer dps_...` header → resolves `teamId` and `apiKeyId`
 2. Parse OTLP JSON with `OtlpParser` → extracts `service.name` from resource attributes, maps gauge metrics to dependency health fields
 3. **Auto-register services:** For each `service.name` in the payload:
    - Look up by `name` + `team_id`

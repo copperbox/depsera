@@ -186,11 +186,11 @@ Authenticates requests via `Authorization: Bearer dps_...` header:
 1. Extracts token from `Authorization: Bearer <token>` header
 2. Computes SHA-256 hash of the raw token
 3. Looks up `team_api_keys` by `key_hash`
-4. On success: sets `req.apiKeyTeamId` to the key's `team_id`, updates `last_used_at` asynchronously
+4. On success: sets `req.apiKeyTeamId` to the key's `team_id` and `req.apiKeyId` to the key's `id`, updates `last_used_at` asynchronously
 5. On failure: returns `401 { error: "..." }`
 
 **Key differences from session auth:**
 - Bypasses CSRF validation (collectors don't have CSRF tokens)
 - Bypasses session middleware (mounted before session layer in middleware order)
-- Does not set `req.user` — only `req.apiKeyTeamId`
+- Does not set `req.user` — only `req.apiKeyTeamId` and `req.apiKeyId`
 - Used exclusively for `POST /v1/metrics` (OTLP receiver endpoint)
