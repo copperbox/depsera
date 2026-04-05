@@ -23,6 +23,7 @@ import type { IManifestSyncHistoryStore } from './interfaces/IManifestSyncHistor
 import type { IDriftFlagStore } from './interfaces/IDriftFlagStore';
 import type { IAlertMuteStore } from './interfaces/IAlertMuteStore';
 import type { ITeamApiKeyStore } from './interfaces/ITeamApiKeyStore';
+import type { IApiKeyUsageStore } from './interfaces/IApiKeyUsageStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -46,6 +47,7 @@ import { ManifestSyncHistoryStore } from './impl/ManifestSyncHistoryStore';
 import { DriftFlagStore } from './impl/DriftFlagStore';
 import { AlertMuteStore } from './impl/AlertMuteStore';
 import { TeamApiKeyStore } from './impl/TeamApiKeyStore';
+import { ApiKeyUsageStore } from './impl/ApiKeyUsageStore';
 
 /**
  * Central registry providing access to all stores.
@@ -75,6 +77,7 @@ export class StoreRegistry {
   public readonly driftFlags: IDriftFlagStore;
   public readonly alertMutes: IAlertMuteStore;
   public readonly teamApiKeys: ITeamApiKeyStore;
+  public readonly apiKeyUsage: IApiKeyUsageStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -98,6 +101,7 @@ export class StoreRegistry {
     this.driftFlags = new DriftFlagStore(database);
     this.alertMutes = new AlertMuteStore(database);
     this.teamApiKeys = new TeamApiKeyStore(database);
+    this.apiKeyUsage = new ApiKeyUsageStore(database);
   }
 
   /**
