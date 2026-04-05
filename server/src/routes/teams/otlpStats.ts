@@ -11,6 +11,17 @@ export function getOtlpStats(req: Request, res: Response): void {
     const otlpServices = allServices.filter(s => s.health_endpoint_format === 'otlp');
     const apiKeys = stores.teamApiKeys.findByTeamId(id);
 
+    // Usage summaries for rate limit display
+    const keyIds = apiKeys.map(k => k.id);
+    const now = new Date().toISOString();
+    const minus1h = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const minus24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const minus7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const summaries1h = stores.apiKeyUsage.getSummaryForKeys(keyIds, minus1h, now);
+    const summaries24h = stores.apiKeyUsage.getSummaryForKeys(keyIds, minus24h, now);
+    const summaries7d = stores.apiKeyUsage.getSummaryForKeys(keyIds, minus7d, now);
+    const defaultRpm = parseInt(process.env.OTLP_PER_KEY_RATE_LIMIT_RPM ?? '150000', 10);
+
     const services = otlpServices.map(s => {
       const depCount = stores.dependencies.findByServiceId(s.id).length;
       const errors24h = stores.servicePollHistory.getErrorCount24h(s.id);
@@ -53,6 +64,14 @@ export function getOtlpStats(req: Request, res: Response): void {
         key_prefix: k.key_prefix,
         last_used_at: k.last_used_at,
         created_at: k.created_at,
+        rate_limit_rpm: k.rate_limit_rpm ?? defaultRpm,
+        rate_limit_is_custom: k.rate_limit_rpm !== null,
+        rate_limit_admin_locked: Boolean(k.rate_limit_admin_locked),
+        usage_1h: summaries1h.get(k.id)?.push_count ?? 0,
+        usage_24h: summaries24h.get(k.id)?.push_count ?? 0,
+        usage_7d: summaries7d.get(k.id)?.push_count ?? 0,
+        rejected_24h: summaries24h.get(k.id)?.rejected_count ?? 0,
+        rejected_7d: summaries7d.get(k.id)?.rejected_count ?? 0,
       })),
       summary,
     });

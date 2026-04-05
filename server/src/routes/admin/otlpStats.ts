@@ -9,8 +9,21 @@ export function getAdminOtlpStats(req: Request, res: Response): void {
     const allServices = stores.services.findAll();
     const otlpServices = allServices.filter(s => s.health_endpoint_format === 'otlp');
 
+    // Collect all key IDs across all teams for a single batch summary query
+    const allTeamIds = [...new Set(otlpServices.map(s => s.team_id))];
+    const allApiKeys = allTeamIds.flatMap(tid => stores.teamApiKeys.findByTeamId(tid));
+    const allKeyIds = allApiKeys.map(k => k.id);
+    const now = new Date().toISOString();
+    const minus1h = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const minus24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const minus7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const summaries1h = stores.apiKeyUsage.getSummaryForKeys(allKeyIds, minus1h, now);
+    const summaries24h = stores.apiKeyUsage.getSummaryForKeys(allKeyIds, minus24h, now);
+    const summaries7d = stores.apiKeyUsage.getSummaryForKeys(allKeyIds, minus7d, now);
+    const defaultRpm = parseInt(process.env.OTLP_PER_KEY_RATE_LIMIT_RPM ?? '150000', 10);
+
     // Group by team
-    const teamIds = [...new Set(otlpServices.map(s => s.team_id))];
+    const teamIds = allTeamIds;
 
     const teams = teamIds.map(teamId => {
       const team = stores.teams.findById(teamId);
@@ -54,6 +67,14 @@ export function getAdminOtlpStats(req: Request, res: Response): void {
           key_prefix: k.key_prefix,
           last_used_at: k.last_used_at,
           created_at: k.created_at,
+          rate_limit_rpm: k.rate_limit_rpm ?? defaultRpm,
+          rate_limit_is_custom: k.rate_limit_rpm !== null,
+          rate_limit_admin_locked: Boolean(k.rate_limit_admin_locked),
+          usage_1h: summaries1h.get(k.id)?.push_count ?? 0,
+          usage_24h: summaries24h.get(k.id)?.push_count ?? 0,
+          usage_7d: summaries7d.get(k.id)?.push_count ?? 0,
+          rejected_24h: summaries24h.get(k.id)?.rejected_count ?? 0,
+          rejected_7d: summaries7d.get(k.id)?.rejected_count ?? 0,
         })),
       };
     });

@@ -122,12 +122,25 @@ describe('OTLP Stats Routes', () => {
         name TEXT NOT NULL,
         key_hash TEXT NOT NULL,
         key_prefix TEXT NOT NULL,
+        rate_limit_rpm INTEGER,
+        rate_limit_admin_locked INTEGER NOT NULL DEFAULT 0,
         last_used_at TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         created_by TEXT,
         FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
       );
       CREATE UNIQUE INDEX idx_team_api_keys_key_hash ON team_api_keys(key_hash);
+
+      CREATE TABLE api_key_usage_buckets (
+        api_key_id      TEXT    NOT NULL,
+        bucket_start    TEXT    NOT NULL,
+        granularity     TEXT    NOT NULL CHECK(granularity IN ('minute', 'hour')),
+        push_count      INTEGER NOT NULL DEFAULT 0,
+        rejected_count  INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (api_key_id, bucket_start, granularity)
+      );
+      CREATE INDEX idx_usage_buckets_key_start ON api_key_usage_buckets(api_key_id, bucket_start);
+      CREATE INDEX idx_usage_buckets_start ON api_key_usage_buckets(bucket_start);
 
       CREATE TABLE audit_log (
         id TEXT PRIMARY KEY,
