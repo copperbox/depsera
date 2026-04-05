@@ -17,6 +17,28 @@ export interface OtlpApiKeyStats {
   key_prefix: string;
   last_used_at: string | null;
   created_at: string;
+  rate_limit_rpm: number;
+  rate_limit_is_custom: boolean;
+  rate_limit_admin_locked: boolean;
+  usage_1h: number;
+  usage_24h: number;
+  usage_7d: number;
+  rejected_24h: number;
+  rejected_7d: number;
+}
+
+export interface ApiKeyUsageBucket {
+  bucket_start: string;
+  push_count: number;
+  rejected_count: number;
+}
+
+export interface ApiKeyUsageResponse {
+  api_key_id: string;
+  granularity: 'minute' | 'hour';
+  from: string;
+  to: string;
+  buckets: ApiKeyUsageBucket[];
 }
 
 export interface OtlpStatsSummary {
