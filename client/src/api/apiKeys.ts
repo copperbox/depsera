@@ -9,6 +9,8 @@ export interface ApiKey {
   last_used_at: string | null;
   created_at: string;
   created_by: string;
+  rate_limit_rpm: number | null;
+  rate_limit_admin_locked: number;
 }
 
 export interface ApiKeyWithRawKey extends ApiKey {

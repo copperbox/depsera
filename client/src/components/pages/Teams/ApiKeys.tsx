@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Key, Trash2, Copy, Check, Plus } from 'lucide-react';
+import { Key, Trash2, Copy, Check, Plus, Lock, Pencil } from 'lucide-react';
 import { listApiKeys, createApiKey, deleteApiKey } from '../../../api/apiKeys';
 import type { ApiKey } from '../../../api/apiKeys';
+import { updateApiKeyRateLimit } from '../../../api/otlpStats';
 import { formatRelativeTime } from '../../../utils/formatting';
 import ConfirmDialog from '../../common/ConfirmDialog';
+import Modal from '../../common/Modal';
 import styles from './Teams.module.css';
 import apiKeyStyles from './ApiKeys.module.css';
+
+const DEFAULT_RATE_LIMIT_RPM = 150_000;
 
 interface ApiKeysProps {
   teamId: string;
@@ -23,6 +27,12 @@ function ApiKeys({ teamId, canManage }: ApiKeysProps) {
   const [copied, setCopied] = useState(false);
   const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Rate limit edit dialog state
+  const [editRateLimitKey, setEditRateLimitKey] = useState<ApiKey | null>(null);
+  const [rateLimitInput, setRateLimitInput] = useState('');
+  const [rateLimitError, setRateLimitError] = useState<string | null>(null);
+  const [isSavingRateLimit, setIsSavingRateLimit] = useState(false);
 
   const loadKeys = useCallback(async () => {
     try {
@@ -83,6 +93,73 @@ function ApiKeys({ teamId, canManage }: ApiKeysProps) {
 
   const dismissRevealedKey = () => {
     setRevealedKey(null);
+  };
+
+  const openRateLimitDialog = (key: ApiKey) => {
+    setEditRateLimitKey(key);
+    setRateLimitInput(key.rate_limit_rpm !== null ? String(key.rate_limit_rpm) : '');
+    setRateLimitError(null);
+  };
+
+  const closeRateLimitDialog = () => {
+    setEditRateLimitKey(null);
+    setRateLimitInput('');
+    setRateLimitError(null);
+  };
+
+  const validateRateLimitInput = (value: string): string | null => {
+    if (value === '') return null; // empty = will reset to default
+    const num = Number(value);
+    if (!Number.isInteger(num) || num <= 0) return 'Must be a positive integer';
+    if (num > 1_500_000) return 'Cannot exceed 1,500,000 req/min';
+    return null;
+  };
+
+  const handleSaveRateLimit = async () => {
+    if (!editRateLimitKey) return;
+    const trimmed = rateLimitInput.trim();
+    const validationError = validateRateLimitInput(trimmed);
+    if (validationError) {
+      setRateLimitError(validationError);
+      return;
+    }
+    const newLimit = trimmed === '' ? null : Number(trimmed);
+    try {
+      setIsSavingRateLimit(true);
+      await updateApiKeyRateLimit(teamId, editRateLimitKey.id, newLimit);
+      closeRateLimitDialog();
+      await loadKeys();
+    } catch (err) {
+      setRateLimitError(err instanceof Error ? err.message : 'Failed to update rate limit');
+    } finally {
+      setIsSavingRateLimit(false);
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    if (!editRateLimitKey) return;
+    try {
+      setIsSavingRateLimit(true);
+      await updateApiKeyRateLimit(teamId, editRateLimitKey.id, null);
+      closeRateLimitDialog();
+      await loadKeys();
+    } catch (err) {
+      setRateLimitError(err instanceof Error ? err.message : 'Failed to reset rate limit');
+    } finally {
+      setIsSavingRateLimit(false);
+    }
+  };
+
+  const getEffectiveRateLimit = (key: ApiKey): number => {
+    return key.rate_limit_rpm ?? DEFAULT_RATE_LIMIT_RPM;
+  };
+
+  const isCustomRateLimit = (key: ApiKey): boolean => {
+    return key.rate_limit_rpm !== null;
+  };
+
+  const isAdminLocked = (key: ApiKey): boolean => {
+    return key.rate_limit_admin_locked === 1;
   };
 
   if (isLoading) {
@@ -196,6 +273,32 @@ function ApiKeys({ teamId, canManage }: ApiKeysProps) {
                 <span className={apiKeyStyles.keyName}>{key.name}</span>
                 <code className={apiKeyStyles.keyPrefix}>{key.key_prefix}...</code>
               </div>
+              <div className={apiKeyStyles.rateLimit}>
+                <span className={apiKeyStyles.rateLimitValue}>
+                  {key.rate_limit_rpm === 0
+                    ? 'Unlimited'
+                    : `${getEffectiveRateLimit(key).toLocaleString()} req/min`}
+                </span>
+                <span className={apiKeyStyles.rateLimitLabel}>
+                  {key.rate_limit_rpm === 0
+                    ? '(admin)'
+                    : isCustomRateLimit(key) ? '(custom)' : '(default)'}
+                </span>
+                {isAdminLocked(key) && (
+                  <span title="Locked by admin">
+                    <Lock size={12} className={apiKeyStyles.lockIcon} />
+                  </span>
+                )}
+                {canManage && !isAdminLocked(key) && key.rate_limit_rpm !== 0 && (
+                  <button
+                    onClick={() => openRateLimitDialog(key)}
+                    className={apiKeyStyles.editButton}
+                    title="Edit rate limit"
+                  >
+                    <Pencil size={12} />
+                  </button>
+                )}
+              </div>
               <div className={apiKeyStyles.keyMeta}>
                 <span>Created {formatRelativeTime(key.created_at)}</span>
                 <span>{key.last_used_at ? `Last used ${formatRelativeTime(key.last_used_at)}` : 'Never used'}</span>
@@ -235,6 +338,68 @@ function ApiKeys({ teamId, canManage }: ApiKeysProps) {
         isDestructive
         isLoading={isDeleting}
       />
+
+      <Modal
+        isOpen={!!editRateLimitKey}
+        onClose={closeRateLimitDialog}
+        title="Edit Rate Limit"
+        size="sm"
+      >
+        {editRateLimitKey && (
+          <div className={apiKeyStyles.rateLimitDialog}>
+            <p className={apiKeyStyles.rateLimitDialogDesc}>
+              Set the rate limit for <strong>{editRateLimitKey.name}</strong> ({editRateLimitKey.key_prefix}...).
+              Leave empty to use the system default ({DEFAULT_RATE_LIMIT_RPM.toLocaleString()} req/min).
+            </p>
+            <label className={apiKeyStyles.rateLimitDialogLabel}>
+              Rate limit (req/min)
+            </label>
+            <input
+              type="number"
+              value={rateLimitInput}
+              onChange={(e) => {
+                setRateLimitInput(e.target.value);
+                setRateLimitError(null);
+              }}
+              placeholder={String(DEFAULT_RATE_LIMIT_RPM)}
+              className={apiKeyStyles.nameInput}
+              min={1}
+              disabled={isSavingRateLimit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveRateLimit();
+              }}
+            />
+            {rateLimitError && (
+              <p className={apiKeyStyles.rateLimitDialogError}>{rateLimitError}</p>
+            )}
+            <div className={apiKeyStyles.rateLimitDialogActions}>
+              <button
+                onClick={handleResetToDefault}
+                className={apiKeyStyles.cancelButton}
+                disabled={isSavingRateLimit || !isCustomRateLimit(editRateLimitKey)}
+              >
+                Reset to default
+              </button>
+              <div className={apiKeyStyles.rateLimitDialogRight}>
+                <button
+                  onClick={closeRateLimitDialog}
+                  className={apiKeyStyles.cancelButton}
+                  disabled={isSavingRateLimit}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRateLimit}
+                  className={apiKeyStyles.generateButton}
+                  disabled={isSavingRateLimit || !!validateRateLimitInput(rateLimitInput.trim())}
+                >
+                  {isSavingRateLimit ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
