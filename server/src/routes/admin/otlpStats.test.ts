@@ -239,6 +239,58 @@ describe('Admin OTLP Stats API', () => {
       expect(alphaTeam.apiKeys[0].key_hash).toBeUndefined();
     });
 
+    it('should include rate limit and usage fields on API keys', async () => {
+      testDb.prepare(
+        'INSERT INTO services (id, name, team_id, health_endpoint, health_endpoint_format, is_active, last_poll_success) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run('svc-rl', 'RL OTLP', 'team-a', 'push://otlp', 'otlp', 1, 1);
+
+      // Custom rate limit key
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, rate_limit_rpm, rate_limit_admin_locked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run('key-rl', 'team-a', 'RL Key', 'hash-rl', 'dps_rl', 3000, 1, '2026-03-15T00:00:00Z');
+
+      // Insert usage data
+      const now = new Date();
+      const recentBucket = new Date(now.getTime() - 30 * 60 * 1000).toISOString().slice(0, 13) + ':00:00';
+      testDb.prepare(
+        'INSERT INTO api_key_usage_buckets (api_key_id, bucket_start, granularity, push_count, rejected_count) VALUES (?, ?, ?, ?, ?)'
+      ).run('key-rl', recentBucket, 'hour', 500, 20);
+
+      const res = await request(app).get('/api/admin/otlp-stats');
+
+      expect(res.status).toBe(200);
+      const alphaTeam = res.body.teams.find((t: { team_id: string }) => t.team_id === 'team-a');
+      expect(alphaTeam.apiKeys).toHaveLength(1);
+
+      const key = alphaTeam.apiKeys[0];
+      expect(key.rate_limit_rpm).toBe(3000);
+      expect(key.rate_limit_is_custom).toBe(true);
+      expect(key.rate_limit_admin_locked).toBe(true);
+      expect(key.usage_1h).toBeGreaterThanOrEqual(0);
+      expect(key.usage_24h).toBeGreaterThanOrEqual(500);
+      expect(key.usage_7d).toBeGreaterThanOrEqual(500);
+      expect(key.rejected_24h).toBeGreaterThanOrEqual(20);
+      expect(key.rejected_7d).toBeGreaterThanOrEqual(20);
+    });
+
+    it('should use default rate_limit_rpm when null in DB', async () => {
+      testDb.prepare(
+        'INSERT INTO services (id, name, team_id, health_endpoint, health_endpoint_format, is_active, last_poll_success) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run('svc-def', 'Default OTLP', 'team-b', 'push://otlp', 'otlp', 1, 1);
+
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, rate_limit_rpm, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run('key-def', 'team-b', 'Default Key', 'hash-def', 'dps_def', null, '2026-03-15T00:00:00Z');
+
+      const res = await request(app).get('/api/admin/otlp-stats');
+
+      expect(res.status).toBe(200);
+      const betaTeam = res.body.teams.find((t: { team_id: string }) => t.team_id === 'team-b');
+      const key = betaTeam.apiKeys[0];
+      expect(key.rate_limit_rpm).toBe(150000);
+      expect(key.rate_limit_is_custom).toBe(false);
+    });
+
     it('should count error services correctly across teams', async () => {
       // Alpha: 1 healthy OTLP
       testDb.prepare(

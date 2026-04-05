@@ -276,6 +276,77 @@ describe('OTLP Stats Routes', () => {
       ]);
     });
 
+    it('should include rate limit fields on API keys', async () => {
+      // Key with custom rate limit
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, rate_limit_rpm, rate_limit_admin_locked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run('key-custom', teamId, 'Custom Key', 'hash-custom', 'dps_cust', 5000, 0, '2026-03-15T00:00:00Z');
+
+      // Key with default (null) rate limit, admin-locked
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, rate_limit_rpm, rate_limit_admin_locked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run('key-default', teamId, 'Default Key', 'hash-default', 'dps_dflt', null, 1, '2026-03-15T00:00:00Z');
+
+      const res = await request(app).get(`/api/teams/${teamId}/otlp-stats`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.apiKeys).toHaveLength(2);
+
+      const customKey = res.body.apiKeys.find((k: { id: string }) => k.id === 'key-custom');
+      expect(customKey.rate_limit_rpm).toBe(5000);
+      expect(customKey.rate_limit_is_custom).toBe(true);
+      expect(customKey.rate_limit_admin_locked).toBe(false);
+
+      const defaultKey = res.body.apiKeys.find((k: { id: string }) => k.id === 'key-default');
+      expect(defaultKey.rate_limit_rpm).toBe(150000); // system default
+      expect(defaultKey.rate_limit_is_custom).toBe(false);
+      expect(defaultKey.rate_limit_admin_locked).toBe(true);
+    });
+
+    it('should include usage summary fields on API keys', async () => {
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run('key-usage', teamId, 'Usage Key', 'hash-usage', 'dps_usg', '2026-03-15T00:00:00Z');
+
+      // Insert usage buckets within the summary windows
+      const now = new Date();
+      const recentBucket = new Date(now.getTime() - 30 * 60 * 1000).toISOString().slice(0, 13) + ':00:00';
+      const dayAgoBucket = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString().slice(0, 13) + ':00:00';
+
+      testDb.prepare(
+        'INSERT INTO api_key_usage_buckets (api_key_id, bucket_start, granularity, push_count, rejected_count) VALUES (?, ?, ?, ?, ?)'
+      ).run('key-usage', recentBucket, 'hour', 100, 5);
+      testDb.prepare(
+        'INSERT INTO api_key_usage_buckets (api_key_id, bucket_start, granularity, push_count, rejected_count) VALUES (?, ?, ?, ?, ?)'
+      ).run('key-usage', dayAgoBucket, 'hour', 200, 10);
+
+      const res = await request(app).get(`/api/teams/${teamId}/otlp-stats`);
+
+      expect(res.status).toBe(200);
+      const key = res.body.apiKeys.find((k: { id: string }) => k.id === 'key-usage');
+      expect(key.usage_1h).toBeDefined();
+      expect(key.usage_24h).toBeGreaterThanOrEqual(100);
+      expect(key.usage_7d).toBeGreaterThanOrEqual(300);
+      expect(key.rejected_24h).toBeGreaterThanOrEqual(5);
+      expect(key.rejected_7d).toBeGreaterThanOrEqual(15);
+    });
+
+    it('should return zero usage when no buckets exist', async () => {
+      testDb.prepare(
+        'INSERT INTO team_api_keys (id, team_id, name, key_hash, key_prefix, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run('key-empty', teamId, 'Empty Key', 'hash-empty', 'dps_empt', '2026-03-15T00:00:00Z');
+
+      const res = await request(app).get(`/api/teams/${teamId}/otlp-stats`);
+
+      expect(res.status).toBe(200);
+      const key = res.body.apiKeys.find((k: { id: string }) => k.id === 'key-empty');
+      expect(key.usage_1h).toBe(0);
+      expect(key.usage_24h).toBe(0);
+      expect(key.usage_7d).toBe(0);
+      expect(key.rejected_24h).toBe(0);
+      expect(key.rejected_7d).toBe(0);
+    });
+
     it('should count errors in last 24h', async () => {
       testDb.prepare(
         'INSERT INTO services (id, name, team_id, health_endpoint, health_endpoint_format, is_active, last_poll_success) VALUES (?, ?, ?, ?, ?, ?, ?)'
