@@ -420,7 +420,7 @@ function TeamDetail() {
 
         {canManageAlerts && (
           <TabPanel value="otlp-stats">
-            <OtlpStats teamId={id!} />
+            <OtlpStats teamId={id!} canManage={canManageAlerts} />
           </TabPanel>
         )}
       </Tabs>

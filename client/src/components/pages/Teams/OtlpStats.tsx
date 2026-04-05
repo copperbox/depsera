@@ -1,19 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Activity } from 'lucide-react';
-import { getTeamOtlpStats } from '../../../api/otlpStats';
-import type { OtlpStatsResponse } from '../../../types/otlpStats';
+import { Activity, Lock, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { getTeamOtlpStats, updateApiKeyRateLimit } from '../../../api/otlpStats';
+import type { OtlpStatsResponse, OtlpApiKeyStats } from '../../../types/otlpStats';
+import { ApiKeyUsageChart } from '../../Charts';
+import Modal from '../../common/Modal';
 import { formatRelativeTime } from '../../../utils/formatting';
 import teamStyles from './Teams.module.css';
 import styles from './OtlpStats.module.css';
 
+const DEFAULT_RATE_LIMIT_RPM = 150_000;
+
 interface OtlpStatsProps {
   teamId: string;
+  canManage?: boolean;
 }
 
-function OtlpStats({ teamId }: OtlpStatsProps) {
+function OtlpStats({ teamId, canManage = false }: OtlpStatsProps) {
   const [data, setData] = useState<OtlpStatsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set());
+
+  // Rate limit edit dialog state
+  const [editRateLimitKey, setEditRateLimitKey] = useState<OtlpApiKeyStats | null>(null);
+  const [rateLimitInput, setRateLimitInput] = useState('');
+  const [rateLimitError, setRateLimitError] = useState<string | null>(null);
+  const [isSavingRateLimit, setIsSavingRateLimit] = useState(false);
 
   const loadStats = useCallback(async () => {
     try {
@@ -31,6 +43,70 @@ function OtlpStats({ teamId }: OtlpStatsProps) {
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  const toggleChart = useCallback((keyId: string) => {
+    setExpandedCharts(prev => {
+      const next = new Set(prev);
+      if (next.has(keyId)) next.delete(keyId);
+      else next.add(keyId);
+      return next;
+    });
+  }, []);
+
+  const openRateLimitDialog = (key: OtlpApiKeyStats) => {
+    setEditRateLimitKey(key);
+    setRateLimitInput(key.rate_limit_is_custom ? String(key.rate_limit_rpm) : '');
+    setRateLimitError(null);
+  };
+
+  const closeRateLimitDialog = () => {
+    setEditRateLimitKey(null);
+    setRateLimitInput('');
+    setRateLimitError(null);
+  };
+
+  const validateRateLimitInput = (value: string): string | null => {
+    if (value === '') return null;
+    const num = Number(value);
+    if (!Number.isInteger(num) || num <= 0) return 'Must be a positive integer';
+    if (num > 1_500_000) return 'Cannot exceed 1,500,000 req/min';
+    return null;
+  };
+
+  const handleSaveRateLimit = async () => {
+    if (!editRateLimitKey) return;
+    const trimmed = rateLimitInput.trim();
+    const validationError = validateRateLimitInput(trimmed);
+    if (validationError) {
+      setRateLimitError(validationError);
+      return;
+    }
+    const newLimit = trimmed === '' ? null : Number(trimmed);
+    try {
+      setIsSavingRateLimit(true);
+      await updateApiKeyRateLimit(teamId, editRateLimitKey.id, newLimit);
+      closeRateLimitDialog();
+      await loadStats();
+    } catch (err) {
+      setRateLimitError(err instanceof Error ? err.message : 'Failed to update rate limit');
+    } finally {
+      setIsSavingRateLimit(false);
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    if (!editRateLimitKey) return;
+    try {
+      setIsSavingRateLimit(true);
+      await updateApiKeyRateLimit(teamId, editRateLimitKey.id, null);
+      closeRateLimitDialog();
+      await loadStats();
+    } catch (err) {
+      setRateLimitError(err instanceof Error ? err.message : 'Failed to reset rate limit');
+    } finally {
+      setIsSavingRateLimit(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -166,12 +242,92 @@ function OtlpStats({ teamId }: OtlpStatsProps) {
           <h4 className={styles.sectionTitle}>API Keys</h4>
           <div className={styles.keyList}>
             {apiKeys.map(k => (
-              <div key={k.id} className={styles.keyItem}>
-                <span className={styles.keyName}>{k.name}</span>
-                <code className={styles.keyPrefix}>{k.key_prefix}...</code>
-                <span className={styles.keyMeta}>
-                  {k.last_used_at ? `Last used ${formatRelativeTime(k.last_used_at)}` : 'Never used'}
-                </span>
+              <div key={k.id} className={styles.keyCard}>
+                <div className={styles.keyCardHeader}>
+                  <div className={styles.keyCardInfo}>
+                    <span className={styles.keyName}>
+                      {k.name}
+                      {k.rejected_24h > 0 && (
+                        <span className={styles.badgeWarning}>Approaching limit</span>
+                      )}
+                      {k.rejected_24h === 0 && k.rejected_7d > 0 && (
+                        <span className={styles.badgeMutedWarning}>
+                          {k.rejected_7d.toLocaleString()} rejected in 7d
+                        </span>
+                      )}
+                    </span>
+                    <code className={styles.keyPrefix}>{k.key_prefix}...</code>
+                  </div>
+                  <span className={styles.keyMeta}>
+                    {k.last_used_at ? `Last used ${formatRelativeTime(k.last_used_at)}` : 'Never used'}
+                  </span>
+                </div>
+
+                {/* Usage summary row */}
+                <div className={styles.usageSummary}>
+                  <span>
+                    {k.usage_1h.toLocaleString()} pushes in last hour
+                    {' \u00b7 '}{k.usage_24h.toLocaleString()} in 24h
+                    {' \u00b7 '}{k.usage_7d.toLocaleString()} in 7d
+                  </span>
+                  {k.rejected_24h > 0 && (
+                    <span className={styles.rejectedWarning}>
+                      {k.rejected_24h.toLocaleString()} rejected in 24h
+                    </span>
+                  )}
+                </div>
+
+                {/* Rate limit display */}
+                <div className={styles.rateLimitRow}>
+                  <span className={styles.rateLimitText}>
+                    Rate limit: {k.rate_limit_rpm === 0
+                      ? 'Unlimited'
+                      : `${k.rate_limit_rpm.toLocaleString()} req/min`}
+                    {' '}
+                    <span className={styles.rateLimitSuffix}>
+                      {k.rate_limit_rpm === 0
+                        ? '(admin)'
+                        : k.rate_limit_is_custom ? '(custom)' : '(default)'}
+                    </span>
+                  </span>
+                  {k.rate_limit_admin_locked && (
+                    <span title="Locked by admin">
+                      <Lock size={12} className={styles.lockIcon} />
+                    </span>
+                  )}
+                  {canManage && !k.rate_limit_admin_locked && k.rate_limit_rpm !== 0 && (
+                    <button
+                      onClick={() => openRateLimitDialog(k)}
+                      className={styles.editButton}
+                      title="Edit rate limit"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => toggleChart(k.id)}
+                    className={styles.expandButton}
+                    title={expandedCharts.has(k.id) ? 'Hide usage graph' : 'View usage graph'}
+                  >
+                    {expandedCharts.has(k.id) ? (
+                      <><ChevronUp size={14} /> Hide graph</>
+                    ) : (
+                      <><ChevronDown size={14} /> View usage</>
+                    )}
+                  </button>
+                </div>
+
+                {/* Expandable usage chart */}
+                {expandedCharts.has(k.id) && (
+                  <div className={styles.chartContainer}>
+                    <ApiKeyUsageChart
+                      teamId={teamId}
+                      apiKeyId={k.id}
+                      keyName={k.name}
+                      keyPrefix={k.key_prefix}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -206,6 +362,67 @@ function OtlpStats({ teamId }: OtlpStatsProps) {
           </div>
         </>
       )}
+      <Modal
+        isOpen={!!editRateLimitKey}
+        onClose={closeRateLimitDialog}
+        title="Edit Rate Limit"
+        size="sm"
+      >
+        {editRateLimitKey && (
+          <div className={styles.rateLimitDialog}>
+            <p className={styles.rateLimitDialogDesc}>
+              Set the rate limit for <strong>{editRateLimitKey.name}</strong> ({editRateLimitKey.key_prefix}...).
+              Leave empty to use the system default ({DEFAULT_RATE_LIMIT_RPM.toLocaleString()} req/min).
+            </p>
+            <label className={styles.rateLimitDialogLabel}>
+              Rate limit (req/min)
+            </label>
+            <input
+              type="number"
+              value={rateLimitInput}
+              onChange={(e) => {
+                setRateLimitInput(e.target.value);
+                setRateLimitError(null);
+              }}
+              placeholder={String(DEFAULT_RATE_LIMIT_RPM)}
+              className={styles.rateLimitDialogInput}
+              min={1}
+              disabled={isSavingRateLimit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveRateLimit();
+              }}
+            />
+            {rateLimitError && (
+              <p className={styles.rateLimitDialogError}>{rateLimitError}</p>
+            )}
+            <div className={styles.rateLimitDialogActions}>
+              <button
+                onClick={handleResetToDefault}
+                className={styles.dialogSecondaryButton}
+                disabled={isSavingRateLimit || !editRateLimitKey.rate_limit_is_custom}
+              >
+                Reset to default
+              </button>
+              <div className={styles.rateLimitDialogRight}>
+                <button
+                  onClick={closeRateLimitDialog}
+                  className={styles.dialogSecondaryButton}
+                  disabled={isSavingRateLimit}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveRateLimit}
+                  className={styles.dialogPrimaryButton}
+                  disabled={isSavingRateLimit || !!validateRateLimitInput(rateLimitInput.trim())}
+                >
+                  {isSavingRateLimit ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
