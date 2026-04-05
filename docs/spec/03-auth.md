@@ -83,8 +83,13 @@ interface SessionData {
 | Expired session cleanup | Every 15 minutes |
 | resave | `false` |
 | saveUninitialized | `false` |
+| rolling | `true` (resets maxAge on each response — session expires after 24h of inactivity, not 24h from login) |
 
 **Startup warning:** `warnInsecureCookies()` logs a warning if `NODE_ENV` is not `development` and neither `REQUIRE_HTTPS` nor `TRUST_PROXY` is configured, since the `'auto'` secure flag will resolve to `false`, sending cookies over HTTP.
+
+### Session Expiration Handling (Client)
+
+When an API call returns HTTP 401, `handleResponse()` dispatches a `window` event (`auth:expired`). The `AuthProvider` listens for this event and clears the user state, which causes `ProtectedRoute` to redirect to `/login`. This ensures users are automatically redirected to the login page when their session expires mid-use, without requiring a page reload.
 
 ## 3.4 Session Secret Validation **[Implemented]**
 

@@ -7,6 +7,9 @@
  */
 export async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:expired'));
+    }
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
     throw new Error(error.message || error.error || `HTTP error ${response.status}`);
   }

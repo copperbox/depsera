@@ -48,6 +48,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    const handleExpired = () => setUser(null);
+    window.addEventListener('auth:expired', handleExpired);
+    return () => window.removeEventListener('auth:expired', handleExpired);
+  }, []);
+
   const login = () => {
     // Redirect to OIDC login with return URL
     const returnTo = encodeURIComponent(window.location.pathname);

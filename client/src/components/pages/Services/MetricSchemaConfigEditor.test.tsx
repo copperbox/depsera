@@ -152,7 +152,7 @@ describe('MetricSchemaConfigEditor', () => {
     });
 
     // Change to seconds
-    fireEvent.click(screen.getByLabelText('Seconds (s)'));
+    fireEvent.click(screen.getByLabelText('Seconds'));
 
     expect(onChange).toHaveBeenLastCalledWith({
       metrics: { my_latency: 'state' },
@@ -165,7 +165,7 @@ describe('MetricSchemaConfigEditor', () => {
     const onChange = jest.fn();
     render(<MetricSchemaConfigEditor {...defaultProps} onChange={onChange} />);
 
-    fireEvent.click(screen.getByLabelText('Seconds (s)'));
+    fireEvent.click(screen.getByLabelText('Seconds'));
 
     // Latency unit is 's' but no mappings, so it should still emit non-null
     // because latency_unit: 's' is a customization
@@ -238,7 +238,7 @@ describe('MetricSchemaConfigEditor', () => {
     expect(screen.getByLabelText('Label target field 1')).toHaveValue('name');
 
     // Latency unit should be seconds
-    expect(screen.getByLabelText('Seconds (s)')).toBeChecked();
+    expect(screen.getByLabelText('Seconds')).toBeChecked();
   });
 
   it('disables all inputs when disabled prop is true', () => {
@@ -261,15 +261,15 @@ describe('MetricSchemaConfigEditor', () => {
     expect(screen.getByLabelText('Remove metric mapping 1')).toBeDisabled();
     expect(screen.getByText('+ Add metric mapping')).toBeDisabled();
     expect(screen.getByText('+ Add label mapping')).toBeDisabled();
-    expect(screen.getByLabelText('Milliseconds (ms)')).toBeDisabled();
-    expect(screen.getByLabelText('Seconds (s)')).toBeDisabled();
+    expect(screen.getByLabelText('Milliseconds')).toBeDisabled();
+    expect(screen.getByLabelText('Seconds')).toBeDisabled();
   });
 
   it('defaults latency unit to ms', () => {
     render(<MetricSchemaConfigEditor {...defaultProps} />);
 
-    expect(screen.getByLabelText('Milliseconds (ms)')).toBeChecked();
-    expect(screen.getByLabelText('Seconds (s)')).not.toBeChecked();
+    expect(screen.getByLabelText('Milliseconds')).toBeChecked();
+    expect(screen.getByLabelText('Seconds')).not.toBeChecked();
   });
 
   it('supports multiple metric rows', () => {
