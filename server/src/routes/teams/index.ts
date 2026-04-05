@@ -9,6 +9,8 @@ import { addMember } from './members/add';
 import { updateMember } from './members/update';
 import { removeMember } from './members/remove';
 import apiKeyRoutes from './apiKeys';
+import apiKeyRateLimitRoutes from './apiKeyRateLimit';
+import apiKeyUsageRoutes from './apiKeyUsage';
 import { getOtlpStats } from './otlpStats';
 
 const router = Router();
@@ -30,5 +32,7 @@ router.get('/:id/otlp-stats', getOtlpStats);
 
 // API key management - team lead/admin only (auth handled by apiKeys router)
 router.use('/:id/api-keys', apiKeyRoutes);
+router.use('/:id/api-keys', apiKeyRateLimitRoutes);
+router.use('/:id/api-keys', apiKeyUsageRoutes);
 
 export default router;
