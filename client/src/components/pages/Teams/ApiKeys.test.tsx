@@ -215,4 +215,165 @@ describe('ApiKeys', () => {
     const generateButton = screen.getByText('Generate');
     expect(generateButton).toBeDisabled();
   });
+
+  // --- Rate limit column tests (DPS-102b/c/d) ---
+
+  it('displays (default) when rate_limit_rpm is null', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: null, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('(default)')).toBeInTheDocument();
+    });
+  });
+
+  it('displays (custom) when rate_limit_rpm is set', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 50000, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('(custom)')).toBeInTheDocument();
+    });
+  });
+
+  it('renders lock icon when rate_limit_admin_locked is 1', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 50000, rate_limit_admin_locked: 1 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Locked by admin')).toBeInTheDocument();
+    });
+  });
+
+  it('does not render edit icon when rate_limit_admin_locked is 1', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 50000, rate_limit_admin_locked: 1 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Locked by admin')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTitle('Edit rate limit')).not.toBeInTheDocument();
+  });
+
+  it('renders edit icon when canManage and key is not locked', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: null, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Edit rate limit')).toBeInTheDocument();
+    });
+  });
+
+  it('does not render edit icon when canManage is false', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: null, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={false} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Production Collector')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTitle('Edit rate limit')).not.toBeInTheDocument();
+  });
+
+  it('rate limit edit dialog validates and saves correctly', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: null, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Edit rate limit')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle('Edit rate limit'));
+
+    expect(screen.getByText('Edit Rate Limit')).toBeInTheDocument();
+
+    const input = screen.getByPlaceholderText('150000');
+    fireEvent.change(input, { target: { value: '80000' } });
+
+    // Mock PATCH and reload
+    mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true }));
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 80000, rate_limit_admin_locked: 0 },
+    ]));
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      const patchCall = mockFetch.mock.calls.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (c: any[]) => c[1]?.method === 'PATCH'
+      );
+      expect(patchCall).toBeDefined();
+      expect(JSON.parse(patchCall![1].body)).toEqual({ rate_limit_rpm: 80000 });
+    });
+  });
+
+  it('Reset to default sends null in rate limit edit dialog', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 50000, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Edit rate limit')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTitle('Edit rate limit'));
+
+    // Mock PATCH and reload
+    mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true }));
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: null, rate_limit_admin_locked: 0 },
+    ]));
+
+    fireEvent.click(screen.getByText('Reset to default'));
+
+    await waitFor(() => {
+      const patchCall = mockFetch.mock.calls.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (c: any[]) => c[1]?.method === 'PATCH'
+      );
+      expect(patchCall).toBeDefined();
+      expect(JSON.parse(patchCall![1].body)).toEqual({ rate_limit_rpm: null });
+    });
+  });
+
+  it('displays Unlimited with (admin) when rate_limit_rpm is 0', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse([
+      { ...mockKeys[0], rate_limit_rpm: 0, rate_limit_admin_locked: 0 },
+    ]));
+
+    render(<ApiKeys teamId="t1" canManage={true} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Unlimited')).toBeInTheDocument();
+      expect(screen.getByText('(admin)')).toBeInTheDocument();
+    });
+
+    // Edit button should not show for unlimited keys (rpm=0)
+    expect(screen.queryByTitle('Edit rate limit')).not.toBeInTheDocument();
+  });
 });
