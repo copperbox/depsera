@@ -46,6 +46,7 @@ import { createPerKeyRateLimit } from './middleware/perKeyRateLimit';
 import { createTrackApiKeyUsage } from './middleware/trackApiKeyUsage';
 import { requireApiKeyAuth } from './auth/apiKeyAuth';
 import otlpRouter from './routes/otlp';
+import traceRouter from './routes/otlp/traces';
 import { createRequestLogger } from './middleware/requestLogger';
 import logger from './utils/logger';
 
@@ -77,6 +78,15 @@ app.use('/v1/metrics',
   createPerKeyRateLimit(),
   createTrackApiKeyUsage(),
   otlpRouter,
+);
+
+app.use('/v1/traces',
+  express.json({ limit: '2mb' }),
+  createOtlpGlobalRateLimit(),
+  requireApiKeyAuth,
+  createPerKeyRateLimit(),
+  createTrackApiKeyUsage(),
+  traceRouter,
 );
 
 app.use(createGlobalRateLimit());
