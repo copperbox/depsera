@@ -32,6 +32,11 @@ export interface IAssociationStore {
   confirm(id: string): boolean;
   dismiss(id: string): boolean;
 
+  /**
+   * Delete dismissed auto-suggested associations older than the given timestamp.
+   */
+  deleteOldDismissed(olderThan: string): number;
+
   // Utility
   exists(id: string): boolean;
   count(options?: AssociationListOptions): number;

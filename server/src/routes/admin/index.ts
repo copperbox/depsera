@@ -7,6 +7,7 @@ import { listAdminAlertMutes } from './alertMutes';
 import { getAdminOtlpStats } from './otlpStats';
 import { updateAdminApiKeyRateLimit } from './apiKeyRateLimit';
 import { getAdminApiKeyUsage, getAdminOtlpUsage } from './apiKeyUsage';
+import { getSpanRetention, updateSpanRetention } from './spanRetention';
 
 const router = Router();
 
@@ -20,5 +21,7 @@ router.get('/otlp-stats', requireAdmin, getAdminOtlpStats);
 router.patch('/api-keys/:keyId/rate-limit', requireAdmin, updateAdminApiKeyRateLimit);
 router.get('/api-keys/:keyId/usage', requireAdmin, getAdminApiKeyUsage);
 router.get('/otlp-usage', requireAdmin, getAdminOtlpUsage);
+router.get('/settings/span-retention', requireAdmin, getSpanRetention);
+router.put('/settings/span-retention', requireAdmin, updateSpanRetention);
 
 export default router;

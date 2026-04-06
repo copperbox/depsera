@@ -100,6 +100,13 @@ export class AssociationStore implements IAssociationStore {
     return result.changes > 0;
   }
 
+  deleteOldDismissed(olderThan: string): number {
+    const result = this.db
+      .prepare('DELETE FROM dependency_associations WHERE is_dismissed = 1 AND created_at < ?')
+      .run(olderThan);
+    return result.changes;
+  }
+
   delete(id: string): boolean {
     const result = this.db
       .prepare('DELETE FROM dependency_associations WHERE id = ?')

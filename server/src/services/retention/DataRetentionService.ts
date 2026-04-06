@@ -138,6 +138,18 @@ export class DataRetentionService {
       // Clean up expired alert mutes (not retention-based — they self-expire)
       const mutesExpired = stores.alertMutes.deleteExpired();
 
+      // Span retention: uses configurable span_retention_days from app_settings (default 7)
+      const spanRetentionDaysStr = stores.appSettings.get('span_retention_days');
+      const spanRetentionDays = spanRetentionDaysStr ? parseInt(spanRetentionDaysStr, 10) : 7;
+      const spanCutoff = new Date();
+      spanCutoff.setDate(spanCutoff.getDate() - spanRetentionDays);
+      const spanCutoffTimestamp = spanCutoff.toISOString();
+
+      const spansDeleted = stores.spans.deleteOlderThan(spanCutoffTimestamp);
+
+      // Dismissed auto-suggestion cleanup: uses same span retention window
+      const dismissedAssociationsDeleted = stores.associations.deleteOldDismissed(spanCutoffTimestamp);
+
       // Usage bucket retention: minute=24h, hour=30d, orphaned=7d
       const usageMinuteDeleted = stores.apiKeyUsage.pruneMinuteBuckets(
         new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
@@ -162,6 +174,8 @@ export class DataRetentionService {
         usageMinuteDeleted,
         usageHourDeleted,
         usageOrphanedDeleted,
+        spansDeleted,
+        dismissedAssociationsDeleted,
         retentionDays,
         cutoffTimestamp,
       };
@@ -218,6 +232,8 @@ export interface CleanupResult {
   usageMinuteDeleted: number;
   usageHourDeleted: number;
   usageOrphanedDeleted: number;
+  spansDeleted: number;
+  dismissedAssociationsDeleted: number;
   retentionDays: number;
   cutoffTimestamp: string;
 }

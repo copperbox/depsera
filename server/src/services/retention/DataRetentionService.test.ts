@@ -13,6 +13,9 @@ const mockDeleteExpiredMutes = jest.fn().mockReturnValue(0);
 const mockPruneMinuteBuckets = jest.fn().mockReturnValue(0);
 const mockPruneHourBuckets = jest.fn().mockReturnValue(0);
 const mockPruneOrphanedBuckets = jest.fn().mockReturnValue(0);
+const mockDeleteSpans = jest.fn().mockReturnValue(0);
+const mockDeleteOldDismissed = jest.fn().mockReturnValue(0);
+const mockAppSettingsGet = jest.fn();
 const mockSettingsStore = {};
 
 jest.mock('../../stores', () => ({
@@ -31,6 +34,9 @@ jest.mock('../../stores', () => ({
       pruneHourBuckets: mockPruneHourBuckets,
       pruneOrphanedBuckets: mockPruneOrphanedBuckets,
     },
+    spans: { deleteOlderThan: mockDeleteSpans },
+    associations: { deleteOldDismissed: mockDeleteOldDismissed },
+    appSettings: { get: mockAppSettingsGet },
     settings: mockSettingsStore,
   }),
 }));
@@ -71,6 +77,9 @@ describe('DataRetentionService', () => {
     mockDeletePollHistory.mockReturnValue(0);
     mockDeleteSyncHistory.mockReturnValue(0);
     mockDeleteDriftFlags.mockReturnValue(0);
+    mockDeleteSpans.mockReturnValue(0);
+    mockDeleteOldDismissed.mockReturnValue(0);
+    mockAppSettingsGet.mockReturnValue('7');
 
     // Default settings
     mockGet.mockImplementation((key) => {
@@ -381,6 +390,126 @@ describe('DataRetentionService', () => {
       const result = service.runCleanup();
 
       expect(result.mutesExpired).toBe(0);
+    });
+  });
+
+  describe('span retention cleanup', () => {
+    it('should delete spans older than configured retention days', () => {
+      mockAppSettingsGet.mockReturnValue('3');
+      mockDeleteSpans.mockReturnValue(42);
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.spansDeleted).toBe(42);
+      expect(mockDeleteSpans).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+
+      // Verify the cutoff is approximately 3 days ago
+      const callArg = mockDeleteSpans.mock.calls[0][0];
+      const cutoff = new Date(callArg);
+      const expected3DaysAgo = new Date(now);
+      expected3DaysAgo.setDate(expected3DaysAgo.getDate() - 3);
+      expect(Math.abs(cutoff.getTime() - expected3DaysAgo.getTime())).toBeLessThan(1000);
+    });
+
+    it('should default to 7 days when app_settings has no value', () => {
+      mockAppSettingsGet.mockReturnValue(undefined);
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      const callArg = mockDeleteSpans.mock.calls[0][0];
+      const cutoff = new Date(callArg);
+      const expected7DaysAgo = new Date(now);
+      expected7DaysAgo.setDate(expected7DaysAgo.getDate() - 7);
+      expect(Math.abs(cutoff.getTime() - expected7DaysAgo.getTime())).toBeLessThan(1000);
+    });
+
+    it('should use span retention window independent of data_retention_days', () => {
+      mockGet.mockImplementation((key) => {
+        if (key === 'data_retention_days') return 30;
+        if (key === 'retention_cleanup_time') return '02:00';
+        return undefined;
+      });
+      mockAppSettingsGet.mockReturnValue('1');
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      // Regular tables use 30-day cutoff
+      const regularCutoff = new Date(mockDeleteLatency.mock.calls[0][0]);
+      const expected30DaysAgo = new Date(now);
+      expected30DaysAgo.setDate(expected30DaysAgo.getDate() - 30);
+      expect(Math.abs(regularCutoff.getTime() - expected30DaysAgo.getTime())).toBeLessThan(1000);
+
+      // Spans use 1-day cutoff
+      const spanCutoff = new Date(mockDeleteSpans.mock.calls[0][0]);
+      const expected1DayAgo = new Date(now);
+      expected1DayAgo.setDate(expected1DayAgo.getDate() - 1);
+      expect(Math.abs(spanCutoff.getTime() - expected1DayAgo.getTime())).toBeLessThan(1000);
+    });
+
+    it('should include spansDeleted in log output', () => {
+      mockDeleteSpans.mockReturnValue(100);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ spansDeleted: 100 }),
+        'data retention cleanup completed',
+      );
+    });
+  });
+
+  describe('dismissed auto-suggestion cleanup', () => {
+    it('should delete old dismissed associations using span retention cutoff', () => {
+      mockAppSettingsGet.mockReturnValue('5');
+      mockDeleteOldDismissed.mockReturnValue(3);
+
+      const now = new Date('2026-02-21T10:00:00Z');
+      jest.setSystemTime(now);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.dismissedAssociationsDeleted).toBe(3);
+      expect(mockDeleteOldDismissed).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+
+      // Should use same cutoff as spans (5 days)
+      const spanCutoff = mockDeleteSpans.mock.calls[0][0];
+      const dismissedCutoff = mockDeleteOldDismissed.mock.calls[0][0];
+      expect(spanCutoff).toBe(dismissedCutoff);
+    });
+
+    it('should include dismissedAssociationsDeleted in log output', () => {
+      mockDeleteOldDismissed.mockReturnValue(7);
+
+      const service = DataRetentionService.getInstance();
+      service.runCleanup();
+
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.objectContaining({ dismissedAssociationsDeleted: 7 }),
+        'data retention cleanup completed',
+      );
+    });
+
+    it('should report zero when no dismissed associations to clean', () => {
+      mockDeleteOldDismissed.mockReturnValue(0);
+
+      const service = DataRetentionService.getInstance();
+      const result = service.runCleanup();
+
+      expect(result.dismissedAssociationsDeleted).toBe(0);
     });
   });
 
