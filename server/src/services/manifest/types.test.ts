@@ -667,6 +667,8 @@ describe('Updated existing types with manifest columns', () => {
         dependency_id: 'dep-1',
         linked_service_id: 'svc-2',
         association_type: 'api_call',
+        is_auto_suggested: 0,
+        is_dismissed: 0,
         manifest_managed: 1,
         created_at: '2026-01-01T00:00:00Z',
       };
