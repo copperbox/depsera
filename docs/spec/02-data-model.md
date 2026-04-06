@@ -18,6 +18,7 @@ erDiagram
     users ||--o{ team_members : "has membership"
     teams ||--o{ team_members : "has members"
     teams ||--o{ services : "owns"
+    teams ||--o{ spans : "owns"
     services ||--o{ dependencies : "reports"
     dependencies ||--o{ dependency_latency_history : "records"
     dependencies ||--o{ dependency_error_history : "records"
@@ -26,6 +27,8 @@ erDiagram
     dependency_aliases }o..o{ dependencies : "resolves name"
     dependency_canonical_overrides }o..o{ dependencies : "overrides by canonical_name"
     users ||--o{ dependency_canonical_overrides : "updated_by"
+    users ||--o{ external_node_enrichment : "updated_by"
+    users ||--o{ app_settings : "updated_by"
     services ||--o{ status_change_events : "records"
     services ||--o{ service_poll_history : "records"
 ```
@@ -118,6 +121,10 @@ erDiagram
 | error | TEXT | | NULL |
 | error_message | TEXT | | NULL |
 | skipped | INTEGER | NOT NULL | 0 |
+| discovery_source | TEXT | NOT NULL | `'manual'` |
+| user_display_name | TEXT | | NULL |
+| user_description | TEXT | | NULL |
+| user_impact | TEXT | | NULL |
 | last_checked | TEXT | | NULL |
 | last_status_change | TEXT | | NULL |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
@@ -128,6 +135,10 @@ erDiagram
 **Indexes:** `idx_dependencies_service_id`, `idx_dependencies_healthy`
 
 **`type` enum:** `database`, `rest`, `soap`, `grpc`, `graphql`, `message_queue`, `cache`, `file_system`, `smtp`, `other`
+
+**`discovery_source` values:** `'manual'` (user-created or polled), `'otlp_metric'` (auto-created from OTLP metric push), `'otlp_trace'` (auto-discovered from trace spans). On upsert conflict, manual dependencies are never downgraded — if `discovery_source` is already `'manual'`, subsequent trace pushes preserve it.
+
+**User enrichment columns:** `user_display_name`, `user_description`, `user_impact` are user-managed overrides separate from the auto-detected `name`/`description`/`impact` columns. Trace pushes update auto-detected fields but never overwrite user enrichment.
 
 **`health_state` values:** 0 = OK, 1 = WARNING, 2 = CRITICAL
 
@@ -140,13 +151,17 @@ erDiagram
 | linked_service_id | TEXT | NOT NULL, FK → services.id CASCADE | |
 | linked_service_key | TEXT | | NULL |
 | association_type | TEXT | NOT NULL, CHECK (see below) | `'other'` |
+| is_auto_suggested | INTEGER | NOT NULL | 0 |
+| is_dismissed | INTEGER | NOT NULL | 0 |
 | created_at | TEXT | NOT NULL | `datetime('now')` |
 
 **Unique constraint:** `(dependency_id, linked_service_id)`
 
-**Indexes:** `idx_dependency_associations_dependency_id`, `idx_dependency_associations_linked_service_id`
+**Indexes:** `idx_dependency_associations_dependency_id`, `idx_dependency_associations_linked_service_id`, `idx_dep_assoc_auto_suggested` on (is_auto_suggested, is_dismissed)
 
 **`association_type` enum:** `api_call`, `database`, `message_queue`, `cache`, `other`
+
+**Auto-suggestion columns:** `is_auto_suggested` is 1 when the association was automatically created from trace data (via `AutoAssociator`). Users can confirm (sets `is_auto_suggested=0`) or dismiss (sets `is_dismissed=1`). Dismissed associations are not re-suggested by subsequent trace pushes. Old dismissed associations are cleaned up by `DataRetentionService`.
 
 ### dependency_latency_history
 
@@ -155,9 +170,20 @@ erDiagram
 | id | TEXT | PRIMARY KEY | |
 | dependency_id | TEXT | NOT NULL, FK → dependencies.id CASCADE | |
 | latency_ms | INTEGER | NOT NULL | |
+| p50_ms | REAL | | NULL |
+| p95_ms | REAL | | NULL |
+| p99_ms | REAL | | NULL |
+| min_ms | REAL | | NULL |
+| max_ms | REAL | | NULL |
+| request_count | INTEGER | | NULL |
+| source | TEXT | NOT NULL | `'poll'` |
 | recorded_at | TEXT | NOT NULL | `datetime('now')` |
 
 **Indexes:** `idx_latency_history_dependency`, `idx_latency_history_time`
+
+**`source` values:** `'poll'` (from health endpoint polling), `'otlp_gauge'` (from OTLP gauge metrics), `'otlp_histogram'` (from OTLP histogram metrics), `'otlp_trace'` (from trace span durations). Existing rows default to `'poll'`.
+
+**Percentile columns:** Nullable `REAL` columns populated when histogram data is available. `p50_ms`, `p95_ms`, `p99_ms` are computed via linear interpolation from histogram bucket boundaries. `min_ms` and `max_ms` are passthrough from histogram data points when available. `request_count` stores the total count from the histogram or sum data point.
 
 ### dependency_error_history
 
@@ -273,6 +299,65 @@ Team-scoped API keys for authenticating OTLP push requests. `key_hash` stores SH
 
 Time-series bucketed usage counters for API key push requests. No FK cascade by design — when a key is hard-deleted, orphaned usage rows are retained for 7 days then pruned by the retention job. Minute-granularity rows are retained 24 hours; hour-granularity rows are retained 30 days. `bucket_start` is an ISO 8601 UTC timestamp truncated to minute or hour (e.g., `2025-01-15T14:32:00` or `2025-01-15T14:00:00`).
 
+### spans **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| trace_id | TEXT | NOT NULL | |
+| span_id | TEXT | NOT NULL | |
+| parent_span_id | TEXT | | NULL |
+| service_name | TEXT | NOT NULL | |
+| team_id | TEXT | NOT NULL, FK → teams.id CASCADE | |
+| name | TEXT | NOT NULL | |
+| kind | INTEGER | NOT NULL | 0 |
+| start_time | TEXT | NOT NULL | |
+| end_time | TEXT | NOT NULL | |
+| duration_ms | REAL | NOT NULL | |
+| status_code | INTEGER | | 0 |
+| status_message | TEXT | | NULL |
+| attributes | TEXT | | NULL |
+| resource_attributes | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+
+**Indexes:** `idx_spans_trace_id` on (trace_id), `idx_spans_service_team` on (service_name, team_id), `idx_spans_start_time` on (start_time), `idx_spans_kind` on (kind), `idx_spans_created_at` on (created_at)
+
+Full span storage for OTLP trace data. Denormalized flat table — spans are write-heavy, read-occasionally. `service_name` is denormalized from resource attributes for fast per-service queries. `duration_ms` is precomputed from nanosecond timestamps. `attributes` and `resource_attributes` are JSON strings. ALL span types (CLIENT, SERVER, PRODUCER, CONSUMER, INTERNAL) are persisted; only CLIENT and PRODUCER feed into dependency discovery.
+
+**`kind` enum:** 0 = UNSPECIFIED, 1 = INTERNAL, 2 = SERVER, 3 = CLIENT, 4 = PRODUCER, 5 = CONSUMER (per OpenTelemetry spec).
+
+**`status_code` values:** 0 = UNSET, 1 = OK, 2 = ERROR.
+
+**Retention:** Configurable via `app_settings.span_retention_days` (default 7 days). Old spans are cleaned up by `DataRetentionService`.
+
+### app_settings **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| key | TEXT | PRIMARY KEY | |
+| value | TEXT | NOT NULL | |
+| updated_at | TEXT | | `datetime('now')` |
+| updated_by | TEXT | FK → users.id | NULL |
+
+Admin-configurable application settings. Seeded with `span_retention_days = '7'` on migration. Used by `DataRetentionService` for configurable span cleanup window and exposed via `GET/PUT /api/admin/settings/span-retention`.
+
+### external_node_enrichment **[Implemented]**
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| id | TEXT | PRIMARY KEY | |
+| canonical_name | TEXT | NOT NULL, UNIQUE | |
+| display_name | TEXT | | NULL |
+| description | TEXT | | NULL |
+| impact | TEXT | | NULL |
+| contact | TEXT | | NULL |
+| service_type | TEXT | | NULL |
+| created_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_at | TEXT | NOT NULL | `datetime('now')` |
+| updated_by | TEXT | FK → users.id | NULL |
+
+Org-wide enrichment for virtual external nodes in the dependency graph. Keyed by `canonical_name` to match `ExternalNodeBuilder`'s grouping logic (lowercase + trim). Not team-scoped — matches the cross-team external node deduplication via `SHA-256(normalized_name)`. `contact` is a JSON string (arbitrary contact object). `service_type` overrides the inferred type from dependency edges. Applied to graph external nodes by `GraphService` during graph building.
+
 ## Type Enumerations
 
 ```typescript
@@ -284,6 +369,8 @@ type DependencyType = 'database' | 'rest' | 'soap' | 'grpc' | 'graphql'
                     | 'message_queue' | 'cache' | 'file_system' | 'smtp' | 'other';
 type AssociationType = 'api_call' | 'database' | 'message_queue' | 'cache' | 'other';
 type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
+type DiscoverySource = 'manual' | 'otlp_metric' | 'otlp_trace';
+type LatencySource = 'poll' | 'otlp_gauge' | 'otlp_histogram' | 'otlp_trace';
 type AlertSeverityFilter = 'critical' | 'warning' | 'all';
 type DriftType = 'field_change' | 'service_removal';
 type DriftFlagStatus = 'pending' | 'dismissed' | 'accepted' | 'resolved';
@@ -573,7 +660,45 @@ Contains all types specific to the manifest sync engine:
 - `Service`: added `manifest_key: string | null`, `manifest_managed: number`, `manifest_last_synced_values: string | null`, `health_endpoint_format: HealthEndpointFormat`
 - `DependencyAlias`: added `manifest_team_id: string | null`
 - `DependencyCanonicalOverride`: added `team_id: string | null`, `manifest_managed: number`
-- `DependencyAssociation`: added `manifest_managed: number`
+- `DependencyAssociation`: added `manifest_managed: number`, `is_auto_suggested: number`, `is_dismissed: number`
+- `Dependency`: added `discovery_source: DiscoverySource`, `user_display_name: string | null`, `user_description: string | null`, `user_impact: string | null`
+
+### Trace discovery types **[Implemented]**
+
+#### `server/src/db/types.ts` — Span and enrichment types
+
+- `DiscoverySource`: `'manual' | 'otlp_metric' | 'otlp_trace'`
+- `Span`: DB row type for `spans` table — `id`, `trace_id`, `span_id`, `parent_span_id`, `service_name`, `team_id`, `name`, `kind`, `start_time`, `end_time`, `duration_ms`, `status_code`, `status_message`, `attributes`, `resource_attributes`, `created_at`
+- `CreateSpanInput`: input type for `SpanStore.bulkInsert()` — same fields as `Span` minus `id` and `created_at`, with optional `kind`, `status_code`, `status_message`, `attributes`, `resource_attributes`
+- `ExternalNodeEnrichment`: DB row type for `external_node_enrichment` table
+- `UpsertExternalNodeEnrichmentInput`: input type for `ExternalNodeEnrichmentStore.upsert()` — requires `canonical_name`, all other fields optional
+
+#### Extended `ProactiveDepsStatus.health`
+
+Added optional `percentiles` field:
+
+```typescript
+percentiles?: {
+  p50?: number;
+  p95?: number;
+  p99?: number;
+  min?: number;
+  max?: number;
+  requestCount?: number;
+}
+```
+
+Populated when histogram data is available from OTLP metric pushes. Used by `DependencyUpsertService` to call `recordWithPercentiles()` instead of `record()`.
+
+#### `LatencyBucket` extension
+
+Extended with optional percentile averages for time-bucketed latency queries:
+
+```typescript
+avg_p50?: number | null;
+avg_p95?: number | null;
+avg_p99?: number | null;
+```
 
 ### ManifestValidator **[Implemented]**
 
@@ -690,5 +815,10 @@ Contains all types specific to the manifest sync engine:
 | 034 | add_otel_sources | Adds `health_endpoint_format TEXT NOT NULL DEFAULT 'default'` to `services`; backfills `'schema'` for services with `schema_config`; creates `team_api_keys` table with unique index on `key_hash` and index on `team_id` |
 | 035 | api_key_rate_limit_columns | Adds `rate_limit_rpm INTEGER` (NULL = system default, 0 = unlimited, N = custom rpm) and `rate_limit_admin_locked INTEGER NOT NULL DEFAULT 0` to `team_api_keys` |
 | 036 | api_key_usage_buckets | Creates `api_key_usage_buckets` table (composite PK: api_key_id, bucket_start, granularity) with indexes `idx_usage_buckets_key_start` and `idx_usage_buckets_start`; no FK cascade by design — orphaned rows pruned by retention |
+| 037 | add_trace_discovery | Adds `discovery_source TEXT NOT NULL DEFAULT 'manual'` to `dependencies` with backfill (`'otlp_metric'` for OTLP services); adds `user_display_name`, `user_description`, `user_impact` to `dependencies`; adds `is_auto_suggested INTEGER NOT NULL DEFAULT 0`, `is_dismissed INTEGER NOT NULL DEFAULT 0` to `dependency_associations`; creates index `idx_dep_assoc_auto_suggested` |
+| 038 | add_external_node_enrichment | Creates `external_node_enrichment` table with UNIQUE on `canonical_name` and FK `updated_by → users.id` |
+| 039 | add_percentile_latency | Adds `p50_ms REAL`, `p95_ms REAL`, `p99_ms REAL`, `min_ms REAL`, `max_ms REAL`, `request_count INTEGER`, `source TEXT NOT NULL DEFAULT 'poll'` to `dependency_latency_history` |
+| 040 | add_span_storage | Creates `spans` table with FK `team_id → teams.id CASCADE`; indexes on `trace_id`, `(service_name, team_id)`, `start_time`, `kind`, `created_at` |
+| 041 | add_span_retention_setting | Creates `app_settings` table with FK `updated_by → users.id`; seeds `span_retention_days = '7'` |
 
 Migrations are tracked in a `_migrations` table (`id TEXT PK`, `name TEXT`, `applied_at TEXT`). Each migration runs in a transaction.

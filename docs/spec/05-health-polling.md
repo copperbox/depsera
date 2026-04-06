@@ -126,7 +126,7 @@ The polling system supports multiple health endpoint formats via the `health_end
 | `default` | Poll endpoint, parse JSON array | `application/json` | `DependencyParser` (proactive-deps format) |
 | `schema` | Poll endpoint, parse JSON with schema mapping | `application/json` | `DependencyParser` → `SchemaMapper` |
 | `prometheus` | Poll endpoint, parse text | `text/plain; version=0.0.4` | `DependencyParser` → `PrometheusParser` |
-| `otlp` | **Not polled** (push-only) | N/A | Receives data via `POST /v1/metrics` |
+| `otlp` | **Not polled** (push-only) | N/A | Receives data via `POST /v1/metrics` and `POST /v1/traces` |
 
 ### OTLP Service Exclusion
 
@@ -167,6 +167,142 @@ The OTLP receiver (`POST /v1/metrics`) is documented in the API reference (secti
 **Per-key rate limiting:** See section 9.4 in the security spec for details on the token bucket algorithm, configuration, and response headers.
 
 **Usage tracking:** Every request (accepted or rejected) increments `push_count` in dual-granularity buckets (minute + hour). Rejected requests additionally increment `rejected_count`. Usage data is accumulated in-memory and flushed to the database every `OTLP_USAGE_FLUSH_INTERVAL_MS` (default 5s).
+
+### Histogram and Sum Metric Processing **[Implemented]**
+
+The OTLP parser processes three metric types: gauges (existing), histograms (new), and sums (new).
+
+**Histogram processing:** When `metric.histogram?.dataPoints` is present, each data point's bucket boundaries and counts are passed to `computePercentiles()` in `server/src/utils/histogramPercentiles.ts`. This produces percentile latency (p50, p95, p99) via linear interpolation within histogram buckets. The `metric.unit` field is read for automatic unit detection (seconds → milliseconds conversion).
+
+**Sum processing:** When `metric.sum?.dataPoints` is present:
+- Non-monotonic sums (`isMonotonic === false`) are treated as gauge values and extracted directly
+- Monotonic sums store raw count as `requestCount`
+
+**Percentile computation algorithm:**
+1. Walk cumulative bucket counts
+2. Find the bucket where cumulative count crosses `count × percentile`
+3. Linearly interpolate within that bucket
+4. Edge cases: empty histogram (count=0) returns zeros; overflow bucket capped at last explicit bound
+
+**Integration with upsert pipeline:** When histogram-derived percentile data exists in `ProactiveDepsStatus.health.percentiles`, `DependencyUpsertService` calls `latencyStore.recordWithPercentiles()` with source `'otlp_histogram'` instead of the standard `latencyStore.record()`.
+
+**Latency bucket queries:** `getLatencyBuckets()` and `getAggregateLatencyBuckets()` include `ROUND(AVG(p50_ms))`, `ROUND(AVG(p95_ms))`, `ROUND(AVG(p99_ms))` in the SELECT for time-bucketed percentile averages.
+
+### Trace Ingestion **[Implemented]**
+
+The trace ingestion system receives OTLP trace payloads via `POST /v1/traces`, stores all spans, and automatically discovers dependencies from CLIENT and PRODUCER spans.
+
+```mermaid
+flowchart TD
+    A[POST /v1/traces] --> B[Validate resourceSpans array]
+    B --> C{For each ResourceSpans}
+    C --> D[Extract service.name]
+    D --> E[findOrCreateService]
+    E --> F[SpanStore.bulkInsert — ALL spans]
+    F --> G[TraceParser.parseResourceSpans — CLIENT/PRODUCER only]
+    G --> H[TraceDependencyBridge.bridgeToDepsStatus]
+    H --> I[DependencyUpsertService.upsert]
+    I --> J[AutoAssociator.processDiscoveredDependencies]
+    J --> K[Emit status change events]
+```
+
+**Middleware chain:** `express.json (2MB limit)` → `OTLP global rate limit` → `requireApiKeyAuth` → `per-key rate limit` → `usage tracking` → `trace router`.
+
+**Response format:** OTLP-standard `{ partialSuccess: { rejectedDataPoints, errorMessage } }`.
+
+#### TraceParser
+
+`server/src/services/polling/TraceParser.ts` — Parses OTLP `ExportTraceServiceRequest` JSON payloads into per-service dependency results. Only CLIENT and PRODUCER spans produce dependencies (outbound calls).
+
+**Public API:**
+- `parseRequest(data: unknown): TraceDependencyResult[]` — parses full request
+- `parseResourceSpans(rs: OtlpResourceSpans): TraceDependencyResult` — parses single resource
+- `extractServiceName(rs: OtlpResourceSpans): string | undefined` — reuses OtlpParser pattern
+
+**Target name resolution chain** (first non-empty wins):
+1. `peer.service` attribute
+2. `db.system` / `db.system.name`
+3. `messaging.system`
+4. `rpc.system` / `rpc.system.name`
+5. `server.address`
+6. Hostname extracted from `url.full`
+
+**Dependency type inference:**
+| Attribute | Inferred Type |
+|---|---|
+| `db.system` = redis/memcached | `cache` |
+| `db.system` (other) | `database` |
+| `messaging.system` | `message_queue` |
+| `rpc.system` = grpc | `grpc` |
+| `http.request.method` | `rest` |
+| (default) | `other` |
+
+**Auto-generated descriptions:**
+- HTTP: `"{method} {host}{path}"`
+- DB: `"{op} {ns}.{collection}"`
+- Messaging: `"{op} {destination}"`
+- gRPC: `"{rpc.method}"`
+
+**Deduplication:** Dependencies are deduplicated by target name within a single push — latency is averaged, error uses any-error-wins logic.
+
+**Output types:**
+```typescript
+interface TraceDependency {
+  targetName: string;
+  type: DependencyType;
+  latencyMs: number;
+  isError: boolean;
+  spanKind: number;
+  description: string;
+  attributes: Record<string, string | number | boolean>;
+}
+
+interface TraceDependencyResult {
+  serviceName: string;
+  dependencies: TraceDependency[];
+}
+```
+
+#### TraceDependencyBridge
+
+`server/src/services/polling/TraceDependencyBridge.ts` — Converts `TraceDependency[]` to `ProactiveDepsStatus[]` for the existing upsert pipeline.
+
+**Public API:** `bridgeToDepsStatus(traceDeps: TraceDependency[]): TraceBridgedDepsStatus[]`
+
+**Mapping:**
+- `isError: false` → `health.state = 0` (OK), `health.code = 200`
+- `isError: true` → `health.state = 2` (CRITICAL), `health.code = 500`
+- Span duration → `health.latency`
+- All outputs include `discovery_source: 'otlp_trace'`
+
+#### AutoAssociator
+
+`server/src/services/polling/AutoAssociator.ts` — Automatically links trace-discovered dependencies to registered services.
+
+**Public API:** `processDiscoveredDependencies(sourceService: Service, dependencies: ProactiveDepsStatus[], teamId: string): void`
+
+**Matching strategy:**
+1. Case-insensitive exact name match against team services
+2. Canonical name resolution via `DependencyAliasStore`, then match service name
+
+**Association type mapping:**
+| Dependency Type | Association Type |
+|---|---|
+| `database` | `database` |
+| `cache` | `cache` |
+| `message_queue` | `message_queue` |
+| `rest` or `grpc` | `api_call` |
+| (default) | `other` |
+
+**Safety rules:**
+- Skips self-links (source service = target service)
+- Skips already-associated pairs (including dismissed — never re-suggests)
+- Catches UNIQUE constraint violations as no-ops (race condition safety)
+- Creates associations with `is_auto_suggested: true`
+
+#### Shared Service Resolution
+
+`server/src/services/polling/otlpServiceResolver.ts` — Shared `findOrCreateService()` helper used by both `/v1/metrics` and `/v1/traces` routes. Extracted from the metrics route for reuse. Auto-creates services with `health_endpoint_format = 'otlp'`, `health_endpoint = ''`, `is_active = 1`, `poll_interval_ms = 0`.
 
 ### PrometheusParser
 
