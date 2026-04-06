@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { getStores } from '../../stores';
 import { TraceParser } from '../../services/polling/TraceParser';
 import { TraceDependencyBridge } from '../../services/polling/TraceDependencyBridge';
+import { AutoAssociator } from '../../services/polling/AutoAssociator';
 import { getDependencyUpsertService } from '../../services/polling/DependencyUpsertService';
 import { findOrCreateService } from '../../services/polling/otlpServiceResolver';
 import { HealthPollingService } from '../../services/polling';
@@ -75,6 +76,10 @@ router.post('/', (req: Request, res: Response): void => {
         // Upsert dependencies
         const changes = upsertService.upsert(service, depsStatus);
         allChanges.push(...changes);
+
+        // Auto-associate trace-discovered dependencies with registered services
+        const autoAssociator = new AutoAssociator(stores);
+        autoAssociator.processDiscoveredDependencies(service, depsStatus, teamId);
       }
 
       // Update poll result on the service

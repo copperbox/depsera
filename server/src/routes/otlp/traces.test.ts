@@ -228,6 +228,20 @@ describe('OTLP Trace Receiver Route', () => {
       CREATE INDEX idx_spans_service_team ON spans(service_name, team_id);
       CREATE INDEX idx_spans_start_time ON spans(start_time);
 
+      CREATE TABLE dependency_associations (
+        id TEXT PRIMARY KEY,
+        dependency_id TEXT NOT NULL,
+        linked_service_id TEXT NOT NULL,
+        association_type TEXT NOT NULL DEFAULT 'other',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
+        FOREIGN KEY (linked_service_id) REFERENCES services(id) ON DELETE CASCADE,
+        UNIQUE (dependency_id, linked_service_id)
+      );
+
       CREATE TABLE audit_log (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -248,6 +262,7 @@ describe('OTLP Trace Receiver Route', () => {
     mockApiKeyTeamId = MOCK_TEAM_ID;
     mockEmit.mockClear();
     // Clean up between tests
+    testDb.exec('DELETE FROM dependency_associations');
     testDb.exec('DELETE FROM spans');
     testDb.exec('DELETE FROM dependency_latency_history');
     testDb.exec('DELETE FROM dependency_error_history');
@@ -646,6 +661,85 @@ describe('OTLP Trace Receiver Route', () => {
       const names = services.map((s) => s.name);
       expect(names).toContain('trace-svc-a');
       expect(names).toContain('trace-svc-b');
+    });
+
+    it('should auto-associate when trace from A calls registered service B', async () => {
+      // Pre-register service B in the same team
+      testDb.prepare(
+        `INSERT INTO services (id, name, team_id, health_endpoint, health_endpoint_format, poll_interval_ms, is_active, is_external)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run('svc-b', 'service-b', MOCK_TEAM_ID, '', 'otlp', 0, 1, 0);
+
+      // Service A sends a trace with a CLIENT span calling service-b
+      const payload = buildTracePayload('service-a', [
+        {
+          name: 'call-service-b',
+          kind: 3,
+          attributes: [
+            { key: 'peer.service', value: { stringValue: 'service-b' } },
+            { key: 'http.request.method', value: { stringValue: 'GET' } },
+          ],
+        },
+      ]);
+
+      await request(app).post('/v1/traces').send(payload);
+
+      const associations = testDb
+        .prepare('SELECT * FROM dependency_associations')
+        .all() as Array<Record<string, unknown>>;
+
+      expect(associations).toHaveLength(1);
+      expect(associations[0].linked_service_id).toBe('svc-b');
+      expect(associations[0].is_auto_suggested).toBe(1);
+      expect(associations[0].association_type).toBe('api_call');
+    });
+
+    it('should not auto-associate when trace targets unregistered service', async () => {
+      // No pre-registered services — the target is unknown
+      const payload = buildTracePayload('service-a', [
+        {
+          name: 'call-unknown',
+          kind: 3,
+          attributes: [
+            { key: 'peer.service', value: { stringValue: 'unknown-service' } },
+          ],
+        },
+      ]);
+
+      await request(app).post('/v1/traces').send(payload);
+
+      const associations = testDb
+        .prepare('SELECT * FROM dependency_associations')
+        .all() as Array<Record<string, unknown>>;
+
+      expect(associations).toHaveLength(0);
+    });
+
+    it('should not create duplicate associations on repeated trace pushes', async () => {
+      // Pre-register service B
+      testDb.prepare(
+        `INSERT INTO services (id, name, team_id, health_endpoint, health_endpoint_format, poll_interval_ms, is_active, is_external)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run('svc-b', 'service-b', MOCK_TEAM_ID, '', 'otlp', 0, 1, 0);
+
+      const payload = buildTracePayload('service-a', [
+        {
+          name: 'call-service-b',
+          kind: 3,
+          attributes: [{ key: 'peer.service', value: { stringValue: 'service-b' } }],
+        },
+      ]);
+
+      // Push twice
+      await request(app).post('/v1/traces').send(payload);
+      await request(app).post('/v1/traces').send(payload);
+
+      const associations = testDb
+        .prepare('SELECT * FROM dependency_associations')
+        .all() as Array<Record<string, unknown>>;
+
+      // Should have exactly 1, not 2
+      expect(associations).toHaveLength(1);
     });
 
     it('should only create dependencies from CLIENT/PRODUCER spans, not SERVER/INTERNAL', async () => {
