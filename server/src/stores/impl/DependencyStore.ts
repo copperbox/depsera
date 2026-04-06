@@ -48,7 +48,9 @@ export class DependencyStore implements IDependencyStore {
           d.*,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -94,7 +96,9 @@ export class DependencyStore implements IDependencyStore {
           d.error_message,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -125,7 +129,9 @@ export class DependencyStore implements IDependencyStore {
           d.error_message,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -149,7 +155,9 @@ export class DependencyStore implements IDependencyStore {
           s.team_id as service_team_id,
           t.name as service_team_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           ls.name as linked_service_name,
           (
             SELECT ROUND(AVG(latency_ms))

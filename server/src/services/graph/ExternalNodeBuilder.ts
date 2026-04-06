@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { DependencyType } from '../../db/types';
+import { DependencyType, ExternalNodeEnrichment } from '../../db/types';
 import { DependencyWithTarget, ServiceNodeData } from './types';
 
 interface ExternalGroup {
@@ -104,6 +104,23 @@ export class ExternalNodeBuilder {
       skippedCount,
       serviceType,
       isExternal: true,
+    };
+  }
+
+  /**
+   * Apply enrichment metadata from ExternalNodeEnrichmentStore to an external node.
+   */
+  static applyEnrichment(
+    nodeData: ServiceNodeData,
+    enrichment: ExternalNodeEnrichment
+  ): ServiceNodeData {
+    return {
+      ...nodeData,
+      ...(enrichment.display_name && { name: enrichment.display_name }),
+      ...(enrichment.service_type && { serviceType: enrichment.service_type }),
+      ...(enrichment.description && { enrichedDescription: enrichment.description }),
+      ...(enrichment.impact && { enrichedImpact: enrichment.impact }),
+      ...(enrichment.contact && { enrichedContact: enrichment.contact }),
     };
   }
 

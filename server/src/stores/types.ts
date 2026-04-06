@@ -75,8 +75,10 @@ export interface DependencyWithResolvedOverrides extends Dependency {
 export interface DependencyWithTarget extends Dependency {
   service_name: string;
   target_service_id: string | null;
+  association_id: string | null;
   association_type: AssociationType | null;
   avg_latency_24h: number | null;
+  is_auto_suggested: number | null;
 }
 
 /**

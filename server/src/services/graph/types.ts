@@ -1,4 +1,4 @@
-import { Service, Dependency, DependencyType, AssociationType } from '../../db/types';
+import { Service, Dependency, DependencyType, AssociationType, DiscoverySource } from '../../db/types';
 
 /**
  * Service with team name joined from teams table
@@ -13,8 +13,10 @@ export interface ServiceWithTeam extends Service {
 export interface DependencyWithTarget extends Dependency {
   service_name: string;
   target_service_id: string | null;
+  association_id: string | null;
   association_type: string | null;
   avg_latency_24h: number | null;
+  is_auto_suggested: number | null;
 }
 
 /**
@@ -39,6 +41,10 @@ export interface ServiceNodeData {
   skippedCount: number;
   serviceType?: DependencyType;
   isExternal?: boolean;
+  discoveredDependencyCount?: number;
+  enrichedDescription?: string | null;
+  enrichedImpact?: string | null;
+  enrichedContact?: string | null;
 }
 
 /**
@@ -69,6 +75,9 @@ export interface GraphEdgeData {
   impact?: string | null;
   effectiveContact?: string | null;
   skipped?: boolean;
+  discoverySource?: DiscoverySource;
+  isAutoSuggested?: boolean;
+  associationId?: string | null;
 }
 
 /**

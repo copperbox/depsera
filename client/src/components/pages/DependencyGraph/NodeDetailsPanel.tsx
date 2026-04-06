@@ -163,9 +163,12 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
               Poll failed{data.lastPollError ? `: ${data.lastPollError}` : ''}
             </div>
           )}
-          {isExternal && (
+          {isExternal && !data.enrichedDescription ? (
             <p className={styles.externalDescription}>External dependency not tracked as a service</p>
-          )}
+          ) : null}
+          {isExternal && data.enrichedDescription ? (
+            <p className={styles.externalDescription}>{String(data.enrichedDescription)}</p>
+          ) : null}
         </div>
 
         <div className={styles.section}>
@@ -190,6 +193,27 @@ function NodeDetailsPanelComponent({ nodeId, data, nodes, edges, onClose, onIsol
             )}
           </div>
         </div>
+
+        {isExternal && data.enrichedImpact ? (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Impact</h4>
+            <p className={styles.impactText}>{String(data.enrichedImpact)}</p>
+          </div>
+        ) : null}
+
+        {isExternal && data.enrichedContact ? (
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Contact</h4>
+            <dl className={styles.contactList} data-testid="enriched-contact">
+              {Object.entries(parseContact(String(data.enrichedContact)) ?? {}).map(([key, value]) => (
+                <div key={key} className={styles.contactItem}>
+                  <dt className={styles.contactKey}>{key}</dt>
+                  <dd className={styles.contactValue}>{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
 
         {dependents.length > 0 && contact && (
           <div className={styles.section}>

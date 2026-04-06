@@ -10,6 +10,11 @@ jest.mock('../../Charts/LatencyChart', () => ({
   ),
 }));
 
+jest.mock('../../../api/associations', () => ({
+  confirmAssociation: jest.fn().mockResolvedValue({ success: true }),
+  dismissAssociation: jest.fn().mockResolvedValue({ success: true }),
+}));
+
 type AppNode = Node<ServiceNodeData, 'service'>;
 
 const mockSourceNode: AppNode = {
@@ -462,5 +467,117 @@ describe('EdgeDetailsPanel', () => {
     renderPanel('e1', noIdData);
 
     expect(screen.queryByText('View Error History (24h)')).not.toBeInTheDocument();
+  });
+
+  describe('discovery source', () => {
+    it('displays discovery source badge for trace-discovered edge', () => {
+      const traceData = { ...mockEdgeData, discoverySource: 'otlp_trace' as const };
+      renderPanel('e1', traceData);
+
+      expect(screen.getByTestId('discovery-source-badge')).toBeInTheDocument();
+      expect(screen.getByText('Trace Discovered')).toBeInTheDocument();
+    });
+
+    it('displays discovery source badge for metric-discovered edge', () => {
+      const metricData = { ...mockEdgeData, discoverySource: 'otlp_metric' as const };
+      renderPanel('e1', metricData);
+
+      expect(screen.getByTestId('discovery-source-badge')).toBeInTheDocument();
+      expect(screen.getByText('OTLP Metric')).toBeInTheDocument();
+    });
+
+    it('does not display discovery source badge for manual edge', () => {
+      const manualData = { ...mockEdgeData, discoverySource: 'manual' as const };
+      renderPanel('e1', manualData);
+
+      expect(screen.queryByTestId('discovery-source-badge')).not.toBeInTheDocument();
+    });
+
+    it('shows confirm/dismiss buttons for auto-suggested edge', () => {
+      const suggestedData = {
+        ...mockEdgeData,
+        discoverySource: 'otlp_trace' as const,
+        isAutoSuggested: true,
+        associationId: 'assoc-1',
+      };
+      renderPanel('e1', suggestedData);
+
+      expect(screen.getByTestId('suggestion-actions')).toBeInTheDocument();
+      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByText('Dismiss')).toBeInTheDocument();
+    });
+
+    it('does not show confirm/dismiss buttons for confirmed edge', () => {
+      const confirmedData = {
+        ...mockEdgeData,
+        discoverySource: 'otlp_trace' as const,
+        isAutoSuggested: false,
+      };
+      renderPanel('e1', confirmedData);
+
+      expect(screen.queryByTestId('suggestion-actions')).not.toBeInTheDocument();
+    });
+
+    it('calls confirmAssociation on confirm click', async () => {
+      const { confirmAssociation } = require('../../../api/associations');
+      const onGraphRefresh = jest.fn();
+      const suggestedData = {
+        ...mockEdgeData,
+        discoverySource: 'otlp_trace' as const,
+        isAutoSuggested: true,
+        associationId: 'assoc-1',
+      };
+
+      render(
+        <MemoryRouter>
+          <EdgeDetailsPanel
+            edgeId="e1"
+            data={suggestedData}
+            sourceNode={mockSourceNode}
+            targetNode={mockTargetNode}
+            onClose={jest.fn()}
+            onGraphRefresh={onGraphRefresh}
+          />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(confirmAssociation).toHaveBeenCalledWith('d1', 'assoc-1');
+        expect(onGraphRefresh).toHaveBeenCalled();
+      });
+    });
+
+    it('calls dismissAssociation on dismiss click', async () => {
+      const { dismissAssociation } = require('../../../api/associations');
+      const onGraphRefresh = jest.fn();
+      const suggestedData = {
+        ...mockEdgeData,
+        discoverySource: 'otlp_trace' as const,
+        isAutoSuggested: true,
+        associationId: 'assoc-1',
+      };
+
+      render(
+        <MemoryRouter>
+          <EdgeDetailsPanel
+            edgeId="e1"
+            data={suggestedData}
+            sourceNode={mockSourceNode}
+            targetNode={mockTargetNode}
+            onClose={jest.fn()}
+            onGraphRefresh={onGraphRefresh}
+          />
+        </MemoryRouter>
+      );
+
+      fireEvent.click(screen.getByText('Dismiss'));
+
+      await waitFor(() => {
+        expect(dismissAssociation).toHaveBeenCalledWith('d1', 'assoc-1');
+        expect(onGraphRefresh).toHaveBeenCalled();
+      });
+    });
   });
 });

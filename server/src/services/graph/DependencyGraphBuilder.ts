@@ -41,6 +41,7 @@ export class DependencyGraphBuilder {
     const skippedCount = uniqueDeps.filter(d => d.skipped === 1).length;
     const healthyCount = uniqueDeps.filter(d => d.healthy === 1 && d.skipped !== 1).length;
     const unhealthyCount = uniqueDeps.filter(d => d.healthy === 0 && d.skipped !== 1).length;
+    const discoveredDependencyCount = uniqueDeps.filter(d => d.discovery_source === 'otlp_trace').length;
 
     this.nodes.push({
       id: service.id,
@@ -60,6 +61,7 @@ export class DependencyGraphBuilder {
         skippedCount,
         serviceType,
         ...(service.is_external === 1 && { isExternal: true }),
+        ...(discoveredDependencyCount > 0 && { discoveredDependencyCount }),
       },
     });
 
@@ -206,6 +208,9 @@ export class DependencyGraphBuilder {
       impact: dep.impact,
       effectiveContact,
       ...(dep.skipped === 1 && { skipped: true }),
+      discoverySource: dep.discovery_source ?? 'manual',
+      isAutoSuggested: dep.is_auto_suggested === 1,
+      ...(dep.association_id && { associationId: dep.association_id }),
     };
   }
 }

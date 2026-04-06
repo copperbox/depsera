@@ -37,8 +37,10 @@ describe('ServiceTypeInferencer', () => {
     updated_at: new Date().toISOString(),
     service_name: 'test-service',
     target_service_id: targetServiceId,
+    association_id: null,
     association_type: null,
     avg_latency_24h: null,
+    is_auto_suggested: null,
   });
 
   describe('compute', () => {

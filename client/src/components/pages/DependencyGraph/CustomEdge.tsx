@@ -223,6 +223,7 @@ function CustomEdgeComponent({
   }
 
   const isSkipped = data?.skipped === true;
+  const isAutoSuggested = data?.discoverySource === 'otlp_trace' && data?.isAutoSuggested === true;
   const { dashedAnimation: showDashedAnimation, packetAnimation: showPacketAnimation } = useAnimationSettings();
   const label = isSkipped ? 'skipped' : formatLatency(data?.latencyMs);
   const isHealthy = data?.healthy !== false;
@@ -271,7 +272,9 @@ function CustomEdgeComponent({
   const isVisible = opacity >= 0.5;
 
   // Apply dashed animation class for non-skipped edges when enabled
-  const dashedClass = showDashedAnimation && !isSkipped ? styles.dashedAnimatedEdge : '';
+  const dashedClass = showDashedAnimation && !isSkipped && !isAutoSuggested ? styles.dashedAnimatedEdge : '';
+  // Auto-suggested edges get a static dashed style
+  const autoSuggestedClass = isAutoSuggested ? styles.autoSuggestedEdge : '';
 
   // Sync packet opacity on mount / animation toggle so the group starts hidden
   // until the rAF loop takes over. The rAF loop is the sole ongoing writer of
@@ -348,7 +351,7 @@ function CustomEdgeComponent({
       <BaseEdge
         id={id}
         path={edgePath}
-        className={`${styles.edge} ${edgeClass} ${dashedClass} ${isSelected ? styles.edgeSelected : ''}`}
+        className={`${styles.edge} ${edgeClass} ${dashedClass} ${autoSuggestedClass} ${isSelected ? styles.edgeSelected : ''}`}
         markerEnd="url(#arrow-dependency)"
         style={style}
       />
@@ -361,7 +364,7 @@ function CustomEdgeComponent({
           </g>
         </>
       )}
-      {label && opacity >= 0.5 && (
+      {(label || isAutoSuggested) && opacity >= 0.5 && (
         <EdgeLabelRenderer>
           <div
             className={labelClass}
@@ -371,6 +374,7 @@ function CustomEdgeComponent({
               opacity,
             }}
           >
+            {isAutoSuggested && <span className={styles.suggestedBadge}>suggested</span>}
             {label}
           </div>
         </EdgeLabelRenderer>

@@ -61,8 +61,10 @@ describe('DependencyGraphBuilder', () => {
     updated_at: new Date().toISOString(),
     service_name: 'test-service',
     target_service_id: targetServiceId,
+    association_id: targetServiceId ? `assoc-${serviceId}-${targetServiceId}` : null,
     association_type: 'api_call',
     avg_latency_24h: 45,
+    is_auto_suggested: null,
   });
 
   beforeEach(() => {
@@ -137,6 +139,37 @@ describe('DependencyGraphBuilder', () => {
       const graph = builder.build();
 
       expect(graph.nodes[0].data.isExternal).toBe(true);
+    });
+
+    it('should compute discoveredDependencyCount from trace-discovered deps', () => {
+      const service = createService('svc-1', 'User Service');
+      const deps = [
+        createDependency('svc-1', 'svc-2'),
+        createDependency('svc-1', 'svc-3'),
+        createDependency('svc-1', 'svc-4'),
+      ];
+      deps[0].id = 'dep-1';
+      deps[1].id = 'dep-2';
+      deps[2].id = 'dep-3';
+      deps[0].discovery_source = 'manual';
+      deps[1].discovery_source = 'otlp_trace';
+      deps[2].discovery_source = 'otlp_trace';
+
+      builder.addServiceNode(service, deps);
+      const graph = builder.build();
+
+      expect(graph.nodes[0].data.discoveredDependencyCount).toBe(2);
+    });
+
+    it('should not include discoveredDependencyCount when zero', () => {
+      const service = createService('svc-1', 'User Service');
+      const deps = [createDependency('svc-1', 'svc-2')];
+      deps[0].discovery_source = 'manual';
+
+      builder.addServiceNode(service, deps);
+      const graph = builder.build();
+
+      expect(graph.nodes[0].data.discoveredDependencyCount).toBeUndefined();
     });
 
     it('should not set isExternal for tracked services', () => {
@@ -312,6 +345,77 @@ describe('DependencyGraphBuilder', () => {
 
       expect(graph.edges[0].data.canonicalName).toBe('PostgreSQL');
       expect(graph.edges[0].data.dependencyName).toBe('postgres-primary');
+    });
+
+    it('should include discoverySource and isAutoSuggested on edge data', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+      dep.discovery_source = 'otlp_trace';
+      dep.is_auto_suggested = 1;
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(graph.edges[0].data.discoverySource).toBe('otlp_trace');
+      expect(graph.edges[0].data.isAutoSuggested).toBe(true);
+    });
+
+    it('should default discoverySource to manual and isAutoSuggested to false', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(graph.edges[0].data.discoverySource).toBe('manual');
+      expect(graph.edges[0].data.isAutoSuggested).toBe(false);
+    });
+
+    it('should include associationId when association exists', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'Order Service');
+      const dep = createDependency('svc-1', 'svc-2');
+
+      builder.addServiceNode(service1, []);
+      builder.addServiceNode(service2, []);
+      builder.addEdge(dep);
+      const graph = builder.build();
+
+      expect(graph.edges[0].data.associationId).toBe('assoc-svc-1-svc-2');
+    });
+
+    it('should not include associationId when no association', () => {
+      const service1 = createService('svc-1', 'User Service');
+      builder.addServiceNode(service1, []);
+      builder.addExternalNode('external-redis', {
+        name: 'Redis',
+        teamId: 'external',
+        teamName: 'External',
+        healthEndpoint: '',
+        isActive: true,
+        dependencyCount: 1,
+        healthyCount: 1,
+        unhealthyCount: 0,
+        skippedCount: 0,
+        lastPollSuccess: null,
+        lastPollError: null,
+        isExternal: true,
+      });
+      builder.setExternalNodeMap(new Map([['redis', 'external-redis']]));
+
+      const dep = createDependency('svc-1', null);
+      dep.name = 'Redis';
+      dep.association_id = null;
+      builder.addEdge(dep);
+
+      const graph = builder.build();
+      expect(graph.edges[0].data.associationId).toBeUndefined();
     });
 
     it('should set canonicalName to null when canonical_name is null', () => {

@@ -314,4 +314,56 @@ describe('NodeDetailsPanel', () => {
 
     expect(screen.getByText('Unknown')).toBeInTheDocument();
   });
+
+  describe('external node enrichment', () => {
+    const externalNodeData = {
+      ...mockNodeData,
+      isExternal: true,
+      teamId: 'external',
+      teamName: 'External',
+      healthEndpoint: '',
+    };
+
+    it('shows enriched description for external node', () => {
+      const enrichedData = {
+        ...externalNodeData,
+        enrichedDescription: 'Shared production cache cluster',
+      };
+
+      renderPanel('ext-1', enrichedData);
+
+      expect(screen.getByText('Shared production cache cluster')).toBeInTheDocument();
+    });
+
+    it('shows default external description when no enrichment', () => {
+      renderPanel('ext-1', externalNodeData);
+
+      expect(screen.getByText('External dependency not tracked as a service')).toBeInTheDocument();
+    });
+
+    it('shows enriched impact for external node', () => {
+      const enrichedData = {
+        ...externalNodeData,
+        enrichedImpact: 'Session data will be unavailable',
+      };
+
+      renderPanel('ext-1', enrichedData);
+
+      expect(screen.getByText('Impact')).toBeInTheDocument();
+      expect(screen.getByText('Session data will be unavailable')).toBeInTheDocument();
+    });
+
+    it('shows enriched contact for external node', () => {
+      const enrichedData = {
+        ...externalNodeData,
+        enrichedContact: '{"team":"platform","slack":"#platform-support"}',
+      };
+
+      renderPanel('ext-1', enrichedData);
+
+      expect(screen.getByTestId('enriched-contact')).toBeInTheDocument();
+      expect(screen.getByText('platform')).toBeInTheDocument();
+      expect(screen.getByText('#platform-support')).toBeInTheDocument();
+    });
+  });
 });
