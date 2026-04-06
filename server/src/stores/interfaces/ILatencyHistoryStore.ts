@@ -18,6 +18,9 @@ export interface LatencyBucket {
   avg: number;
   max: number;
   count: number;
+  avg_p50?: number | null;
+  avg_p95?: number | null;
+  avg_p99?: number | null;
 }
 
 /**

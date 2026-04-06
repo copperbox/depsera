@@ -36,6 +36,13 @@ describe('Latency Buckets API', () => {
         id TEXT PRIMARY KEY,
         dependency_id TEXT NOT NULL,
         latency_ms INTEGER NOT NULL,
+        p50_ms REAL,
+        p95_ms REAL,
+        p99_ms REAL,
+        min_ms REAL,
+        max_ms REAL,
+        request_count INTEGER,
+        source TEXT NOT NULL DEFAULT 'poll',
         recorded_at TEXT NOT NULL
       );
 

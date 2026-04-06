@@ -99,6 +99,13 @@ describe('DependencyUpsertService', () => {
         id TEXT PRIMARY KEY,
         dependency_id TEXT NOT NULL,
         latency_ms INTEGER NOT NULL,
+        p50_ms REAL,
+        p95_ms REAL,
+        p99_ms REAL,
+        min_ms REAL,
+        max_ms REAL,
+        request_count INTEGER,
+        source TEXT NOT NULL DEFAULT 'poll',
         recorded_at TEXT NOT NULL
       );
 
@@ -358,6 +365,73 @@ describe('DependencyUpsertService', () => {
 
       stored = stores.dependencies.findByServiceId('svc-1');
       expect(stored[0].contact).toBeNull();
+    });
+  });
+
+  describe('percentile recording', () => {
+    it('calls recordWithPercentiles when dep has percentiles', () => {
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+      const service = createService();
+
+      const dep = createDepStatus({
+        name: 'HistogramDep',
+        health: {
+          state: 0,
+          code: 200,
+          latency: 25,
+          percentiles: {
+            p50: 10,
+            p95: 40,
+            p99: 80,
+            min: 2,
+            max: 100,
+            requestCount: 500,
+          },
+        },
+      });
+
+      upsertService.upsert(service, [dep]);
+
+      // Verify percentile data was stored
+      const rows = testDb
+        .prepare('SELECT * FROM dependency_latency_history WHERE dependency_id = (SELECT id FROM dependencies WHERE name = ?)')
+        .all('HistogramDep') as Array<Record<string, unknown>>;
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].latency_ms).toBe(25);
+      expect(rows[0].p50_ms).toBe(10);
+      expect(rows[0].p95_ms).toBe(40);
+      expect(rows[0].p99_ms).toBe(80);
+      expect(rows[0].min_ms).toBe(2);
+      expect(rows[0].max_ms).toBe(100);
+      expect(rows[0].request_count).toBe(500);
+      expect(rows[0].source).toBe('otlp_histogram');
+    });
+
+    it('uses basic record() when dep has no percentiles', () => {
+      const upsertService = new DependencyUpsertService(mockErrorRecorder, stores);
+      const service = createService();
+
+      const dep = createDepStatus({
+        name: 'PlainDep',
+        health: {
+          state: 0,
+          code: 200,
+          latency: 15,
+        },
+      });
+
+      upsertService.upsert(service, [dep]);
+
+      const rows = testDb
+        .prepare('SELECT * FROM dependency_latency_history WHERE dependency_id = (SELECT id FROM dependencies WHERE name = ?)')
+        .all('PlainDep') as Array<Record<string, unknown>>;
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].latency_ms).toBe(15);
+      // No percentile columns should be populated
+      expect(rows[0].p50_ms).toBeNull();
+      expect(rows[0].source).toBe('poll');
     });
   });
 });

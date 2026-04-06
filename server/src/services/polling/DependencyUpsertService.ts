@@ -79,7 +79,15 @@ export class DependencyUpsertService {
       );
 
       // Record latency history if latency is available
-      if (dep.health.latency > 0) {
+      if (dep.health.percentiles) {
+        this.latencyStore.recordWithPercentiles(
+          result.dependency.id,
+          dep.health.latency,
+          dep.health.percentiles,
+          now,
+          'otlp_histogram',
+        );
+      } else if (dep.health.latency > 0) {
         this.latencyStore.record(result.dependency.id, dep.health.latency, now);
       }
     }

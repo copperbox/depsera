@@ -192,7 +192,10 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
           MIN(latency_ms) as min,
           ROUND(AVG(latency_ms)) as avg,
           MAX(latency_ms) as max,
-          COUNT(*) as count
+          COUNT(*) as count,
+          ROUND(AVG(p50_ms)) as avg_p50,
+          ROUND(AVG(p95_ms)) as avg_p95,
+          ROUND(AVG(p99_ms)) as avg_p99
         FROM dependency_latency_history
         WHERE dependency_id = ?
           AND recorded_at >= datetime('now', '${config.offset}')
@@ -218,7 +221,10 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
           MIN(latency_ms) as min,
           ROUND(AVG(latency_ms)) as avg,
           MAX(latency_ms) as max,
-          COUNT(*) as count
+          COUNT(*) as count,
+          ROUND(AVG(p50_ms)) as avg_p50,
+          ROUND(AVG(p95_ms)) as avg_p95,
+          ROUND(AVG(p99_ms)) as avg_p99
         FROM dependency_latency_history
         WHERE dependency_id IN (${placeholders})
           AND recorded_at >= datetime('now', '${config.offset}')

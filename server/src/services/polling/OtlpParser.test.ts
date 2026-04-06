@@ -645,4 +645,295 @@ describe('OtlpParser', () => {
       );
     });
   });
+
+  describe('histogram data point processing', () => {
+    function makeHistogramRequest(
+      serviceName: string,
+      depName: string,
+      histogramData: {
+        explicitBounds: number[];
+        bucketCounts: string[];
+        sum?: number;
+        count?: string;
+        min?: number;
+        max?: number;
+        unit?: string;
+      },
+    ): OtlpExportMetricsServiceRequest {
+      return {
+        resourceMetrics: [
+          {
+            resource: {
+              attributes: [{ key: 'service.name', value: { stringValue: serviceName } }],
+            },
+            scopeMetrics: [
+              {
+                metrics: [
+                  {
+                    name: 'http.client.request.duration',
+                    unit: histogramData.unit,
+                    histogram: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: depName } },
+                            { key: 'dependency.type', value: { stringValue: 'rest' } },
+                          ],
+                          explicitBounds: histogramData.explicitBounds,
+                          bucketCounts: histogramData.bucketCounts,
+                          sum: histogramData.sum,
+                          count: histogramData.count,
+                          min: histogramData.min,
+                          max: histogramData.max,
+                          timeUnixNano: '1700000000000000000',
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+    }
+
+    it('produces percentiles on ProactiveDepsStatus from histogram data', () => {
+      const request = makeHistogramRequest('hist-svc', 'api-target', {
+        explicitBounds: [0.005, 0.01, 0.025, 0.05, 0.1],
+        bucketCounts: ['0', '0', '100', '0', '0', '0'],
+        count: '100',
+        sum: 1.75,
+      });
+
+      const results = parser.parseRequest(request);
+      expect(results).toHaveLength(1);
+
+      const dep = results[0].dependencies[0];
+      expect(dep.name).toBe('api-target');
+      expect(dep.health.percentiles).toBeDefined();
+      expect(dep.health.percentiles!.p50).toBeDefined();
+      expect(dep.health.percentiles!.p95).toBeDefined();
+      expect(dep.health.percentiles!.p99).toBeDefined();
+    });
+
+    it('uses histogram avg as latency when no gauge latency is set', () => {
+      const request = makeHistogramRequest('hist-svc', 'api-dep', {
+        explicitBounds: [0.01, 0.025, 0.05],
+        bucketCounts: ['50', '50', '0', '0'],
+        count: '100',
+        sum: 1.5, // avg = 0.015s = 15ms
+      });
+
+      const results = parser.parseRequest(request);
+      const dep = results[0].dependencies[0];
+      expect(dep.health.latency).toBe(15); // sum/count * 1000
+    });
+
+    it('reads metric unit field for auto conversion', () => {
+      // Unit is 'ms' — no conversion needed
+      const request = makeHistogramRequest('unit-svc', 'dep-ms', {
+        explicitBounds: [10, 50, 100],
+        bucketCounts: ['0', '100', '0', '0'],
+        count: '100',
+        sum: 3000, // avg = 30ms
+        unit: 'ms',
+      });
+
+      const results = parser.parseRequest(request);
+      const dep = results[0].dependencies[0];
+      // With unit=ms, multiplier=1, so p50 should be in [10, 50] range
+      expect(dep.health.percentiles!.p50).toBeGreaterThanOrEqual(10);
+      expect(dep.health.percentiles!.p50).toBeLessThanOrEqual(50);
+    });
+
+    it('merges histogram and gauge for same dependency correctly', () => {
+      const request: OtlpExportMetricsServiceRequest = {
+        resourceMetrics: [
+          {
+            resource: {
+              attributes: [{ key: 'service.name', value: { stringValue: 'merge-svc' } }],
+            },
+            scopeMetrics: [
+              {
+                metrics: [
+                  {
+                    name: 'dependency.health.status',
+                    gauge: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'postgres' } },
+                            { key: 'dependency.type', value: { stringValue: 'database' } },
+                          ],
+                          asDouble: 0,
+                          timeUnixNano: '1700000000000000000',
+                        },
+                      ],
+                    },
+                  },
+                  {
+                    name: 'dependency.health.healthy',
+                    gauge: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'postgres' } },
+                          ],
+                          asDouble: 1,
+                        },
+                      ],
+                    },
+                  },
+                  {
+                    name: 'db.client.operation.duration',
+                    histogram: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'postgres' } },
+                          ],
+                          explicitBounds: [0.01, 0.05, 0.1],
+                          bucketCounts: ['80', '15', '5', '0'],
+                          count: '100',
+                          sum: 2.5,
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const results = parser.parseRequest(request);
+      expect(results[0].dependencies).toHaveLength(1);
+      const dep = results[0].dependencies[0];
+      expect(dep.name).toBe('postgres');
+      expect(dep.type).toBe('database');
+      expect(dep.health.state).toBe(0);
+      expect(dep.healthy).toBe(true);
+      // Should have percentiles from histogram
+      expect(dep.health.percentiles).toBeDefined();
+      expect(dep.health.percentiles!.p50).toBeDefined();
+    });
+  });
+
+  describe('sum data point processing', () => {
+    it('treats non-monotonic sum as gauge value', () => {
+      const request: OtlpExportMetricsServiceRequest = {
+        resourceMetrics: [
+          {
+            resource: {
+              attributes: [{ key: 'service.name', value: { stringValue: 'sum-svc' } }],
+            },
+            scopeMetrics: [
+              {
+                metrics: [
+                  {
+                    name: 'dependency.health.latency',
+                    sum: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'dep-a' } },
+                          ],
+                          asDouble: 42,
+                          timeUnixNano: '1700000000000000000',
+                        },
+                      ],
+                      isMonotonic: false,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const results = parser.parseRequest(request);
+      expect(results[0].dependencies).toHaveLength(1);
+      const dep = results[0].dependencies[0];
+      expect(dep.name).toBe('dep-a');
+      expect(dep.health.latency).toBe(42);
+    });
+
+    it('stores monotonic sum as requestCount', () => {
+      const request: OtlpExportMetricsServiceRequest = {
+        resourceMetrics: [
+          {
+            resource: {
+              attributes: [{ key: 'service.name', value: { stringValue: 'counter-svc' } }],
+            },
+            scopeMetrics: [
+              {
+                metrics: [
+                  {
+                    name: 'dependency.health.status',
+                    gauge: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'dep-b' } },
+                          ],
+                          asDouble: 0,
+                          timeUnixNano: '1700000000000000000',
+                        },
+                      ],
+                    },
+                  },
+                  {
+                    name: 'http.client.request.count',
+                    sum: {
+                      dataPoints: [
+                        {
+                          attributes: [
+                            { key: 'dependency.name', value: { stringValue: 'dep-b' } },
+                          ],
+                          asInt: '500',
+                          timeUnixNano: '1700000000000000000',
+                        },
+                      ],
+                      isMonotonic: true,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      const results = parser.parseRequest(request);
+      expect(results[0].dependencies).toHaveLength(1);
+      const dep = results[0].dependencies[0];
+      expect(dep.name).toBe('dep-b');
+      // requestCount should be available via percentiles
+      expect(dep.health.percentiles).toBeDefined();
+      expect(dep.health.percentiles!.requestCount).toBe(500);
+    });
+  });
+
+  describe('existing gauge-only tests still pass', () => {
+    it('parses standard gauge payload without percentiles', () => {
+      const request = makeRequest('plain-svc', [
+        {
+          name: 'dependency.health.status',
+          dataPoints: [makeDataPoint('db', 0)],
+        },
+        {
+          name: 'dependency.health.latency',
+          dataPoints: [makeDataPoint('db', 25)],
+        },
+      ]);
+
+      const results = parser.parseRequest(request);
+      const dep = results[0].dependencies[0];
+      expect(dep.health.latency).toBe(25);
+      expect(dep.health.percentiles).toBeUndefined();
+    });
+  });
 });

@@ -4,8 +4,10 @@ import {
   OtlpResourceMetrics,
   OtlpAnyValue,
   OtlpNumberDataPoint,
+  OtlpKeyValue,
 } from './otlp-types';
 import { buildEffectiveMaps, findKeyForField } from './metricSchemaUtils';
+import { computePercentiles } from '../../utils/histogramPercentiles';
 
 export interface OtlpParseResult {
   serviceName: string;
@@ -90,43 +92,111 @@ export class OtlpParser {
       if (!Array.isArray(sm.metrics)) continue;
 
       for (const metric of sm.metrics) {
+        // Process gauge data points (existing behavior)
         const field = metricMap[metric.name];
-        if (!field) {
-          // Unknown metric — skip silently
-          continue;
-        }
+        if (field && metric.gauge?.dataPoints) {
+          for (const dp of metric.gauge.dataPoints) {
+            const attrs = this.extractAttributes(dp, labelMap);
+            const depName = attrs.name as string | undefined;
 
-        if (!metric.gauge?.dataPoints) continue;
+            if (!depName) {
+              const nameAttrKey = findKeyForField(labelMap, 'name', 'dependency.name');
+              throw new Error(
+                `OTLP data point for metric "${metric.name}" missing required attribute: ${nameAttrKey}`
+              );
+            }
 
-        for (const dp of metric.gauge.dataPoints) {
-          const attrs = this.extractAttributes(dp, labelMap);
-          const depName = attrs.name as string | undefined;
+            if (!depMap.has(depName)) {
+              depMap.set(depName, { ...attrs });
+            }
 
-          if (!depName) {
-            const nameAttrKey = findKeyForField(labelMap, 'name', 'dependency.name');
-            throw new Error(
-              `OTLP data point for metric "${metric.name}" missing required attribute: ${nameAttrKey}`
-            );
-          }
+            const entry = depMap.get(depName)!;
+            // Merge attributes (later data points can fill in missing attrs)
+            for (const [k, v] of Object.entries(attrs)) {
+              if (entry[k] === undefined) {
+                entry[k] = v;
+              }
+            }
 
-          if (!depMap.has(depName)) {
-            depMap.set(depName, { ...attrs });
-          }
+            // Set the metric value
+            entry[field] = this.extractDataPointValue(dp);
 
-          const entry = depMap.get(depName)!;
-          // Merge attributes (later data points can fill in missing attrs)
-          for (const [k, v] of Object.entries(attrs)) {
-            if (entry[k] === undefined) {
-              entry[k] = v;
+            // Capture timestamp from the data point
+            if (dp.timeUnixNano && !entry._timeUnixNano) {
+              entry._timeUnixNano = dp.timeUnixNano;
             }
           }
+        }
 
-          // Set the metric value
-          entry[field] = this.extractDataPointValue(dp);
+        // Process histogram data points — extract percentile latency
+        if (metric.histogram?.dataPoints) {
+          const unitMultiplier = this.getUnitMultiplier(metric.unit);
 
-          // Capture timestamp from the data point
-          if (dp.timeUnixNano && !entry._timeUnixNano) {
-            entry._timeUnixNano = dp.timeUnixNano;
+          for (const dp of metric.histogram.dataPoints) {
+            const depName = this.extractDepNameFromKeyValues(dp.attributes, labelMap);
+            if (!depName) continue;
+
+            if (!depMap.has(depName)) {
+              depMap.set(depName, this.extractAttributesFromKeyValues(dp.attributes, labelMap));
+            }
+
+            const entry = depMap.get(depName)!;
+
+            const bucketCounts = (dp.bucketCounts ?? []).map((c) => parseInt(c, 10) || 0);
+            const count = dp.count !== undefined ? parseInt(dp.count, 10) : undefined;
+
+            const percentiles = computePercentiles(
+              {
+                explicitBounds: dp.explicitBounds ?? [],
+                bucketCounts,
+                sum: dp.sum,
+                count,
+                min: dp.min,
+                max: dp.max,
+              },
+              unitMultiplier,
+            );
+
+            entry._percentiles = percentiles;
+
+            // Use average from histogram as the latency if no gauge latency set
+            if (entry.latency === undefined && percentiles.avgMs > 0) {
+              entry.latency = Math.round(percentiles.avgMs);
+            }
+
+            if (dp.timeUnixNano && !entry._timeUnixNano) {
+              entry._timeUnixNano = dp.timeUnixNano;
+            }
+          }
+        }
+
+        // Process sum data points
+        if (metric.sum?.dataPoints) {
+          for (const dp of metric.sum.dataPoints) {
+            const depName = this.extractDepNameFromKeyValues(dp.attributes, labelMap);
+            if (!depName) continue;
+
+            if (!depMap.has(depName)) {
+              depMap.set(depName, this.extractAttributesFromKeyValues(dp.attributes, labelMap));
+            }
+
+            const entry = depMap.get(depName)!;
+            const value = this.extractDataPointValue(dp);
+
+            if (metric.sum!.isMonotonic === false) {
+              // Non-monotonic sum — treat as gauge value
+              const sumField = metricMap[metric.name];
+              if (sumField) {
+                entry[sumField] = value;
+              }
+            } else {
+              // Monotonic sum — store raw count as requestCount
+              entry._requestCount = value;
+            }
+
+            if (dp.timeUnixNano && !entry._timeUnixNano) {
+              entry._timeUnixNano = dp.timeUnixNano;
+            }
           }
         }
       }
@@ -162,6 +232,52 @@ export class OtlpParser {
       }
     }
     return result;
+  }
+
+  /**
+   * Extract attributes from OtlpKeyValue[] (used by histogram/sum data points).
+   */
+  private extractAttributesFromKeyValues(attrs: OtlpKeyValue[] | undefined, attrMap: Record<string, string>): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    if (!Array.isArray(attrs)) return result;
+
+    for (const kv of attrs) {
+      const field = attrMap[kv.key];
+      if (field) {
+        result[field] = this.unwrapValue(kv.value);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Extract dependency name from OtlpKeyValue[] attributes.
+   */
+  private extractDepNameFromKeyValues(attrs: OtlpKeyValue[] | undefined, attrMap: Record<string, string>): string | undefined {
+    if (!Array.isArray(attrs)) return undefined;
+
+    for (const kv of attrs) {
+      const field = attrMap[kv.key];
+      if (field === 'name') {
+        const val = this.unwrapValue(kv.value);
+        return typeof val === 'string' ? val : undefined;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Determine unit multiplier for converting metric values to milliseconds.
+   * OTel convention: latency in seconds → multiply by 1000 for ms.
+   */
+  private getUnitMultiplier(unit?: string): number {
+    if (!unit) return 1000; // default: assume seconds (OTel convention)
+    const lower = unit.toLowerCase();
+    if (lower === 'ms' || lower === 'milliseconds') return 1;
+    if (lower === 'us' || lower === 'microseconds') return 0.001;
+    if (lower === 'ns' || lower === 'nanoseconds') return 0.000001;
+    // Default to seconds → ms
+    return 1000;
   }
 
   private unwrapValue(value: OtlpAnyValue | undefined): string | number | boolean | undefined {
@@ -202,6 +318,23 @@ export class OtlpParser {
         ? (fields.type as DependencyType)
         : 'other';
 
+    // Build percentiles from histogram data if present
+    const percentiles = fields._percentiles as { p50: number; p95: number; p99: number; min: number; max: number; count: number } | undefined;
+    const requestCount = typeof fields._requestCount === 'number' ? fields._requestCount : undefined;
+
+    const healthPercentiles = percentiles || requestCount !== undefined
+      ? {
+          ...(percentiles && {
+            p50: percentiles.p50,
+            p95: percentiles.p95,
+            p99: percentiles.p99,
+            min: percentiles.min,
+            max: percentiles.max,
+          }),
+          ...(requestCount !== undefined && { requestCount }),
+        }
+      : undefined;
+
     return {
       name,
       description: typeof fields.description === 'string' ? fields.description : undefined,
@@ -213,6 +346,7 @@ export class OtlpParser {
         code,
         latency,
         ...(skipped && { skipped: true }),
+        ...(healthPercentiles && { percentiles: healthPercentiles }),
       },
       lastChecked,
       errorMessage: typeof fields.errorMessage === 'string' ? fields.errorMessage : undefined,
