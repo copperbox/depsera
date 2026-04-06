@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { OtlpParser, OtlpParseResult } from '../../services/polling/OtlpParser';
+import { OtlpParser } from '../../services/polling/OtlpParser';
 import { getDependencyUpsertService } from '../../services/polling/DependencyUpsertService';
 import { HealthPollingService } from '../../services/polling';
 import { Service, MetricSchemaConfig } from '../../db/types';
 import { isMetricSchemaConfig } from '../../services/polling/metricSchemaUtils';
 import { StatusChangeEvent, PollingEventType } from '../../services/polling/types';
 import { OtlpExportMetricsServiceRequest } from '../../services/polling/otlp-types';
+import { findOrCreateService } from '../../services/polling/otlpServiceResolver';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -97,41 +98,6 @@ router.post('/', (req: Request, res: Response): void => {
     },
   });
 });
-
-/**
- * Find a service by name + team, or auto-create it as an OTLP push service.
- */
-function findOrCreateService(
-  stores: ReturnType<typeof getStores>,
-  teamId: string,
-  serviceName: string,
-  warnings: string[],
-): Service {
-  const teamServices = stores.services.findByTeamId(teamId);
-  const existing = teamServices.find((s) => s.name === serviceName);
-
-  if (existing) {
-    if (existing.health_endpoint_format !== 'otlp') {
-      warnings.push(
-        `Service "${serviceName}" exists with format "${existing.health_endpoint_format}" — receiving OTLP data but not overwriting format`
-      );
-    }
-    return existing;
-  }
-
-  // Auto-register new service
-  const service = stores.services.create({
-    name: serviceName,
-    team_id: teamId,
-    health_endpoint: '',
-    health_endpoint_format: 'otlp',
-    poll_interval_ms: 0,
-  });
-
-  logger.info({ serviceId: service.id, serviceName, teamId }, 'auto-registered OTLP service');
-
-  return service;
-}
 
 /**
  * Load a MetricSchemaConfig from a service's schema_config if present and valid.
