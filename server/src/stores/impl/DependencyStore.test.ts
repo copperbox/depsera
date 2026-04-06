@@ -1009,4 +1009,93 @@ describe('DependencyStore', () => {
       expect(results.some((d) => d.name === 'ActiveDep')).toBe(true);
     });
   });
+
+  describe('upsert discovery_source', () => {
+    it('should pass through discovery_source on insert', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'TraceDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('otlp_trace');
+    });
+
+    it('should default discovery_source to manual', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ManualDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.discovery_source).toBe('manual');
+    });
+
+    it('should preserve manual source on conflict with otlp_trace', () => {
+      const now = new Date().toISOString();
+
+      // First insert as manual
+      store.upsert({
+        service_id: testServiceId,
+        name: 'PreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: now,
+        discovery_source: 'manual',
+      });
+
+      // Second upsert as otlp_trace — should NOT overwrite manual
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'PreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 60,
+        last_checked: now,
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('manual');
+    });
+
+    it('should allow upgrade from otlp_metric to otlp_trace', () => {
+      const now = new Date().toISOString();
+
+      store.upsert({
+        service_id: testServiceId,
+        name: 'UpgradeDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: now,
+        discovery_source: 'otlp_metric',
+      });
+
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'UpgradeDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 60,
+        last_checked: now,
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('otlp_trace');
+    });
+  });
 });
