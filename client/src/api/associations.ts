@@ -35,3 +35,25 @@ export async function deleteAssociation(
     throw new Error(error.message || `HTTP error ${response.status}`);
   }
 }
+
+export async function confirmAssociation(
+  depId: string,
+  assocId: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(
+    `/api/dependencies/${depId}/associations/${assocId}/confirm`,
+    { method: 'PUT', headers: withCsrfToken(), credentials: 'include' },
+  );
+  return handleResponse<{ success: boolean }>(response);
+}
+
+export async function dismissAssociation(
+  depId: string,
+  assocId: string,
+): Promise<{ success: boolean }> {
+  const response = await fetch(
+    `/api/dependencies/${depId}/associations/${assocId}/dismiss`,
+    { method: 'PUT', headers: withCsrfToken(), credentials: 'include' },
+  );
+  return handleResponse<{ success: boolean }>(response);
+}

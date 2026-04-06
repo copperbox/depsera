@@ -26,6 +26,7 @@ import activityRouter from './routes/activity';
 import { manifestTeamRouter, manifestRouter } from './routes/manifest';
 import { driftRouter } from './routes/drifts';
 import catalogRouter from './routes/catalog';
+import externalNodesRouter from './routes/externalNodes';
 import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
 import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
@@ -122,6 +123,7 @@ app.use('/api/teams', requireAuth, manifestTeamRouter);
 app.use('/api/teams', requireAuth, driftRouter);
 app.use('/api/manifest', requireAuth, manifestRouter);
 app.use('/api/catalog', requireAuth, catalogRouter);
+app.use('/api/external-nodes', requireAuth, externalNodesRouter);
 
 // Global error handler — catches body-parser errors, unhandled route errors, etc.
 // Must be registered after all routes (Express identifies error handlers by 4-param signature).

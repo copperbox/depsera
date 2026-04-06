@@ -221,6 +221,12 @@ export interface DependencyOverrideInput {
   impact_override?: string | null;
 }
 
+export interface DependencyUserEnrichmentInput {
+  displayName?: string | null;
+  description?: string | null;
+  impact?: string | null;
+}
+
 /**
  * Service-level poll history entry
  */

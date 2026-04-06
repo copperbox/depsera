@@ -12,6 +12,7 @@ import {
   DependencyListOptions,
   DependencyUpsertInput,
   DependencyOverrideInput,
+  DependencyUserEnrichmentInput,
   DependentReport,
 } from '../types';
 import { validateOrderBy } from '../orderByValidator';
@@ -299,6 +300,43 @@ export class DependencyStore implements IDependencyStore {
     if ('impact_override' in overrides) {
       setClauses.push('impact_override = ?');
       params.push(overrides.impact_override ?? null);
+    }
+
+    params.push(id);
+
+    this.db
+      .prepare(`UPDATE dependencies SET ${setClauses.join(', ')} WHERE id = ?`)
+      .run(...params);
+
+    return this.findById(id)!;
+  }
+
+  findByDiscoverySource(serviceId: string, source: string): Dependency[] {
+    return this.db
+      .prepare('SELECT * FROM dependencies WHERE service_id = ? AND discovery_source = ? ORDER BY name ASC')
+      .all(serviceId, source) as Dependency[];
+  }
+
+  updateUserEnrichment(id: string, enrichment: DependencyUserEnrichmentInput): Dependency | undefined {
+    const existing = this.findById(id);
+    if (!existing) return undefined;
+
+    const setClauses: string[] = ['updated_at = ?'];
+    const params: unknown[] = [new Date().toISOString()];
+
+    if ('displayName' in enrichment) {
+      setClauses.push('user_display_name = ?');
+      params.push(enrichment.displayName ?? null);
+    }
+
+    if ('description' in enrichment) {
+      setClauses.push('user_description = ?');
+      params.push(enrichment.description ?? null);
+    }
+
+    if ('impact' in enrichment) {
+      setClauses.push('user_impact = ?');
+      params.push(enrichment.impact ?? null);
     }
 
     params.push(id);
