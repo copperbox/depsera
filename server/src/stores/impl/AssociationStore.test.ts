@@ -27,7 +27,8 @@ describe('AssociationStore', () => {
         id TEXT PRIMARY KEY,
         service_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        skipped INTEGER NOT NULL DEFAULT 0
+        skipped INTEGER NOT NULL DEFAULT 0,
+        discovery_source TEXT NOT NULL DEFAULT 'manual'
       );
 
       CREATE TABLE dependency_associations (
@@ -35,6 +36,8 @@ describe('AssociationStore', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)

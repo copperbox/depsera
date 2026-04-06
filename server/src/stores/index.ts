@@ -24,6 +24,9 @@ import type { IDriftFlagStore } from './interfaces/IDriftFlagStore';
 import type { IAlertMuteStore } from './interfaces/IAlertMuteStore';
 import type { ITeamApiKeyStore } from './interfaces/ITeamApiKeyStore';
 import type { IApiKeyUsageStore } from './interfaces/IApiKeyUsageStore';
+import type { ISpanStore } from './interfaces/ISpanStore';
+import type { IAppSettingsStore } from './interfaces/IAppSettingsStore';
+import type { IExternalNodeEnrichmentStore } from './interfaces/IExternalNodeEnrichmentStore';
 
 // Import implementations
 import { ServiceStore } from './impl/ServiceStore';
@@ -48,6 +51,9 @@ import { DriftFlagStore } from './impl/DriftFlagStore';
 import { AlertMuteStore } from './impl/AlertMuteStore';
 import { TeamApiKeyStore } from './impl/TeamApiKeyStore';
 import { ApiKeyUsageStore } from './impl/ApiKeyUsageStore';
+import { SpanStore } from './impl/SpanStore';
+import { AppSettingsStore } from './impl/AppSettingsStore';
+import { ExternalNodeEnrichmentStore } from './impl/ExternalNodeEnrichmentStore';
 
 /**
  * Central registry providing access to all stores.
@@ -78,6 +84,9 @@ export class StoreRegistry {
   public readonly alertMutes: IAlertMuteStore;
   public readonly teamApiKeys: ITeamApiKeyStore;
   public readonly apiKeyUsage: IApiKeyUsageStore;
+  public readonly spans: ISpanStore;
+  public readonly appSettings: IAppSettingsStore;
+  public readonly externalNodeEnrichment: IExternalNodeEnrichmentStore;
 
   private constructor(database: Database) {
     this.services = new ServiceStore(database);
@@ -102,6 +111,9 @@ export class StoreRegistry {
     this.alertMutes = new AlertMuteStore(database);
     this.teamApiKeys = new TeamApiKeyStore(database);
     this.apiKeyUsage = new ApiKeyUsageStore(database);
+    this.spans = new SpanStore(database);
+    this.appSettings = new AppSettingsStore(database);
+    this.externalNodeEnrichment = new ExternalNodeEnrichmentStore(database);
   }
 
   /**

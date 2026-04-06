@@ -213,6 +213,7 @@ export interface DependencyUpsertInput {
   error_message?: string | null;
   skipped?: boolean;
   last_checked: string;
+  discovery_source?: 'manual' | 'otlp_metric' | 'otlp_trace';
 }
 
 export interface DependencyOverrideInput {
@@ -234,4 +235,5 @@ export interface AssociationCreateInput {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
+  is_auto_suggested?: boolean;
 }

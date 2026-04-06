@@ -6,6 +6,7 @@ import {
   LatencyDataPoint,
   LatencyBucket,
   LatencyRange,
+  PercentileInput,
 } from '../interfaces/ILatencyHistoryStore';
 import { LatencyStats } from '../types';
 
@@ -63,6 +64,42 @@ export class LatencyHistoryStore implements ILatencyHistoryStore {
         VALUES (?, ?, ?, ?)
       `)
       .run(id, dependencyId, latencyMs, timestamp);
+
+    return this.db
+      .prepare('SELECT * FROM dependency_latency_history WHERE id = ?')
+      .get(id) as DependencyLatencyHistory;
+  }
+
+  recordWithPercentiles(
+    dependencyId: string,
+    latencyMs: number,
+    percentiles: PercentileInput,
+    timestamp: string,
+    source: string
+  ): DependencyLatencyHistory {
+    const id = randomUUID();
+
+    this.db
+      .prepare(`
+        INSERT INTO dependency_latency_history (
+          id, dependency_id, latency_ms,
+          p50_ms, p95_ms, p99_ms, min_ms, max_ms, request_count, source,
+          recorded_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      .run(
+        id,
+        dependencyId,
+        latencyMs,
+        percentiles.p50 ?? null,
+        percentiles.p95 ?? null,
+        percentiles.p99 ?? null,
+        percentiles.min ?? null,
+        percentiles.max ?? null,
+        percentiles.requestCount ?? null,
+        source,
+        timestamp
+      );
 
     return this.db
       .prepare('SELECT * FROM dependency_latency_history WHERE id = ?')

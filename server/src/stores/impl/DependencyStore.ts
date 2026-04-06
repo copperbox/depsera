@@ -221,8 +221,9 @@ export class DependencyStore implements IDependencyStore {
           id, service_id, name, canonical_name, description, impact, type,
           healthy, health_state, health_code, latency_ms,
           contact, check_details, error, error_message, skipped,
+          discovery_source,
           last_checked, last_status_change, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(service_id, name) DO UPDATE SET
           canonical_name = excluded.canonical_name,
           description = excluded.description,
@@ -237,6 +238,10 @@ export class DependencyStore implements IDependencyStore {
           error = excluded.error,
           error_message = excluded.error_message,
           skipped = excluded.skipped,
+          discovery_source = CASE
+            WHEN dependencies.discovery_source = 'manual' THEN dependencies.discovery_source
+            ELSE excluded.discovery_source
+          END,
           last_checked = excluded.last_checked,
           last_status_change = CASE
             WHEN dependencies.healthy IS NULL OR dependencies.healthy != excluded.healthy
@@ -262,6 +267,7 @@ export class DependencyStore implements IDependencyStore {
         errorJson,
         input.error_message ?? null,
         skippedValue,
+        input.discovery_source ?? 'manual',
         input.last_checked,
         now,
         now,
