@@ -13,6 +13,13 @@ describe('LatencyHistoryStore', () => {
         id TEXT PRIMARY KEY,
         dependency_id TEXT NOT NULL,
         latency_ms INTEGER NOT NULL,
+        p50_ms REAL,
+        p95_ms REAL,
+        p99_ms REAL,
+        min_ms REAL,
+        max_ms REAL,
+        request_count INTEGER,
+        source TEXT NOT NULL DEFAULT 'poll',
         recorded_at TEXT NOT NULL
       )
     `);
@@ -289,6 +296,87 @@ describe('LatencyHistoryStore', () => {
 
       expect(deleted).toBe(2);
       expect(store.getHistory(testDependencyId)).toHaveLength(0);
+    });
+  });
+
+  describe('recordWithPercentiles', () => {
+    let fullDb: Database.Database;
+    let fullStore: LatencyHistoryStore;
+
+    beforeEach(() => {
+      fullDb = new Database(':memory:');
+      fullDb.exec(`
+        CREATE TABLE dependency_latency_history (
+          id TEXT PRIMARY KEY,
+          dependency_id TEXT NOT NULL,
+          latency_ms INTEGER NOT NULL,
+          p50_ms REAL,
+          p95_ms REAL,
+          p99_ms REAL,
+          min_ms REAL,
+          max_ms REAL,
+          request_count INTEGER,
+          source TEXT NOT NULL DEFAULT 'poll',
+          recorded_at TEXT NOT NULL
+        )
+      `);
+      fullStore = new LatencyHistoryStore(fullDb);
+    });
+
+    afterEach(() => {
+      fullDb.close();
+    });
+
+    it('stores all percentile fields', () => {
+      const timestamp = new Date().toISOString();
+      const result = fullStore.recordWithPercentiles(
+        testDependencyId,
+        150,
+        { p50: 100, p95: 200, p99: 300, min: 10, max: 500, requestCount: 1000 },
+        timestamp,
+        'otlp_histogram'
+      );
+
+      expect(result.id).toBeDefined();
+      expect(result.dependency_id).toBe(testDependencyId);
+      expect(result.latency_ms).toBe(150);
+
+      // Verify in DB directly
+      const row = fullDb.prepare('SELECT * FROM dependency_latency_history WHERE id = ?').get(result.id) as Record<string, unknown>;
+      expect(row.p50_ms).toBe(100);
+      expect(row.p95_ms).toBe(200);
+      expect(row.p99_ms).toBe(300);
+      expect(row.min_ms).toBe(10);
+      expect(row.max_ms).toBe(500);
+      expect(row.request_count).toBe(1000);
+      expect(row.source).toBe('otlp_histogram');
+    });
+
+    it('handles partial percentile data', () => {
+      const timestamp = new Date().toISOString();
+      fullStore.recordWithPercentiles(
+        testDependencyId,
+        100,
+        { p50: 80, p95: 120 },
+        timestamp,
+        'otlp_trace'
+      );
+
+      const row = fullDb.prepare('SELECT * FROM dependency_latency_history').get() as Record<string, unknown>;
+      expect(row.p50_ms).toBe(80);
+      expect(row.p95_ms).toBe(120);
+      expect(row.p99_ms).toBeNull();
+      expect(row.min_ms).toBeNull();
+      expect(row.source).toBe('otlp_trace');
+    });
+
+    it('existing record() still works (backward compat)', () => {
+      const timestamp = new Date().toISOString();
+      const result = fullStore.record(testDependencyId, 50, timestamp);
+
+      expect(result.latency_ms).toBe(50);
+      const row = fullDb.prepare('SELECT source FROM dependency_latency_history WHERE id = ?').get(result.id) as { source: string };
+      expect(row.source).toBe('poll');
     });
   });
 });

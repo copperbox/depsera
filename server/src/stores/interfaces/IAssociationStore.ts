@@ -20,10 +20,22 @@ export interface IAssociationStore {
    */
   existsForDependencyAndService(dependencyId: string, linkedServiceId: string): boolean;
 
+  // Auto-suggestion queries
+  findAutoSuggested(dependencyId: string): DependencyAssociation[];
+
   // Write operations
   create(input: AssociationCreateInput): DependencyAssociation;
   delete(id: string): boolean;
   deleteByDependencyId(dependencyId: string): number;
+
+  // Auto-suggestion mutations
+  confirm(id: string): boolean;
+  dismiss(id: string): boolean;
+
+  /**
+   * Delete dismissed auto-suggested associations older than the given timestamp.
+   */
+  deleteOldDismissed(olderThan: string): number;
 
   // Utility
   exists(id: string): boolean;

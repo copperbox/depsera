@@ -8,6 +8,10 @@ import { deleteTeam } from './delete';
 import { addMember } from './members/add';
 import { updateMember } from './members/update';
 import { removeMember } from './members/remove';
+import apiKeyRoutes from './apiKeys';
+import apiKeyRateLimitRoutes from './apiKeyRateLimit';
+import apiKeyUsageRoutes from './apiKeyUsage';
+import { getOtlpStats } from './otlpStats';
 
 const router = Router();
 
@@ -22,5 +26,13 @@ router.delete('/:id', requireAdmin, deleteTeam);
 router.post('/:id/members', requireAdmin, addMember);
 router.put('/:id/members/:userId', requireAdmin, updateMember);
 router.delete('/:id/members/:userId', requireAdmin, removeMember);
+
+// OTLP stats - read-only, any authenticated team member
+router.get('/:id/otlp-stats', getOtlpStats);
+
+// API key management - team lead/admin only (auth handled by apiKeys router)
+router.use('/:id/api-keys', apiKeyRoutes);
+router.use('/:id/api-keys', apiKeyRateLimitRoutes);
+router.use('/:id/api-keys', apiKeyUsageRoutes);
 
 export default router;

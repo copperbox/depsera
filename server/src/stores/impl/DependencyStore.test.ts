@@ -48,6 +48,10 @@ describe('DependencyStore', () => {
         error TEXT,
         error_message TEXT,
         skipped INTEGER NOT NULL DEFAULT 0,
+        discovery_source TEXT NOT NULL DEFAULT 'manual',
+        user_display_name TEXT,
+        user_description TEXT,
+        user_impact TEXT,
         last_checked TEXT,
         last_status_change TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -60,6 +64,8 @@ describe('DependencyStore', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE
@@ -1001,6 +1007,95 @@ describe('DependencyStore', () => {
       // Should only include deps from active services
       expect(results.every((d) => d.service_id !== 'svc-inactive')).toBe(true);
       expect(results.some((d) => d.name === 'ActiveDep')).toBe(true);
+    });
+  });
+
+  describe('upsert discovery_source', () => {
+    it('should pass through discovery_source on insert', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'TraceDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('otlp_trace');
+    });
+
+    it('should default discovery_source to manual', () => {
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'ManualDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: new Date().toISOString(),
+      });
+
+      expect(result.dependency.discovery_source).toBe('manual');
+    });
+
+    it('should preserve manual source on conflict with otlp_trace', () => {
+      const now = new Date().toISOString();
+
+      // First insert as manual
+      store.upsert({
+        service_id: testServiceId,
+        name: 'PreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: now,
+        discovery_source: 'manual',
+      });
+
+      // Second upsert as otlp_trace — should NOT overwrite manual
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'PreserveDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 60,
+        last_checked: now,
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('manual');
+    });
+
+    it('should allow upgrade from otlp_metric to otlp_trace', () => {
+      const now = new Date().toISOString();
+
+      store.upsert({
+        service_id: testServiceId,
+        name: 'UpgradeDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 50,
+        last_checked: now,
+        discovery_source: 'otlp_metric',
+      });
+
+      const result = store.upsert({
+        service_id: testServiceId,
+        name: 'UpgradeDep',
+        healthy: true,
+        health_state: 0,
+        health_code: 200,
+        latency_ms: 60,
+        last_checked: now,
+        discovery_source: 'otlp_trace',
+      });
+
+      expect(result.dependency.discovery_source).toBe('otlp_trace');
     });
   });
 });

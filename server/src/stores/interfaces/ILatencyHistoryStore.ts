@@ -18,6 +18,9 @@ export interface LatencyBucket {
   avg: number;
   max: number;
   count: number;
+  avg_p50?: number | null;
+  avg_p95?: number | null;
+  avg_p99?: number | null;
 }
 
 /**
@@ -28,11 +31,31 @@ export type LatencyRange = '1h' | '6h' | '24h' | '7d' | '30d';
 /**
  * Store interface for DependencyLatencyHistory entity operations
  */
+export interface PercentileInput {
+  p50?: number;
+  p95?: number;
+  p99?: number;
+  min?: number;
+  max?: number;
+  requestCount?: number;
+}
+
 export interface ILatencyHistoryStore {
   /**
    * Record a new latency measurement
    */
   record(dependencyId: string, latencyMs: number, timestamp: string): DependencyLatencyHistory;
+
+  /**
+   * Record a latency measurement with histogram-derived percentiles
+   */
+  recordWithPercentiles(
+    dependencyId: string,
+    latencyMs: number,
+    percentiles: PercentileInput,
+    timestamp: string,
+    source: string
+  ): DependencyLatencyHistory;
 
   /**
    * Get latency statistics for the last 24 hours

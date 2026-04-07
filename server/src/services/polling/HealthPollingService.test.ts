@@ -36,6 +36,7 @@ const createService = (
   manifest_managed: 0,
   manifest_config_id: null,
   manifest_last_synced_values: null,
+  health_endpoint_format: 'default',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   ...overrides,
@@ -1080,5 +1081,87 @@ describe('HealthPollingService - host rate limiting', () => {
     // Both should be cleared
     expect(hostRateLimiter.getActiveCount('localhost')).toBe(0);
     expect(pollDeduplicator.size).toBe(0);
+  });
+});
+
+describe('HealthPollingService - OTLP service skip', () => {
+  afterEach(async () => {
+    await HealthPollingService.resetInstance();
+  });
+
+  it('should not add OTLP service to polling via addServiceToPolling', () => {
+    const otlpService = createService('svc-otlp', 'otlp-service', {
+      health_endpoint_format: 'otlp',
+      health_endpoint: '',
+    });
+    const { stateManager, pollers, syncServices } = createPollingService([otlpService]);
+
+    syncServices();
+
+    expect(stateManager.hasService('svc-otlp')).toBe(false);
+    expect(pollers.has('svc-otlp')).toBe(false);
+  });
+
+  it('should not add OTLP service via startService', () => {
+    const otlpService = createService('svc-otlp', 'otlp-service', {
+      health_endpoint_format: 'otlp',
+      health_endpoint: '',
+    });
+    const { instance, stateManager, mockServiceStore } = createPollingService([]);
+
+    mockServiceStore.findById.mockReturnValue(otlpService);
+
+    instance.startService('svc-otlp');
+
+    expect(stateManager.hasService('svc-otlp')).toBe(false);
+    expect(mockLogger.info).toHaveBeenCalledWith(
+      { serviceId: 'svc-otlp', serviceName: 'otlp-service' },
+      'skipping OTLP service (push-only)'
+    );
+  });
+
+  it('should not affect non-OTLP services', () => {
+    const defaultService = createService('svc-default', 'default-service', {
+      health_endpoint_format: 'default',
+    });
+    const promService = createService('svc-prom', 'prom-service', {
+      health_endpoint_format: 'prometheus',
+    });
+    const otlpService = createService('svc-otlp', 'otlp-service', {
+      health_endpoint_format: 'otlp',
+      health_endpoint: '',
+    });
+
+    const { stateManager, pollers, syncServices } = createPollingService([
+      defaultService,
+      promService,
+      otlpService,
+    ]);
+
+    syncServices();
+
+    expect(stateManager.hasService('svc-default')).toBe(true);
+    expect(stateManager.hasService('svc-prom')).toBe(true);
+    expect(stateManager.hasService('svc-otlp')).toBe(false);
+    expect(pollers.has('svc-default')).toBe(true);
+    expect(pollers.has('svc-prom')).toBe(true);
+    expect(pollers.has('svc-otlp')).toBe(false);
+  });
+
+  it('should not start OTLP service via startAll', async () => {
+    const otlpService = createService('svc-otlp', 'otlp-service', {
+      health_endpoint_format: 'otlp',
+      health_endpoint: '',
+    });
+    const normalService = createService('svc-1', 'normal-service');
+
+    const { instance, stateManager } = createPollingService([otlpService, normalService]);
+
+    instance.startAll();
+
+    expect(stateManager.hasService('svc-1')).toBe(true);
+    expect(stateManager.hasService('svc-otlp')).toBe(false);
+
+    await instance.shutdown();
   });
 });

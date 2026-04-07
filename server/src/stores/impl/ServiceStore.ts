@@ -138,8 +138,8 @@ export class ServiceStore implements IServiceStore {
 
     this.db
       .prepare(`
-        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, schema_config, poll_interval_ms, is_active, is_external, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+        INSERT INTO services (id, name, team_id, health_endpoint, metrics_endpoint, schema_config, poll_interval_ms, is_active, is_external, description, health_endpoint_format, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)
       `)
       .run(
         id,
@@ -151,6 +151,7 @@ export class ServiceStore implements IServiceStore {
         input.poll_interval_ms ?? 30000,
         isExternal,
         input.description ?? null,
+        input.health_endpoint_format ?? 'default',
         now,
         now
       );
@@ -199,6 +200,10 @@ export class ServiceStore implements IServiceStore {
     if (input.description !== undefined) {
       updates.push('description = ?');
       params.push(input.description);
+    }
+    if (input.health_endpoint_format !== undefined) {
+      updates.push('health_endpoint_format = ?');
+      params.push(input.health_endpoint_format);
     }
 
     if (updates.length === 0) {

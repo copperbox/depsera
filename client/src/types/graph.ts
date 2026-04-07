@@ -54,6 +54,9 @@ export interface GraphEdgeData {
   impact?: string | null;
   effectiveContact?: string | null;
   skipped?: boolean;
+  discoverySource?: 'manual' | 'otlp_metric' | 'otlp_trace';
+  isAutoSuggested?: boolean;
+  associationId?: string | null;
   [key: string]: unknown;
 }
 

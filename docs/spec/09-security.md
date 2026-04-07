@@ -48,12 +48,42 @@ When no cert paths are provided, the server generates a self-signed certificate 
 
 ## 9.4 Rate Limiting **[Implemented]**
 
+### IP-Based Rate Limiters
+
 | Limiter | Window | Max Requests | Scope |
 |---|---|---|---|
 | Global | 1 minute | 3,000 per IP | All requests (applied before session middleware) |
 | Auth | 1 minute | 20 per IP | `/api/auth` endpoints only |
+| OTLP Global | 1 minute | 600 per IP | `POST /v1/metrics` only (applied before API key auth) |
 
 Returns `429 Too Many Requests` with `RateLimit-*` and `Retry-After` headers.
+
+### Per-Key Rate Limiting **[Implemented]**
+
+In addition to the IP-based OTLP global limiter, each API key is individually rate-limited via a **token bucket** algorithm.
+
+**Algorithm:** Token bucket with continuous refill.
+- **Bucket capacity:** `(effective_rpm / 60) × OTLP_RATE_LIMIT_BURST_SECONDS` tokens
+- **Refill rate:** `effective_rpm / 60 / 1000` tokens per millisecond
+- **Lazy initialization:** Buckets are created on first request per key
+- **Eviction:** Buckets are evicted when a key's rate limit is changed (via admin or team endpoint), forcing re-initialization on next request
+
+**Rate limit resolution hierarchy:**
+1. `rate_limit_rpm = 0` → Unlimited (admin-only) — rate limiting skipped entirely
+2. `rate_limit_rpm = N` (non-null) → Custom limit of N requests/minute
+3. `rate_limit_rpm = NULL` → System default from `OTLP_PER_KEY_RATE_LIMIT_RPM` env var (default: 150,000)
+
+**On rejection (429):** Returns OTLP-compatible response `{ partialSuccess: { rejectedDataPoints: 0, errorMessage: "..." } }` with `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`, and `X-RateLimit-Key` headers. Rejected requests are counted in usage tracking (`rejected_count`).
+
+**Soft limit warning:** When usage exceeds `OTLP_RATE_LIMIT_WARNING_THRESHOLD` (default: 80%) of bucket capacity, the response includes an `X-RateLimit-Warning: true` header. A server-side warning is logged at most once per 15 minutes per key.
+
+**Development bypass:** Per-key rate limiting is skipped entirely when `NODE_ENV === 'development'`.
+
+| Environment Variable | Default | Description |
+|---|---|---|
+| `OTLP_PER_KEY_RATE_LIMIT_RPM` | `150000` | Default per-key rate limit (requests/minute) when `rate_limit_rpm` is NULL |
+| `OTLP_RATE_LIMIT_BURST_SECONDS` | `6` | Burst window; bucket capacity = refill rate × burst seconds |
+| `OTLP_RATE_LIMIT_WARNING_THRESHOLD` | `0.80` | Fraction of capacity consumed before warning header is set |
 
 ## 9.5 Redirect Validation **[Implemented]**
 
@@ -74,7 +104,8 @@ The order matters — each layer builds on previous:
 | 3 | HTTPS Redirect | 301 redirect if enabled |
 | 4 | CORS | `credentials: true`, configurable origin |
 | 5 | JSON Parser | `express.json()` body parsing |
-| 6 | Global Rate Limit | 100 req/15min per IP — early rejection before session creation |
+| 5.5 | OTLP Route | `POST /v1/metrics` — JSON (1MB limit), OTLP global rate limit (600/min per IP), API key auth, per-key rate limit (token bucket), usage tracking, OTLP router. Mounted before session/CSRF. |
+| 6 | Global Rate Limit | 3,000 req/min per IP — early rejection before session creation |
 | 7 | Session | Populates `req.session` |
 | 8 | Auth Bypass | Dev-only auto-auth |
 | 9 | Request Logger | `pino-http` structured logging (method, path, status, response time, userId) |

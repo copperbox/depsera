@@ -28,11 +28,17 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 - Register services with health check endpoints and poll them on configurable intervals (5s to 1hr)
 - Exponential backoff on failures with circuit breaker protection (opens after 10 consecutive failures)
 - Custom schema mapping for non-standard health endpoints, including object-keyed formats (Spring Boot Actuator, ASP.NET Health Checks, etc.) with skipped-check support
+- **OTLP push ingestion** — receive metrics via `POST /v1/metrics` and traces via `POST /v1/traces` from OpenTelemetry collectors with team-scoped API key authentication, auto-registration of unknown services, and per-service custom metric/attribute name mappings
+- **OTLP trace-based dependency discovery** — automatically discover dependencies from CLIENT and PRODUCER spans, with full span storage for future trace timeline views, configurable retention (default 7 days), and auto-association to registered services
+- **Histogram and sum metric processing** — extract percentile latency (p50/p95/p99) from OTLP histogram metrics and request counts from sum metrics via linear interpolation
+- **Prometheus scraping** — poll Prometheus text exposition endpoints (`text/plain; version=0.0.4`) with automatic metric-to-dependency mapping and per-service custom metric/label name mappings
 - Contact info and impact overrides with 3-tier merge hierarchy (instance > canonical > polled) — resolved in API responses
 - Per-hostname concurrency limiting and request deduplication prevent polling abuse
 
 **Visualization**
 - Interactive dependency graph (React Flow) with team filtering, search, layout controls, automatic high-latency detection, and isolated tree view
+- Visual distinction for auto-discovered vs manually-configured dependencies (dashed edges with "Suggested" badge for unconfirmed trace-discovered associations)
+- Org-wide external node enrichment — add display names, descriptions, impact, and contact info to shared external dependencies (e.g., Stripe, PostgreSQL)
 - Latency charts (min/avg/max over time) and health timeline swimlanes per dependency
 - Edge selection shows per-dependency latency chart, contact info, impact, and error history
 - Node selection shows aggregate latency chart across all dependents and merged contact info
@@ -77,8 +83,8 @@ For detailed deployment options (bare Node.js, reverse proxy, backups), see the 
 
 **Operations**
 - SQLite database — zero external dependencies, sessions survive restarts
-- Automatic data retention cleanup (configurable period, default 365 days)
-- Runtime-configurable admin settings (retention, polling, rate limits, alerts)
+- Automatic data retention cleanup (configurable period, default 365 days) with separate span retention (default 7 days, admin-configurable)
+- Runtime-configurable admin settings (retention, span retention, polling, rate limits, alerts)
 - Structured JSON logging in production via pino
 - Docker image with health check and volume-mounted data
 
@@ -193,8 +199,10 @@ cp server/.env.example server/.env
 | `SSL_CERT_PATH` | — | PEM certificate path (pair with `SSL_KEY_PATH`) |
 | `SSL_KEY_PATH` | — | PEM private key path (pair with `SSL_CERT_PATH`) |
 | `HTTP_PORT` | — | Plain HTTP port for health checks + redirect when `ENABLE_HTTPS=true` |
-| `RATE_LIMIT_MAX` | `100` | Max requests per IP per 15-minute window |
-| `AUTH_RATE_LIMIT_MAX` | `10` | Max auth requests per IP per minute |
+| `RATE_LIMIT_MAX` | `3000` | Max requests per IP per minute (global) |
+| `AUTH_RATE_LIMIT_MAX` | `20` | Max auth requests per IP per minute |
+| `OTLP_RATE_LIMIT_MAX` | `600` | Max OTLP requests per IP per minute (global) |
+| `OTLP_PER_KEY_RATE_LIMIT_RPM` | `150000` | Default per-API-key rate limit (requests/minute) |
 
 **Operations:**
 
@@ -308,23 +316,28 @@ All endpoints require authentication unless noted. Admin endpoints require the a
 | Users | CRUD on `/api/users` (admin), `POST` and `PUT /:id/password` (local auth) |
 | Aliases | CRUD on `/api/aliases` (admin for mutations), `GET /canonical-names` |
 | Overrides | `GET/PUT/DELETE /api/canonical-overrides/:name`, `PUT/DELETE /api/dependencies/:id/overrides` |
-| Associations | CRUD on `/api/dependencies/:id/associations` |
+| Associations | CRUD on `/api/dependencies/:id/associations`, `PUT /:assocId/confirm`, `PUT /:assocId/dismiss` |
+| Discovered Deps | `GET /api/services/:id/dependencies/discovered`, `PATCH /api/dependencies/:id/enrich` |
+| External Nodes | `GET/PUT/DELETE /api/external-nodes/:canonicalName` |
 | Graph | `GET /api/graph` with `team`, `service`, `dependency` filters |
 | History | `GET /api/latency/:id` + `/buckets`, `GET /api/errors/:id`, `GET /api/dependencies/:id/timeline`, `GET /api/services/:id/poll-history` |
-| Admin | `GET/PUT /api/admin/settings`, `GET /api/admin/audit-log` |
+| Admin | `GET/PUT /api/admin/settings`, `GET/PUT /api/admin/settings/span-retention`, `GET /api/admin/audit-log` |
 | Manifest | `GET/POST /api/teams/:id/manifests`, `GET/PUT/DELETE /:id/manifests/:configId`, `POST /:id/manifests/sync`, `POST /:id/manifests/:configId/sync`, `GET /:id/manifests/:configId/sync-history`, `POST /api/manifest/validate`, `POST /api/manifest/test-url` |
 | Drift Flags | `GET /api/teams/:id/drifts` + `/summary`, `PUT /:driftId/accept` + `/dismiss` + `/reopen`, `POST /bulk-accept` + `/bulk-dismiss` |
 | Catalog | `GET /api/catalog/external-dependencies` — canonical name registry with team usage, descriptions, and aliases |
 | Alerts | CRUD on `/api/teams/:id/alert-channels` + `/test`, `GET/PUT /:id/alert-rules`, `GET /:id/alert-history`, `GET/POST /:id/alert-mutes`, `DELETE /:id/alert-mutes/:muteId`, `GET /api/admin/alert-mutes` |
+| OTLP | `POST /v1/metrics`, `POST /v1/traces` (API key auth, OTLP JSON) |
+| API Keys | `GET/POST /api/teams/:id/api-keys`, `DELETE /:id/api-keys/:keyId` |
 
 ## Security
 
 Depsera includes defense-in-depth security:
 
 - **Security headers** via Helmet (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
+- **API key authentication** for OTLP push endpoints — team-scoped keys with SHA-256 hashing, prefix display, and last-used tracking
 - **SSRF protection** on health endpoints with private IP blocking and DNS rebinding prevention; configurable allowlist for internal networks
 - **CSRF protection** via double-submit cookie pattern
-- **Rate limiting** — global (100 req/15min) and auth-specific (10 req/min) per IP
+- **Rate limiting** — global (3000 req/min), auth-specific (20 req/min), OTLP global (600 req/min per IP), and per-API-key token bucket (150k req/min default)
 - **Session secret validation** — production startup refuses weak or missing secrets
 - **Redirect validation** prevents open redirect attacks on logout
 - **Body size limit** (100KB) on JSON payloads

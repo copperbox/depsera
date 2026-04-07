@@ -1,4 +1,4 @@
-import { AggregatedHealth, Team, Service, Dependency, DependentReport } from '../../db/types';
+import { AggregatedHealth, Team, Service, Dependency, DependentReport, HealthEndpointFormat } from '../../db/types';
 import { DependencyWithResolvedOverrides } from '../../stores/types';
 
 // Formatted team embedded in service response
@@ -29,6 +29,7 @@ export interface FormattedServiceListItem {
   is_active: number;
   last_poll_success: number | null;
   last_poll_error: string | null;
+  health_endpoint_format: HealthEndpointFormat;
   poll_warnings: string | null;
   manifest_managed: number;
   manifest_key: string | null;
@@ -55,6 +56,7 @@ export interface FormattedServiceMutation {
   is_active: number;
   last_poll_success: number | null;
   last_poll_error: string | null;
+  health_endpoint_format: HealthEndpointFormat;
   poll_warnings: string | null;
   manifest_managed: number;
   manifest_key: string | null;

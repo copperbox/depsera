@@ -82,6 +82,12 @@ export class HealthPollingService extends EventEmitter {
       return;
     }
 
+    // OTLP services are push-only — never poll them
+    if (service.health_endpoint_format === 'otlp') {
+      logger.info({ serviceId, serviceName: service.name }, 'skipping OTLP service (push-only)');
+      return;
+    }
+
     this.addServiceToPolling(service);
 
     logger.info({ serviceId, serviceName: service.name }, 'started polling service');
@@ -304,6 +310,11 @@ export class HealthPollingService extends EventEmitter {
   }
 
   private addServiceToPolling(service: Service): void {
+    // OTLP services are push-only — never poll them
+    if (service.health_endpoint_format === 'otlp') {
+      return;
+    }
+
     // Add to state manager
     this.stateManager.addService(service);
 

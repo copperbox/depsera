@@ -4,6 +4,7 @@ import type {
   IDependencyStore,
   ITeamStore,
   ICanonicalOverrideStore,
+  IExternalNodeEnrichmentStore,
 } from '../../stores/interfaces';
 import { DependencyCanonicalOverride } from '../../db/types';
 import { ServiceWithTeam, DependencyWithTarget, GraphResponse } from './types';
@@ -22,6 +23,7 @@ export class GraphService {
   private dependencyStore: IDependencyStore;
   private teamStore: ITeamStore;
   private canonicalOverrideStore: ICanonicalOverrideStore;
+  private externalNodeEnrichmentStore: IExternalNodeEnrichmentStore;
 
   constructor(typeInferencer?: ServiceTypeInferencer, stores?: StoreRegistry) {
     const storeRegistry = stores || getStores();
@@ -30,6 +32,7 @@ export class GraphService {
     this.dependencyStore = storeRegistry.dependencies;
     this.teamStore = storeRegistry.teams;
     this.canonicalOverrideStore = storeRegistry.canonicalOverrides;
+    this.externalNodeEnrichmentStore = storeRegistry.externalNodeEnrichment;
   }
 
   /**
@@ -197,8 +200,15 @@ export class GraphService {
     const groups = ExternalNodeBuilder.groupUnassociatedDeps(dependencies);
     if (groups.size === 0) return;
 
-    for (const [, group] of groups) {
-      const nodeData = ExternalNodeBuilder.buildNodeData(group.name, group.deps);
+    const enrichments = this.externalNodeEnrichmentStore.findAll();
+    const enrichmentMap = new Map(enrichments.map(e => [e.canonical_name.toLowerCase().trim(), e]));
+
+    for (const [normalizedName, group] of groups) {
+      let nodeData = ExternalNodeBuilder.buildNodeData(group.name, group.deps);
+      const enrichment = enrichmentMap.get(normalizedName);
+      if (enrichment) {
+        nodeData = ExternalNodeBuilder.applyEnrichment(nodeData, enrichment);
+      }
       builder.addExternalNode(group.id, nodeData);
     }
 

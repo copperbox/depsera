@@ -102,6 +102,10 @@ describe('Associations API', () => {
         last_check_at TEXT,
         check_details TEXT,
         skipped INTEGER NOT NULL DEFAULT 0,
+        discovery_source TEXT NOT NULL DEFAULT 'manual',
+        user_display_name TEXT,
+        user_description TEXT,
+        user_impact TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
@@ -115,6 +119,8 @@ describe('Associations API', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT NOT NULL DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (dependency_id) REFERENCES dependencies(id) ON DELETE CASCADE,
@@ -308,6 +314,109 @@ describe('Associations API', () => {
         SELECT * FROM dependency_associations WHERE id = ?
       `).get(associationId);
       expect(remaining).toBeUndefined();
+    });
+  });
+
+  describe('PUT /api/dependencies/:depId/associations/:assocId/confirm', () => {
+    it('should confirm an auto-suggested association', async () => {
+      associationId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
+        VALUES (?, ?, ?, ?, 1)
+      `).run(associationId, dependencyId, linkedServiceId, 'api_call');
+
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/${associationId}/confirm`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify is_auto_suggested is now 0
+      const row = testDb.prepare('SELECT is_auto_suggested FROM dependency_associations WHERE id = ?').get(associationId) as { is_auto_suggested: number };
+      expect(row.is_auto_suggested).toBe(0);
+    });
+
+    it('should return 404 for non-existent dependency', async () => {
+      const response = await request(app)
+        .put(`/api/dependencies/non-existent/associations/non-existent/confirm`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 for non-existent association', async () => {
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/non-existent/confirm`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Association not found');
+    });
+
+    it('should return 404 when association belongs to different dependency', async () => {
+      // Create another dependency
+      const otherDepId = randomUUID();
+      testDb.prepare('INSERT INTO dependencies (id, service_id, name, status) VALUES (?, ?, ?, ?)')
+        .run(otherDepId, serviceId, 'other-dep', 'healthy');
+
+      associationId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
+        VALUES (?, ?, ?, ?, 1)
+      `).run(associationId, otherDepId, linkedServiceId, 'api_call');
+
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/${associationId}/confirm`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Association not found');
+    });
+
+    it('should succeed for already-confirmed association', async () => {
+      associationId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
+        VALUES (?, ?, ?, ?, 0)
+      `).run(associationId, dependencyId, linkedServiceId, 'api_call');
+
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/${associationId}/confirm`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+    });
+  });
+
+  describe('PUT /api/dependencies/:depId/associations/:assocId/dismiss', () => {
+    it('should dismiss an auto-suggested association', async () => {
+      associationId = randomUUID();
+      testDb.prepare(`
+        INSERT INTO dependency_associations (id, dependency_id, linked_service_id, association_type, is_auto_suggested)
+        VALUES (?, ?, ?, ?, 1)
+      `).run(associationId, dependencyId, linkedServiceId, 'api_call');
+
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/${associationId}/dismiss`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+
+      // Verify is_dismissed is now 1
+      const row = testDb.prepare('SELECT is_dismissed FROM dependency_associations WHERE id = ?').get(associationId) as { is_dismissed: number };
+      expect(row.is_dismissed).toBe(1);
+    });
+
+    it('should return 404 for non-existent dependency', async () => {
+      const response = await request(app)
+        .put(`/api/dependencies/non-existent/associations/non-existent/dismiss`);
+
+      expect(response.status).toBe(404);
+    });
+
+    it('should return 404 for non-existent association', async () => {
+      const response = await request(app)
+        .put(`/api/dependencies/${dependencyId}/associations/non-existent/dismiss`);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('Association not found');
     });
   });
 });

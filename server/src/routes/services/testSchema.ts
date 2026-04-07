@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { getStores } from '../../stores';
-import { validateSchemaConfig } from '../../utils/validation';
+import { validateSchemaConfig, validateMetricSchemaConfig } from '../../utils/validation';
 import { validateUrlNotPrivate, validateUrlHostname } from '../../utils/ssrf';
 import { DependencyParser } from '../../services/polling/DependencyParser';
-import { SchemaMapping } from '../../db/types';
+import { PrometheusParser } from '../../services/polling/PrometheusParser';
+import { SchemaMapping, HealthEndpointFormat, MetricSchemaConfig } from '../../db/types';
 import { ValidationError, ForbiddenError, sendErrorResponse } from '../../utils/errors';
 
 const TEST_SCHEMA_TIMEOUT_MS = 10_000;
@@ -14,6 +15,12 @@ const TEST_SCHEMA_TIMEOUT_MS = 10_000;
  * Tests a schema mapping against a live health endpoint URL.
  * Returns parsed dependency results and any warnings.
  * Does NOT store anything — purely a preview/test operation.
+ *
+ * Supports format-aware testing:
+ * - 'schema' (default): Uses SchemaMapper with provided schema_config
+ * - 'prometheus': Fetches with text/plain Accept, parses Prometheus exposition format
+ * - 'otlp': Returns error (push-only, cannot be tested via URL)
+ * - 'default': Uses schema_config if provided for backward compat
  */
 export async function testSchema(req: Request, res: Response): Promise<void> {
   try {
@@ -29,7 +36,16 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       }
     }
 
-    const { url, schema_config } = req.body;
+    const { url, schema_config, format } = req.body;
+    const effectiveFormat: HealthEndpointFormat = format ?? 'schema';
+
+    // OTLP services are push-only — cannot be tested via URL
+    if (effectiveFormat === 'otlp') {
+      throw new ValidationError(
+        'OTLP services receive pushed metrics and cannot be tested via URL',
+        'format'
+      );
+    }
 
     // Validate URL is provided
     if (!url || typeof url !== 'string') {
@@ -43,18 +59,23 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       throw new ValidationError('url must be a valid URL', 'url');
     }
 
-    // Validate schema_config is provided
-    if (schema_config === undefined || schema_config === null) {
-      throw new ValidationError('schema_config is required', 'schema_config');
-    }
+    // schema_config is required only for 'schema' format (or default without explicit format)
+    let schemaConfig: SchemaMapping | null = null;
+    if (effectiveFormat === 'schema') {
+      if (schema_config === undefined || schema_config === null) {
+        throw new ValidationError('schema_config is required', 'schema_config');
+      }
 
-    // Validate schema_config structure (returns JSON string)
-    const validatedSchemaJson = validateSchemaConfig(schema_config);
-    const schemaConfig: SchemaMapping = JSON.parse(validatedSchemaJson);
+      // Validate schema_config structure (returns JSON string)
+      const validatedSchemaJson = validateSchemaConfig(schema_config);
+      schemaConfig = JSON.parse(validatedSchemaJson);
+    }
 
     // SSRF validation — sync hostname check + async DNS resolution
     validateUrlHostname(url);
     await validateUrlNotPrivate(url);
+
+    const isPrometheus = effectiveFormat === 'prometheus';
 
     // Fetch the health endpoint
     const controller = new AbortController();
@@ -64,7 +85,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
     try {
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: { Accept: 'application/json' },
+        headers: { Accept: isPrometheus ? 'text/plain; version=0.0.4' : 'application/json' },
       });
 
       if (!response.ok) {
@@ -74,7 +95,7 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
         );
       }
 
-      responseData = await response.json();
+      responseData = isPrometheus ? await response.text() : await response.json();
     } catch (error) {
       if (error instanceof ValidationError) throw error;
 
@@ -88,13 +109,27 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       clearTimeout(timeout);
     }
 
-    // Parse using the schema mapping
+    // Parse MetricSchemaConfig for prometheus format if provided
+    let metricConfig: MetricSchemaConfig | undefined;
+    if (isPrometheus && schema_config !== undefined && schema_config !== null) {
+      const validatedJson = validateMetricSchemaConfig(schema_config);
+      metricConfig = JSON.parse(validatedJson);
+    }
+
+    // Parse based on format
     const parser = new DependencyParser();
     const warnings: string[] = [];
 
     let dependencies;
     try {
-      dependencies = parser.parse(responseData, schemaConfig);
+      if (isPrometheus) {
+        const promParser = new PrometheusParser();
+        dependencies = promParser.parse(responseData as string, metricConfig);
+        warnings.push(...promParser.lastWarnings);
+      } else {
+        dependencies = parser.parse(responseData, schemaConfig);
+        warnings.push(...parser.lastWarnings);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.json({
@@ -105,30 +140,29 @@ export async function testSchema(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Include any schema mapping warnings (skipped items, etc.)
-    warnings.push(...parser.lastWarnings);
+    // Collect warnings about missing optional fields (schema format only)
+    if (effectiveFormat === 'schema' && schemaConfig) {
+      if (!schemaConfig.fields.latency) {
+        warnings.push('No latency field mapping configured — latency data will not be captured');
+      }
+      if (!schemaConfig.fields.impact) {
+        warnings.push('No impact field mapping configured — impact data will not be captured');
+      }
+      if (!schemaConfig.fields.description) {
+        warnings.push('No description field mapping configured — description data will not be captured');
+      }
+      if (!schemaConfig.fields.checkDetails) {
+        warnings.push('No checkDetails field mapping configured — check details data will not be captured');
+      }
+      if (!schemaConfig.fields.contact) {
+        warnings.push('No contact field mapping configured — contact data will not be captured');
+      }
 
-    // Collect warnings about missing optional fields
-    if (!schemaConfig.fields.latency) {
-      warnings.push('No latency field mapping configured — latency data will not be captured');
-    }
-    if (!schemaConfig.fields.impact) {
-      warnings.push('No impact field mapping configured — impact data will not be captured');
-    }
-    if (!schemaConfig.fields.description) {
-      warnings.push('No description field mapping configured — description data will not be captured');
-    }
-    if (!schemaConfig.fields.checkDetails) {
-      warnings.push('No checkDetails field mapping configured — check details data will not be captured');
-    }
-    if (!schemaConfig.fields.contact) {
-      warnings.push('No contact field mapping configured — contact data will not be captured');
-    }
-
-    // Check for entries with missing optional data
-    for (const dep of dependencies) {
-      if (schemaConfig.fields.latency && dep.health.latency === 0) {
-        warnings.push(`Dependency "${dep.name}": latency field resolved to 0 or was not found`);
+      // Check for entries with missing optional data
+      for (const dep of dependencies) {
+        if (schemaConfig.fields.latency && dep.health.latency === 0) {
+          warnings.push(`Dependency "${dep.name}": latency field resolved to 0 or was not found`);
+        }
       }
     }
 

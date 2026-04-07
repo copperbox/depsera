@@ -33,6 +33,14 @@ import * as migration030 from './migrations/030_add_alert_delay';
 import * as migration031 from './migrations/031_add_alert_mutes';
 import * as migration032 from './migrations/032_add_service_mutes';
 import * as migration033 from './migrations/033_multi_manifest';
+import * as migration034 from './migrations/034_add_otel_sources';
+import * as migration035 from './migrations/035_api_key_rate_limit_columns';
+import * as migration036 from './migrations/036_api_key_usage_buckets';
+import * as migration037 from './migrations/037_add_trace_discovery';
+import * as migration038 from './migrations/038_add_external_node_enrichment';
+import * as migration039 from './migrations/039_add_percentile_latency';
+import * as migration040 from './migrations/040_add_span_storage';
+import * as migration041 from './migrations/041_add_span_retention_setting';
 
 interface Migration {
   id: string;
@@ -239,6 +247,54 @@ const migrations: Migration[] = [
     name: 'multi_manifest',
     up: migration033.up,
     down: migration033.down
+  },
+  {
+    id: '034',
+    name: 'add_otel_sources',
+    up: migration034.up,
+    down: migration034.down
+  },
+  {
+    id: '035',
+    name: 'api_key_rate_limit_columns',
+    up: migration035.up,
+    down: migration035.down
+  },
+  {
+    id: '036',
+    name: 'api_key_usage_buckets',
+    up: migration036.up,
+    down: migration036.down
+  },
+  {
+    id: '037',
+    name: 'add_trace_discovery',
+    up: migration037.up,
+    down: migration037.down
+  },
+  {
+    id: '038',
+    name: 'add_external_node_enrichment',
+    up: migration038.up,
+    down: migration038.down
+  },
+  {
+    id: '039',
+    name: 'add_percentile_latency',
+    up: migration039.up,
+    down: migration039.down
+  },
+  {
+    id: '040',
+    name: 'add_span_storage',
+    up: migration040.up,
+    down: migration040.down
+  },
+  {
+    id: '041',
+    name: 'add_span_retention_setting',
+    up: migration041.up,
+    down: migration041.down
   }
 ];
 

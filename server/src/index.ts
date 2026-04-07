@@ -26,6 +26,7 @@ import activityRouter from './routes/activity';
 import { manifestTeamRouter, manifestRouter } from './routes/manifest';
 import { driftRouter } from './routes/drifts';
 import catalogRouter from './routes/catalog';
+import externalNodesRouter from './routes/externalNodes';
 import { HealthPollingService, PollingEventType, StatusChangeEvent, PollCompleteEvent } from './services/polling';
 import { getServicePollHistoryRecorder } from './services/polling/ServicePollHistoryRecorder';
 import { SettingsService } from './services/settings/SettingsService';
@@ -41,7 +42,12 @@ import { csrfProtection } from './middleware/csrf';
 import { createSecurityHeaders } from './middleware/securityHeaders';
 import { parseTrustProxy } from './middleware/trustProxy';
 import { createHttpsRedirect } from './middleware/httpsRedirect';
-import { createGlobalRateLimit, createAuthRateLimit } from './middleware/rateLimit';
+import { createGlobalRateLimit, createAuthRateLimit, createOtlpGlobalRateLimit } from './middleware/rateLimit';
+import { createPerKeyRateLimit } from './middleware/perKeyRateLimit';
+import { createTrackApiKeyUsage, startUsageFlusher } from './middleware/trackApiKeyUsage';
+import { requireApiKeyAuth } from './auth/apiKeyAuth';
+import otlpRouter from './routes/otlp';
+import traceRouter from './routes/otlp/traces';
 import { createRequestLogger } from './middleware/requestLogger';
 import logger from './utils/logger';
 
@@ -64,6 +70,26 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '100kb' }));
+
+// OTLP receiver — mounted before session/CSRF middleware (collectors use API key auth, not sessions)
+app.use('/v1/metrics',
+  express.json({ limit: '1mb' }),
+  createOtlpGlobalRateLimit(),
+  requireApiKeyAuth,
+  createPerKeyRateLimit(),
+  createTrackApiKeyUsage(),
+  otlpRouter,
+);
+
+app.use('/v1/traces',
+  express.json({ limit: '2mb' }),
+  createOtlpGlobalRateLimit(),
+  requireApiKeyAuth,
+  createPerKeyRateLimit(),
+  createTrackApiKeyUsage(),
+  traceRouter,
+);
+
 app.use(createGlobalRateLimit());
 app.use(sessionMiddleware);
 
@@ -97,6 +123,7 @@ app.use('/api/teams', requireAuth, manifestTeamRouter);
 app.use('/api/teams', requireAuth, driftRouter);
 app.use('/api/manifest', requireAuth, manifestRouter);
 app.use('/api/catalog', requireAuth, catalogRouter);
+app.use('/api/external-nodes', requireAuth, externalNodesRouter);
 
 // Global error handler — catches body-parser errors, unhandled route errors, etc.
 // Must be registered after all routes (Express identifies error handlers by 4-param signature).
@@ -191,6 +218,9 @@ async function start() {
 
   // Start polling all active services
   pollingService.startAll();
+
+  // Start the OTLP API key usage flusher (persists in-memory counts to DB on an interval)
+  startUsageFlusher();
 
   let server: http.Server | https.Server;
   let httpRedirectServer: http.Server | undefined;

@@ -131,6 +131,11 @@
   color: var(--color-warning);
 }
 
+.statusBadge.discoverySource {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+}
+
 .statusDot {
   width: 6px;
   height: 6px;
@@ -459,4 +464,63 @@
 .viewErrorHistoryButton svg:last-child {
   margin-left: auto;
   color: var(--color-text-muted);
+}
+
+/* Suggestion actions (confirm/dismiss) */
+.suggestionActions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.confirmButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: var(--color-success);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
+}
+
+.confirmButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 25%, transparent);
+}
+
+.confirmButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dismissButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  font-weight: var(--font-medium);
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.dismissButton:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.dismissButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

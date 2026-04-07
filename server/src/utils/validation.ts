@@ -1,6 +1,8 @@
 import { ValidationError } from './errors';
-import { AssociationType, DependencyType, TeamMemberRole, SchemaMapping, FieldMapping } from '../db/types';
+import { AssociationType, DependencyType, TeamMemberRole, SchemaMapping, FieldMapping, HealthEndpointFormat, MetricSchemaConfig, VALID_METRIC_TARGETS, VALID_LABEL_TARGETS } from '../db/types';
 import { validateUrlHostname } from './ssrf';
+
+const VALID_HEALTH_ENDPOINT_FORMATS: HealthEndpointFormat[] = ['default', 'schema', 'prometheus', 'otlp'];
 
 // ============================================================================
 // URL Validation (moved from routes/services/validation.ts)
@@ -121,6 +123,7 @@ export interface ValidatedServiceInput {
   metrics_endpoint: string | null;
   schema_config?: string | null;
   poll_interval_ms?: number;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface ValidatedServiceUpdateInput {
@@ -131,6 +134,7 @@ export interface ValidatedServiceUpdateInput {
   schema_config?: string | null;
   poll_interval_ms?: number;
   is_active?: boolean;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 /**
@@ -148,12 +152,33 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     throw new ValidationError('team_id is required', 'team_id');
   }
 
-  // Required: health_endpoint
-  if (!isString(input.health_endpoint) || !input.health_endpoint) {
-    throw new ValidationError('health_endpoint is required', 'health_endpoint');
+  // Optional: health_endpoint_format (defaults to 'default')
+  let healthEndpointFormat: HealthEndpointFormat | undefined;
+  if (input.health_endpoint_format !== undefined) {
+    if (!isString(input.health_endpoint_format) ||
+        !VALID_HEALTH_ENDPOINT_FORMATS.includes(input.health_endpoint_format as HealthEndpointFormat)) {
+      throw new ValidationError(
+        `health_endpoint_format must be one of: ${VALID_HEALTH_ENDPOINT_FORMATS.join(', ')}`,
+        'health_endpoint_format'
+      );
+    }
+    healthEndpointFormat = input.health_endpoint_format as HealthEndpointFormat;
   }
 
-  validateEndpointUrl(input.health_endpoint, 'health_endpoint');
+  const isOtlp = healthEndpointFormat === 'otlp';
+
+  // health_endpoint: required for polled formats, empty for OTLP
+  if (isOtlp) {
+    // OTLP is push-only — health_endpoint not used
+    if (input.health_endpoint && isNonEmptyString(input.health_endpoint)) {
+      throw new ValidationError('health_endpoint must be empty for OTLP format (push-only)', 'health_endpoint');
+    }
+  } else {
+    if (!isString(input.health_endpoint) || !input.health_endpoint) {
+      throw new ValidationError('health_endpoint is required', 'health_endpoint');
+    }
+    validateEndpointUrl(input.health_endpoint, 'health_endpoint');
+  }
 
   // Optional: metrics_endpoint
   let metricsEndpoint: string | null = null;
@@ -167,9 +192,11 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     metricsEndpoint = input.metrics_endpoint || null;
   }
 
-  // Optional: poll_interval_ms
+  // Optional: poll_interval_ms (not applicable for OTLP)
   let pollIntervalMs: number | undefined;
-  if (input.poll_interval_ms !== undefined) {
+  if (isOtlp) {
+    pollIntervalMs = 0;
+  } else if (input.poll_interval_ms !== undefined) {
     if (!isNumber(input.poll_interval_ms) || !Number.isInteger(input.poll_interval_ms)) {
       throw new ValidationError('poll_interval_ms must be an integer', 'poll_interval_ms');
     }
@@ -182,23 +209,31 @@ export function validateServiceCreate(input: Record<string, unknown>): Validated
     pollIntervalMs = input.poll_interval_ms;
   }
 
-  // Optional: schema_config
+  // Optional: schema_config (format-aware)
   let schemaConfig: string | null | undefined;
   if (input.schema_config !== undefined) {
     if (input.schema_config === null) {
       schemaConfig = null;
+    } else if (healthEndpointFormat === 'prometheus' || healthEndpointFormat === 'otlp') {
+      schemaConfig = validateMetricSchemaConfig(input.schema_config);
+    } else if (healthEndpointFormat === 'default') {
+      schemaConfig = null;
     } else {
+      // 'schema' or undefined — use original schema validator
       schemaConfig = validateSchemaConfig(input.schema_config);
     }
+  } else if (healthEndpointFormat === 'default') {
+    schemaConfig = null;
   }
 
   return {
     name: input.name.trim(),
     team_id: input.team_id,
-    health_endpoint: input.health_endpoint,
+    health_endpoint: isOtlp ? '' : (input.health_endpoint as string),
     metrics_endpoint: metricsEndpoint,
     schema_config: schemaConfig,
     poll_interval_ms: pollIntervalMs,
+    health_endpoint_format: healthEndpointFormat,
   };
 }
 
@@ -262,12 +297,42 @@ export function validateServiceUpdate(
     hasUpdates = true;
   }
 
-  // Optional: schema_config
+  // Optional: schema_config (format-aware)
   if (input.schema_config !== undefined) {
     if (input.schema_config === null) {
       result.schema_config = null;
     } else {
-      result.schema_config = validateSchemaConfig(input.schema_config);
+      const updateFormat = input.health_endpoint_format as HealthEndpointFormat | undefined;
+      if (updateFormat === 'prometheus' || updateFormat === 'otlp') {
+        result.schema_config = validateMetricSchemaConfig(input.schema_config);
+      } else if (updateFormat === 'default') {
+        result.schema_config = null;
+      } else if (updateFormat === 'schema' || updateFormat === undefined) {
+        // Format not in payload — detect config shape
+        if (updateFormat === undefined) {
+          let parsed: Record<string, unknown>;
+          if (isString(input.schema_config)) {
+            try {
+              parsed = JSON.parse(input.schema_config) as Record<string, unknown>;
+            } catch {
+              // Let the validators produce the proper error
+              parsed = {};
+            }
+          } else if (typeof input.schema_config === 'object' && input.schema_config !== null) {
+            parsed = input.schema_config as Record<string, unknown>;
+          } else {
+            parsed = {};
+          }
+          if ('metrics' in parsed || 'labels' in parsed) {
+            result.schema_config = validateMetricSchemaConfig(input.schema_config);
+          } else {
+            result.schema_config = validateSchemaConfig(input.schema_config);
+          }
+        } else {
+          // updateFormat === 'schema'
+          result.schema_config = validateSchemaConfig(input.schema_config);
+        }
+      }
     }
     hasUpdates = true;
   }
@@ -278,6 +343,19 @@ export function validateServiceUpdate(
       throw new ValidationError('is_active must be a boolean', 'is_active');
     }
     result.is_active = input.is_active;
+    hasUpdates = true;
+  }
+
+  // Optional: health_endpoint_format
+  if (input.health_endpoint_format !== undefined) {
+    if (!isString(input.health_endpoint_format) ||
+        !VALID_HEALTH_ENDPOINT_FORMATS.includes(input.health_endpoint_format as HealthEndpointFormat)) {
+      throw new ValidationError(
+        `health_endpoint_format must be one of: ${VALID_HEALTH_ENDPOINT_FORMATS.join(', ')}`,
+        'health_endpoint_format'
+      );
+    }
+    result.health_endpoint_format = input.health_endpoint_format as HealthEndpointFormat;
     hasUpdates = true;
   }
 
@@ -593,6 +671,134 @@ export function validateDependencyType(type: unknown): DependencyType {
     );
   }
   return type as DependencyType;
+}
+
+// ============================================================================
+// Metric Schema Config Validation (Prometheus / OTLP)
+// ============================================================================
+
+/**
+ * Validate and serialize a MetricSchemaConfig value for Prometheus/OTLP formats.
+ * Accepts either a JSON string or an object. Returns a validated JSON string.
+ * @throws ValidationError if the config is invalid
+ */
+export function validateMetricSchemaConfig(value: unknown): string {
+  let parsed: unknown;
+
+  if (isString(value)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      throw new ValidationError('schema_config must be valid JSON', 'schema_config');
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    parsed = value;
+  } else {
+    throw new ValidationError(
+      'schema_config must be a JSON string or object',
+      'schema_config'
+    );
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new ValidationError('schema_config must be a JSON object', 'schema_config');
+  }
+
+  const config = parsed as Record<string, unknown>;
+
+  // Validate metrics (required object)
+  if (!('metrics' in config)) {
+    throw new ValidationError('schema_config.metrics is required', 'schema_config');
+  }
+  if (typeof config.metrics !== 'object' || config.metrics === null || Array.isArray(config.metrics)) {
+    throw new ValidationError('schema_config.metrics must be an object', 'schema_config');
+  }
+
+  const metrics = config.metrics as Record<string, unknown>;
+  const seenMetricTargets = new Set<string>();
+  for (const [key, target] of Object.entries(metrics)) {
+    if (!isString(target)) {
+      throw new ValidationError(
+        `schema_config.metrics.${key} must be a string`,
+        'schema_config'
+      );
+    }
+    if (!VALID_METRIC_TARGETS.includes(target as typeof VALID_METRIC_TARGETS[number])) {
+      throw new ValidationError(
+        `schema_config.metrics.${key} has invalid target "${target}". Valid targets: ${VALID_METRIC_TARGETS.join(', ')}`,
+        'schema_config'
+      );
+    }
+    if (seenMetricTargets.has(target)) {
+      throw new ValidationError(
+        `schema_config.metrics has duplicate target "${target}"`,
+        'schema_config'
+      );
+    }
+    seenMetricTargets.add(target);
+  }
+
+  // Validate labels (required object)
+  if (!('labels' in config)) {
+    throw new ValidationError('schema_config.labels is required', 'schema_config');
+  }
+  if (typeof config.labels !== 'object' || config.labels === null || Array.isArray(config.labels)) {
+    throw new ValidationError('schema_config.labels must be an object', 'schema_config');
+  }
+
+  const labels = config.labels as Record<string, unknown>;
+  const seenLabelTargets = new Set<string>();
+  for (const [key, target] of Object.entries(labels)) {
+    if (!isString(target)) {
+      throw new ValidationError(
+        `schema_config.labels.${key} must be a string`,
+        'schema_config'
+      );
+    }
+    if (!VALID_LABEL_TARGETS.includes(target as typeof VALID_LABEL_TARGETS[number])) {
+      throw new ValidationError(
+        `schema_config.labels.${key} has invalid target "${target}". Valid targets: ${VALID_LABEL_TARGETS.join(', ')}`,
+        'schema_config'
+      );
+    }
+    if (seenLabelTargets.has(target)) {
+      throw new ValidationError(
+        `schema_config.labels has duplicate target "${target}"`,
+        'schema_config'
+      );
+    }
+    seenLabelTargets.add(target);
+  }
+
+  // Validate latency_unit (optional)
+  if (config.latency_unit !== undefined) {
+    if (config.latency_unit !== 'ms' && config.latency_unit !== 's') {
+      throw new ValidationError(
+        'schema_config.latency_unit must be "ms" or "s"',
+        'schema_config'
+      );
+    }
+  }
+
+  // Validate healthy_value (optional)
+  if (config.healthy_value !== undefined) {
+    if (!isNumber(config.healthy_value)) {
+      throw new ValidationError(
+        'schema_config.healthy_value must be a number',
+        'schema_config'
+      );
+    }
+  }
+
+  // Build validated object
+  const validated: MetricSchemaConfig = {
+    metrics: metrics as Record<string, string>,
+    labels: labels as Record<string, string>,
+    ...(config.latency_unit !== undefined && { latency_unit: config.latency_unit as 'ms' | 's' }),
+    ...(config.healthy_value !== undefined && { healthy_value: config.healthy_value as number }),
+  };
+
+  return JSON.stringify(validated);
 }
 
 // ============================================================================

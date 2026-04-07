@@ -150,6 +150,7 @@ function renderServiceDetail(
 
 /** Helper to click a tab by its role */
 async function switchTab(name: string) {
+  // eslint-disable-next-line security/detect-non-literal-regexp
   const tab = screen.getByRole('tab', { name: new RegExp(name) });
   fireEvent.click(tab);
 }

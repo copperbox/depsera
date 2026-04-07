@@ -46,6 +46,11 @@ describe('Graph API', () => {
         last_poll_success INTEGER,
         last_poll_error TEXT,
         poll_warnings TEXT,
+        manifest_key TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
+        health_endpoint_format TEXT NOT NULL DEFAULT 'default',
+        manifest_config_id TEXT,
+        manifest_last_synced_values TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -68,6 +73,10 @@ describe('Graph API', () => {
         check_details TEXT,
         error TEXT,
         error_message TEXT,
+        discovery_source TEXT NOT NULL DEFAULT 'manual',
+        user_display_name TEXT,
+        user_description TEXT,
+        user_impact TEXT,
         skipped INTEGER NOT NULL DEFAULT 0,
         last_checked TEXT,
         last_status_change TEXT,
@@ -81,6 +90,8 @@ describe('Graph API', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
@@ -96,8 +107,23 @@ describe('Graph API', () => {
       CREATE TABLE dependency_canonical_overrides (
         id TEXT PRIMARY KEY,
         canonical_name TEXT NOT NULL UNIQUE,
+        team_id TEXT,
         contact_override TEXT,
         impact_override TEXT,
+        manifest_managed INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_by TEXT
+      );
+
+      CREATE TABLE external_node_enrichment (
+        id TEXT PRIMARY KEY,
+        canonical_name TEXT NOT NULL UNIQUE,
+        display_name TEXT,
+        description TEXT,
+        impact TEXT,
+        contact TEXT,
+        service_type TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_by TEXT

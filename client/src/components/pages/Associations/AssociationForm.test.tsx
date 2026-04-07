@@ -21,6 +21,7 @@ function makeService(overrides = {}) {
     health_endpoint: 'https://example.com/health',
     metrics_endpoint: null,
     schema_config: null,
+    health_endpoint_format: 'default' as const,
     is_active: 1,
     last_poll_success: 1,
     last_poll_error: null,

@@ -14,6 +14,7 @@ import {
   validateTeamMemberRoleUpdate,
   validateDependencyType,
   validateSchemaConfig,
+  validateMetricSchemaConfig,
   validateExternalServiceCreate,
   validateExternalServiceUpdate,
   MIN_POLL_INTERVAL_MS,
@@ -284,6 +285,55 @@ describe('Service Validation', () => {
       expect(() => validateServiceCreate({ ...validInput, poll_interval_ms: 5000000 }))
         .toThrow(ValidationError);
     });
+
+    it('should accept valid health_endpoint_format values', () => {
+      for (const fmt of ['default', 'schema', 'prometheus']) {
+        const result = validateServiceCreate({ ...validInput, health_endpoint_format: fmt });
+        expect(result.health_endpoint_format).toBe(fmt);
+      }
+    });
+
+    it('should not require health_endpoint_format (defaults handled elsewhere)', () => {
+      const result = validateServiceCreate(validInput);
+      expect(result.health_endpoint_format).toBeUndefined();
+    });
+
+    it('should throw on invalid health_endpoint_format', () => {
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint_format: 'invalid' }))
+        .toThrow(ValidationError);
+      expect(() => validateServiceCreate({ ...validInput, health_endpoint_format: 123 }))
+        .toThrow(ValidationError);
+    });
+
+    it('should allow OTLP format without health_endpoint', () => {
+      const result = validateServiceCreate({
+        name: 'OTLP Service',
+        team_id: 'team-123',
+        health_endpoint_format: 'otlp',
+      });
+      expect(result.health_endpoint_format).toBe('otlp');
+      expect(result.health_endpoint).toBe('');
+      expect(result.poll_interval_ms).toBe(0);
+    });
+
+    it('should reject health_endpoint for OTLP format', () => {
+      expect(() => validateServiceCreate({
+        name: 'OTLP Service',
+        team_id: 'team-123',
+        health_endpoint: 'https://example.com/health',
+        health_endpoint_format: 'otlp',
+      })).toThrow(ValidationError);
+    });
+
+    it('should force poll_interval_ms to 0 for OTLP format', () => {
+      const result = validateServiceCreate({
+        name: 'OTLP Service',
+        team_id: 'team-123',
+        health_endpoint_format: 'otlp',
+        poll_interval_ms: 60000,
+      });
+      expect(result.poll_interval_ms).toBe(0);
+    });
   });
 
   describe('validateServiceUpdate', () => {
@@ -354,6 +404,25 @@ describe('Service Validation', () => {
 
     it('should throw on invalid is_active', () => {
       expect(() => validateServiceUpdate({ is_active: 'false' }))
+        .toThrow(ValidationError);
+    });
+
+    it('should validate health_endpoint_format update', () => {
+      const result = validateServiceUpdate({ health_endpoint_format: 'prometheus' });
+      expect(result?.health_endpoint_format).toBe('prometheus');
+    });
+
+    it('should accept all valid format values in update', () => {
+      for (const fmt of ['default', 'schema', 'prometheus', 'otlp']) {
+        const result = validateServiceUpdate({ health_endpoint_format: fmt });
+        expect(result?.health_endpoint_format).toBe(fmt);
+      }
+    });
+
+    it('should throw on invalid health_endpoint_format in update', () => {
+      expect(() => validateServiceUpdate({ health_endpoint_format: 'invalid' }))
+        .toThrow(ValidationError);
+      expect(() => validateServiceUpdate({ health_endpoint_format: 42 }))
         .toThrow(ValidationError);
     });
   });
@@ -932,6 +1001,295 @@ describe('Schema Config Validation', () => {
       expect(() => validateServiceUpdate({
         schema_config: 'not-json',
       })).toThrow(ValidationError);
+    });
+  });
+});
+
+describe('Metric Schema Config Validation', () => {
+  describe('validateMetricSchemaConfig', () => {
+    const validConfig = {
+      metrics: { http_status: 'state', is_up: 'healthy' },
+      labels: { dep_name: 'name', dep_type: 'type' },
+    };
+
+    it('should accept valid config with metrics and labels', () => {
+      const result = validateMetricSchemaConfig(validConfig);
+      const parsed = JSON.parse(result);
+      expect(parsed.metrics.http_status).toBe('state');
+      expect(parsed.metrics.is_up).toBe('healthy');
+      expect(parsed.labels.dep_name).toBe('name');
+      expect(parsed.labels.dep_type).toBe('type');
+    });
+
+    it('should accept empty metrics and labels (valid)', () => {
+      const result = validateMetricSchemaConfig({ metrics: {}, labels: {} });
+      const parsed = JSON.parse(result);
+      expect(parsed.metrics).toEqual({});
+      expect(parsed.labels).toEqual({});
+    });
+
+    it('should reject invalid metric target field', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: { my_metric: 'invalid_target' },
+        labels: {},
+      })).toThrow(/invalid target "invalid_target"/);
+    });
+
+    it('should reject invalid label target field', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: {},
+        labels: { my_label: 'invalid_target' },
+      })).toThrow(/invalid target "invalid_target"/);
+    });
+
+    it('should reject duplicate target values in metrics', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: { metric_a: 'state', metric_b: 'state' },
+        labels: {},
+      })).toThrow(/duplicate target "state"/);
+    });
+
+    it('should reject duplicate target values in labels', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: {},
+        labels: { label_a: 'name', label_b: 'name' },
+      })).toThrow(/duplicate target "name"/);
+    });
+
+    it('should accept valid latency_unit', () => {
+      const result = validateMetricSchemaConfig({ metrics: {}, labels: {}, latency_unit: 's' });
+      const parsed = JSON.parse(result);
+      expect(parsed.latency_unit).toBe('s');
+    });
+
+    it('should reject invalid latency_unit', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: {},
+        labels: {},
+        latency_unit: 'hours',
+      })).toThrow(/latency_unit must be "ms" or "s"/);
+    });
+
+    it('should reject missing metrics key', () => {
+      expect(() => validateMetricSchemaConfig({
+        labels: {},
+      })).toThrow(/schema_config\.metrics is required/);
+    });
+
+    it('should reject missing labels key', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: {},
+      })).toThrow(/schema_config\.labels is required/);
+    });
+
+    it('should accept JSON string input', () => {
+      const result = validateMetricSchemaConfig(JSON.stringify(validConfig));
+      const parsed = JSON.parse(result);
+      expect(parsed.metrics.http_status).toBe('state');
+    });
+
+    it('should reject non-object input', () => {
+      expect(() => validateMetricSchemaConfig(123)).toThrow(ValidationError);
+      expect(() => validateMetricSchemaConfig(true)).toThrow(ValidationError);
+    });
+
+    it('should reject array input', () => {
+      expect(() => validateMetricSchemaConfig([1, 2])).toThrow(ValidationError);
+    });
+
+    it('should reject invalid JSON string', () => {
+      expect(() => validateMetricSchemaConfig('not-json')).toThrow(ValidationError);
+    });
+
+    it('should reject non-string metric target values', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: { my_metric: 123 },
+        labels: {},
+      })).toThrow(/must be a string/);
+    });
+
+    it('should reject non-string label target values', () => {
+      expect(() => validateMetricSchemaConfig({
+        metrics: {},
+        labels: { my_label: 42 },
+      })).toThrow(/must be a string/);
+    });
+
+    it('should omit latency_unit from output when not provided', () => {
+      const result = validateMetricSchemaConfig({ metrics: {}, labels: {} });
+      const parsed = JSON.parse(result);
+      expect(parsed.latency_unit).toBeUndefined();
+    });
+
+    it('should accept all valid metric targets', () => {
+      const config = {
+        metrics: {
+          m1: 'state',
+          m2: 'healthy',
+          m3: 'latency',
+          m4: 'code',
+          m5: 'skipped',
+        },
+        labels: {},
+      };
+      const result = validateMetricSchemaConfig(config);
+      const parsed = JSON.parse(result);
+      expect(Object.values(parsed.metrics)).toEqual(['state', 'healthy', 'latency', 'code', 'skipped']);
+    });
+
+    it('should accept all valid label targets', () => {
+      const config = {
+        metrics: {},
+        labels: {
+          l1: 'name',
+          l2: 'type',
+          l3: 'impact',
+          l4: 'description',
+          l5: 'errorMessage',
+        },
+      };
+      const result = validateMetricSchemaConfig(config);
+      const parsed = JSON.parse(result);
+      expect(Object.values(parsed.labels)).toEqual(['name', 'type', 'impact', 'description', 'errorMessage']);
+    });
+  });
+
+  describe('format-aware validateServiceCreate with MetricSchemaConfig', () => {
+    const metricConfig = {
+      metrics: { http_status: 'state' },
+      labels: { dep_name: 'name' },
+    };
+
+    const schemaMappingConfig = {
+      root: 'data.checks',
+      fields: { name: 'n', healthy: 'h' },
+    };
+
+    it('should accept MetricSchemaConfig with format=prometheus', () => {
+      const result = validateServiceCreate({
+        name: 'Prom Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/metrics',
+        health_endpoint_format: 'prometheus',
+        schema_config: metricConfig,
+      });
+      expect(result.schema_config).toBeDefined();
+      const parsed = JSON.parse(result.schema_config!);
+      expect(parsed.metrics.http_status).toBe('state');
+    });
+
+    it('should reject SchemaMapping-shaped config with format=prometheus', () => {
+      expect(() => validateServiceCreate({
+        name: 'Prom Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/metrics',
+        health_endpoint_format: 'prometheus',
+        schema_config: schemaMappingConfig,
+      })).toThrow(ValidationError);
+    });
+
+    it('should set schema_config to null for format=default', () => {
+      const result = validateServiceCreate({
+        name: 'Default Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/health',
+        health_endpoint_format: 'default',
+        schema_config: { metrics: {}, labels: {} },
+      });
+      expect(result.schema_config).toBeNull();
+    });
+
+    it('should set schema_config to null for format=default even without schema_config input', () => {
+      const result = validateServiceCreate({
+        name: 'Default Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/health',
+        health_endpoint_format: 'default',
+      });
+      expect(result.schema_config).toBeNull();
+    });
+
+    it('should use SchemaMapping validator when format=schema', () => {
+      const result = validateServiceCreate({
+        name: 'Schema Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/health',
+        health_endpoint_format: 'schema',
+        schema_config: schemaMappingConfig,
+      });
+      expect(result.schema_config).toBeDefined();
+      const parsed = JSON.parse(result.schema_config!);
+      expect(parsed.root).toBe('data.checks');
+    });
+
+    it('should use SchemaMapping validator when format is undefined', () => {
+      const result = validateServiceCreate({
+        name: 'No Format Service',
+        team_id: 'team-1',
+        health_endpoint: 'https://example.com/health',
+        schema_config: schemaMappingConfig,
+      });
+      expect(result.schema_config).toBeDefined();
+      const parsed = JSON.parse(result.schema_config!);
+      expect(parsed.root).toBe('data.checks');
+    });
+  });
+
+  describe('format-aware validateServiceUpdate with MetricSchemaConfig', () => {
+    const metricConfig = {
+      metrics: { otel_status: 'healthy' },
+      labels: { service_name: 'name' },
+    };
+
+    it('should accept MetricSchemaConfig with format=otlp', () => {
+      const result = validateServiceUpdate({
+        health_endpoint_format: 'otlp',
+        schema_config: metricConfig,
+      });
+      expect(result).not.toBeNull();
+      expect(result!.schema_config).toBeDefined();
+      const parsed = JSON.parse(result!.schema_config!);
+      expect(parsed.metrics.otel_status).toBe('healthy');
+    });
+
+    it('should accept MetricSchemaConfig with format=prometheus in update', () => {
+      const result = validateServiceUpdate({
+        health_endpoint_format: 'prometheus',
+        schema_config: metricConfig,
+      });
+      expect(result).not.toBeNull();
+      const parsed = JSON.parse(result!.schema_config!);
+      expect(parsed.labels.service_name).toBe('name');
+    });
+
+    it('should auto-detect MetricSchemaConfig shape when format is not in payload', () => {
+      const result = validateServiceUpdate({
+        schema_config: metricConfig,
+      });
+      expect(result).not.toBeNull();
+      const parsed = JSON.parse(result!.schema_config!);
+      expect(parsed.metrics.otel_status).toBe('healthy');
+    });
+
+    it('should auto-detect SchemaMapping shape when format is not in payload', () => {
+      const result = validateServiceUpdate({
+        schema_config: {
+          root: 'checks',
+          fields: { name: 'n', healthy: 'h' },
+        },
+      });
+      expect(result).not.toBeNull();
+      const parsed = JSON.parse(result!.schema_config!);
+      expect(parsed.root).toBe('checks');
+    });
+
+    it('should set schema_config to null for format=default in update', () => {
+      const result = validateServiceUpdate({
+        health_endpoint_format: 'default',
+        schema_config: { metrics: {}, labels: {} },
+      });
+      expect(result).not.toBeNull();
+      expect(result!.schema_config).toBeNull();
     });
   });
 });

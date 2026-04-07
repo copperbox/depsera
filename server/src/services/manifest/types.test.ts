@@ -565,6 +565,7 @@ describe('Updated existing types with manifest columns', () => {
         manifest_managed: 1,
         manifest_config_id: null,
         manifest_last_synced_values: JSON.stringify({ name: 'Test', health_endpoint: 'https://test.local/health' }),
+        health_endpoint_format: 'default',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
       };
@@ -592,6 +593,7 @@ describe('Updated existing types with manifest columns', () => {
         manifest_managed: 0,
         manifest_config_id: null,
         manifest_last_synced_values: null,
+        health_endpoint_format: 'default',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-01T00:00:00Z',
       };
@@ -665,6 +667,8 @@ describe('Updated existing types with manifest columns', () => {
         dependency_id: 'dep-1',
         linked_service_id: 'svc-2',
         association_type: 'api_call',
+        is_auto_suggested: 0,
+        is_dismissed: 0,
         manifest_managed: 1,
         created_at: '2026-01-01T00:00:00Z',
       };

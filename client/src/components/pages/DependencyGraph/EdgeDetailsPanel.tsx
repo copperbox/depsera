@@ -1,8 +1,9 @@
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { type Node } from '@xyflow/react';
-import { X, XCircle, ChevronDown, ArrowRight, Clock, ChevronRight, Shrink } from 'lucide-react';
+import { X, XCircle, ChevronDown, ArrowRight, Clock, ChevronRight, Shrink, Check, XIcon } from 'lucide-react';
 import { ServiceNodeData, GraphEdgeData, getEdgeHealthStatus, HealthStatus } from '../../../types/graph';
+import { confirmAssociation, dismissAssociation } from '../../../api/associations';
 import { LatencyChart } from '../../Charts/LatencyChart';
 import { ErrorHistoryPanel } from '../../common/ErrorHistoryPanel';
 import styles from './EdgeDetailsPanel.module.css';
@@ -18,6 +19,7 @@ interface EdgeDetailsPanelProps {
   targetNode?: AppNode;
   onClose: () => void;
   onIsolate?: (dependencyId: string) => void;
+  onGraphRefresh?: () => void;
 }
 
 const healthStatusLabels: Record<HealthStatus, string> = {
@@ -50,18 +52,48 @@ function parseContact(contactJson: string | null | undefined): Record<string, st
   }
 }
 
-function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIsolate }: EdgeDetailsPanelProps) {
+const discoverySourceLabels: Record<string, string> = {
+  manual: 'Manual',
+  otlp_metric: 'OTLP Metric',
+  otlp_trace: 'Trace Discovered',
+};
+
+function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIsolate, onGraphRefresh }: EdgeDetailsPanelProps) {
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [currentView, setCurrentView] = useState<PanelView>('details');
+  const [actionPending, setActionPending] = useState(false);
 
   const healthStatus = getEdgeHealthStatus(data);
   const isHighLatency = data.isHighLatency ?? false;
   const hasError = data.error !== undefined || data.errorMessage;
   const hasCheckDetails = data.checkDetails && Object.keys(data.checkDetails).length > 0;
   const contact = parseContact(data.effectiveContact);
+  const isAutoSuggested = data.discoverySource === 'otlp_trace' && data.isAutoSuggested === true;
 
   // Display name: prefer canonical name, then linked service name, then raw name
   const displayName = data.canonicalName || sourceNode?.data.name || data.dependencyName || 'Connection';
+
+  const handleConfirm = useCallback(async () => {
+    if (!data.dependencyId || !data.associationId || actionPending) return;
+    setActionPending(true);
+    try {
+      await confirmAssociation(data.dependencyId, data.associationId);
+      onGraphRefresh?.();
+    } finally {
+      setActionPending(false);
+    }
+  }, [data.dependencyId, data.associationId, actionPending, onGraphRefresh]);
+
+  const handleDismiss = useCallback(async () => {
+    if (!data.dependencyId || !data.associationId || actionPending) return;
+    setActionPending(true);
+    try {
+      await dismissAssociation(data.dependencyId, data.associationId);
+      onGraphRefresh?.();
+    } finally {
+      setActionPending(false);
+    }
+  }, [data.dependencyId, data.associationId, actionPending, onGraphRefresh]);
 
   // Reset view when dependency changes
   useEffect(() => {
@@ -103,6 +135,11 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
             <div className={`${styles.statusBadge} ${styles.highLatency}`}>
               <span className={styles.statusDot} />
               High Latency
+            </div>
+          )}
+          {data.discoverySource && data.discoverySource !== 'manual' && (
+            <div className={`${styles.statusBadge} ${styles.discoverySource}`} data-testid="discovery-source-badge">
+              {discoverySourceLabels[data.discoverySource] ?? data.discoverySource}
             </div>
           )}
         </div>
@@ -246,6 +283,26 @@ function EdgeDetailsPanelComponent({ data, sourceNode, targetNode, onClose, onIs
       </div>
 
       <div className={styles.actions}>
+        {isAutoSuggested && data.dependencyId && data.associationId && (
+          <div className={styles.suggestionActions} data-testid="suggestion-actions">
+            <button
+              className={styles.confirmButton}
+              onClick={handleConfirm}
+              disabled={actionPending}
+            >
+              <Check size={14} />
+              Confirm
+            </button>
+            <button
+              className={styles.dismissButton}
+              onClick={handleDismiss}
+              disabled={actionPending}
+            >
+              <XIcon size={14} />
+              Dismiss
+            </button>
+          </div>
+        )}
         {onIsolate && data.dependencyId && (
           <button
             className={styles.isolateButton}

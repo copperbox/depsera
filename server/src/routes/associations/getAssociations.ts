@@ -30,6 +30,8 @@ export function getAssociations(req: Request, res: Response): void {
           dependency_id: row.dependency_id,
           linked_service_id: row.linked_service_id,
           association_type: row.association_type,
+          is_auto_suggested: row.is_auto_suggested,
+          is_dismissed: row.is_dismissed,
           manifest_managed: row.manifest_managed,
           created_at: row.created_at,
           linked_service: linkedService!,

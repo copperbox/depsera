@@ -361,6 +361,120 @@ describe('ManifestValidator', () => {
       expect(result.valid).toBe(false);
     });
 
+    // --- health_endpoint_format ---
+    it('accepts valid health_endpoint_format values', () => {
+      const formats = ['default', 'schema', 'prometheus', 'otlp'];
+      for (const format of formats) {
+        const svc = format === 'otlp'
+          ? validService({ health_endpoint_format: format, health_endpoint: undefined })
+          : validService({ health_endpoint_format: format });
+        const result = validateManifest({ version: 1, services: [svc] });
+        expect(result.errors.filter(e => e.path.includes('health_endpoint_format'))).toHaveLength(0);
+      }
+    });
+
+    it('rejects invalid health_endpoint_format value', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ health_endpoint_format: 'xml' })],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: 'services[0].health_endpoint_format',
+            message: expect.stringContaining('must be one of'),
+          }),
+        ]),
+      );
+    });
+
+    it('allows empty health_endpoint for OTLP format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ health_endpoint_format: 'otlp', health_endpoint: undefined })],
+      });
+      expect(result.errors.filter(e => e.path.includes('health_endpoint'))).toHaveLength(0);
+    });
+
+    it('allows missing health_endpoint for OTLP format', () => {
+      const svc = { key: 'otlp-svc', name: 'OTLP Service', health_endpoint_format: 'otlp' };
+      const result = validateManifest({ version: 1, services: [svc] });
+      expect(result.errors.filter(e => e.path.includes('health_endpoint') && !e.path.includes('format'))).toHaveLength(0);
+    });
+
+    it('rejects non-zero poll_interval_ms for OTLP format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ health_endpoint_format: 'otlp', health_endpoint: undefined, poll_interval_ms: 30000 })],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: 'services[0].poll_interval_ms',
+            message: expect.stringContaining('OTLP'),
+          }),
+        ]),
+      );
+    });
+
+    it('accepts poll_interval_ms of 0 for OTLP format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({ health_endpoint_format: 'otlp', health_endpoint: undefined, poll_interval_ms: 0 })],
+      });
+      expect(result.errors.filter(e => e.path.includes('poll_interval_ms'))).toHaveLength(0);
+    });
+
+    it('validates schema_config as MetricSchemaConfig for OTLP format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({
+          health_endpoint_format: 'otlp',
+          health_endpoint: undefined,
+          schema_config: { metrics: { up: 'healthy' }, labels: { service: 'name' } },
+        })],
+      });
+      expect(result.errors.filter(e => e.path.includes('schema_config'))).toHaveLength(0);
+    });
+
+    it('validates schema_config as MetricSchemaConfig for Prometheus format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({
+          health_endpoint_format: 'prometheus',
+          schema_config: { metrics: { up: 'healthy' }, labels: { service: 'name' } },
+        })],
+      });
+      expect(result.errors.filter(e => e.path.includes('schema_config'))).toHaveLength(0);
+    });
+
+    it('validates schema_config as SchemaMapping for schema format (existing behavior)', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({
+          health_endpoint_format: 'schema',
+          schema_config: { root: 'deps', fields: { name: 'name', healthy: 'ok' } },
+        })],
+      });
+      expect(result.errors.filter(e => e.path.includes('schema_config'))).toHaveLength(0);
+    });
+
+    it('rejects SchemaMapping schema_config for Prometheus format', () => {
+      const result = validateManifest({
+        version: 1,
+        services: [validService({
+          health_endpoint_format: 'prometheus',
+          schema_config: { root: 'deps', fields: { name: 'name', healthy: 'ok' } },
+        })],
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([expect.objectContaining({ path: 'services[0].schema_config' })]),
+      );
+    });
+
     // --- unknown fields ---
     it('warns on unknown service fields', () => {
       const result = validateManifest({

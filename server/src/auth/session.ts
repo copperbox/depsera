@@ -27,6 +27,7 @@ export const sessionMiddleware = session({
   secret: validateSessionSecret(),
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   cookie: {
     secure: 'auto',
     httpOnly: true,

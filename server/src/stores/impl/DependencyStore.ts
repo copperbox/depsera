@@ -12,6 +12,7 @@ import {
   DependencyListOptions,
   DependencyUpsertInput,
   DependencyOverrideInput,
+  DependencyUserEnrichmentInput,
   DependentReport,
 } from '../types';
 import { validateOrderBy } from '../orderByValidator';
@@ -47,7 +48,9 @@ export class DependencyStore implements IDependencyStore {
           d.*,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -93,7 +96,9 @@ export class DependencyStore implements IDependencyStore {
           d.error_message,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -124,7 +129,9 @@ export class DependencyStore implements IDependencyStore {
           d.error_message,
           s.name as service_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           (
             SELECT ROUND(AVG(latency_ms))
             FROM dependency_latency_history
@@ -148,7 +155,9 @@ export class DependencyStore implements IDependencyStore {
           s.team_id as service_team_id,
           t.name as service_team_name,
           da.linked_service_id as target_service_id,
+          da.id as association_id,
           da.association_type,
+          da.is_auto_suggested,
           ls.name as linked_service_name,
           (
             SELECT ROUND(AVG(latency_ms))
@@ -221,8 +230,9 @@ export class DependencyStore implements IDependencyStore {
           id, service_id, name, canonical_name, description, impact, type,
           healthy, health_state, health_code, latency_ms,
           contact, check_details, error, error_message, skipped,
+          discovery_source,
           last_checked, last_status_change, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(service_id, name) DO UPDATE SET
           canonical_name = excluded.canonical_name,
           description = excluded.description,
@@ -237,6 +247,10 @@ export class DependencyStore implements IDependencyStore {
           error = excluded.error,
           error_message = excluded.error_message,
           skipped = excluded.skipped,
+          discovery_source = CASE
+            WHEN dependencies.discovery_source = 'manual' THEN dependencies.discovery_source
+            ELSE excluded.discovery_source
+          END,
           last_checked = excluded.last_checked,
           last_status_change = CASE
             WHEN dependencies.healthy IS NULL OR dependencies.healthy != excluded.healthy
@@ -262,6 +276,7 @@ export class DependencyStore implements IDependencyStore {
         errorJson,
         input.error_message ?? null,
         skippedValue,
+        input.discovery_source ?? 'manual',
         input.last_checked,
         now,
         now,
@@ -293,6 +308,43 @@ export class DependencyStore implements IDependencyStore {
     if ('impact_override' in overrides) {
       setClauses.push('impact_override = ?');
       params.push(overrides.impact_override ?? null);
+    }
+
+    params.push(id);
+
+    this.db
+      .prepare(`UPDATE dependencies SET ${setClauses.join(', ')} WHERE id = ?`)
+      .run(...params);
+
+    return this.findById(id)!;
+  }
+
+  findByDiscoverySource(serviceId: string, source: string): Dependency[] {
+    return this.db
+      .prepare('SELECT * FROM dependencies WHERE service_id = ? AND discovery_source = ? ORDER BY name ASC')
+      .all(serviceId, source) as Dependency[];
+  }
+
+  updateUserEnrichment(id: string, enrichment: DependencyUserEnrichmentInput): Dependency | undefined {
+    const existing = this.findById(id);
+    if (!existing) return undefined;
+
+    const setClauses: string[] = ['updated_at = ?'];
+    const params: unknown[] = [new Date().toISOString()];
+
+    if ('displayName' in enrichment) {
+      setClauses.push('user_display_name = ?');
+      params.push(enrichment.displayName ?? null);
+    }
+
+    if ('description' in enrichment) {
+      setClauses.push('user_description = ?');
+      params.push(enrichment.description ?? null);
+    }
+
+    if ('impact' in enrichment) {
+      setClauses.push('user_impact = ?');
+      params.push(enrichment.impact ?? null);
     }
 
     params.push(id);

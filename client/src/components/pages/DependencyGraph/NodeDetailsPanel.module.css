@@ -460,3 +460,11 @@
 .viewDetailsButton:hover {
   background: var(--color-accent-hover);
 }
+
+/* Impact text */
+.impactText {
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+}

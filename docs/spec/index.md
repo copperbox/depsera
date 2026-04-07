@@ -9,11 +9,11 @@
 | # | File | Topics | Keywords |
 |---|---|---|---|
 | 1 | [01-architecture.md](./01-architecture.md) | Monorepo layout, runtime topology, request flow, key design decisions | architecture, monorepo, Express, Vite, SQLite, topology, proxy, request flow |
-| 2 | [02-data-model.md](./02-data-model.md) | Database config, all table definitions, type enums, migration history | database, schema, tables, columns, migrations, SQLite, ERD, types, enums, foreign keys |
+| 2 | [02-data-model.md](./02-data-model.md) | Database config, all table definitions, type enums, migration history, spans, app settings, external node enrichment | database, schema, tables, columns, migrations, SQLite, ERD, types, enums, foreign keys, spans, discovery_source, percentiles, retention |
 | 3 | [03-auth.md](./03-auth.md) | OIDC flow, local auth, sessions, CSRF, RBAC, middleware | authentication, authorization, OIDC, PKCE, login, logout, session, CSRF, roles, middleware, local auth, passwords |
 | 4 | [04-api-reference.md](./04-api-reference.md) | All REST API endpoints, request/response shapes, validation rules | API, endpoints, routes, REST, request, response, CRUD, services, teams, users, aliases, associations, graph, latency, errors, admin, alerts, wallboard, overrides |
-| 5 | [05-health-polling.md](./05-health-polling.md) | Polling lifecycle, circuit breaker, backoff, TTL cache, host rate limiter, deduplication, dependency parsing, events | polling, health check, circuit breaker, backoff, TTL, cache, rate limiter, deduplication, dependency parsing, events, upsert |
-| 6 | [06-dependency-graph.md](./06-dependency-graph.md) | Graph building, node types, edge construction, upstream traversal | graph, nodes, edges, external nodes, traversal, subgraph, React Flow |
+| 5 | [05-health-polling.md](./05-health-polling.md) | Polling lifecycle, circuit breaker, backoff, TTL cache, host rate limiter, deduplication, dependency parsing, events, format-aware dispatch, Prometheus parsing, OTLP exclusion, trace ingestion, histogram/sum processing, auto-association | polling, health check, circuit breaker, backoff, TTL, cache, rate limiter, deduplication, dependency parsing, events, upsert, prometheus, otlp, format, traces, histogram, percentiles, auto-association |
+| 6 | [06-dependency-graph.md](./06-dependency-graph.md) | Graph building, node types, edge construction, upstream traversal, discovery source styling, external node enrichment | graph, nodes, edges, external nodes, traversal, subgraph, React Flow, discovery source, auto-suggested, enrichment |
 | 8 | [08-ssrf.md](./08-ssrf.md) | Blocked IP ranges, two-step validation, allowlist | SSRF, security, IP ranges, DNS rebinding, allowlist, private networks |
 | 9 | [09-security.md](./09-security.md) | Security headers, HTTPS redirect, rate limiting, redirect validation, middleware order | security, headers, Helmet, CSP, HTTPS, rate limiting, middleware order |
 | 10 | [10-client-architecture.md](./10-client-architecture.md) | Routing, context providers, API client pattern, custom hooks, localStorage keys | client, React, routing, AuthContext, ThemeContext, hooks, localStorage, API client |
@@ -35,6 +35,8 @@ When working on a task, use these mappings to find the right sections:
 - **Alert system changes** → 12 (Planned Features §12.6) + 04 (API Reference §4.11)
 - **Frontend component changes** → 10 (Client Architecture) + 04 (API Reference)
 - **Configuration/env var changes** → 11 (Configuration)
+- **OTLP / Prometheus ingestion** → 04 (API Reference §4.18) + 05 (Health Polling §5.7) + 03 (Auth §3.8) + 02 (Data Model: team_api_keys)
+- **API key management** → 03 (Auth §3.8) + 04 (API Reference §4.4 Team API Keys) + 13 (Store Layer: ITeamApiKeyStore)
 - **Schema mapping / custom health endpoints** → 12 (Planned Features §12.5) + 05 (Health Polling)
 - **Manifest sync / drift detection** → 15 (Manifest Sync) + 13 (Store Layer) + 08 (SSRF) + [Manifest Schema Reference](../manifest-schema.md)
 - **Deployment / Docker** → 12 (Planned Features §12.9) + 11 (Configuration)

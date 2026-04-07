@@ -5,6 +5,7 @@ import {
   DependencyListOptions,
   DependencyUpsertInput,
   DependencyOverrideInput,
+  DependencyUserEnrichmentInput,
   DependentReport,
 } from '../types';
 
@@ -65,9 +66,16 @@ export interface IDependencyStore {
    */
   findDependentReports(serviceId: string): DependentReport[];
 
+  /**
+   * Find dependencies for a service filtered by discovery source.
+   * Used for listing trace-discovered dependencies.
+   */
+  findByDiscoverySource(serviceId: string, source: string): Dependency[];
+
   // Write operations
   upsert(input: DependencyUpsertInput): UpsertResult;
   updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined;
+  updateUserEnrichment(id: string, enrichment: DependencyUserEnrichmentInput): Dependency | undefined;
   delete(id: string): boolean;
   deleteByServiceId(serviceId: string): number;
 

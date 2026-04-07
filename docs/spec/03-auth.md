@@ -83,8 +83,13 @@ interface SessionData {
 | Expired session cleanup | Every 15 minutes |
 | resave | `false` |
 | saveUninitialized | `false` |
+| rolling | `true` (resets maxAge on each response — session expires after 24h of inactivity, not 24h from login) |
 
 **Startup warning:** `warnInsecureCookies()` logs a warning if `NODE_ENV` is not `development` and neither `REQUIRE_HTTPS` nor `TRUST_PROXY` is configured, since the `'auto'` secure flag will resolve to `false`, sending cookies over HTTP.
+
+### Session Expiration Handling (Client)
+
+When an API call returns HTTP 401, `handleResponse()` dispatches a `window` event (`auth:expired`). The `AuthProvider` listens for this event and clears the user state, which causes `ProtectedRoute` to redirect to `/login`. This ensures users are automatically redirected to the login page when their session expires mid-use, without requiring a page reload.
 
 ## 3.4 Session Secret Validation **[Implemented]**
 
@@ -167,3 +172,30 @@ A local authentication mode for zero-external-dependency deployment:
 - `GET /api/auth/mode` returns `{ mode: "oidc" | "local" }` (public, no auth required)
 - Client login page conditionally renders local auth form or OIDC button based on `GET /api/auth/mode` **[Implemented]** (PRO-100)
 - Admin can create users and reset passwords via API **[Implemented]** (PRO-101). `POST /api/users` creates a local user; `PUT /api/users/:id/password` resets password. Both gated by `requireLocalAuth`.
+
+## 3.8 API Key Authentication **[Implemented]**
+
+Team-scoped API keys for authenticating OTLP metric push requests from OpenTelemetry collectors.
+
+### Key Format
+
+- Format: `dps_` + 32 random hex characters (e.g., `dps_a1b2c3d4e5f6...`)
+- Generated via `crypto.randomBytes(16).toString('hex')`
+- Stored as SHA-256 hash (`key_hash`); raw key returned only once at creation
+- `key_prefix` stores first 8 characters for UI display
+
+### `requireApiKeyAuth` Middleware
+
+Authenticates requests via `Authorization: Bearer dps_...` header:
+
+1. Extracts token from `Authorization: Bearer <token>` header
+2. Computes SHA-256 hash of the raw token
+3. Looks up `team_api_keys` by `key_hash`
+4. On success: sets `req.apiKeyTeamId` to the key's `team_id` and `req.apiKeyId` to the key's `id`, updates `last_used_at` asynchronously
+5. On failure: returns `401 { error: "..." }`
+
+**Key differences from session auth:**
+- Bypasses CSRF validation (collectors don't have CSRF tokens)
+- Bypasses session middleware (mounted before session layer in middleware order)
+- Does not set `req.user` — only `req.apiKeyTeamId` and `req.apiKeyId`
+- Used exclusively for `POST /v1/metrics` (OTLP receiver endpoint)

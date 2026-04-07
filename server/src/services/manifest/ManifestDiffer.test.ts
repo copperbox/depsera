@@ -40,6 +40,7 @@ function makeService(
     manifest_managed: 1,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -457,6 +458,43 @@ describe('ManifestDiffer', () => {
 
       expect(result.toUpdate).toHaveLength(1);
       expect(result.toUpdate[0].fields_changed).toContain('poll_interval_ms');
+    });
+  });
+
+  // =========================================================================
+  // health_endpoint_format drift detection
+  // =========================================================================
+  describe('health_endpoint_format drift detection', () => {
+    it('detects health_endpoint_format changes', () => {
+      const entry = makeManifestEntry({
+        health_endpoint_format: 'prometheus',
+      });
+      const existing = makeService({
+        health_endpoint_format: 'default',
+        manifest_last_synced_values: lastSynced({
+          name: 'Service A',
+          health_endpoint: 'https://svc-a.example.com/health',
+          health_endpoint_format: 'default',
+        }),
+      });
+
+      const result = diffManifest([entry], [existing], makePolicy());
+
+      expect(result.toUpdate).toHaveLength(1);
+      expect(result.toUpdate[0].fields_changed).toContain('health_endpoint_format');
+    });
+
+    it('treats matching health_endpoint_format as unchanged', () => {
+      const entry = makeManifestEntry({
+        health_endpoint_format: 'prometheus',
+      });
+      const existing = makeService({
+        health_endpoint_format: 'prometheus',
+      });
+
+      const result = diffManifest([entry], [existing], makePolicy());
+
+      expect(result.unchanged).toEqual(['svc-id-1']);
     });
   });
 

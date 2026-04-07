@@ -34,6 +34,7 @@ describe('ServicePoller', () => {
     manifest_managed: 0,
     manifest_config_id: null,
     manifest_last_synced_values: null,
+    health_endpoint_format: 'default',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -214,6 +215,107 @@ describe('ServicePoller', () => {
       poller.updateService(updatedService);
 
       expect(poller.serviceName).toBe('Updated Service');
+    });
+  });
+
+  describe('format-aware fetching', () => {
+    it('should use Accept: text/plain for prometheus format', async () => {
+      const service = createService({ health_endpoint_format: 'prometheus' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: jest.fn().mockResolvedValue('dependency_health_status{name="db"} 0'),
+      });
+
+      await poller.poll();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test-service/health',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Accept': 'text/plain; version=0.0.4',
+          }),
+        })
+      );
+    });
+
+    it('should parse prometheus response as text not JSON', async () => {
+      const promText = 'dependency_health_status{name="db"} 0';
+      const mockTextFn = jest.fn().mockResolvedValue(promText);
+      const service = createService({ health_endpoint_format: 'prometheus' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: mockTextFn,
+        json: jest.fn(),
+      });
+
+      await poller.poll();
+
+      expect(mockTextFn).toHaveBeenCalled();
+    });
+
+    it('should use Accept: application/json for default format', async () => {
+      const service = createService({ health_endpoint_format: 'default' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue([]),
+      });
+
+      await poller.poll();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test-service/health',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Accept': 'application/json',
+          }),
+        })
+      );
+    });
+
+    it('should use Accept: application/json for schema format', async () => {
+      const service = createService({ health_endpoint_format: 'schema' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValue({}),
+      });
+
+      await poller.poll();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test-service/health',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Accept': 'application/json',
+          }),
+        })
+      );
+    });
+
+    it('should pass format to parser.parse()', async () => {
+      const service = createService({ health_endpoint_format: 'prometheus' });
+      const poller = new ServicePoller(service, mockParser, mockUpsertService);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: jest.fn().mockResolvedValue(''),
+      });
+
+      await poller.poll();
+
+      expect(mockParser.parse).toHaveBeenCalledWith(
+        '',
+        null,
+        'Test Service',
+        'prometheus'
+      );
     });
   });
 });

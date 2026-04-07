@@ -55,25 +55,56 @@ export class AssociationStore implements IAssociationStore {
     return row !== undefined;
   }
 
+  findAutoSuggested(dependencyId: string): DependencyAssociation[] {
+    return this.db
+      .prepare(
+        'SELECT * FROM dependency_associations WHERE dependency_id = ? AND is_auto_suggested = 1 AND is_dismissed = 0'
+      )
+      .all(dependencyId) as DependencyAssociation[];
+  }
+
   create(input: AssociationCreateInput): DependencyAssociation {
     const id = randomUUID();
     const now = new Date().toISOString();
+    const isAutoSuggested = input.is_auto_suggested ? 1 : 0;
 
     this.db
       .prepare(`
         INSERT INTO dependency_associations (
-          id, dependency_id, linked_service_id, association_type, manifest_managed, created_at
-        ) VALUES (?, ?, ?, ?, 0, ?)
+          id, dependency_id, linked_service_id, association_type, is_auto_suggested, manifest_managed, created_at
+        ) VALUES (?, ?, ?, ?, ?, 0, ?)
       `)
       .run(
         id,
         input.dependency_id,
         input.linked_service_id,
         input.association_type,
+        isAutoSuggested,
         now
       );
 
     return this.findById(id)!;
+  }
+
+  confirm(id: string): boolean {
+    const result = this.db
+      .prepare('UPDATE dependency_associations SET is_auto_suggested = 0 WHERE id = ?')
+      .run(id);
+    return result.changes > 0;
+  }
+
+  dismiss(id: string): boolean {
+    const result = this.db
+      .prepare('UPDATE dependency_associations SET is_dismissed = 1 WHERE id = ?')
+      .run(id);
+    return result.changes > 0;
+  }
+
+  deleteOldDismissed(olderThan: string): number {
+    const result = this.db
+      .prepare('DELETE FROM dependency_associations WHERE is_dismissed = 1 AND created_at < ?')
+      .run(olderThan);
+    return result.changes;
   }
 
   delete(id: string): boolean {

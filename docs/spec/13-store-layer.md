@@ -24,6 +24,11 @@ class StoreRegistry {
   public readonly manifestConfig: IManifestConfigStore;
   public readonly manifestSyncHistory: IManifestSyncHistoryStore;
   public readonly driftFlags: IDriftFlagStore;
+  public readonly teamApiKeys: ITeamApiKeyStore;
+  public readonly apiKeyUsage: IApiKeyUsageStore;
+  public readonly spans: ISpanStore;
+  public readonly appSettings: IAppSettingsStore;
+  public readonly externalNodeEnrichment: IExternalNodeEnrichmentStore;
 
   static getInstance(): StoreRegistry;        // Singleton for production
   static create(database): StoreRegistry;     // Scoped instance for testing
@@ -101,11 +106,17 @@ findExistingByServiceId(serviceId: string): ExistingDependency[]
 findDependentReports(serviceId: string): DependentReport[]
 upsert(input: DependencyUpsertInput): UpsertResult
 updateOverrides(id: string, overrides: DependencyOverrideInput): Dependency | undefined
+updateUserEnrichment(id: string, enrichment: DependencyUserEnrichmentInput): Dependency | undefined
+findByDiscoverySource(serviceId: string, source: string): Dependency[]
 delete(id: string): boolean
 deleteByServiceId(serviceId: string): number
 exists(id: string): boolean
 count(options?: DependencyListOptions): number
 ```
+
+`DependencyUserEnrichmentInput`: `{ user_display_name?: string | null; user_description?: string | null; user_impact?: string | null }`. Targeted UPDATE that only touches user enrichment columns and `updated_at`. Returns `undefined` if dependency not found.
+
+`findByDiscoverySource(serviceId, source)`: Returns all dependencies for a service filtered by `discovery_source`. Used by the discovered dependencies list endpoint.
 
 `DependencyOverrideInput`: `{ contact_override?: string | null; impact_override?: string | null }`. Targeted UPDATE that only touches `contact_override`, `impact_override`, and `updated_at` — does not interfere with polled data columns. Returns `undefined` if dependency not found. Passing a key with `null` clears that override; omitting a key leaves it unchanged.
 
@@ -117,23 +128,48 @@ findById(id: string): DependencyAssociation | undefined
 findByDependencyId(dependencyId: string): DependencyAssociation[]
 findByDependencyIdWithService(dependencyId: string): AssociationWithService[]
 findByLinkedServiceId(linkedServiceId: string): DependencyAssociation[]
+findAutoSuggested(dependencyId: string): DependencyAssociation[]
 existsForDependencyAndService(dependencyId: string, linkedServiceId: string): boolean
 create(input: AssociationCreateInput): DependencyAssociation
+confirm(id: string): boolean
+dismiss(id: string): boolean
 delete(id: string): boolean
 deleteByDependencyId(dependencyId: string): number
+deleteOldDismissed(olderThan: string): number
 exists(id: string): boolean
 count(options?: AssociationListOptions): number
 ```
 
+`findAutoSuggested(dependencyId)`: Returns associations where `is_auto_suggested = 1` and `is_dismissed = 0`.
+
+`confirm(id)`: Sets `is_auto_suggested = 0` (promotes to confirmed). Returns false if not found.
+
+`dismiss(id)`: Sets `is_dismissed = 1`. Returns false if not found. Dismissed associations are never re-suggested.
+
+`deleteOldDismissed(olderThan)`: Deletes associations where `is_dismissed = 1 AND created_at < ?`. Used by `DataRetentionService`.
+
+`AssociationCreateInput`: extended with optional `is_auto_suggested?: boolean` for trace-discovered associations.
+
 ### ILatencyHistoryStore
 ```typescript
 record(dependencyId: string, latencyMs: number, timestamp: string): DependencyLatencyHistory
+recordWithPercentiles(dependencyId: string, latencyMs: number, percentiles: PercentileInput, timestamp: string, source: string): DependencyLatencyHistory
 getStats24h(dependencyId: string): LatencyStats
 getAvgLatency24h(dependencyId: string): number | null
 getHistory(dependencyId: string, options?: { startTime?: string; endTime?: string; limit?: number }): LatencyDataPoint[]
+getLatencyBuckets(dependencyId: string, range: LatencyRange): LatencyBucket[]
+getAggregateLatencyBuckets(dependencyIds: string[], range: LatencyRange): LatencyBucket[]
 deleteOlderThan(timestamp: string): number
 deleteByDependencyId(dependencyId: string): number
 ```
+
+`PercentileInput`: `{ p50?: number; p95?: number; p99?: number; min?: number; max?: number; requestCount?: number }`.
+
+`recordWithPercentiles`: Stores a latency data point with percentile breakdown. `source` indicates origin (e.g., `'otlp_histogram'`). Used when histogram data is available from OTLP metric pushes.
+
+`LatencyBucket`: `{ timestamp, min, avg, max, count, avg_p50?, avg_p95?, avg_p99? }`. Time-bucketed aggregations with optional averaged percentiles.
+
+`LatencyRange`: `'1h' | '6h' | '24h' | '7d' | '30d'`. Determines bucket granularity (1min for 1h, 5min for 6h, 30min for 24h, 6h for 7d, 1d for 30d).
 
 ### IErrorHistoryStore
 ```typescript
@@ -319,3 +355,96 @@ deleteOlderThan(timestamp: string, statuses?: DriftFlagStatus[]): number
 - `upsertRemovalDrift`: pending or dismissed exists → update last_detected_at (stay in current status); not found → create new
 
 `deleteOlderThan` supports optional status filter array for targeted cleanup (e.g., only delete terminal statuses like `accepted`, `resolved`).
+
+### ITeamApiKeyStore **[Implemented]**
+```typescript
+findByTeamId(teamId: string): TeamApiKey[]
+findByKeyHash(hash: string): TeamApiKey | undefined
+findById(id: string): TeamApiKey | undefined
+create(input: CreateTeamApiKeyInput): TeamApiKey & { rawKey: string }
+delete(id: string): boolean
+updateLastUsed(id: string): void
+updateRateLimit(id: string, rateLimit: number | null): TeamApiKey
+setAdminLock(id: string, locked: boolean, rateLimit?: number | null): TeamApiKey
+```
+
+`CreateTeamApiKeyInput`: `{ team_id: string; name: string; created_by?: string }`. Generates a UUID `id`, raw key (`dps_` + 16 random hex bytes), SHA-256 hash, and 8-character prefix. Returns the full `TeamApiKey` record plus `rawKey` (shown once, never stored).
+
+`findByTeamId` returns keys sorted by `created_at DESC`.
+
+`findByKeyHash` is the primary lookup used during authentication — indexed for fast access.
+
+`findById` is used by the per-key rate limiter to look up the key's effective rate limit and by the rate limit management endpoints.
+
+`updateLastUsed` sets `last_used_at` to current timestamp. Called asynchronously during API key auth (non-critical failure).
+
+`updateRateLimit` sets `rate_limit_rpm` to the given value (positive integer, null for system default). Returns the updated `TeamApiKey`. Used by both team-level and admin rate limit endpoints.
+
+`setAdminLock` sets `rate_limit_admin_locked` (0 or 1) and optionally updates `rate_limit_rpm` in the same operation (uses SQL `COALESCE` to skip rate limit update when not provided). Returns the updated `TeamApiKey`. Admin-only.
+
+### IApiKeyUsageStore **[Implemented]**
+```typescript
+bulkUpsert(entries: BulkUpsertEntry[]): void
+getBuckets(apiKeyId: string, granularity: 'minute' | 'hour', from: string, to: string): ApiKeyUsageBucket[]
+getBucketsByTeam(teamId: string, granularity: 'minute' | 'hour', from: string, to: string): (ApiKeyUsageBucket & { key_name: string; key_prefix: string })[]
+getAllBuckets(granularity: 'minute' | 'hour', from: string, to: string): (ApiKeyUsageBucket & { team_id: string; key_name: string })[]
+getSummaryForKeys(apiKeyIds: string[], from: string, to: string): Map<string, { push_count: number; rejected_count: number }>
+pruneMinuteBuckets(olderThan: string): number
+pruneHourBuckets(olderThan: string): number
+pruneOrphanedBuckets(olderThan: string): number
+```
+
+`BulkUpsertEntry`: `{ api_key_id: string; bucket_start: string; granularity: 'minute' | 'hour'; push_count: number; rejected_count: number }`. Uses `INSERT ... ON CONFLICT DO UPDATE SET push_count = push_count + excluded.push_count, rejected_count = rejected_count + excluded.rejected_count` for atomic accumulation.
+
+`getBuckets` returns time-series buckets for a single key, ordered by `bucket_start ASC`.
+
+`getBucketsByTeam` joins through `team_api_keys` to return buckets for all keys belonging to a team, enriched with key metadata.
+
+`getAllBuckets` returns buckets across all keys (admin dashboard), enriched with `team_id` and `key_name`.
+
+`getSummaryForKeys` returns aggregated `push_count` and `rejected_count` totals for a set of key IDs within a time range. Used by the OTLP stats endpoints for usage summaries (1h, 24h, 7d windows).
+
+**Retention pruning:**
+- `pruneMinuteBuckets(olderThan)` — deletes minute-granularity buckets older than the given timestamp (24h retention)
+- `pruneHourBuckets(olderThan)` — deletes hour-granularity buckets older than the given timestamp (30d retention)
+- `pruneOrphanedBuckets(olderThan)` — deletes buckets where `api_key_id` no longer exists in `team_api_keys` and `bucket_start` is older than the given timestamp (7d grace period)
+
+### ISpanStore **[Implemented]**
+```typescript
+bulkInsert(spans: CreateSpanInput[]): number
+findByTraceId(traceId: string): Span[]
+findByServiceName(serviceName: string, options?: { since?: string; limit?: number }): Span[]
+deleteOlderThan(timestamp: string): number
+```
+
+`bulkInsert`: Inserts multiple spans in a transaction using a prepared statement for batch performance. Generates UUIDs for each span. Returns the number of spans inserted.
+
+`findByTraceId`: Returns all spans for a trace ordered by `start_time ASC`. Used for trace timeline reconstruction.
+
+`findByServiceName`: Returns spans filtered by service name, optionally filtered by `since` timestamp. Default limit 1000, ordered by `start_time DESC`.
+
+`deleteOlderThan`: Deletes spans where `created_at < timestamp`. Used by `DataRetentionService` for configurable span retention cleanup.
+
+### IAppSettingsStore **[Implemented]**
+```typescript
+get(key: string): string | undefined
+set(key: string, value: string, updatedBy?: string): void
+```
+
+Simple key-value store for admin-configurable settings. `get` returns `undefined` for missing keys. `set` uses `INSERT OR REPLACE` (upsert semantics). Used by `DataRetentionService` to read `span_retention_days` and by the admin settings endpoints.
+
+### IExternalNodeEnrichmentStore **[Implemented]**
+```typescript
+findByCanonicalName(name: string): ExternalNodeEnrichment | undefined
+findAll(): ExternalNodeEnrichment[]
+upsert(input: UpsertExternalNodeEnrichmentInput): ExternalNodeEnrichment
+delete(id: string): boolean
+```
+
+`findByCanonicalName`: Exact match lookup by canonical name.
+
+`findAll`: Returns all enrichment records ordered by `canonical_name`.
+
+`upsert`: Uses `INSERT ... ON CONFLICT(canonical_name) DO UPDATE` for idempotent creates/updates. Returns the created or updated record.
+
+`delete`: Hard deletes by ID. Returns false if not found.

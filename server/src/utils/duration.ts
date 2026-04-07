@@ -32,6 +32,6 @@ export function parseDuration(duration: string): Date {
     throw new Error('Duration value must be positive');
   }
 
-  const ms = value * UNIT_MS[unit];
+  const ms = value * UNIT_MS[unit]; // eslint-disable-line security/detect-object-injection
   return new Date(Date.now() + ms);
 }

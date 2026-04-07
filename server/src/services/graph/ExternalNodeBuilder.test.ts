@@ -26,6 +26,10 @@ function createDep(
     check_details: null,
     error: null,
     error_message: null,
+    discovery_source: 'manual',
+    user_display_name: null,
+    user_description: null,
+    user_impact: null,
     skipped: 0,
     last_checked: '2024-01-01T00:00:00Z',
     last_status_change: null,
@@ -33,8 +37,10 @@ function createDep(
     updated_at: '2024-01-01T00:00:00Z',
     service_name: 'Test Service',
     target_service_id: targetServiceId,
+    association_id: null,
     association_type: null,
     avg_latency_24h: null,
+    is_auto_suggested: null,
   };
 }
 
@@ -170,6 +176,84 @@ describe('ExternalNodeBuilder', () => {
 
       const data = ExternalNodeBuilder.buildNodeData('Redis', deps);
       expect(data.serviceType).toBe('cache');
+    });
+  });
+
+  describe('applyEnrichment', () => {
+    const baseNodeData = ExternalNodeBuilder.buildNodeData('Redis', [createDep('svc-1', 'Redis')]);
+
+    it('should overlay display_name as name', () => {
+      const enrichment = {
+        id: 'enr-1',
+        canonical_name: 'redis',
+        display_name: 'Production Redis',
+        description: null,
+        impact: null,
+        contact: null,
+        service_type: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      };
+
+      const result = ExternalNodeBuilder.applyEnrichment(baseNodeData, enrichment);
+      expect(result.name).toBe('Production Redis');
+    });
+
+    it('should overlay service_type as serviceType', () => {
+      const enrichment = {
+        id: 'enr-1',
+        canonical_name: 'redis',
+        display_name: null,
+        description: null,
+        impact: null,
+        contact: null,
+        service_type: 'cache',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      };
+
+      const result = ExternalNodeBuilder.applyEnrichment(baseNodeData, enrichment);
+      expect(result.serviceType).toBe('cache');
+    });
+
+    it('should include enriched description, impact, and contact', () => {
+      const enrichment = {
+        id: 'enr-1',
+        canonical_name: 'redis',
+        display_name: null,
+        description: 'Shared cache cluster',
+        impact: 'Session data unavailable',
+        contact: '{"team":"platform"}',
+        service_type: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      };
+
+      const result = ExternalNodeBuilder.applyEnrichment(baseNodeData, enrichment);
+      expect(result.enrichedDescription).toBe('Shared cache cluster');
+      expect(result.enrichedImpact).toBe('Session data unavailable');
+      expect(result.enrichedContact).toBe('{"team":"platform"}');
+    });
+
+    it('should not override name when display_name is null', () => {
+      const enrichment = {
+        id: 'enr-1',
+        canonical_name: 'redis',
+        display_name: null,
+        description: null,
+        impact: null,
+        contact: null,
+        service_type: null,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      };
+
+      const result = ExternalNodeBuilder.applyEnrichment(baseNodeData, enrichment);
+      expect(result.name).toBe('Redis');
     });
   });
 

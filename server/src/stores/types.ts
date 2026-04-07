@@ -7,6 +7,7 @@ import {
   AssociationType,
   TeamMemberRole,
   HealthState,
+  HealthEndpointFormat,
 } from '../db/types';
 
 // Database context for dependency injection
@@ -74,8 +75,10 @@ export interface DependencyWithResolvedOverrides extends Dependency {
 export interface DependencyWithTarget extends Dependency {
   service_name: string;
   target_service_id: string | null;
+  association_id: string | null;
   association_type: AssociationType | null;
   avg_latency_24h: number | null;
+  is_auto_suggested: number | null;
 }
 
 /**
@@ -151,6 +154,7 @@ export interface ServiceCreateInput {
   poll_interval_ms?: number;
   is_external?: boolean;
   description?: string | null;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface ServiceUpdateInput {
@@ -162,6 +166,7 @@ export interface ServiceUpdateInput {
   poll_interval_ms?: number;
   is_active?: boolean;
   description?: string | null;
+  health_endpoint_format?: HealthEndpointFormat;
 }
 
 export interface TeamCreateInput {
@@ -210,11 +215,18 @@ export interface DependencyUpsertInput {
   error_message?: string | null;
   skipped?: boolean;
   last_checked: string;
+  discovery_source?: 'manual' | 'otlp_metric' | 'otlp_trace';
 }
 
 export interface DependencyOverrideInput {
   contact_override?: string | null;
   impact_override?: string | null;
+}
+
+export interface DependencyUserEnrichmentInput {
+  displayName?: string | null;
+  description?: string | null;
+  impact?: string | null;
 }
 
 /**
@@ -231,4 +243,5 @@ export interface AssociationCreateInput {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
+  is_auto_suggested?: boolean;
 }

@@ -52,11 +52,19 @@ describe('GraphService', () => {
     delete: jest.fn(),
   };
 
+  const mockExternalNodeEnrichmentStore = {
+    findAll: jest.fn().mockReturnValue([]),
+    findByCanonicalName: jest.fn(),
+    upsert: jest.fn(),
+    delete: jest.fn(),
+  };
+
   const mockStores = {
     services: mockServiceStore,
     dependencies: mockDependencyStore,
     teams: mockTeamStore,
     canonicalOverrides: mockCanonicalOverrideStore,
+    externalNodeEnrichment: mockExternalNodeEnrichmentStore,
   } as unknown as StoreRegistry;
 
   beforeEach(() => {
@@ -79,6 +87,56 @@ describe('GraphService', () => {
       expect(mockDependencyStore.findAllWithAssociationsAndLatency).toHaveBeenCalledWith({
         activeServicesOnly: true,
       });
+    });
+
+    it('should apply external node enrichment from store', () => {
+      const service = createService('svc-1', 'User Service');
+      const dep = createDependency('svc-1', null, 'cache');
+      dep.name = 'Redis';
+
+      mockServiceStore.findActiveWithTeam.mockReturnValue([service]);
+      mockDependencyStore.findAllWithAssociationsAndLatency.mockReturnValue([dep]);
+      mockExternalNodeEnrichmentStore.findAll.mockReturnValue([{
+        id: 'enr-1',
+        canonical_name: 'Redis',
+        display_name: 'Production Redis Cluster',
+        description: 'Shared cache',
+        impact: 'Session data loss',
+        contact: '{"team":"platform"}',
+        service_type: 'cache',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        updated_by: null,
+      }]);
+
+      const graphService = new GraphService(undefined, mockStores);
+      const result = graphService.getFullGraph();
+
+      const externalNode = result.nodes.find(n => n.data.isExternal);
+      expect(externalNode).toBeDefined();
+      expect(externalNode!.data.name).toBe('Production Redis Cluster');
+      expect(externalNode!.data.serviceType).toBe('cache');
+      expect(externalNode!.data.enrichedDescription).toBe('Shared cache');
+      expect(externalNode!.data.enrichedImpact).toBe('Session data loss');
+      expect(externalNode!.data.enrichedContact).toBe('{"team":"platform"}');
+    });
+
+    it('should include discovery source on graph edges', () => {
+      const service1 = createService('svc-1', 'User Service');
+      const service2 = createService('svc-2', 'DB Service');
+      const dep = createDependency('svc-1', 'svc-2', 'database');
+      dep.discovery_source = 'otlp_trace';
+      dep.is_auto_suggested = 1;
+
+      mockServiceStore.findActiveWithTeam.mockReturnValue([service1, service2]);
+      mockDependencyStore.findAllWithAssociationsAndLatency.mockReturnValue([dep]);
+
+      const graphService = new GraphService(undefined, mockStores);
+      const result = graphService.getFullGraph();
+
+      expect(result.edges).toHaveLength(1);
+      expect(result.edges[0].data.discoverySource).toBe('otlp_trace');
+      expect(result.edges[0].data.isAutoSuggested).toBe(true);
     });
   });
 
@@ -428,6 +486,7 @@ function createService(id: string, name: string): ServiceWithTeam {
     is_active: 1,
     is_external: 0,
     description: null,
+    health_endpoint_format: 'default',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   };
@@ -456,6 +515,10 @@ function createDependency(
     check_details: null,
     error: null,
     error_message: null,
+    discovery_source: 'manual',
+    user_display_name: null,
+    user_description: null,
+    user_impact: null,
     skipped: 0,
     last_checked: '2024-01-01T00:00:00Z',
     last_status_change: null,
@@ -463,7 +526,9 @@ function createDependency(
     updated_at: '2024-01-01T00:00:00Z',
     service_name: 'Test Service',
     target_service_id: targetServiceId,
+    association_id: null,
     association_type: 'api_call',
     avg_latency_24h: null,
+    is_auto_suggested: null,
   };
 }

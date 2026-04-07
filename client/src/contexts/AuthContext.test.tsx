@@ -416,6 +416,30 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('user')).toHaveTextContent('New User');
     });
   });
+
+  it('clears user when auth:expired event is dispatched', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: '1', name: 'Test User', role: 'user' }),
+    });
+
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated')).toHaveTextContent('yes');
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event('auth:expired'));
+    });
+
+    expect(screen.getByTestId('authenticated')).toHaveTextContent('no');
+    expect(screen.getByTestId('user')).toHaveTextContent('none');
+  });
 });
 
 describe('useAuth', () => {

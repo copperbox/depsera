@@ -31,12 +31,12 @@ describe('App', () => {
     expect(await screen.findByText('Sign in to continue')).toBeInTheDocument();
   });
 
-  it('shows the dashboard title on login page', async () => {
+  it('shows the logo on login page', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: false, status: 401, json: () => Promise.resolve({}) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve({ mode: 'oidc' }) });
 
     renderApp();
-    expect(await screen.findByRole('heading', { name: 'Depsera' })).toBeInTheDocument();
+    expect(await screen.findByAltText('Depsera')).toBeInTheDocument();
   });
 });

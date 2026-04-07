@@ -9,6 +9,7 @@ import { deleteService } from './delete';
 import { pollServiceNow } from './poll';
 import { testSchema } from './testSchema';
 import { getServicePollHistory } from './pollHistory';
+import { listDiscovered } from '../dependencies/listDiscovered';
 
 const router = Router();
 
@@ -28,5 +29,8 @@ router.get('/:id/poll-history', requireAuth, getServicePollHistory);
 
 // Trigger immediate poll requires team membership (not just lead)
 router.post('/:id/poll', requireServiceTeamAccess, pollServiceNow);
+
+// GET /api/services/:serviceId/discovered-dependencies - List trace-discovered dependencies
+router.get('/:serviceId/discovered-dependencies', requireAuth, listDiscovered);
 
 export default router;

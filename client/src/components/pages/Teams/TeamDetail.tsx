@@ -14,6 +14,8 @@ import AlertChannels from './AlertChannels';
 import AlertRules from './AlertRules';
 import AlertHistory from './AlertHistory';
 import AlertMutes from './AlertMutes';
+import ApiKeys from './ApiKeys';
+import OtlpStats from './OtlpStats';
 import TeamOverviewStats from './TeamOverviewStats';
 import ManifestList from '../Manifest/ManifestList';
 import { useAlertChannels } from '../../../hooks/useAlertChannels';
@@ -149,6 +151,8 @@ function TeamDetail() {
             Services ({team.services.length})
           </Tab>
           <Tab value="alerts">Alerts Config</Tab>
+          {canManageAlerts && <Tab value="api-keys">API Keys</Tab>}
+          {canManageAlerts && <Tab value="otlp-stats">OTLP</Tab>}
         </TabList>
 
         {/* Overview Tab */}
@@ -406,6 +410,19 @@ function TeamDetail() {
             </div>
           </div>
         </TabPanel>
+
+        {/* API Keys Tab */}
+        {canManageAlerts && (
+          <TabPanel value="api-keys">
+            <ApiKeys teamId={id!} canManage={canManageAlerts} />
+          </TabPanel>
+        )}
+
+        {canManageAlerts && (
+          <TabPanel value="otlp-stats">
+            <OtlpStats teamId={id!} canManage={canManageAlerts} />
+          </TabPanel>
+        )}
       </Tabs>
 
       <Modal

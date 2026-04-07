@@ -26,6 +26,10 @@ describe('ServiceTypeInferencer', () => {
     check_details: null,
     error: null,
     error_message: null,
+    discovery_source: 'manual',
+    user_display_name: null,
+    user_description: null,
+    user_impact: null,
     skipped: 0,
     last_checked: new Date().toISOString(),
     last_status_change: null,
@@ -33,8 +37,10 @@ describe('ServiceTypeInferencer', () => {
     updated_at: new Date().toISOString(),
     service_name: 'test-service',
     target_service_id: targetServiceId,
+    association_id: null,
     association_type: null,
     avg_latency_24h: null,
+    is_auto_suggested: null,
   });
 
   describe('compute', () => {

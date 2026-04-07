@@ -27,7 +27,8 @@ describe('AssociationStore', () => {
         id TEXT PRIMARY KEY,
         service_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        skipped INTEGER NOT NULL DEFAULT 0
+        skipped INTEGER NOT NULL DEFAULT 0,
+        discovery_source TEXT NOT NULL DEFAULT 'manual'
       );
 
       CREATE TABLE dependency_associations (
@@ -35,6 +36,8 @@ describe('AssociationStore', () => {
         dependency_id TEXT NOT NULL,
         linked_service_id TEXT NOT NULL,
         association_type TEXT DEFAULT 'api_call',
+        is_auto_suggested INTEGER NOT NULL DEFAULT 0,
+        is_dismissed INTEGER NOT NULL DEFAULT 0,
         manifest_managed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (dependency_id, linked_service_id)
@@ -215,6 +218,79 @@ describe('AssociationStore', () => {
 
     it('should count with linkedServiceId filter', () => {
       expect(store.count({ linkedServiceId: testLinkedServiceId })).toBe(1);
+    });
+  });
+
+  describe('auto-suggestion methods', () => {
+    it('create with is_auto_suggested=true sets the flag', () => {
+      const assoc = store.create({
+        dependency_id: testDependencyId,
+        linked_service_id: 'svc-789',
+        association_type: 'api_call',
+        is_auto_suggested: true,
+      });
+
+      expect(assoc.is_auto_suggested).toBe(1);
+      expect(assoc.is_dismissed).toBe(0);
+    });
+
+    it('create without is_auto_suggested defaults to 0', () => {
+      const assoc = store.create({
+        dependency_id: testDependencyId,
+        linked_service_id: 'svc-789',
+        association_type: 'database',
+      });
+
+      expect(assoc.is_auto_suggested).toBe(0);
+    });
+
+    it('findAutoSuggested returns only auto-suggested non-dismissed', () => {
+      // Auto-suggested, not dismissed
+      store.create({
+        dependency_id: testDependencyId,
+        linked_service_id: 'svc-789',
+        association_type: 'api_call',
+        is_auto_suggested: true,
+      });
+
+      // Regular (not auto-suggested) — already exists from beforeEach
+      const autoSuggested = store.findAutoSuggested(testDependencyId);
+      expect(autoSuggested).toHaveLength(1);
+      expect(autoSuggested[0].is_auto_suggested).toBe(1);
+    });
+
+    it('confirm sets is_auto_suggested=0', () => {
+      const assoc = store.create({
+        dependency_id: testDependencyId,
+        linked_service_id: 'svc-789',
+        association_type: 'api_call',
+        is_auto_suggested: true,
+      });
+
+      expect(store.confirm(assoc.id)).toBe(true);
+
+      const updated = store.findById(assoc.id)!;
+      expect(updated.is_auto_suggested).toBe(0);
+
+      // Should no longer appear in findAutoSuggested
+      expect(store.findAutoSuggested(testDependencyId)).toHaveLength(0);
+    });
+
+    it('dismiss sets is_dismissed=1', () => {
+      const assoc = store.create({
+        dependency_id: testDependencyId,
+        linked_service_id: 'svc-789',
+        association_type: 'api_call',
+        is_auto_suggested: true,
+      });
+
+      expect(store.dismiss(assoc.id)).toBe(true);
+
+      const updated = store.findById(assoc.id)!;
+      expect(updated.is_dismissed).toBe(1);
+
+      // Should no longer appear in findAutoSuggested
+      expect(store.findAutoSuggested(testDependencyId)).toHaveLength(0);
     });
   });
 });

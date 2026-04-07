@@ -91,6 +91,20 @@ export interface SchemaMapping {
   };
 }
 
+// Metric schema config for Prometheus and OTLP custom metric/label mappings
+export interface MetricSchemaConfig {
+  metrics: Record<string, string>;  // user metric name → depsera field (state, healthy, latency, code, skipped)
+  labels: Record<string, string>;   // user label/attribute name → depsera field (name, type, impact, description, errorMessage)
+  latency_unit?: 'ms' | 's';       // default 'ms'
+  healthy_value?: number;           // value that means healthy for the 'healthy' target (default: 1)
+}
+
+export const VALID_METRIC_TARGETS = ['state', 'healthy', 'latency', 'code', 'skipped'] as const;
+export const VALID_LABEL_TARGETS = ['name', 'type', 'impact', 'description', 'errorMessage'] as const;
+
+// Health endpoint format types
+export type HealthEndpointFormat = 'default' | 'schema' | 'prometheus' | 'otlp';
+
 // Service types
 export interface Service {
   id: string;
@@ -108,6 +122,7 @@ export interface Service {
   poll_warnings: string | null; // JSON array of warning strings
   manifest_key: string | null;
   manifest_managed: number; // SQLite boolean — 1 if managed by manifest
+  health_endpoint_format: HealthEndpointFormat;
   manifest_config_id: string | null; // FK → team_manifest_config.id
   manifest_last_synced_values: string | null; // JSON snapshot of last synced field values
   created_at: string;
@@ -137,6 +152,9 @@ export interface ServiceWithDependencies extends Service {
   dependencies: Dependency[];
   team: Team;
 }
+
+// Discovery source types
+export type DiscoverySource = 'manual' | 'otlp_metric' | 'otlp_trace';
 
 // Dependency types
 export type HealthState = 0 | 1 | 2; // 0=OK, 1=WARNING, 2=CRITICAL
@@ -174,6 +192,10 @@ export interface Dependency {
   check_details: string | null; // JSON string of check details
   error: string | null; // JSON string of error object
   error_message: string | null;
+  discovery_source: DiscoverySource;
+  user_display_name: string | null;
+  user_description: string | null;
+  user_impact: string | null;
   skipped: number; // SQLite boolean — 1 if health check is skipped
   last_checked: string | null;
   last_status_change: string | null;
@@ -208,6 +230,8 @@ export interface DependencyAssociation {
   dependency_id: string;
   linked_service_id: string;
   association_type: AssociationType;
+  is_auto_suggested: number; // SQLite boolean — 1 if auto-suggested from traces
+  is_dismissed: number; // SQLite boolean — 1 if user dismissed the suggestion
   manifest_managed: number; // SQLite boolean — 1 if managed by manifest
   created_at: string;
 }
@@ -256,6 +280,14 @@ export interface ProactiveDepsStatus {
     code: number;
     latency: number;
     skipped?: boolean;
+    percentiles?: {
+      p50?: number;
+      p95?: number;
+      p99?: number;
+      min?: number;
+      max?: number;
+      requestCount?: number;
+    };
   };
   lastChecked: string;
   checkDetails?: Record<string, unknown>;
@@ -311,6 +343,67 @@ export interface LatencyStats {
 export interface LatencyDataPoint {
   latency_ms: number;
   recorded_at: string;
+}
+
+// Span types (full span storage for trace correlation)
+export interface Span {
+  id: string;
+  trace_id: string;
+  span_id: string;
+  parent_span_id: string | null;
+  service_name: string;
+  team_id: string;
+  name: string;
+  kind: number; // 0=UNSPECIFIED, 1=INTERNAL, 2=SERVER, 3=CLIENT, 4=PRODUCER, 5=CONSUMER
+  start_time: string;
+  end_time: string;
+  duration_ms: number;
+  status_code: number;
+  status_message: string | null;
+  attributes: string | null; // JSON
+  resource_attributes: string | null; // JSON
+  created_at: string;
+}
+
+export interface CreateSpanInput {
+  trace_id: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  service_name: string;
+  team_id: string;
+  name: string;
+  kind?: number;
+  start_time: string;
+  end_time: string;
+  duration_ms: number;
+  status_code?: number;
+  status_message?: string | null;
+  attributes?: string | null;
+  resource_attributes?: string | null;
+}
+
+// External node enrichment types (org-wide enrichment for virtual external nodes)
+export interface ExternalNodeEnrichment {
+  id: string;
+  canonical_name: string;
+  display_name: string | null;
+  description: string | null;
+  impact: string | null;
+  contact: string | null; // JSON
+  service_type: string | null;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export interface UpsertExternalNodeEnrichmentInput {
+  canonical_name: string;
+  display_name?: string | null;
+  description?: string | null;
+  impact?: string | null;
+  contact?: string | null;
+  service_type?: string | null;
+  updated_by?: string | null;
 }
 
 // Error history types
@@ -369,9 +462,11 @@ export type AuditAction =
   | 'drift.bulk_accepted'
   | 'drift.bulk_dismissed'
   | 'alert_mute.created'
-  | 'alert_mute.deleted';
+  | 'alert_mute.deleted'
+  | 'api_key.created'
+  | 'api_key.revoked';
 
-export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag' | 'alert_mute';
+export type AuditResourceType = 'user' | 'team' | 'service' | 'external_service' | 'settings' | 'canonical_override' | 'dependency' | 'manifest_config' | 'drift_flag' | 'alert_mute' | 'team_api_key';
 
 export interface AuditLogEntry {
   id: string;
@@ -475,6 +570,34 @@ export interface CreateAlertMuteInput {
   reason?: string | null;
   created_by: string;
   expires_at?: string | null;
+}
+
+// Team API key types
+export interface TeamApiKey {
+  id: string;
+  team_id: string;
+  name: string;
+  key_hash: string;
+  key_prefix: string;
+  rate_limit_rpm: number | null;        // null = system default
+  rate_limit_admin_locked: number;      // 0 or 1 (SQLite boolean)
+  last_used_at: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface CreateTeamApiKeyInput {
+  team_id: string;
+  name: string;
+  created_by?: string;
+}
+
+export interface ApiKeyUsageBucket {
+  api_key_id: string;
+  bucket_start: string;       // ISO 8601 UTC, e.g. "2025-01-15T14:32:00"
+  granularity: 'minute' | 'hour';
+  push_count: number;
+  rejected_count: number;
 }
 
 // Status change event types

@@ -72,7 +72,10 @@ function Login() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <h1 className={styles.title}>Depsera</h1>
+        <div className={styles.logoContainer}>
+          <img src="/depsera-sphere.svg" alt="" className={styles.logoIcon} />
+          <img src="/depsera-title.svg" alt="Depsera" className={styles.logoTitle} />
+        </div>
         <p className={styles.subtitle}>Sign in to continue</p>
 
         {displayError && (

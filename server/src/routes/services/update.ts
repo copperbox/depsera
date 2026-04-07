@@ -40,13 +40,15 @@ export function updateService(req: Request, res: Response): void {
       schema_config: validated.schema_config,
       poll_interval_ms: validated.poll_interval_ms,
       is_active: validated.is_active,
+      health_endpoint_format: validated.health_endpoint_format,
     });
 
-    // Update polling service if is_active, health_endpoint, or poll_interval_ms changed
+    // Update polling service if is_active, health_endpoint, poll_interval_ms, or format changed
     if (
       validated.is_active !== undefined ||
       validated.health_endpoint !== undefined ||
-      validated.poll_interval_ms !== undefined
+      validated.poll_interval_ms !== undefined ||
+      validated.health_endpoint_format !== undefined
     ) {
       const pollingService = HealthPollingService.getInstance();
       const newIsActive =
