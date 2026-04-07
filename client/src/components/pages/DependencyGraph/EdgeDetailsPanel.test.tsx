@@ -519,6 +519,7 @@ describe('EdgeDetailsPanel', () => {
     });
 
     it('calls confirmAssociation on confirm click', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { confirmAssociation } = require('../../../api/associations');
       const onGraphRefresh = jest.fn();
       const suggestedData = {
@@ -550,6 +551,7 @@ describe('EdgeDetailsPanel', () => {
     });
 
     it('calls dismissAssociation on dismiss click', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { dismissAssociation } = require('../../../api/associations');
       const onGraphRefresh = jest.fn();
       const suggestedData = {

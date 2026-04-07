@@ -88,13 +88,13 @@ function interpolatePercentile(
 
   // Find the bucket where cumulative count crosses the rank
   for (let i = 0; i < cumulative.length; i++) {
-    if (cumulative[i] >= rank) {
+    if (cumulative[i] >= rank) { // eslint-disable-line security/detect-object-injection
       // Lower bound of the bucket
       const lowerBound = i === 0 ? 0 : bounds[i - 1];
       // Upper bound — for the overflow bucket (last), cap at last explicit bound
-      const upperBound = i < bounds.length ? bounds[i] : bounds[bounds.length - 1];
+      const upperBound = i < bounds.length ? bounds[i] : bounds[bounds.length - 1]; // eslint-disable-line security/detect-object-injection
 
-      const bucketCount = i === 0 ? cumulative[0] : cumulative[i] - cumulative[i - 1];
+      const bucketCount = i === 0 ? cumulative[0] : cumulative[i] - cumulative[i - 1]; // eslint-disable-line security/detect-object-injection
       if (bucketCount === 0) {
         return lowerBound * unitMultiplier;
       }

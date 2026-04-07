@@ -43,7 +43,7 @@ function maskWebhookConfig(config: WebhookConfig): WebhookConfig {
   if (config.headers) {
     const maskedHeaders: Record<string, string> = {};
     for (const key of Object.keys(config.headers)) {
-      maskedHeaders[key] = MASK;
+      maskedHeaders[key] = MASK; // eslint-disable-line security/detect-object-injection
     }
     result.headers = maskedHeaders;
   }

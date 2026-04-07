@@ -34,7 +34,7 @@ export function buildEffectiveMaps(
     const overriddenFields = new Set(Object.values(config.metrics));
     for (const [key, field] of Object.entries(metricMap)) {
       if (overriddenFields.has(field)) {
-        delete metricMap[key];
+        delete metricMap[key]; // eslint-disable-line security/detect-object-injection
       }
     }
     Object.assign(metricMap, config.metrics);
@@ -45,7 +45,7 @@ export function buildEffectiveMaps(
     const overriddenFields = new Set(Object.values(config.labels));
     for (const [key, field] of Object.entries(labelMap)) {
       if (overriddenFields.has(field)) {
-        delete labelMap[key];
+        delete labelMap[key]; // eslint-disable-line security/detect-object-injection
       }
     }
     Object.assign(labelMap, config.labels);

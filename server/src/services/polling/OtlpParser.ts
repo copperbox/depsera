@@ -113,13 +113,13 @@ export class OtlpParser {
             const entry = depMap.get(depName)!;
             // Merge attributes (later data points can fill in missing attrs)
             for (const [k, v] of Object.entries(attrs)) {
-              if (entry[k] === undefined) {
-                entry[k] = v;
+              if (entry[k] === undefined) { // eslint-disable-line security/detect-object-injection
+                entry[k] = v; // eslint-disable-line security/detect-object-injection
               }
             }
 
             // Set the metric value
-            entry[field] = this.extractDataPointValue(dp);
+            entry[field] = this.extractDataPointValue(dp); // eslint-disable-line security/detect-object-injection
 
             // Capture timestamp from the data point
             if (dp.timeUnixNano && !entry._timeUnixNano) {
@@ -187,7 +187,7 @@ export class OtlpParser {
               // Non-monotonic sum — treat as gauge value
               const sumField = metricMap[metric.name];
               if (sumField) {
-                entry[sumField] = value;
+                entry[sumField] = value; // eslint-disable-line security/detect-object-injection
               }
             } else {
               // Monotonic sum — store raw count as requestCount
@@ -228,7 +228,7 @@ export class OtlpParser {
     for (const kv of dp.attributes) {
       const field = attrMap[kv.key];
       if (field) {
-        result[field] = this.unwrapValue(kv.value);
+        result[field] = this.unwrapValue(kv.value); // eslint-disable-line security/detect-object-injection
       }
     }
     return result;
@@ -244,7 +244,7 @@ export class OtlpParser {
     for (const kv of attrs) {
       const field = attrMap[kv.key];
       if (field) {
-        result[field] = this.unwrapValue(kv.value);
+        result[field] = this.unwrapValue(kv.value); // eslint-disable-line security/detect-object-injection
       }
     }
     return result;

@@ -116,6 +116,7 @@ export function createPerKeyRateLimit(options?: { getNow?: () => number }): Requ
       // Track rejected request in usage accumulator
       try {
         // Dynamic import to avoid circular dependency at module load time
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { incrementRejected } = require('./trackApiKeyUsage');
         incrementRejected(apiKeyId);
       } catch {

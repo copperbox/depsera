@@ -78,7 +78,7 @@ export function ApiKeyUsageChart({
       setError(null);
       try {
         const now = new Date();
-        const from = new Date(now.getTime() - RANGE_DURATIONS_MS[selectedRange]).toISOString();
+        const from = new Date(now.getTime() - RANGE_DURATIONS_MS[selectedRange]).toISOString(); // eslint-disable-line security/detect-object-injection
         const to = now.toISOString();
         const granularity = getGranularity(selectedRange);
 
