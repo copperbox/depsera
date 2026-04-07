@@ -44,7 +44,7 @@ import { parseTrustProxy } from './middleware/trustProxy';
 import { createHttpsRedirect } from './middleware/httpsRedirect';
 import { createGlobalRateLimit, createAuthRateLimit, createOtlpGlobalRateLimit } from './middleware/rateLimit';
 import { createPerKeyRateLimit } from './middleware/perKeyRateLimit';
-import { createTrackApiKeyUsage } from './middleware/trackApiKeyUsage';
+import { createTrackApiKeyUsage, startUsageFlusher } from './middleware/trackApiKeyUsage';
 import { requireApiKeyAuth } from './auth/apiKeyAuth';
 import otlpRouter from './routes/otlp';
 import traceRouter from './routes/otlp/traces';
@@ -218,6 +218,9 @@ async function start() {
 
   // Start polling all active services
   pollingService.startAll();
+
+  // Start the OTLP API key usage flusher (persists in-memory counts to DB on an interval)
+  startUsageFlusher();
 
   let server: http.Server | https.Server;
   let httpRedirectServer: http.Server | undefined;

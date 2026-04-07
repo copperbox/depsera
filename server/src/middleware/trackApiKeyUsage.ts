@@ -55,13 +55,37 @@ function flush(): void {
   getStores().apiKeyUsage.bulkUpsert(entries);
 }
 
-const FLUSH_INTERVAL_MS = parseInt(process.env.OTLP_USAGE_FLUSH_INTERVAL_MS ?? '5000', 10);
-const flushInterval = setInterval(flush, FLUSH_INTERVAL_MS);
-flushInterval.unref();
-process.on('beforeExit', () => {
-  clearInterval(flushInterval);
+let flushInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Start the background flusher that periodically persists accumulated usage to the DB.
+ * Must be called explicitly from the server entry point — not on module load — so that
+ * importing this module in tests does not leak timers or schedule DB writes.
+ */
+export function startUsageFlusher(): void {
+  if (flushInterval) return;
+  const intervalMs = parseInt(process.env.OTLP_USAGE_FLUSH_INTERVAL_MS ?? '5000', 10);
+  flushInterval = setInterval(flush, intervalMs);
+  flushInterval.unref();
+  process.on('beforeExit', flushOnExit);
+}
+
+/** Stop the background flusher and perform a final flush. */
+export function stopUsageFlusher(): void {
+  if (flushInterval) {
+    clearInterval(flushInterval);
+    flushInterval = null;
+  }
+  process.off('beforeExit', flushOnExit);
+}
+
+function flushOnExit(): void {
+  if (flushInterval) {
+    clearInterval(flushInterval);
+    flushInterval = null;
+  }
   flush();
-});
+}
 
 export function createTrackApiKeyUsage(): RequestHandler {
   return (req: Request, _res: Response, next: NextFunction): void => {
